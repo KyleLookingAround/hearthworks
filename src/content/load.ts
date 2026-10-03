@@ -111,7 +111,8 @@ export function buildContent(files: SourceFile[]): Content {
     if (!isMap(d.data.tuning)) { problems.push(`${d.path}: needs a "tuning:" block`); return [d, {}]; }
     return [d, d.data.tuning];
   };
-  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production');
+  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner');
+  const q = (k: string) => num(qd, qt[k], `tuning.${k}`);
   const tuning: Tuning = {
     map: { width: num(md, mt.width, 'tuning.width'), height: num(md, mt.height, 'tuning.height'), treeGrowSeconds: num(md, mt.tree_grow_seconds, 'tuning.tree_grow_seconds') },
     start: { villagers: num(sd, st.villagers, 'tuning.villagers'), storage: stock(sd, st.storage, 'tuning.storage'), houseStock: stock(sd, st.house_stock, 'tuning.house_stock') },
@@ -128,6 +129,14 @@ export function buildContent(files: SourceFile[]): Content {
     production: {
       buildSeconds: num(pd, pt.build_seconds, 'tuning.build_seconds'), replantEverySeconds: num(pd, pt.replant_every_seconds, 'tuning.replant_every_seconds'),
       maxTreesNearForester: num(pd, pt.max_trees_near_forester, 'tuning.max_trees_near_forester'),
+      sitePriorityTiles: num(pd, pt.site_priority_tiles, 'tuning.site_priority_tiles'),
+    },
+    planner: {
+      intervalSeconds: q('interval_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'),
+      foodHeadroom: q('food_headroom'), growthBeds: q('growth_beds'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
+      costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'),
+      searchRadius: q('search_radius'), gap: q('gap'), minTrees: q('min_trees'),
+      treeWeight: q('tree_weight'), sharedTreeWeight: q('shared_tree_weight'), linkWeight: q('link_weight'), storeWeight: q('store_weight'), forestPenalty: q('forest_penalty'),
     },
   };
   checkGoods(sd, tuning.start.storage, 'tuning.storage'); checkGoods(sd, tuning.start.houseStock, 'tuning.house_stock');

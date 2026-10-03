@@ -5,3 +5,4 @@
 * [couriers.ts](couriers.ts)
 * [first-plank.ts](first-plank.ts)
 * [sustain-town.ts](sustain-town.ts)
+* [village-plans.ts](village-plans.ts)

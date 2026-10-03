@@ -1,5 +1,6 @@
 import { makeRng, rand, valueNoise } from './rng.ts';
 import { makeAgent, removeAgent } from './agents.ts';
+import { plannerOn } from './planner.ts';
 import type { Agent, Building, Content, GameEvent, State, World } from './types.ts';
 
 export const inB = (w: World, x: number, y: number) => x >= 0 && y >= 0 && x < w.w && y < w.h;
@@ -42,11 +43,14 @@ function generateWorld(content: Content, S: State): World {
   return w;
 }
 
-/** A new island with the starting settlement: a storage yard, two houses and a short road. */
-export function createState(content: Content, seed: number): State {
+/**
+ * A new island with the starting settlement: a storage yard, two houses and a short road.
+ * The village planner is off unless `planner` is set, so scripted scenarios stay scripted.
+ */
+export function createState(content: Content, seed: number, opts: { planner?: boolean } = {}): State {
   const S = {
     content, seed, rng: makeRng(seed), t: 0, buildings: [], agents: [], bmap: new Map(), amap: new Map(), nextId: 1,
-    mood: 1, migT: 0, secT: 0, events: [],
+    mood: 1, migT: 0, secT: 0, events: [], planner: plannerOn(opts.planner ?? false),
     stats: { made: {}, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0 },
   } as unknown as State;
   S.world = generateWorld(content, S);
@@ -85,7 +89,7 @@ export function placeBuilding(S: State, type: string, x: number, y: number, comp
   if (B.paves) { const i = y * w.w + x; w.road[i] = 1; w.tree[i] = 0; return null; }
   const b: Building = {
     id: S.nextId++, type, x, y, w: B.w, h: B.h, site: !complete, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false,
+    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '',
   };
   for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; w.road[i] = 0; }
   S.buildings.push(b); S.bmap.set(b.id, b);

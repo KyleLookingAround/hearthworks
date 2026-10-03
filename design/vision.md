@@ -4,7 +4,7 @@ title: Vision
 description: A 2D web town builder where villagers decide what to build, and a hamlet grows into a civilisation on its own.
 tags: [vision]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T08:15:00Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T08:55:28Z }
 sources:
   - id: kyle-2026-10-03
     resource: conversation with Kyle on 2026-10-03
@@ -37,7 +37,7 @@ A functional economy where the carpenter waits on the forester and the forester 
 
 # Today
 
-The prototype is player-placed (see the [roadmap](/roadmap.md)). The simulation, logistics and needs it proves are the foundation the planner will sit on.
+The village plans: the [planner](/systems/planner.md) grows a hamlet of five into a town of about ninety in half an hour of game time, and the player can switch it off to place buildings by hand. What it does not do yet is the knowledge pillar: every village starts out knowing every blueprint (see the [roadmap](/roadmap.md)).
 
 [^kyle-2026-10-03]: Direction set by Kyle
 [^havencraft]: HavenCraft on Steam

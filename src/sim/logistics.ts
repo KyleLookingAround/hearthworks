@@ -17,17 +17,43 @@ export function available(S: State, b: Building, item: ItemId): number {
   return 0;
 }
 
+/** Goods on offer anywhere, not yet claimed by a carrier. */
+export function supplyOf(S: State, item: ItemId): number {
+  let n = 0;
+  for (const b of S.buildings) n += Math.max(0, available(S, b, item));
+  return n;
+}
+
+/**
+ * Construction sites queue for materials: highest priority first, then oldest.
+ * Each site is promised its outstanding need from the free supply in turn, and
+ * only requests what is left after every site ahead of it, so an expensive site
+ * cannot soak up the planks a more urgent one is waiting for. Carriers also treat
+ * a site as `site_priority_tiles` nearer per priority level.
+ */
+function siteRequests(S: State, reqs: Request[]) {
+  const per = S.content.tuning.production.sitePriorityTiles;
+  const sites = S.buildings.filter(b => b.site).sort((a, b) => b.priority - a.priority || a.id - b.id);
+  const left: Record<ItemId, number> = {};
+  for (const b of sites) {
+    const B = bp(S, b);
+    for (const item in B.cost) {
+      const need = B.cost[item] - (b.inv[item] || 0) - (b.incoming[item] || 0);
+      if (need <= 0) continue;
+      if (!(item in left)) left[item] = supplyOf(S, item);
+      const n = Math.min(need, left[item]);
+      left[item] -= need;
+      if (n > 0) reqs.push({ dst: b, item, need: n, pri: -b.priority * per });
+    }
+  }
+}
+
 export function collectRequests(S: State): Request[] {
   const reqs: Request[] = [];
+  siteRequests(S, reqs);
   for (const b of S.buildings) {
     const B = bp(S, b);
-    if (b.site) {
-      for (const item in B.cost) {
-        const need = B.cost[item] - (b.inv[item] || 0) - (b.incoming[item] || 0);
-        if (need > 0) reqs.push({ dst: b, item, need, pri: 0 });
-      }
-      continue;
-    }
+    if (b.site) continue;
     if (b.paused) continue;
     for (const item in B.keepStocked) {
       const need = B.keepStocked[item] - (b.inv[item] || 0) - (b.incoming[item] || 0);
