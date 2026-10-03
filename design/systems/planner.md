@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T18:22:59Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T18:48:55Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -37,6 +37,7 @@ tuning:
   min_severity: 0.15
   food_headroom: 1.3
   growth_beds: 3
+  store_full_share: 0.9
   growth_weight: 0.7
   carrier_share: 0.4
   planks_per_villager_minute: 0.7
@@ -126,6 +127,14 @@ Overlays in the menu show how each home feels (surroundings, hunger), the reach 
 - **Keep back for the maker.** Until something in the settlement makes a good, the planner keeps back enough of it to build the cheapest building that makes it: it never spends the last planks before a sawmill.
 - **Food workers first.** A hungry settlement takes a worker off a workplace outside the food chain to staff one in it.
 - **Follow what it can afford.** When a choice needs an input nobody makes, the planner plans that input's maker first, but only if it can pay for it today; otherwise it builds the maker of what it lacks.
+
+# Full stores
+
+When a settlement's stores (those that take anything) hold `store_full_share` of their room, it wants another: workshops stall with nowhere to put their goods. In every game, not only with seasons.
+
+# People
+
+With [people](/systems/people.md) on, the dead waiting with no place for the settlement's custom make it plan one (a graveyard, another when that is full, a pyre, a dock), and a settlement short of what a workplace makes moves a worker onto it, as a hungry one does for its food chain.
 
 # Trade
 

@@ -2,6 +2,7 @@ import { makeRng, rand, valueNoise, type Rng } from './rng.ts';
 import { goToBuilding, makeAgent, removeAgent } from './agents.ts';
 import { plannerOn } from './planner.ts';
 import { foundersKnowledge } from './knowledge.ts';
+import { initPeople } from './people.ts';
 import { findPath } from './path.ts';
 import type { Agent, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
 
@@ -222,13 +223,13 @@ function firstSite(S: State): { x: number; y: number } {
  * `settlements` above 1 founds neighbours the same way, as far apart as the land allows.
  * The village planner is off unless `planner` is set, so scripted scenarios stay scripted.
  */
-export interface WorldOptions { /** the year turns (default off, for scenarios that predate seasons) */ seasons?: boolean; /** neighbours trade (default off, for scenarios that predate it) */ trade?: boolean; /** planners pave worn paths (default on) */ roads?: boolean; planner?: boolean; settlements?: number; map?: string; size?: string }
+export interface WorldOptions { /** the year turns (default off, for scenarios that predate seasons) */ seasons?: boolean; /** neighbours trade (default off, for scenarios that predate it) */ trade?: boolean; /** villagers age, are born and die, learn, and honour their dead (default off) */ people?: boolean; /** newcomers arrive (default on) */ newcomers?: boolean; /** planners pave worn paths (default on) */ roads?: boolean; planner?: boolean; settlements?: number; map?: string; size?: string }
 
 export function createState(content: Content, seed: number, opts: WorldOptions = {}): State {
   const S = {
     content, seed, rng: makeRng(seed), krng: makeRng(seed ^ 0x6b6e6f77), t: 0, buildings: [], agents: [], bmap: new Map(), amap: new Map(), nextId: 1,
     mood: 1, fed: 1, migT: 0, secT: 0, events: [], towns: [], chronicle: [], seasons: false, trade: false,
-    stats: { made: {}, trades: 0, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, spoiled: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0 },
+    stats: { made: {}, trades: 0, births: 0, deaths: 0, honoured: 0, riteWaitMax: 0, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, spoiled: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0 },
   } as unknown as State;
   const mt = content.tuning.map;
   const mapId = opts.map ?? mt.standardType, sizeId = opts.size ?? mt.standardSize;
@@ -239,6 +240,9 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   S.setup = { map: mapId, size: sizeId, settlements: opts.settlements ?? 1 };
   S.seasons = opts.seasons ?? false;
   S.trade = opts.trade ?? false;
+  S.people = opts.people ?? false;
+  S.newcomers = opts.newcomers ?? true;
+  S.prng = makeRng(seed ^ 0x70656f70);
   S.world = generateWorld(M, size.width, size.height, S);
   const L = content.tuning.logistics;
   S.world.waterCost = L.villagerSpeed / L.boatSpeed;
@@ -254,6 +258,7 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
     foundTown(S, at.x, at.y, opts.planner ?? false, opts.roads ?? true);
   }
   S.planner = S.towns[0].planner;
+  if (S.people) initPeople(S);
   S.stats.peakVillagers = villagers(S).length;
   return S;
 }
@@ -264,7 +269,7 @@ function foundTown(S: State, cx: number, cy: number, planner: boolean, roads: bo
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger() };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', rites: [], graves: {} };
   S.towns.push(town);
   chronicle(S, id, 'founded', `${town.name} was founded with ${t.villagers} villagers`);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;

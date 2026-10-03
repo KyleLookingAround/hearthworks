@@ -1,5 +1,6 @@
 import { rand } from './rng.ts';
 import { release, removeAgent } from './agents.ts';
+import { skillPace } from './people.ts';
 import { add, bp, completeSite, ctr, emit, foodsOf, inB, plant, seasonOf } from './world.ts';
 import type { Building, Level, State, Stock } from './types.ts';
 
@@ -59,6 +60,12 @@ export function wants(S: State, b: Building, form: string): Stock {
     for (const g of S.content.tuning.seasons.preserved) out[g] = 2;
   }
   if (B.tools) out.tools = 1;
+  // while the dead wait for their farewell, the pyre wants its logs and the dock the planks for a boat
+  const town = S.towns[b.town];
+  if (S.people && B.rite && town && town.custom === B.rite && town.rites.length) {
+    if (B.rite === 'cremation') out.logs = S.content.tuning.people.pyreLogs;
+    if (B.rite === 'ship') out.planks = S.content.tuning.people.shipPlanks;
+  }
   if (B.homes) {
     if (form !== 'hamlet') for (const g of N.tierTwo) out[g] = N.extrasStock;
     if (form === 'town') for (const g of N.tierThree) out[g] = 1;
@@ -152,7 +159,7 @@ function run(S: State, b: Building, dt: number) {
   // tools speed the work up, and wear out
   const tooled = !!B.tools && (b.inv.tools || 0) >= 1;
   setStatus(b, tooled ? 'Working, with tools' : 'Working', 'ok');
-  b.timer += dt * (tooled ? B.tools!.speedup : 1);
+  b.timer += dt * (tooled ? B.tools!.speedup : 1) * skillPace(S, w, b);
   if (b.timer >= B.seconds) {
     b.timer = 0;
     if (tooled && ++b.wear >= B.tools!.wearCycles) { b.wear = 0; add(b.inv, 'tools', -1); }

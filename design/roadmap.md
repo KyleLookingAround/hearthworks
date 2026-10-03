@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T18:22:59Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T18:48:55Z }
 ---
 
 # How to read this
@@ -30,7 +30,7 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 11 | A deeper economy | Stone, clay, tools, fish, cloth; multi-input recipes; home tiers by goods; storage | 9 | [Gate 11](/gates/11-deeper-economy.md) | Done |
 | 12 | Seasons | A year: growing seasons, winter, warmth, storing food | 11 | [Gate 12](/gates/12-seasons.md) | Done |
 | 13 | Neighbours trade | Settlements swap surplus for want, on foot at first; specialisation | 11 | [Gate 13](/gates/13-trade.md) | Done |
-| 14 | People and traditions | Individuals: families, births, ageing, skills, apprenticeships; death and each village's own customs for it | 12 | A town grows by births alone; neighbours keep different customs | Later |
+| 14 | People and traditions | Individuals: families, births, ageing, skills, apprenticeships; death and each village's own customs for it | 12 | [Gate 14](/gates/14-people.md) | Done |
 | 15 | Learning | Libraries, schools, universities; knowledge kept, taught and pursued | 14 | A library keeps a craft alive; a university speeds a discovery | Later |
 | 16 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | Carts carry most long hauls and cut delivery time | Later |
 | 17 | New settlements | Crowded towns send settlers off with goods, knowledge and customs | 16 | One settlement becomes four, unscripted | Later |
@@ -236,6 +236,10 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 **Gate 14 (proposed).** Two parts.
 - **Growth:** newcomers off, 60 game minutes: population up at least 50% by births; at least one expert in every trade; `fed_min` at Gate 2's level.
 - **Customs:** two settlements whose land and wood differ end with different burial customs, and every death is honoured by its village's custom within a set time.
+
+**Delivered.** [People](/systems/people.md), on in every new game and off in older scenarios, with their own random stream: ages (children neither work nor carry; elders retire from workplaces and carry), births in fed homes with two adults while the food chain is not badly short, death of old age only, told gently; a skill per trade that grows with practice, three times as fast with a master in the settlement, sets a workplace's pace and decides who gets the job; burial in a [Graveyard](/blueprints/graveyard.md), cremation on a [Pyre](/blueprints/pyre.md) that burns logs, ship burial from a [Dock](/blueprints/dock.md) that takes planks, each settlement's custom from its land (water, then wood), changed when it cannot be kept and noticed by neighbours; the planner builds the custom's place and more storage when its stores are full. Children are drawn smaller; homes list their household; the Steward panel shows the custom. Saves go to version 10. **Phase 14 is done** apart from planners as people (town and district halls) and traditions beyond the dead (feasts, festivals, naming), which wait for a later phase.
+
+**Gate 14 (stable)**, as proposed: growth by births alone at least 1.5 times over an hour with newcomers off, an expert in every trade standing, `fed_min` 0.6; two settlements whose land differs keep different customs, and every death (an old founding generation, scripted to die within the hour) is honoured within five minutes.
 
 **Kyle's call.** Tone of death and ageing in a cosy game (old age only, shown gently?), and which burial customs fit the game's feel.
 

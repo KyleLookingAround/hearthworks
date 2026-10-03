@@ -9,7 +9,7 @@ import type { State, Town } from './types.ts';
 /** OKF log labels for each kind of chronicle line. */
 const LABEL: Record<string, string> = {
   founded: 'Creation', invented: 'Creation', district: 'Creation', bridge: 'Creation',
-  form: 'Update', replanned: 'Update', taught: 'Update', learned: 'Update', proven: 'Update',
+  form: 'Update', replanned: 'Update', taught: 'Update', learned: 'Update', proven: 'Update', season: 'Update', trade: 'Creation', birth: 'Creation', custom: 'Update',
   forgotten: 'Deprecation',
 };
 

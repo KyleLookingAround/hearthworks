@@ -6,6 +6,7 @@
 * [Logistics](logistics.md) - The job board — requests, offers, reservations, carriers and courier bots.
 * [Map](map.md) - Map types and sizes, seeded generation, the standard map, trees and regrowth.
 * [Needs and population](needs.md) - Eating, mood, newcomers arriving and villagers leaving.
+* [People](people.md) - Villagers as individuals; ages, births and deaths, skills that grow with practice and pass from master to apprentice, and each village's custom for its dead.
 * [Village planner](planner.md) - Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 * [Production and construction](production.md) - Construction sites and their priority queue, worker assignment and recipe cycles.
 * [Saves](saves.md) - The whole game as versioned JSON; autosaved in the browser, downloadable, and loaded to play on exactly as if it never stopped.

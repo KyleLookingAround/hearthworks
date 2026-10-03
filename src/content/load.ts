@@ -107,6 +107,8 @@ export function buildContent(files: SourceFile[]): Content {
       shore: f.shore === true,
       zone: f.zone === 'farms' || f.zone === 'workshops' || f.zone === 'homes' ? f.zone : (num(d, f.homes, 'homes', 0) > 0 ? 'homes' : null),
       seasonal: f.seasonal === true,
+      rite: f.rite === 'burial' || f.rite === 'cremation' || f.rite === 'ship' ? f.rite : null,
+      graves: typeof f.graves === 'number' ? f.graves : 0,
       form: f.form === 'town' ? 'town' : f.form === 'village' ? 'village' : 'hamlet',
       bridge: bridge ? { maxSpan: num(d, bridge.max_span, 'bridge.max_span') } : null,
       nuisance: nuisance ? { radius: num(d, nuisance.radius, 'nuisance.radius'), amount: num(d, nuisance.amount, 'nuisance.amount') } : null,
@@ -155,7 +157,7 @@ export function buildContent(files: SourceFile[]): Content {
     if (!isMap(d.data.tuning)) { problems.push(`${d.path}: needs a "tuning:" block`); return [d, {}]; }
     return [d, d.data.tuning];
   };
-  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade');
+  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people');
   const sizes: Record<string, MapSize> = {};
   for (const [id, v] of Object.entries(isMap(mt.sizes) ? mt.sizes : {})) {
     const m = isMap(v) ? v : {};
@@ -183,6 +185,11 @@ export function buildContent(files: SourceFile[]): Content {
       tierTwo: Array.isArray(nt.tier_two) ? nt.tier_two.map(String) : [], tierThree: Array.isArray(nt.tier_three) ? nt.tier_three.map(String) : [],
       extrasEverySeconds: num(nd, nt.extras_every_seconds, 'tuning.extras_every_seconds'), extrasStock: num(nd, nt.extras_stock, 'tuning.extras_stock'), varietyBonus: num(nd, nt.variety_bonus, 'tuning.variety_bonus'),
     },
+    people: (() => { const g = (k: string) => num(od, ot[k], `tuning.${k}`); return {
+      adultSeconds: g('adult_seconds'), elderSeconds: g('elder_seconds'), lifespanSeconds: g('lifespan_seconds'), lifespanJitterSeconds: g('lifespan_jitter_seconds'), founderAgeMaxSeconds: g('founder_age_max_seconds'), birthEverySeconds: g('birth_every_seconds'),
+      practiceSeconds: g('practice_seconds'), apprenticeFactor: g('apprentice_factor'), expertAt: g('expert_at'), skillSpeedup: g('skill_speedup'), riteGraceSeconds: g('rite_grace_seconds'), ritePenalty: g('rite_penalty'),
+      changeCustomAfterSeconds: g('change_custom_after_seconds'), pyreLogs: g('pyre_logs'), shipPlanks: g('ship_planks'), customRadius: g('custom_radius'), woodForPyre: g('wood_for_pyre'), waterForShip: g('water_for_ship'),
+    }; })(),
     trade: {
       everySeconds: num(td, tt.every_seconds, 'tuning.every_seconds'), load: num(td, tt.load, 'tuning.load'), keep: num(td, tt.keep, 'tuning.keep'), minVillagers: num(td, tt.min_villagers, 'tuning.min_villagers'),
       smoothingSeconds: num(td, tt.smoothing_seconds, 'tuning.smoothing_seconds'), distanceWeight: num(td, tt.distance_weight, 'tuning.distance_weight'), minRate: num(td, tt.min_rate, 'tuning.min_rate'), maxRate: num(td, tt.max_rate, 'tuning.max_rate'), villagersPerPorter: num(td, tt.villagers_per_porter, 'tuning.villagers_per_porter'), exportDemand: num(td, tt.export_demand, 'tuning.export_demand'), wantCover: num(td, tt.want_cover, 'tuning.want_cover'), spareCover: num(td, tt.spare_cover, 'tuning.spare_cover'),
@@ -203,7 +210,7 @@ export function buildContent(files: SourceFile[]): Content {
     },
     planner: {
       intervalSeconds: q('interval_seconds'), sitePatienceSeconds: q('site_patience_seconds'), buildGoods: Array.isArray(qt.build_goods) ? qt.build_goods.map(String) : ['planks'], comfortWeight: q('comfort_weight'), depositWeight: q('deposit_weight'), replanMinAge: q('replan_min_age'), districtBuildings: q('district_buildings'), districtSpacing: q('district_spacing'), districtRoomWeight: q('district_room_weight'), replanEverySeconds: q('replan_every_seconds'), salvageShare: q('salvage_share'), villageAt: q('village_at'), townAt: q('town_at'), rowWeight: q('row_weight'), streetWeight: q('street_weight'), streetEveryRows: q('street_every_rows'), streetEveryCols: q('street_every_cols'), streetRadius: q('street_radius'), detourRatio: q('detour_ratio'), detourWeight: q('detour_weight'), bridgeReachWeight: q('bridge_reach_weight'), bridgeMinGain: q('bridge_min_gain'), bridgeSpacing: q('bridge_spacing'), paveWear: q('pave_wear'), pavePerLook: q('pave_per_look'), wearHalfLifeSeconds: q('wear_half_life_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'),
-      foodHeadroom: q('food_headroom'), growthBeds: q('growth_beds'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
+      foodHeadroom: q('food_headroom'), growthBeds: q('growth_beds'), storeFullShare: q('store_full_share'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
       costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), crossingWeight: q('crossing_weight'), savePatienceSeconds: q('save_patience_seconds'), noRoomRetrySeconds: q('no_room_retry_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
       searchRadius: q('search_radius'), searchRadiusMax: q('search_radius_max'), gap: q('gap'), minTrees: q('min_trees'),
       treeWeight: q('tree_weight'), sharedTreeWeight: q('shared_tree_weight'), linkWeight: q('link_weight'), storeWeight: q('store_weight'), forestPenalty: q('forest_penalty'),

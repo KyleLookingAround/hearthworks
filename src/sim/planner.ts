@@ -13,11 +13,12 @@ import { fits } from './place.ts';
 import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
 import { bp, chronicle, ctr, demolish, door, emit, nearestTown, placeBridge, placeBuilding, seasonOf, villagers } from './world.ts';
+import { hasPlace } from './people.ts';
 import { ZONES, type BlueprintDef, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
 
-interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean }
+interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
 interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
@@ -165,6 +166,13 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     const growing = (town.mood >= needs.migrateMinMood ? 1 : 0.5) * (S.seasons && (seasonOf(S) === 'autumn' || seasonOf(S) === 'winter') ? 0 : 1);
     shortages.push({ key: 'beds', homes: true, sev: clamp01((P.growthBeds - freeBeds) / P.growthBeds) * growing * fed * P.growthWeight, why: 'no free beds for newcomers' });
   }
+  // full stores: past `store_full_share` of their room, workshops stall with nowhere to put their goods
+  {
+    let held = 0, room = 0;
+    for (const b of mine) { const B = bp(S, b); if (!B.storage || b.site || !B.capacity || B.keeps) continue; room += B.capacity; for (const k in b.inv) held += b.inv[k]; }
+    const full = room ? held / room : 0;
+    if (full >= P.storeFullShare) shortages.push({ key: 'storage', store: true, sev: clamp01((full - P.storeFullShare) / (1 - P.storeFullShare)), why: 'the stores are full' });
+  }
   // winter stores: from summer, room enough for the winter's grain (a quarter year of meals, with headroom)
   let storeNeed = 0, storeRoom = 0;
   const season = seasonOf(S);
@@ -181,6 +189,11 @@ export function look(S: State, town: Town = S.towns[0]): Look {
       storeRoom += B.capacity ? Math.max(0, B.capacity - other) : storeNeed;
     }
     shortages.push({ key: 'storage', store: true, sev: clamp01((storeNeed - storeRoom) / Math.max(1, storeNeed)), why: 'there is no room to store the grain for winter' });
+  }
+  // the dead waiting with no place for the settlement's custom: a graveyard (or another when it is full), a pyre, a dock
+  if (S.people && town.rites.length && !hasPlace(S, town)) {
+    const place = { burial: 'a graveyard', cremation: 'a pyre', ship: 'a dock to set them out to sea' }[town.custom];
+    shortages.push({ key: 'rites', rite: true, sev: 1, why: `the dead wait for ${place}` });
   }
   // the player's priorities weigh each need
   for (const sh of shortages) sh.sev = clamp01(sh.sev * (town.levers.priority[sh.key] ?? 1));
@@ -221,6 +234,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.hauling) return B.couriers && L.uncovered >= P.minSeverity ? L.uncovered : 0;
     if (sh.crossing) return B.shore && !L.hasDock ? 1 : 0;
     if (sh.detours) return B.bridge ? 1 : 0;
+    if (sh.rite) return B.rite === L.town.custom ? 1 : 0;
     if (sh.store) return B.storage && (!B.keeps || B.keeps.includes('wheat')) ? clamp01((B.capacity || 300) / Math.max(1, L.storeNeed - L.storeRoom)) : 0;
     const add = B.seconds && B.output[sh.good!] ? B.output[sh.good!] / B.seconds : 0;
     const gap = Math.max(1e-6, (L.demand[sh.good!] || 0) - (L.supply[sh.good!] || 0));

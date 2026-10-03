@@ -61,6 +61,10 @@ export interface BlueprintDef {
   shore: boolean;
   /** A crop: works from spring to autumn and rests in winter, when seasons are on. */
   seasonal: boolean;
+  /** The custom for the dead it serves (burial, cremation, ship), if any. */
+  rite: Custom | null;
+  /** How many of the dead it holds (a graveyard). */
+  graves: number;
   /** The zone a planner keeps it in, when the player has painted one: homes (any home), farms or workshops. */
   zone: ZoneKind | null;
   /** The settlement form it takes before a planner builds it: homes climb a ladder as a hamlet becomes a village and a town. */
@@ -115,6 +119,11 @@ export interface Tuning {
     roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
+  people: {
+    adultSeconds: number; elderSeconds: number; lifespanSeconds: number; lifespanJitterSeconds: number; founderAgeMaxSeconds: number; birthEverySeconds: number;
+    practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
+    changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number;
+  };
   trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number };
   seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[] };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
@@ -128,7 +137,7 @@ export interface Tuning {
 
 export interface PlannerTuning {
   intervalSeconds: number; sitePatienceSeconds: number; buildGoods: ItemId[]; comfortWeight: number; depositWeight: number; replanMinAge: number; districtBuildings: number; districtSpacing: number; districtRoomWeight: number; replanEverySeconds: number; salvageShare: number; villageAt: number; townAt: number; rowWeight: number; streetWeight: number; streetEveryRows: number; streetEveryCols: number; streetRadius: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
-  foodHeadroom: number; growthBeds: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
+  foodHeadroom: number; growthBeds: number; storeFullShare: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
   costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; noRoomRetrySeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; searchRadiusMax: number; gap: number; minTrees: number;
   treeWeight: number; sharedTreeWeight: number; linkWeight: number; storeWeight: number; forestPenalty: number;
@@ -231,7 +240,8 @@ export interface Agent {
   x: number; y: number;
   path: [number, number][];
   state: AgentState;
-  role: 'carrier' | 'worker' | 'bot';
+  /** Children neither work nor carry. */
+  role: 'carrier' | 'worker' | 'bot' | 'child';
   task: Task | null;
   carry: { item: ItemId; n: number } | null;
   home: Building | null;
@@ -241,7 +251,13 @@ export interface Agent {
   dead: boolean;
   /** A villager walking to a neighbouring settlement and back, carrying what their home has verified. */
   visit: Visit | null;
+  /** With people on: when they were born and at what age they die (game seconds), and their skill per workplace kind (0 to 1). */
+  born: number;
+  dies: number;
+  skill: Record<string, number>;
 }
+
+export type Custom = 'burial' | 'cremation' | 'ship';
 
 export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge>; /** rowed there, so has a boat to row home in */ boat: boolean; /** a porter's errand: the good taken and the good wanted back */ trade?: { give: ItemId; want: ItemId } }
 
@@ -295,6 +311,10 @@ export interface Town {
   detours: number[][];
   /** What it made, traded away and traded for. */
   trade: Ledger;
+  /** How it honours its dead, the deaths still waiting for their farewell (when each died), and how many lie in each graveyard. */
+  custom: Custom;
+  rites: number[];
+  graves: Record<number, number>;
 }
 
 export interface World {
@@ -363,6 +383,11 @@ export interface Stats {
   deliveries: { villager: number; bot: number };
   arrivals: number;
   departures: number;
+  births: number;
+  deaths: number;
+  honoured: number;
+  /** Longest wait of a death for its farewell, in seconds. */
+  riteWaitMax: number;
   peakVillagers: number;
   invented: number;
   taught: number;
@@ -395,6 +420,12 @@ export interface State {
   seasons: boolean;
   /** Trade on: neighbours send porters to swap what they can spare for what they want. */
   trade: boolean;
+  /** People on: villagers age, are born and die, learn trades, and honour their dead. */
+  people: boolean;
+  /** Newcomers arrive (off to grow by births alone). */
+  newcomers: boolean;
+  /** Separate stream for births, lifespans and the like, so people never shift the rest of the world. */
+  prng: Rng;
   /** Each settlement's history as it happens: what the chronicle and its OKF export show. */
   chronicle: Chronicle[];
   /** Separate stream for discovery, so knowledge never shifts the main simulation's random numbers. */

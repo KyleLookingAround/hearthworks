@@ -14,9 +14,11 @@
 * [Flax Farm](flax_farm.md) - Grows flax on fertile soil.
 * [Forester](forester.md) - Fells grown trees within five tiles and plants saplings so the woods come back.
 * [Granary](granary.md) - A stone store for food: keeps grain, bread, fish and flax from spoiling.
+* [Graveyard](graveyard.md) - Where a village that buries its dead lays them to rest. It takes land, fills with the years, and is never built over.
 * [Cottage](house.md) - A small home for three villagers on a roomy plot, the first rung of the ladder of homes. Keeps a small stock of bread on the shelf.
 * [Mason](mason.md) - Dresses two rough stones into one block of cut stone.
 * [Mine](mine.md) - Digs iron ore from an iron deposit within three tiles.
+* [Pyre](pyre.md) - Where a village that cremates its dead burns them. Every farewell burns logs, so a timber-poor village feels it.
 * [Quarry](quarry.md) - Cuts rough stone from a stone deposit within three tiles.
 * [Road](road.md) - Paved tiles. Villagers walk faster on roads.
 * [Sawmill](sawmill.md) - Cuts one log into one plank. Planks build everything.

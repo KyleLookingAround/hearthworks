@@ -14,13 +14,13 @@ okf_version: "0.2"
 
 # Sections
 
-* [blueprints](blueprints/) - Bakery, Brickworks, Bridge, Clay Pit, 20 more
+* [blueprints](blueprints/) - Bakery, Brickworks, Bridge, Clay Pit, 22 more
 * [decisions](decisions/) - 0001: Keep design knowledge as an OKF bundle, 0002: Deterministic, DOM-free simulation core, 0003: Plain TypeScript, no bundler yet, 0004: Gates may be reworked as the game grows
-* [gates](gates/) - Gate 1: a plank with no player clicks, Gate 2: the town grows and stays fed, Gate 3: bots carry a real share, Gate 4: the village plans its own town, 9 more
+* [gates](gates/) - Gate 1: a plank with no player clicks, Gate 2: the town grows and stays fed, Gate 3: bots carry a real share, Gate 4: the village plans its own town, 10 more
 * [goods](goods/) - Bread, Bricks, Clay, Cloth, 10 more
 * [maps](maps/) - Coast, Lone isle, Islands, Landmass
 * [references](references/) - attesters/, scenarios/, skills/
-* [systems](systems/) - Knowledge, Logistics, Map, Needs and population, 6 more
+* [systems](systems/) - Knowledge, Logistics, Map, Needs and population, 7 more
 
 # History
 

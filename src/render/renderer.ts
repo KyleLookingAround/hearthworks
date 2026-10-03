@@ -458,9 +458,11 @@ export class Renderer {
       c.fillStyle = '#2b3a3f'; c.fillRect(x - 2.5, by - 2, 5, 2);
       c.beginPath(); c.moveTo(x, by - 4.5); c.lineTo(x, by - 7.5); c.stroke();
     } else {
-      c.fillStyle = a.state === 'visit' ? '#b07cc6' : a.role === 'worker' ? '#6f9a4d' : '#4f86a8';
-      c.beginPath(); c.arc(x, y, 3.8, 0, 7); c.fill();
-      c.fillStyle = '#f1d3b0'; c.beginPath(); c.arc(x, y - 4.5, 2.4, 0, 7); c.fill();
+      // children are drawn smaller, in a lighter coat
+      const s = a.role === 'child' ? 0.65 : 1;
+      c.fillStyle = a.state === 'visit' ? '#b07cc6' : a.role === 'worker' ? '#6f9a4d' : a.role === 'child' ? '#8fb8d0' : '#4f86a8';
+      c.beginPath(); c.arc(x, y + (1 - s) * 3, 3.8 * s, 0, 7); c.fill();
+      c.fillStyle = '#f1d3b0'; c.beginPath(); c.arc(x, y - 4.5 * s + (1 - s) * 3, 2.4 * s, 0, 7); c.fill();
     }
     if (a.carry) {
       c.fillStyle = S.content.goods[a.carry.item]?.color ?? '#fff';

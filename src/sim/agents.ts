@@ -8,7 +8,7 @@ import type { Agent, Building, State } from './types.ts';
 export function makeAgent(S: State, kind: Agent['kind'], x: number, y: number): Agent {
   const a: Agent = {
     id: S.nextId++, kind, x, y, path: [], state: 'idle', role: kind === 'bot' ? 'bot' : 'carrier', task: null, carry: null,
-    home: null, work: null, depot: null, cool: rand(S.rng) * 0.5, dead: false, visit: null,
+    home: null, work: null, depot: null, cool: rand(S.rng) * 0.5, dead: false, visit: null, born: S.t, dies: 0, skill: {},
   };
   S.agents.push(a); S.amap.set(a.id, a);
   return a;
@@ -67,7 +67,8 @@ export function updateAgent(S: State, a: Agent, dt: number) {
     a.cool -= dt;
     if (a.cool <= 0) {
       a.cool = 0.5 + rand(S.rng) * 0.4;
-      if (!findTask(S, a) && a.state === 'idle' && rand(S.rng) < 0.3) wander(S, a);
+      // children neither work nor carry: they potter about
+      if ((a.role === 'child' || !findTask(S, a)) && a.state === 'idle' && rand(S.rng) < 0.3) wander(S, a);
     }
   }
   if (a.path.length) {
@@ -125,16 +126,18 @@ export function assignWorkers(S: State) {
     if (carriers.length <= (anyBots ? 0 : 1)) continue;
     // someone who has just found they cannot get anywhere waits out that long cool-down (idle carriers
     // otherwise only pause under a second between looks for work)
-    const idle = carriers.filter(a => !a.task && a.cool <= 1);
+    // (with people on, the old have retired from workplaces)
+    const idle = carriers.filter(a => !a.task && a.cool <= 1 && !(S.people && S.t - a.born >= S.content.tuning.people.elderSeconds));
     // a hungry settlement takes a worker off a workplace outside the food chain to staff one in it
-    // (and so does one whose winter store has fallen behind)
-    if (!idle.length && S.towns[b.town] && (S.towns[b.town].fed < 1 || (behind[b.town] ??= !storesOnTrack(S, S.towns[b.town]))) && Object.keys(bp(S, b).output).some(g => essential.has(g))) {
+    // (and so does one whose winter store has fallen behind, or with people on, one short of what this workplace makes)
+    if (!idle.length && S.towns[b.town] && (S.towns[b.town].fed < 1 || (behind[b.town] ??= !storesOnTrack(S, S.towns[b.town])) || (S.people && Object.keys(bp(S, b).output).some(g => (S.towns[b.town].planner.wants[g] || 0) > 0))) && Object.keys(bp(S, b).output).some(g => essential.has(g))) {
       const spare = S.agents.find(a => a.role === 'worker' && a.work && a.home?.town === b.town && !Object.keys(bp(S, a.work).output).some(g => essential.has(g)));
       if (spare) { spare.work!.worker = null; spare.work = null; spare.role = 'carrier'; spare.state = 'idle'; spare.path = []; idle.push(spare); }
     }
     if (!idle.length) continue;
+    // the nearest, or with people on the most skilled at this work (then the nearest)
     let pick = idle[0], pd = Infinity;
-    for (const a of idle) { const d = distAB(a, b); if (d < pd) { pd = d; pick = a; } }
+    for (const a of idle) { const d = distAB(a, b) - (S.people ? (a.skill[b.type] || 0) * 1e4 : 0); if (d < pd) { pd = d; pick = a; } }
     pick.path = []; pick.role = 'worker'; pick.work = b; b.worker = pick.id; pick.state = 'toWork';
     // already at the door, or nobody could walk there: they don't work it from afar
     if (!goToBuilding(S, pick, b)) {

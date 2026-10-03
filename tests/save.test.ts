@@ -84,3 +84,25 @@ test('a trading game saves and loads with its ledgers', () => {
   assert.equal(back.trade, true);
   assert.equal(back.towns[0].trade.exported.stone, 4);
 });
+
+test('an older save is upgraded to version 10: people off, nobody waiting for a farewell', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v1.json', import.meta.url), 'utf8')) as SaveFile;
+  const up = migrate(file);
+  assert.equal((up.state as { people: boolean }).people, false);
+  for (const t of up.state.towns as { custom: string; rites: number[] }[]) { assert.equal(t.custom, 'burial'); assert.deepEqual(t.rites, []); }
+  for (const a of up.state.agents as { skill: object }[]) assert.deepEqual(a.skill, {});
+});
+
+test('a game with people saves and loads with ages, skills and customs', () => {
+  const S = createState(content, 1847, { planner: true, people: true });
+  runFor(S, 300);
+  const a = S.agents.find(x => x.kind === 'villager')!;
+  a.skill.farm = 0.5;
+  S.towns[0].rites.push(12);
+  const back = loadGame(content, saveGame(S));
+  const b = back.amap.get(a.id)!;
+  assert.equal(b.born, a.born); assert.equal(b.dies, a.dies); assert.equal(b.skill.farm, 0.5);
+  assert.deepEqual(back.towns[0].rites, [12]);
+  assert.equal(back.towns[0].custom, S.towns[0].custom);
+  assert.equal(back.prng.s, S.prng.s);
+});

@@ -4,6 +4,7 @@ import { formOf } from './planner.ts';
 import { plan } from './planner.ts';
 import { updateKnowledge } from './knowledge.ts';
 import { updateTrade } from './trade.ts';
+import { newcomer, riteMood, updatePeople } from './people.ts';
 import { bp, chronicle, door, emit, foodsOf, saplings, seasonOf, storesOnTrack, villagers } from './world.ts';
 import type { State } from './types.ts';
 import { surroundings } from './surroundings.ts';
@@ -32,14 +33,16 @@ export function computeMood(S: State) {
     fed[b.town] += foodsOf(S, b).some(f => (b.inv[f] || 0) > 0) ? r : r * 0.6;
   }
   const blend = (f: number, a: number) => f * (1 - wgt) + a * wgt;
-  S.towns.forEach((t, i) => { t.fed = pop[i] ? fed[i] / pop[i] : 1; t.mood = pop[i] ? Math.max(0, Math.min(1, blend(t.fed, around[i] / pop[i]) + variety(tier[i], pop[i])) - chilled(chill[i], pop[i])) : 1; });
+  S.towns.forEach((t, i) => { t.fed = pop[i] ? fed[i] / pop[i] : 1; t.mood = pop[i] ? Math.max(0, Math.min(1, blend(t.fed, around[i] / pop[i]) + variety(tier[i], pop[i])) - chilled(chill[i], pop[i]) - riteMood(S, t)) : 1; });
   // each settlement's form follows its people, whether or not it plans for itself
   for (const t of S.towns) { const f = formOf(S, t); if (f !== t.form) { chronicle(S, t.id, 'form', `${t.name} became a ${f}`); t.form = f; } }
   const P = pop.reduce((s, k) => s + k, 0), F = fed.reduce((s, k) => s + k, 0), A = around.reduce((s, k) => s + k, 0);
   S.fed = P ? F / P : 1;
   const V = tier.reduce((s, k) => s + k, 0);
   const C = chill.reduce((s, k) => s + k, 0);
-  S.mood = P ? Math.max(0, Math.min(1, blend(S.fed, A / P) + variety(V, P)) - chilled(C, P)) : 1;
+  // the dead waiting for their farewell weigh on their own settlement's share of the people
+  const R = S.towns.reduce((s, t, i) => s + pop[i] * riteMood(S, t), 0);
+  S.mood = P ? Math.max(0, Math.min(1, blend(S.fed, A / P) + variety(V, P)) - chilled(C, P) - R / P) : 1;
   S.stats.peakVillagers = Math.max(S.stats.peakVillagers, villagers(S).length);
 }
 
@@ -51,7 +54,7 @@ function migrate(S: State) {
   const freeBeds = (b: (typeof S.buildings)[number]) => { const B = bp(S, b); return B.homes && !b.site ? B.homes - b.residents.length : 0; };
   // with seasons on, newcomers travel in spring and summer only
   const s = seasonOf(S);
-  if (s === 'autumn' || s === 'winter') return;
+  if (!S.newcomers || s === 'autumn' || s === 'winter') return;
   for (const t of S.towns) {
     if (t.mood < S.content.tuning.needs.migrateMinMood) continue;
     // in summer a newcomer comes only while the stores keep pace with what one more mouth would need by the frost
@@ -60,6 +63,7 @@ function migrate(S: State) {
     if (!house) continue;
     const from = nearestStore(S, house) ?? house, d = door(from);
     const a = makeAgent(S, 'villager', d.x + 0.5, d.y + 0.5);
+    if (S.people) newcomer(S, a);
     a.home = house; house.residents.push(a.id);
     S.stats.arrivals++;
     emit(S, 'good', `A newcomer moved to ${t.name}`, true);
@@ -80,7 +84,7 @@ export function tick(S: State, dt: number) {
   for (const a of [...S.agents]) if (!a.dead) updateAgent(S, a, dt);
   S.secT += dt;
   if (S.secT >= 1) {
-    S.secT -= 1; assignWorkers(S); computeMood(S); updateKnowledge(S, 1); updateTrade(S, 1);
+    S.secT -= 1; assignWorkers(S); computeMood(S); updateKnowledge(S, 1); updateTrade(S, 1); if (S.people) updatePeople(S, 1);
     if (S.seasons && Math.floor(S.t) % Math.round(S.content.tuning.seasons.yearSeconds / 4) === 0 && Math.floor(S.t) > 0) {
       const s = seasonOf(S)!;
       emit(S, s === 'winter' ? 'bad' : 'info', s === 'winter' ? 'Winter has come: the fields rest and homes burn firewood' : `${s[0].toUpperCase()}${s.slice(1)} has come`);
