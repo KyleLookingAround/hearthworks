@@ -91,6 +91,8 @@ export interface PlannerState {
   site: number | null;
   /** The blueprint it is currently working towards (thinking about or saving for), if any. */
   want: string | null;
+  /** The good it has been short of while saving up, and since when. */
+  saving: { good: string; since: number } | null;
   /** One line for the player: what the planner is doing and why. */
   status: string;
   placed: number;

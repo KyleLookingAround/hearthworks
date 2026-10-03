@@ -67,7 +67,8 @@ test('a village under strain invents; one at ease does not', () => {
 });
 
 test('a visitor carries knowledge to the neighbour, keeping who thought of it', () => {
-  const S = createState(content, 42, { settlements: 2 });
+  // villages this small keep their people at home unless visits are allowed from the start
+  const S = createState(withTuning(c => { c.tuning.knowledge.visitMinVillagers = 0; }), 42, { settlements: 2 });
   const [home, host] = S.towns;
   home.knows.depot = { by: home.name, at: 0, verified: [{ by: home.name, at: 0 }], from: null, learned: 0, used: 0 };
   let sawVisitor = false;

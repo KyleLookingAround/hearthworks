@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T11:27:08Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T11:46:25Z }
 ---
 
 # How to read this
@@ -61,8 +61,10 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Why now.** Everything after this assumes buildings are physical, saves exist and the cost of the sim is measured. Today villagers walk through buildings, mood and stock are island-wide, and nothing records how much work a tick costs.
 
+**Delivered early:** mood and supply per settlement (with Phase 7's map types, which needed them).
+
 **Builds.**
-- **Solid buildings.** Building tiles block walking; only a building's door tile lets people in. The tile in front of each door must stay open: placement (planner and hand) refuses anything that would cover a door front. A building nobody can reach shows "No way in" and is not served. An agent caught inside a new footprint walks out through it.
+- **Solid buildings. Building tiles block walking; only a building's door tile lets people in. The tile in front of each door must stay open: placement (planner and hand) refuses anything that would cover a door front. A building nobody can reach shows "No way in" and is not served. An agent caught inside a new footprint walks out through it.
 - **Mood and supply per settlement.** Each settlement has its own mood, and newcomers choose a settlement with free beds and good mood. The planner's affordability counts its own settlement's free stock.
 - **Saves.** The whole state serialises, with a schema version: the random streams are plain numbers, and references become ids. The browser autosaves and can load.
 - **Work counters** in every receipt: `path_nodes`, `job_pairs`, `planner_spots`.
@@ -76,6 +78,8 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 # 7. Worlds
 
 **Why now.** On the 56 by 40 island, two settlements first find no room at 15 to 18 minutes (one settlement at 24 to 30). Every later phase needs room, players want to choose the kind of world they build in, and both need a sim that scales.
+
+**Delivered early, at Kyle's request:** map types (Island, Landmass, Coast), sizes (small, medium, large), and the new-game screen with a live preview. Still to come in this phase: the standard moving to medium, the work budgets, a job board and pathfinding that scale, the culling renderer, string gate parameters and the map suite gate.
 
 **Builds.**
 - **Map types as content.** Each type is an OKF concept in a new `design/maps/` folder whose frontmatter drives the generator: land shape and falloff, water level, noise scales, forest density, and where settlements may start. New types are written, not coded.

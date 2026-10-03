@@ -20,4 +20,4 @@ Height falls off only east of `coastline` (a share of the map's width), so the w
 
 # Later
 
-The shore is where fishing (Phase 11) and ports (Phase 17) will go; see the [roadmap](/roadmap.md).
+The shore is where fishing (Phase 11) and ports (Phase 18) will go; see the [roadmap](/roadmap.md).

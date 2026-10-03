@@ -2,6 +2,7 @@
 import { canPlace, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { GOALS } from '../game/goals.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
+import { NewGameDialog, type GameChoice } from './newgame.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -19,11 +20,13 @@ export class App {
   private seenEvents = 0;
   private knowKey = '';
   private confirmDel = false;
+  private readonly dialog: NewGameDialog;
 
   constructor(content: Content, seed: number) {
     this.content = content;
     this.r = new Renderer($<HTMLCanvasElement>('#view'));
     this.S = createState(content, seed);
+    this.dialog = new NewGameDialog(content, c => this.newGame(c), seed);
     this.view = { cam: { x: 0, y: 0, z: 1 }, hover: null, tool: null, sel: null, routes: false };
     this.goals = GOALS.map(() => false);
     this.buildBar();
@@ -31,12 +34,21 @@ export class App {
     this.wireInput();
     window.addEventListener('resize', () => this.resize());
     this.resize();
-    this.newGame(seed);
+    // the standard world plays behind the new-game screen until the player picks one
+    const T = content.tuning.map;
+    this.newGame({ map: T.standardType, size: T.standardSize, settlements: T.sizes[T.standardSize].settlements, seed, plans: true });
+    this.setSpeed(0);
+    this.dialog.open(false);
     if (window.innerWidth < 640) $<HTMLDetailsElement>('#goals').open = false;
   }
 
-  newGame(seed: number) {
-    this.S = createState(this.content, seed, { planner: this.plans, settlements: this.content.tuning.map.sizes[this.content.tuning.map.standardSize].settlements });
+  newGame(c: GameChoice) {
+    this.plans = c.plans;
+    $('#plans').setAttribute('aria-pressed', String(c.plans));
+    this.S = createState(this.content, c.seed, { planner: c.plans, settlements: c.settlements, map: c.map, size: c.size });
+    const M = this.content.maps[c.map];
+    $('#world').textContent = `${M?.name ?? c.map}, ${c.size}, seed ${c.seed}`;
+    this.setSpeed(1);
     this.knowKey = '';
     this.seenEvents = 0;
     this.goals = GOALS.map(() => false);
@@ -94,7 +106,7 @@ export class App {
     document.querySelectorAll<HTMLButtonElement>('[data-speed]').forEach(b => b.addEventListener('click', () => this.setSpeed(Number(b.dataset.speed))));
     $('#plans').addEventListener('click', () => this.setPlans(!this.plans));
     $('#routes').addEventListener('click', () => { this.view.routes = !this.view.routes; $('#routes').setAttribute('aria-pressed', String(this.view.routes)); });
-    $('#newIsland').addEventListener('click', () => { this.newGame(Math.floor(Math.random() * 1e9)); this.toast('A new island rises from the sea'); });
+    $('#newWorld').addEventListener('click', () => { this.setSpeed(0); this.dialog.open(true); });
     $('#insClose').addEventListener('click', () => this.select(null));
     window.addEventListener('keydown', e => {
       if (e.key === 'Escape') { if (this.view.tool) this.setTool(null); else this.select(null); }

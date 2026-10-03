@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T10:12:11Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T11:46:25Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -48,13 +48,13 @@ If the player builds something its settlement does not know, the settlement lear
 
 # Share
 
-Every `visit_every_seconds` a settlement sends a visitor to its nearest neighbour: a carrier with empty hands, never its last one, who drops any fetch job and walks over. The visitor tells the host everything home knows beyond its founding, proven or not, with every verification; the host's news comes back the same way. The learner records `from`, but keeps the original `by`. It still has to prove the practice itself.
+Every `visit_every_seconds` a settlement with at least `visit_min_villagers` people and nobody already away sends a visitor to its nearest neighbour: a carrier with empty hands, never its last one, who drops any fetch job and walks over. On large maps a visit takes minutes, and tiny villages that kept sending people starved. The visitor tells the host everything home knows beyond its founding, proven or not, with every verification; the host's news comes back the same way. The learner records `from`, but keeps the original `by`. It still has to prove the practice itself.
 
 Ideas travel unproven on purpose: with only proven knowledge travelling, both villages tended to come up with the depot independently in the minutes the first one spent building and proving it, and nothing spread (see the [log](/log.md)).
 
 # Forget
 
-Discovered knowledge with nothing built from it, and no site, for `forget_after_seconds` is lost.
+Discovered knowledge with nothing built from it, no site, and the planner not working towards it, for `forget_after_seconds` is lost. (A village that kept saving up for a depot used to forget it before it could afford one.) Libraries that keep knowledge from being forgotten are [Phase 15](/roadmap.md).
 
 # Settlements
 

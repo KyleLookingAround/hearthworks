@@ -19,4 +19,4 @@ The same noise as the [island](/maps/island.md) with no falloff, so land runs to
 
 # Later
 
-Mountains and rivers arrive with terrain in Phase 8 of the [roadmap](/roadmap.md); distances here are the longest of any map type, which is where carts (Phase 14) and new settlements (Phase 15) are tested.
+Mountains and rivers arrive with terrain in Phase 8 of the [roadmap](/roadmap.md); distances here are the longest of any map type, which is where carts (Phase 16) and new settlements (Phase 17) are tested.

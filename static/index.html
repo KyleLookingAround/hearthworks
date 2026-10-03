@@ -16,7 +16,7 @@
 
   <div class="topstack">
     <header class="hud panel">
-      <div class="brand"><span class="mark">Hearthworks</span><span class="tag">prototype</span></div>
+      <div class="brand"><span class="mark">Hearthworks</span><span class="tag" id="world">prototype</span></div>
       <div class="res" id="res" aria-label="Goods in storage"></div>
       <div class="meta" id="meta"></div>
       <div class="ctrl">
@@ -25,7 +25,7 @@
         <button class="btn" id="sp3" data-speed="3" aria-pressed="false">3×</button>
         <button class="btn" id="plans" aria-pressed="true" title="Let the villagers decide what to build and where. Turn off to place every building by hand.">Village plans</button>
         <button class="btn" id="routes" aria-pressed="false">Routes</button>
-        <button class="btn" id="newIsland">New island</button>
+        <button class="btn" id="newWorld">New world</button>
       </div>
     </header>
     <p class="planline panel" id="planLine" aria-live="polite"><span class="lbl">Plans</span> <span id="planText"></span></p>
@@ -52,6 +52,22 @@
   <div class="toasts" id="toasts" aria-live="polite"></div>
   <div class="toolhint panel" id="toolhint" hidden></div>
   <nav class="build panel" id="build" aria-label="Build"></nav>
+</div>
+<div class="newgame-backdrop" id="newgame" hidden>
+  <div class="newgame panel" role="dialog" aria-modal="true" aria-labelledby="ngTitle">
+    <h2 id="ngTitle">New world</h2>
+    <div class="ng-grid">
+      <div class="ng-options">
+        <fieldset><legend>World</legend><div class="ng-cards" id="ngMaps"></div></fieldset>
+        <fieldset><legend>Size</legend><div class="ng-row" id="ngSizes"></div></fieldset>
+        <fieldset><legend>Settlements</legend><div class="ng-row" id="ngTowns"></div></fieldset>
+        <fieldset><legend>Seed</legend><div class="ng-row"><input id="ngSeed" type="number" min="0" step="1" inputmode="numeric" aria-label="Seed"><button type="button" class="btn" id="ngRandom">Random</button></div></fieldset>
+        <label class="ng-check"><input type="checkbox" id="ngPlans" checked> Village plans: the villagers decide what to build</label>
+      </div>
+      <figure class="ng-preview"><canvas id="ngPreview" width="320" height="240" aria-label="Preview of the generated land"></canvas><figcaption id="ngNote"></figcaption></figure>
+    </div>
+    <div class="ng-actions"><button type="button" class="btn" id="ngCancel" hidden>Cancel</button><button type="button" class="btn primary" id="ngStart">Start</button></div>
+  </div>
 </div>
 <div class="fatal panel" id="fatal" role="alert" hidden></div>
 <script type="module" src="./js/main.js"></script>
