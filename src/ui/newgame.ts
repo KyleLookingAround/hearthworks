@@ -1,7 +1,7 @@
 /** The new-game screen: pick the world (map type, size, settlements, seed) with a live preview, then start. */
 import { createState, ctr, type Content } from '../sim/index.ts';
 
-export interface GameChoice { map: string; size: string; settlements: number; seed: number; plans: boolean; seasons: boolean }
+export interface GameChoice { map: string; size: string; settlements: number; seed: number; plans: boolean; seasons: boolean; trade: boolean }
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -24,7 +24,7 @@ export class NewGameDialog {
     // players start on the first map type in order (Islands); the gates keep the standard map
     const first = Object.values(content.maps).sort((a, b) => a.order - b.order)[0]?.id ?? T.standardType;
     const size = T.sizes[T.gameSize] ? T.gameSize : T.standardSize;
-    this.choice = { map: first, size, settlements: T.sizes[size].settlements, seed, plans: true, seasons: true };
+    this.choice = { map: first, size, settlements: T.sizes[size].settlements, seed, plans: true, seasons: true, trade: true };
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<GameChoice> | null;
       if (saved && content.maps[saved.map ?? ''] && T.sizes[saved.size ?? '']?.offered) this.choice = { ...this.choice, ...saved };
@@ -61,6 +61,8 @@ export class NewGameDialog {
     $('#ngRandom').addEventListener('click', () => { this.choice.seed = randomSeed(); this.sync(); });
     const seasons = $<HTMLInputElement>('#ngSeasons');
     seasons.addEventListener('change', () => { this.choice.seasons = seasons.checked; });
+    const trade = $<HTMLInputElement>('#ngTrade');
+    trade.addEventListener('change', () => { this.choice.trade = trade.checked; });
     const plans = $<HTMLInputElement>('#ngPlans');
     plans.addEventListener('change', () => { this.choice.plans = plans.checked; });
     $('#ngStart').addEventListener('click', () => {
@@ -86,6 +88,7 @@ export class NewGameDialog {
     if (updateSeedField) $<HTMLInputElement>('#ngSeed').value = String(c.seed);
     $<HTMLInputElement>('#ngPlans').checked = c.plans;
     $<HTMLInputElement>('#ngSeasons').checked = c.seasons !== false;
+    $<HTMLInputElement>('#ngTrade').checked = c.trade !== false;
     clearTimeout(this.previewTimer);
     this.previewTimer = window.setTimeout(() => this.preview(), 120);
   }

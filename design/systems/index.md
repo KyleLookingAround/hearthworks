@@ -11,3 +11,4 @@
 * [Saves](saves.md) - The whole game as versioned JSON; autosaved in the browser, downloadable, and loaded to play on exactly as if it never stopped.
 * [Seasons](seasons.md) - A year of spring, summer, autumn and winter; crops rest in winter, homes burn firewood, and settlements store food and fuel ahead.
 * [Starting settlement](settlement.md) - What a new game begins with, per settlement — a storage yard, two houses, a road and five villagers.
+* [Trade](trade.md) - Neighbouring settlements send porters to swap what they can spare for what they want, one load at a time, and count steady imports as relief.

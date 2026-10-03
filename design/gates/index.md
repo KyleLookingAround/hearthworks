@@ -14,3 +14,4 @@
 * [Gate 10: the steward](10-steward.md) - Each lever does what it says in a paired run (zoning keeps farms in the farm zone, a raised priority comes first, encouragement brings a discovery sooner), and the chronicle records every invention, teaching and forgetting.
 * [Gate 11: a deeper economy](11-deeper-economy.md) - One self-planning settlement builds chains several steps deep in an hour, and its homes climb the tiers by goods while staying stocked with food.
 * [Gate 12: seasons](12-seasons.md) - A self-planning settlement grows through three years of seasons, storing enough food by the first frost, with hardly anyone leaving and nobody starving.
+* [Gate 13: neighbours trade](13-trade.md) - Two self-planning settlements trade by porter, both ways and at volume, at no real cost to their growth or to being fed.

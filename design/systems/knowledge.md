@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T16:17:19Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T18:22:59Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -29,6 +29,8 @@ tuning:
 | `used` | `stale_after` counts from here | last time this settlement had one built or being built |
 
 Code: `src/sim/knowledge.ts`, run once a game second.
+
+Porters on [trade](/systems/trade.md) errands gossip as visitors do: they carry what their home has verified, and bring back what the neighbour has.
 
 # Founding
 

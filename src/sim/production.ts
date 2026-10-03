@@ -158,6 +158,6 @@ function run(S: State, b: Building, dt: number) {
     if (tooled && ++b.wear >= B.tools!.wearCycles) { b.wear = 0; add(b.inv, 'tools', -1); }
     for (const k in B.input) add(b.inv, k, -B.input[k]);
     if (tree >= 0) plant(S.world, tree);
-    for (const k in B.output) { add(b.inv, k, B.output[k]); add(S.stats.made, k, B.output[k]); }
+    for (const k in B.output) { add(b.inv, k, B.output[k]); add(S.stats.made, k, B.output[k]); if (S.towns[b.town]) add(S.towns[b.town].trade.made, k, B.output[k]); }
   }
 }

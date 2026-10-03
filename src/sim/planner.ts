@@ -15,7 +15,7 @@ import { NEED_TEXT, pressure } from './knowledge.ts';
 import { bp, chronicle, ctr, demolish, door, emit, nearestTown, placeBridge, placeBuilding, seasonOf, villagers } from './world.ts';
 import { ZONES, type BlueprintDef, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
 
-export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {} });
+export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
 
 interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
@@ -81,6 +81,17 @@ export function look(S: State, town: Town = S.towns[0]): Look {
       next.set(b, e);
     }
     eff = next;
+  }
+  // a steady import relieves a shortage as a producer would: a village that trades for bricks needs no kiln
+  if (S.trade) for (const g in town.trade.imports) supply[g] = (supply[g] || 0) + town.trade.imports[g];
+  // and a neighbour's want of a good it makes none of is demand here, if this settlement knows how to make it
+  if (S.trade) {
+    const makes = new Set(known(S, town).filter(B => B.seconds).flatMap(B => Object.keys(B.output)));
+    for (const o of S.towns) {
+      if (o === town) continue;
+      const theirs = new Set(S.buildings.filter(b => b.town === o.id && !b.site).flatMap(b => Object.keys(bp(S, b).output)));
+      for (const g in o.planner.wants) if (makes.has(g) && !theirs.has(g)) demand[g] = (demand[g] || 0) + o.planner.wants[g] * S.content.tuning.trade.exportDemand;
+    }
   }
 
   const people = villagers(S).filter(a => a.home?.town === town.id), pop = people.length;
@@ -746,6 +757,10 @@ function planTown(S: State, town: Town, dt: number) {
 
   // the worst shortage something known can relieve
   const L = look(S, town), worst = L.shortages[0];
+  // what it is short of, for its porters to trade for: its shortages of goods, and what it is saving
+  Q.wants = {}; Q.use = { ...L.demand };
+  for (const sh of L.shortages) if (sh.good && sh.sev >= T(S).minSeverity) Q.wants[sh.good] = sh.sev;
+  if (Q.saving) Q.wants[Q.saving.good] = Math.max(Q.wants[Q.saving.good] || 0, 0.5);
   // a crowded newest district splits off a new one
   if (formOf(S, town) !== 'hamlet' && foundDistrict(S, town)) return;
   // a town with beds to spare renews an old block now and then: sparse homes make way for its densest

@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T17:39:15Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T18:22:59Z }
 ---
 
 # How to read this
@@ -29,7 +29,7 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 10 | The steward | Player levers through the town planner, overlays, a chronicle | 9 | [Gate 10](/gates/10-steward.md) | Done |
 | 11 | A deeper economy | Stone, clay, tools, fish, cloth; multi-input recipes; home tiers by goods; storage | 9 | [Gate 11](/gates/11-deeper-economy.md) | Done |
 | 12 | Seasons | A year: growing seasons, winter, warmth, storing food | 11 | [Gate 12](/gates/12-seasons.md) | Done |
-| 13 | Neighbours trade | Settlements swap surplus for want, on foot at first; specialisation | 11 | Two trading neighbours beat the same two in isolation | Later |
+| 13 | Neighbours trade | Settlements swap surplus for want, on foot at first; specialisation | 11 | [Gate 13](/gates/13-trade.md) | Done |
 | 14 | People and traditions | Individuals: families, births, ageing, skills, apprenticeships; death and each village's own customs for it | 12 | A town grows by births alone; neighbours keep different customs | Later |
 | 15 | Learning | Libraries, schools, universities; knowledge kept, taught and pursued | 14 | A library keeps a craft alive; a university speeds a discovery | Later |
 | 16 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | Carts carry most long hauls and cut delivery time | Later |
@@ -209,7 +209,11 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 - **Imports as relief.** The planner counts a reliable import as relief for a shortage, so a village near clay stops building farms it doesn't need and trades bricks for bread. Specialisation follows.
 - **Knowledge rides along.** Porters gossip like visitors, so trade partners share ideas faster.
 
+**Delivered.** [Trade](/systems/trade.md), on in every new game and off in older scenarios: each settlement weighs its goods by how long its stock lasts, porters carry a load of what it can spare to a neighbour and bring back what it wants at a rate set by both sides' want, with nothing going straight back and the food chain kept home; imports count as supply for the planner, and a neighbour's want of what it cannot make counts as demand; porters gossip like visitors; the Steward panel shows each settlement's trade, and the first trade goes into the chronicle. Saves go to version 9. **Phase 13 is done**, with a gate below the proposal.
+
 **Gate 13 (proposed).** Two settlements on the standard map, run with trade on and off. With trade on: total population is higher, each settlement's `fed_min` is at least as good, and each settlement exports at least 30% of one good it makes.
+
+**Gate 13 (stable), below the proposal.** Trade on and off from the same seed: at least 20 loads, each settlement exporting at least 3% of a good it makes, population with trade at least 95% of without, `fed_min` with trade at least 0.6. On foot and between two near-identical villages, trade moves 10 to 110 loads an hour and shifts population within the noise between seeds (3% down to 7% up), so "beats isolation" is not yet shown: it waits for carts (16) and settlements on different land. Kyle's call whether that is acceptable for this phase.
 
 **Kyle's call.** Should money exist at all, or stay barter?
 

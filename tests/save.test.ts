@@ -66,3 +66,21 @@ test('an older save is upgraded to version 8: seasons off, homes without a fire,
   assert.equal((up.state as { seasons: boolean }).seasons, false);
   for (const b of up.state.buildings as { fire: number; stall: number }[]) { assert.equal(b.fire, 0); assert.equal(b.stall, 0); }
 });
+
+test('an older save is upgraded to version 9: trade off, empty ledgers, planners with no wants yet', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v1.json', import.meta.url), 'utf8')) as SaveFile;
+  const up = migrate(file);
+  assert.equal((up.state as { trade: boolean }).trade, false);
+  for (const t of up.state.towns as { trade: { exported: object }; planner: { wants: object; use: object } }[]) {
+    assert.deepEqual(t.trade.exported, {}); assert.deepEqual(t.planner.wants, {}); assert.deepEqual(t.planner.use, {});
+  }
+});
+
+test('a trading game saves and loads with its ledgers', () => {
+  const S = createState(content, 1847, { planner: true, settlements: 2, trade: true });
+  runFor(S, 120);
+  S.towns[0].trade.exported.stone = 4;
+  const back = loadGame(content, saveGame(S));
+  assert.equal(back.trade, true);
+  assert.equal(back.towns[0].trade.exported.stone, 4);
+});

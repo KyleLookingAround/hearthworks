@@ -56,7 +56,7 @@ export class App {
   }
 
   newGame(c: GameChoice) {
-    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, settlements: c.settlements, map: c.map, size: c.size }));
+    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, trade: c.trade !== false, settlements: c.settlements, map: c.map, size: c.size }));
     this.save();
   }
 
@@ -422,7 +422,10 @@ export class App {
     if (!t) return;
     const unknown = Object.values(this.content.blueprints).filter(B => B.discovery && !(B.id in t.knows));
     const tips = advise(S, t);
-    const key = JSON.stringify([t.id, t.levers, unknown.map(B => B.id), tips, S.towns.length]);
+    // trade so far: the three biggest of each way, in whole loads
+    const top = (r: Record<string, number>) => Object.entries(r).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([g, n]) => `${n} ${(this.content.goods[g]?.name ?? g).toLowerCase()}`).join(', ');
+    const trade = S.trade && S.towns.length > 1 ? [top(t.trade.exported) || 'nothing yet', top(t.trade.imported) || 'nothing yet'] : null;
+    const key = JSON.stringify([t.id, t.levers, unknown.map(B => B.id), tips, S.towns.length, trade]);
     if (!force && key === this.stewardKey) return;
     this.stewardKey = key;
     const needs: [string, string][] = [
@@ -436,6 +439,7 @@ export class App {
     html += '<div class="steward-grid">' + needs.map(([k, label]) => `<span>${label}</span>${sel('p:' + k, t.levers.priority[k] ?? 1, levels)}`).join('');
     html += `<span>Encourage thinking about</span><select data-lever="encourage"><option value="">Nothing in particular</option>${unknown.map(B => `<option value="${B.id}"${t.levers.encourage === B.id ? ' selected' : ''}>${esc(B.name)}</option>`).join('')}</select>`;
     html += `<span>Pace</span>${sel('pace', t.levers.pace, [[0.5, 'Unhurried'], [1, 'Normal'], [2, 'Brisk']])}</div>`;
+    if (trade) html += `<div class="steward-grid"><span>Traded away</span><span>${esc(trade[0])}</span><span>Traded for</span><span>${esc(trade[1])}</span></div>`;
     if (tips.length) html += `<ul class="advice">${tips.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
     $('#stewardBody').innerHTML = html;
     $('#stewardTown').textContent = t.name;

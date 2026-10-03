@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 type Json = Record<string, unknown>;
 
@@ -68,6 +68,13 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     for (const b of [...state.buildings as Json[], ...(state.gone as Json[] ?? [])]) { b.fire ??= 0; b.stall ??= 0; }
     return state;
   },
+  // 8 to 9: trade (off for older games), each settlement's ledger and wants
+  8: state => {
+    state.trade ??= false;
+    (state.stats as Json).trades ??= 0;
+    for (const t of state.towns as (Json & { planner: Json })[]) { t.trade ??= { t: 0, imports: {}, made: {}, exported: {}, imported: {} }; t.planner.wants ??= {}; t.planner.use ??= {}; }
+    return state;
+  },
 };
 
 /** Run-length encoding for tile grids: [value, count, value, count, ...]. */
@@ -112,7 +119,7 @@ export function saveGame(S: State): SaveFile {
     state: {
       seed: S.seed, setup: copy(S.setup), rng: S.rng.s, krng: S.krng.s, t: S.t, nextId: S.nextId,
       mood: S.mood, fed: S.fed, migT: S.migT, secT: S.secT,
-      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns), chronicle: copy(S.chronicle), seasons: S.seasons,
+      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns), chronicle: copy(S.chronicle), seasons: S.seasons, trade: S.trade,
       world, buildings: copy(S.buildings), gone: copy([...gone.values()]), agents,
     },
   };
@@ -154,7 +161,7 @@ export function loadGame(content: Content, input: SaveFile | string): State {
 
   const S = {
     content, seed: d.seed, setup: d.setup, rng: { s: d.rng }, krng: { s: d.krng }, t: d.t, nextId: d.nextId,
-    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns, chronicle: d.chronicle, seasons: d.seasons,
+    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns, chronicle: d.chronicle, seasons: d.seasons, trade: d.trade,
     world, buildings, agents, bmap, amap: new Map(agents.map(a => [a.id, a])),
   } as State;
   S.planner = S.towns[0].planner;

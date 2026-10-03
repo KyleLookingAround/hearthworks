@@ -11,6 +11,7 @@
 * [solid-ground.ts](solid-ground.ts)
 * [steward.ts](steward.ts)
 * [sustain-town.ts](sustain-town.ts)
+* [trade.ts](trade.ts)
 * [village-plans.ts](village-plans.ts)
 * [village-to-town.ts](village-to-town.ts)
 * [worlds.ts](worlds.ts)

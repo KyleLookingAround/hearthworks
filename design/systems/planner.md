@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T17:39:15Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T18:22:59Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -126,6 +126,10 @@ Overlays in the menu show how each home feels (surroundings, hunger), the reach 
 - **Keep back for the maker.** Until something in the settlement makes a good, the planner keeps back enough of it to build the cheapest building that makes it: it never spends the last planks before a sawmill.
 - **Food workers first.** A hungry settlement takes a worker off a workplace outside the food chain to staff one in it.
 - **Follow what it can afford.** When a choice needs an input nobody makes, the planner plans that input's maker first, but only if it can pay for it today; otherwise it builds the maker of what it lacks.
+
+# Trade
+
+With [trade](/systems/trade.md) on, a settlement's steady imports count as supply, so it stops planning what it reliably trades for; a neighbour's want of a good that neighbour makes none of counts as demand here, at `export_demand`. At each look the planner notes its `wants` (shortages of goods and what it is saving for) and `use` (what it uses of each good a second), which its porters trade by.
 
 # Seasons
 

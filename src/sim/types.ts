@@ -115,6 +115,7 @@ export interface Tuning {
     roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
+  trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number };
   seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[] };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
@@ -159,6 +160,10 @@ export interface PlannerState {
   firstFor: Record<string, number>;
   /** Blueprints it last found no room for, and when: it plans something else for `no_room_retry_seconds`. */
   noRoom: Record<string, number>;
+  /** Goods it was short of at its last look, by how badly (0 to 1): what a porter goes out to trade for. */
+  wants: Record<string, number>;
+  /** What it uses of each good a second, at its last look: how long its stock lasts, for trade. */
+  use: Stock;
 }
 
 export interface Content {
@@ -238,7 +243,10 @@ export interface Agent {
   visit: Visit | null;
 }
 
-export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge>; /** rowed there, so has a boat to row home in */ boat: boolean }
+export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge>; /** rowed there, so has a boat to row home in */ boat: boolean; /** a porter's errand: the good taken and the good wanted back */ trade?: { give: ItemId; want: ItemId } }
+
+/** A settlement's trade: when it last sent a porter, smoothed imports per second, and running totals. */
+export interface Ledger { t: number; imports: Stock; made: Stock; exported: Stock; imported: Stock }
 
 /**
  * What one settlement knows about one blueprint. The fields mirror an OKF concept's
@@ -285,6 +293,8 @@ export interface Town {
   streets: number[];
   /** Recent trips that went the long way round: [from x, from y, to x, to y, tiles walked, when]. */
   detours: number[][];
+  /** What it made, traded away and traded for. */
+  trade: Ledger;
 }
 
 export interface World {
@@ -338,6 +348,8 @@ export interface Chronicle { t: number; town: number; kind: string; text: string
 
 export interface Stats {
   made: Stock;
+  /** Porters' loads delivered between settlements. */
+  trades: number;
   /** Delivery times: total seconds from claim to drop-off, and how many deliveries. */
   deliverySeconds: number;
   delivered: number;
@@ -381,6 +393,8 @@ export interface State {
   planner: PlannerState;
   /** Seasons on: the year turns and winter comes. Off for scenarios that predate them. */
   seasons: boolean;
+  /** Trade on: neighbours send porters to swap what they can spare for what they want. */
+  trade: boolean;
   /** Each settlement's history as it happens: what the chronicle and its OKF export show. */
   chronicle: Chronicle[];
   /** Separate stream for discovery, so knowledge never shifts the main simulation's random numbers. */

@@ -3,6 +3,7 @@ import { cold, homeTier, updateBuilding } from './production.ts';
 import { formOf } from './planner.ts';
 import { plan } from './planner.ts';
 import { updateKnowledge } from './knowledge.ts';
+import { updateTrade } from './trade.ts';
 import { bp, chronicle, door, emit, foodsOf, saplings, seasonOf, storesOnTrack, villagers } from './world.ts';
 import type { State } from './types.ts';
 import { surroundings } from './surroundings.ts';
@@ -79,7 +80,7 @@ export function tick(S: State, dt: number) {
   for (const a of [...S.agents]) if (!a.dead) updateAgent(S, a, dt);
   S.secT += dt;
   if (S.secT >= 1) {
-    S.secT -= 1; assignWorkers(S); computeMood(S); updateKnowledge(S, 1);
+    S.secT -= 1; assignWorkers(S); computeMood(S); updateKnowledge(S, 1); updateTrade(S, 1);
     if (S.seasons && Math.floor(S.t) % Math.round(S.content.tuning.seasons.yearSeconds / 4) === 0 && Math.floor(S.t) > 0) {
       const s = seasonOf(S)!;
       emit(S, s === 'winter' ? 'bad' : 'info', s === 'winter' ? 'Winter has come: the fields rest and homes burn firewood' : `${s[0].toUpperCase()}${s.slice(1)} has come`);

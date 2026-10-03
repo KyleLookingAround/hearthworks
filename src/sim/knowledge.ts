@@ -14,6 +14,7 @@
 import { rand } from './rng.ts';
 import { goToBuilding } from './agents.ts';
 import { cancelTask } from './logistics.ts';
+import { barter, homecoming } from './trade.ts';
 import { chronicle, door, emit, villagers } from './world.ts';
 import { reachable } from './path.ts';
 import type { Agent, Content, Knowledge, State, Town } from './types.ts';
@@ -48,7 +49,7 @@ export const NEED_TEXT: Record<string, string> = { hauling: 'carriers are run of
 const provenHere = (town: Town, k: Knowledge) => k.verified.some(v => v.by === town.name || v.by === 'founders');
 
 /** Everything beyond founding knowledge, proven or not: what its visitors talk about. Verifications travel with it. */
-function shareable(town: Town): Record<string, Knowledge> {
+export function shareable(town: Town): Record<string, Knowledge> {
   const out: Record<string, Knowledge> = {};
   for (const id in town.knows) {
     const k = town.knows[id];
@@ -173,13 +174,16 @@ export function arrive(S: State, a: Agent) {
   if (!v) { a.state = 'idle'; return; }
   const from = S.towns[v.from], to = S.towns[v.to];
   if (!v.back) {
+    if (v.trade) barter(S, a);
     teach(S, to, v.carry, from.name);
     v.carry = shareable(to); v.back = true;
     // whoever rowed over rows home from the shore they landed on
     const home = S.bmap.get(from.store);
     if (home && goToBuilding(S, a, home, { launchAnywhere: v.boat })) return;
+    // a stranded porter's load still reaches home, as they do
+    if (v.trade) homecoming(S, a);
     strand(S, a, from, to);
-  } else teach(S, from, v.carry, to.name);
+  } else { teach(S, from, v.carry, to.name); if (v.trade) homecoming(S, a); }
   a.visit = null; a.state = 'idle';
 }
 
