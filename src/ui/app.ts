@@ -1,11 +1,13 @@
 /** Browser shell: HUD, goals, build bar, inspector, toasts, pointer input and the frame loop. */
-import { canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { loadGame, saveGame, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { GOALS } from '../game/goals.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+const SAVE_KEY = 'hearthworks.save';
+const AUTOSAVE_SECONDS = 20;
 const n0 = (v: number | undefined) => Math.max(0, Math.round(v || 0));
 
 export class App {
@@ -23,13 +25,16 @@ export class App {
   private knowKey = '';
   private confirmDel = false;
   private readonly dialog: NewGameDialog;
+  /** False while the standard world idles behind the first new-game screen: nothing to save yet. */
+  private live = false;
+  private saveT = 0;
 
   constructor(content: Content, seed: number) {
     this.content = content;
     try { const n = localStorage.getItem('hearthworks.notices'); if (n === 'all' || n === 'off' || n === 'important') this.notices = n; } catch { /* default */ }
     this.r = new Renderer($<HTMLCanvasElement>('#view'));
     this.S = createState(content, seed);
-    this.dialog = new NewGameDialog(content, c => this.newGame(c), seed);
+    this.dialog = new NewGameDialog(content, c => this.newGame(c), () => this.continueGame(), seed);
     this.view = { cam: { x: 0, y: 0, z: 1 }, hover: null, tool: null, sel: null, routes: false };
     this.goals = GOALS.map(() => false);
     this.buildBar();
@@ -39,22 +44,30 @@ export class App {
     this.resize();
     // the standard world plays behind the new-game screen until the player picks one
     const T = content.tuning.map;
-    this.newGame({ map: T.standardType, size: T.standardSize, settlements: T.sizes[T.standardSize].settlements, seed, plans: true });
+    this.adopt(createState(content, seed, { planner: true, settlements: T.sizes[T.standardSize].settlements }));
+    this.live = false;
     this.setSpeed(0);
-    this.dialog.open(false);
+    this.dialog.open(false, this.savedLabel());
     if (window.innerWidth < 640) $<HTMLDetailsElement>('#goals').open = false;
   }
 
   newGame(c: GameChoice) {
-    this.plans = c.plans;
-    $('#plans').setAttribute('aria-pressed', String(c.plans));
-    this.S = createState(this.content, c.seed, { planner: c.plans, settlements: c.settlements, map: c.map, size: c.size });
-    const M = this.content.maps[c.map];
-    $('#world').textContent = `${M?.name ?? c.map}, ${c.size}, seed ${c.seed}`;
+    this.adopt(createState(this.content, c.seed, { planner: c.plans, settlements: c.settlements, map: c.map, size: c.size }));
+    this.save();
+  }
+
+  /** Play a world: a new one, or one loaded from a save. */
+  private adopt(S: State) {
+    this.S = S;
+    this.live = true;
+    this.plans = S.planner.on;
+    $('#plans').setAttribute('aria-pressed', String(this.plans));
+    $('#world').textContent = this.worldLabel();
     this.setSpeed(1);
     this.knowKey = '';
-    this.seenEvents = 0;
-    this.goals = GOALS.map(() => false);
+    // a loaded game has already told its news and met its goals
+    this.seenEvents = S.t > 0 ? S.events.length : 0;
+    this.goals = GOALS.map(g => S.t > 0 && g.check(S));
     // open on the player's first settlement, wherever the seed put it
     const home = this.S.bmap.get(this.S.towns[0].store), cx = home ? home.x + home.w / 2 : this.S.world.w / 2, cy = home ? home.y + home.h / 2 : this.S.world.h / 2;
     const cam = this.view.cam;
@@ -62,6 +75,47 @@ export class App {
     cam.z = Math.max(0.7, Math.min(2.2, Math.min(this.r.cw / (26 * TS), this.r.ch / (17 * TS))));
     this.select(null); this.setTool(null);
     this.renderGoals(); this.updateHud();
+  }
+
+  // ---------- saves ----------
+  private worldLabel() {
+    const st = this.S.setup, M = this.content.maps[st.map];
+    return `${M?.name ?? st.map}, ${st.size}, seed ${this.S.seed}`;
+  }
+
+  /** Autosave to this browser. Quietly does nothing where storage is unavailable or full. */
+  save() {
+    if (!this.live) return;
+    try {
+      const m = Math.floor(this.S.t / 60);
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ label: `${this.worldLabel()}, ${m} min in`, file: saveGame(this.S) }));
+    } catch { /* not kept */ }
+  }
+
+  private savedLabel(): string | null {
+    try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { label?: string } | null; return v?.label ?? null; } catch { return null; }
+  }
+
+  private continueGame() {
+    try {
+      const v = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null') as { file: SaveFile };
+      this.load(v.file);
+    } catch (e) { this.toast(`Could not load the saved game: ${(e as Error).message}`, 'bad'); this.dialog.open(false, null); }
+  }
+
+  private load(file: SaveFile | string) {
+    const S = loadGame(this.content, file);
+    this.adopt(S);
+    this.toast(`Loaded: ${this.worldLabel()}`);
+  }
+
+  private saveFile() {
+    const blob = new Blob([JSON.stringify(saveGame(this.S))], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `hearthworks-${this.S.setup.map}-${this.S.seed}-${Math.floor(this.S.t / 60)}min.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
   // ---------- loop ----------
@@ -76,6 +130,8 @@ export class App {
       this.r.draw(this.S, this.view);
       uiT -= dt;
       if (uiT <= 0) { uiT = 0.25; this.updateHud(); this.checkGoals(); this.drainEvents(); }
+      this.saveT += dt;
+      if (this.saveT >= AUTOSAVE_SECONDS && this.speed > 0) { this.saveT = 0; this.save(); }
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
@@ -116,7 +172,19 @@ export class App {
     document.querySelectorAll<HTMLButtonElement>('[data-speed]').forEach(b => b.addEventListener('click', () => this.setSpeed(Number(b.dataset.speed))));
     $('#plans').addEventListener('click', () => this.setPlans(!this.plans));
     $('#routes').addEventListener('click', () => { this.view.routes = !this.view.routes; $('#routes').setAttribute('aria-pressed', String(this.view.routes)); });
-    $('#newWorld').addEventListener('click', () => { this.setMenu(false); this.setSpeed(0); this.dialog.open(true); });
+    $('#newWorld').addEventListener('click', () => { this.setMenu(false); this.setSpeed(0); this.save(); this.dialog.open(true); });
+    $('#saveFile').addEventListener('click', () => this.saveFile());
+    const input = $<HTMLInputElement>('#loadInput');
+    $('#loadFile').addEventListener('click', () => input.click());
+    input.addEventListener('change', () => {
+      const f = input.files?.[0];
+      input.value = '';
+      if (!f) return;
+      void f.text().then(t => { this.load(t); this.setMenu(false); this.save(); }).catch(e => this.toast(`Could not load ${f.name}: ${(e as Error).message}`, 'bad'));
+    });
+    // keep the autosave fresh when the tab is hidden or closed
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.save(); });
+    window.addEventListener('pagehide', () => this.save());
     $('#insClose').addEventListener('click', () => this.select(null));
     $('#menuBtn').addEventListener('click', () => this.setMenu($('#drawer').hidden === true));
     $('#drawerClose').addEventListener('click', () => this.setMenu(false));

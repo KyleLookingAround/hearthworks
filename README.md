@@ -2,7 +2,7 @@
 
 A cosy 2D town builder for the web. Every log, plank and loaf is carried by a villager until you invent machines to do it. The goal is a town whose villagers decide what to build themselves, growing from a hamlet into a civilisation.
 
-**Status:** playable prototype. The villagers plan their own town: they notice shortages and decide what to build and where (switch **Village plans** off to place buildings yourself). They staff the buildings, haul every good through a shared job board, eat bread, arrive when fed and leave when not. Pick a world (islands, a landmass cut by rivers, a coast, or a lone isle) and two settlements start out, each knowing its own blueprints; on islands they need docks and boats to meet: courier bots, the first automation, have to be thought of under strain, and visitors carry the idea next door.
+**Status:** playable prototype. The villagers plan their own town: they notice shortages and decide what to build and where (switch **Village plans** off to place buildings yourself). They staff the buildings, haul every good through a shared job board, eat bread, arrive when fed and leave when not. Pick a world (islands, a landmass cut by rivers, a coast, or a lone isle) and two settlements start out, each knowing its own blueprints; on islands they need docks and boats to meet: courier bots, the first automation, have to be thought of under strain, and visitors carry the idea next door. Games autosave in the browser (Continue on the new-game screen) and can be saved to a file.
 
 ## Run it
 
@@ -49,6 +49,9 @@ npm run gates
 # PASS  01-first-plank
 # PASS  02-sustain-town
 # PASS  03-couriers
+# PASS  04-village-plans
+# PASS  05-knowledge-spreads
+# PASS  06-solid-ground
 ```
 
 `npm test` runs them too, so a tuning change that breaks the economy fails CI.

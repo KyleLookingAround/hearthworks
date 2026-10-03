@@ -37,6 +37,9 @@
       <button class="btn" id="plans" aria-pressed="true" title="Let the villagers decide what to build and where. Turn off to place every building by hand.">Village plans</button>
       <button class="btn" id="routes" aria-pressed="false">Routes</button>
       <button class="btn" id="newWorld">New world</button>
+      <button class="btn" id="saveFile" title="Download this game as a file">Save to file</button>
+      <button class="btn" id="loadFile" title="Open a saved game file">Load file</button>
+      <input type="file" id="loadInput" accept=".json,application/json" hidden>
       <button class="btn" id="fullscreen" hidden>Full screen</button>
       <button class="btn" id="hideUi" title="Hide every panel (H)">Hide interface</button>
     </div>
@@ -89,7 +92,7 @@
       </div>
       <figure class="ng-preview"><canvas id="ngPreview" width="320" height="240" aria-label="Preview of the generated land"></canvas><figcaption id="ngNote"></figcaption></figure>
     </div>
-    <div class="ng-actions"><button type="button" class="btn" id="ngCancel" hidden>Cancel</button><button type="button" class="btn primary" id="ngStart">Start</button></div>
+    <div class="ng-actions"><span class="ng-saved" id="ngSaved" hidden></span><button type="button" class="btn" id="ngContinue" hidden>Continue</button><button type="button" class="btn" id="ngCancel" hidden>Cancel</button><button type="button" class="btn primary" id="ngStart">Start</button></div>
   </div>
 </div>
 <div class="fatal panel" id="fatal" role="alert" hidden></div>

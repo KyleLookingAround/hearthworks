@@ -1,0 +1,33 @@
+---
+type: Attested Computation
+title: "Gate 6: solid ground"
+description: Two self-planning settlements for 30 game minutes; a game saved halfway and loaded finishes identical to one that never stopped, nobody is ever inside a building's walls, and both villages thrive.
+tags: [gate, roadmap, saves, settlement]
+status: stable
+generated: { by: claude/opus-5.5, at: 2026-10-03T13:04:19Z }
+runtime: hearthworks-sim
+computation: ../references/scenarios/solid-ground.ts
+parameters:
+  - { name: seed, type: integer, required: true }
+  - { name: seconds, type: integer, required: true }
+defaults: { seed: 1847, seconds: 1800 }
+pass_when: { min_settlements: 2, min_save_roundtrip_match: 1, max_agents_inside_walls: 0, max_departures: 2, min_mood_min: 0.6, min_town_mood_min: 0.6 }
+executor:
+  resource: ../references/skills/run-gate.md
+  receipt: [gate, params, ticks, scenario_sha256, content_hash, metrics]
+attester:
+  resource: ../references/attesters/thresholds.ts
+---
+
+# Computation
+
+The sanctioned scenario is [solid-ground.ts](/references/scenarios/solid-ground.ts). It founds two settlements on the standard map, each with its [planner](/systems/planner.md) on, and makes no build calls. One game runs the full time. A second game from the same seed is [saved](/systems/saves.md) halfway, turned into JSON text, loaded from that text into a fresh state and played to the end. Every second of both, it counts agents standing on a building tile that is not a door. `mood_min` is tracked after a five-minute warm-up.
+
+# Proves
+
+Phase 6 of the [roadmap](/roadmap.md): the ground is solid and the game can be put down and picked up.
+
+- `save_roundtrip_match`: the loaded game ends with exactly the same state and receipt as the one that never stopped. A save that drops anything the sim reads (a random stream, a timer, a reservation) shows up as a difference here.
+- `agents_inside_walls`: buildings are solid in both games, before and after loading.
+- The welfare thresholds are Gate 4's and Gate 5's, and `town_mood_min` holds each settlement to the mood bar on its own, so a thriving village cannot hide a starving one.
+- `save_bytes` and the work counters (`path_searches`, `path_fails`, `path_nodes`, `job_pairs`, `planner_spots`) are recorded as the baseline for Phase 7's budgets.

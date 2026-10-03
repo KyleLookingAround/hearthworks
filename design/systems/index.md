@@ -8,4 +8,5 @@
 * [Needs and population](needs.md) - Eating, mood, newcomers arriving and villagers leaving.
 * [Village planner](planner.md) - Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 * [Production and construction](production.md) - Construction sites and their priority queue, worker assignment and recipe cycles.
+* [Saves](saves.md) - The whole game as versioned JSON; autosaved in the browser, downloadable, and loaded to play on exactly as if it never stopped.
 * [Starting settlement](settlement.md) - What a new game begins with, per settlement — a storage yard, two houses, a road and five villagers.

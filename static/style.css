@@ -174,7 +174,8 @@ body.ui-hidden .ui{display:none!important}
 .ng-preview{margin:0;display:grid;gap:6px}
 .ng-preview canvas{width:100%;height:auto;border-radius:8px;border:1px solid var(--line);image-rendering:pixelated;background:#1d4b57}
 .ng-preview figcaption{font-size:13px;color:var(--ink-2)}
-.ng-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.ng-actions{display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px}
+.ng-saved{margin-right:auto;font-size:12.5px;color:var(--ink-2)}
 .btn.primary{background:var(--brass);border-color:var(--brass);color:var(--panel);font-weight:700}
 .btn.primary:hover{background:var(--brass-hi)}
 @media (max-width:640px){

@@ -12,12 +12,14 @@ const randomSeed = () => Math.floor(Math.random() * 1e9);
 export class NewGameDialog {
   private readonly content: Content;
   private readonly onStart: (c: GameChoice) => void;
+  private readonly onContinue: () => void;
   private choice: GameChoice;
   private previewTimer = 0;
 
-  constructor(content: Content, onStart: (c: GameChoice) => void, seed: number) {
+  constructor(content: Content, onStart: (c: GameChoice) => void, onContinue: () => void, seed: number) {
     this.content = content;
     this.onStart = onStart;
+    this.onContinue = onContinue;
     const T = content.tuning.map;
     // players start on the first map type in order (Islands); the gates keep the standard map
     const first = Object.values(content.maps).sort((a, b) => a.order - b.order)[0]?.id ?? T.standardType;
@@ -30,9 +32,12 @@ export class NewGameDialog {
     this.build();
   }
 
-  /** Show the screen. `cancellable` when a game is already running behind it. */
-  open(cancellable: boolean) {
+  /** Show the screen. `cancellable` when a game is already running behind it; `saved` describes the autosave to continue, if any. */
+  open(cancellable: boolean, saved: string | null = null) {
     $('#ngCancel').hidden = !cancellable;
+    $('#ngContinue').hidden = !saved;
+    $('#ngSaved').hidden = !saved;
+    $('#ngSaved').textContent = saved ? `Saved: ${saved}` : '';
     $('#newgame').hidden = false;
     this.sync();
     $<HTMLButtonElement>('#ngStart').focus({ preventScroll: true });
@@ -62,6 +67,7 @@ export class NewGameDialog {
       this.onStart({ ...this.choice });
     });
     $('#ngCancel').addEventListener('click', () => this.close());
+    $('#ngContinue').addEventListener('click', () => { this.close(); this.onContinue(); });
     $('#newgame').addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#ngCancel').hidden) this.close(); });
   }
 

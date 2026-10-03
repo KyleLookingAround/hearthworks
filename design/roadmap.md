@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T12:27:37Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T13:05:47Z }
 ---
 
 # How to read this
@@ -61,7 +61,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Why now.** Everything after this assumes buildings are physical, saves exist and the cost of the sim is measured. Today villagers walk through buildings, mood and stock are island-wide, and nothing records how much work a tick costs.
 
-**Delivered:** mood and supply per settlement (with Phase 7's map types, which needed them); solid buildings with doors and door fronts; work counters in every receipt (`path_searches`, `path_fails`, `path_nodes`, `job_pairs`, `planner_spots`). Still to come: versioned saves and Gate 6.
+**Delivered:** mood and supply per settlement (with Phase 7's map types, which needed them); solid buildings with doors and door fronts; work counters in every receipt (`path_searches`, `path_fails`, `path_nodes`, `job_pairs`, `planner_spots`); versioned [saves](/systems/saves.md) with autosave, Continue, and save files; [Gate 6](/gates/06-solid-ground.md). **Phase 6 is done.**
 
 **Builds.**
 - **Solid buildings. Building tiles block walking; only a building's door tile lets people in. The tile in front of each door must stay open: placement (planner and hand) refuses anything that would cover a door front. A building nobody can reach shows "No way in" and is not served. An agent caught inside a new footprint walks out through it.
@@ -69,7 +69,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 - **Saves.** The whole state serialises, with a schema version: the random streams are plain numbers, and references become ids. The browser autosaves and can load.
 - **Work counters** in every receipt: `path_nodes`, `job_pairs`, `planner_spots`.
 
-**Gate 6 (proposed).** Two settlements, planner on, 30 game minutes. A save at 15 minutes, reloaded, finishes with the same receipt as an uninterrupted run (`save_roundtrip_match = 1`); `agents_inside_walls = 0` at every second; `max_departures: 2`; `min_mood_min: 0.6`. Work counters are recorded as the baseline for Phase 7 budgets.
+**Gate 6 (stable).** [Gate 6](/gates/06-solid-ground.md) as proposed, plus `town_mood_min` so each settlement meets the mood bar on its own. Two settlements, planner on, 30 game minutes. A save at 15 minutes, reloaded, finishes with the same receipt as an uninterrupted run (`save_roundtrip_match = 1`); `agents_inside_walls = 0` at every second; `max_departures: 2`; `min_mood_min: 0.6`. Work counters and `save_bytes` are recorded as the baseline for Phase 7 budgets.
 
 **Disturbs.** Every gate, since routes change around solid buildings. [Gate 4](/gates/04-village-plans.md) is revised at the same time: its town reaches four times its population bar, so the bar rises to what the planner reliably achieves, less a margin.
 
