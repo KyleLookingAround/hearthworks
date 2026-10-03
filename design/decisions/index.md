@@ -5,3 +5,4 @@
 * [0001: Keep design knowledge as an OKF bundle](0001-okf-design-bundle.md) - Design docs, balance numbers and blueprints live in design/ as OKF v0.2 concepts that the game loads as content.
 * [0002: Deterministic, DOM-free simulation core](0002-deterministic-headless-sim.md) - All game rules live in src/sim as pure TypeScript with a seeded RNG, so the same seed and commands always give the same town.
 * [0003: Plain TypeScript, no bundler yet](0003-no-bundler-yet.md) - The browser build is tsc output served as ES modules; tests use Node's built-in runner. Vite can come in later without changing the code.
+* [0004: Gates may be reworked as the game grows](0004-reworking-gates.md) - Gates change when the design moves under them, never to turn a failing gate green; small changes are revised in place, larger ones supersede the old gate, which is deprecated and kept.

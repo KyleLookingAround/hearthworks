@@ -3,6 +3,7 @@
  *   npm run gates                       all gates
  *   npm run gates -- 02-sustain-town    one gate
  *   npm run gates -- 02 --seed 7 --seconds 600 --json
+ * Deprecated gates are skipped in the full run but can still be run by name.
  */
 import { listGates, runGate } from '../src/gates/executor.ts';
 
@@ -17,7 +18,7 @@ for (let i = 0; i < args.length; i++) {
   names.push(a);
 }
 
-const gates = listGates().filter(p => !names.length || names.some(n => p.replace(/^.*[\\/]/, '').startsWith(n)));
+const gates = listGates({ deprecated: names.length > 0 }).filter(p => !names.length || names.some(n => p.replace(/^.*[\\/]/, '').startsWith(n)));
 if (!gates.length) { console.error(`No gate matches ${names.join(', ')}`); process.exit(2); }
 
 let failed = 0;

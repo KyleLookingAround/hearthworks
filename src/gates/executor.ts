@@ -25,8 +25,14 @@ export interface GateRun { id: string; title: string; path: string; receipt: Rec
 
 const GATES_DIR = join(DESIGN_DIR, 'gates');
 
-export function listGates(): string[] {
-  return readdirSync(GATES_DIR).filter(f => f.endsWith('.md') && f !== 'index.md' && f !== 'log.md').sort().map(f => join(GATES_DIR, f));
+/**
+ * Gate concepts in design/gates, in order. Deprecated gates (superseded by a reworked
+ * gate, kept for history) are left out unless asked for.
+ */
+export function listGates(opts: { deprecated?: boolean; dir?: string } = {}): string[] {
+  const dir = opts.dir ?? GATES_DIR;
+  return readdirSync(dir).filter(f => f.endsWith('.md') && f !== 'index.md' && f !== 'log.md').sort().map(f => join(dir, f))
+    .filter(p => opts.deprecated || parseDoc(p, readFileSync(p, 'utf8')).data.status !== 'deprecated');
 }
 
 /** Resolve an OKF path-valued field: bundle-relative (/...), relative, or absolute URL. */

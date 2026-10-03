@@ -24,7 +24,7 @@ Node 22.18 or newer runs `.ts` files directly; TypeScript is the only dependency
 
 ## Workflow
 
-Kyle has given standing permission to develop, test and push to `main` without checking in. Before every push: `npm run ci` must be green, and the rules below still apply. A push to `main` publishes the game to GitHub Pages (https://kylelookingaround.github.io/hearthworks/): after pushing, check that the CI run and its Pages deploy succeed and that the live site loads. Report what changed afterwards. Gate thresholds and `verified` entries remain Kyle's decisions: report a gate that looks too loose or too strict rather than changing it quietly.
+Kyle has given standing permission to develop, test and push to `main` without checking in. Before every push: `npm run ci` must be green, and the rules below still apply. A push to `main` publishes the game to GitHub Pages (https://kylelookingaround.github.io/hearthworks/): after pushing, check that the CI run and its Pages deploy succeed and that the live site loads. Report what changed afterwards. Gates may be reworked under rule 6; Kyle can overrule any threshold, and `verified` entries remain his alone.
 
 ## Rules when changing the design
 
@@ -33,7 +33,7 @@ Kyle has given standing permission to develop, test and push to `main` without c
 3. **Never write `verified` with a `human:` actor.** Only Kyle verifies (`human:kyle`), after playtesting. You may add `process:` verifications produced by CI.
 4. **Log it.** Add a dated bullet to `design/log.md` (newest date first; `**Creation**`, `**Update**`, `**Finding**`, `**Deprecation**`).
 5. **Run `npm run okf`** so the indexes stay in sync; CI fails on stale indexes.
-6. **Gates are sanctioned computations.** Supply parameter values only. Do not edit a scenario to make a gate pass; change the game or the tuning instead. If a scenario genuinely must change, say why in the gate's body and the log.
+6. **Gates are sanctioned computations, and may be reworked as the game grows** ([decision 0004](design/decisions/0004-reworking-gates.md)). Never rework a gate to turn it green: a failing gate is first a bug in the game or the tuning. Small changes that keep the intent are revised in place with a `# Revisions` entry; anything larger, or any loosened threshold, supersedes the old gate (deprecated and kept, still runnable by name). Always log it, and call out any loosening in the report.
 7. **Deprecate, don't delete.** Superseded concepts get `status: deprecated` and stay for links and history.
 8. `log.md` and `index.md` are reserved filenames at every level of the bundle.
 

@@ -1,7 +1,9 @@
 /** Every roadmap gate in design/gates runs headless and must attest cleanly. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { listGates, runGate } from '../src/gates/executor.ts';
 import { attest } from '../design/references/attesters/thresholds.ts';
 
@@ -29,4 +31,14 @@ test('the attester reports a missing metric', async () => {
   const v = attest({ id: r.id, passWhen: { min_unicorns: 1 }, computationSource: scenario }, r.receipt);
   assert.equal(v.ok, false);
   assert.match(v.reason ?? '', /unicorns missing/);
+});
+
+test('deprecated gates are kept but left out of the run unless asked for', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gates-'));
+  const gate = (status: string) => `---\ntype: Attested Computation\ntitle: g\nstatus: ${status}\n---\n`;
+  writeFileSync(join(dir, '01-old.md'), gate('deprecated'));
+  writeFileSync(join(dir, '02-new.md'), gate('stable'));
+  writeFileSync(join(dir, 'index.md'), '# index');
+  assert.deepEqual(listGates({ dir }).map(p => p.replace(/^.*[\\/]/, '')), ['02-new.md']);
+  assert.equal(listGates({ dir, deprecated: true }).length, 2);
 });

@@ -4,7 +4,7 @@ title: Run a gate
 description: How to run a hearthworks-sim gate headless and get its receipt and verdict.
 tags: [gate, tooling]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T08:15:00Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T10:41:51Z }
 ---
 
 # Steps
@@ -16,5 +16,6 @@ generated: { by: claude/opus-5.5, at: 2026-10-03T08:15:00Z }
 
 # Rules for agents
 
-- Supply parameter values only. Never edit a scenario file to make a gate pass; change the game or the tuning, and say so in the [log](/log.md).
-- Changing a scenario is a design decision: update the gate's body to say why.
+- Supply parameter values only when running a gate. Never edit a scenario file to make a failing gate pass; change the game or the tuning, and say so in the [log](/log.md).
+- Gates may be reworked as the game grows, under [decision 0004](/decisions/0004-reworking-gates.md): revise in place with a `# Revisions` entry when the intent is kept, or supersede (deprecate the old gate, keep it) for larger changes or any loosened threshold.
+- Deprecated gates are skipped by `npm run gates` and `npm test`, but `npm run gates -- 02` still runs one by name.
