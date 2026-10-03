@@ -4,12 +4,12 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T11:46:25Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T11:59:22Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
-  villager_speed: 2.2
-  bot_speed: 3.6
+  villager_speed: 3
+  bot_speed: 4.9
   road_speed: 1.7
   forest_speed: 0.65
   output_cap: 6
@@ -27,6 +27,10 @@ tuning:
 6. Claiming **reserves** the goods at the source and marks them **incoming** at the destination, so no two carriers chase the same stack.
 7. A producer holding at least `dump_at` of an output nobody asked for sends it to the nearest [storage yard](/blueprints/storage.md).
 8. A producer whose output reaches `output_cap` stalls.
+
+# Walls and doors
+
+Buildings are solid. A building is entered only through its door (the middle of its bottom row); every other tile of it blocks walking, and nobody cuts a corner past a wall or water. Someone caught on a tile where a new building goes steps out to its door front, and anyone whose route crossed it finds a new one. Walking around buildings made trips 20 to 35% longer, so `villager_speed` rose from 2.2 to 3 and `bot_speed` from 3.6 to 4.9 to keep the economy's pace (see the [log](/log.md)).
 
 # Carriers
 

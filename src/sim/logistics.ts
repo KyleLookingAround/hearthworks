@@ -95,6 +95,7 @@ export function findTask(S: State, a: Agent): boolean {
     if (!inRange(r.dst)) continue;
     for (const s of S.buildings) {
       if (s === r.dst) continue;
+      S.world.work.jobPairs++;
       const av = available(S, s, r.item);
       if (av <= 0 || !inRange(s)) continue;
       const score = distAB(a, s) + distBB(s, r.dst) + r.pri + (bp(S, s).storage ? 2 : 0);

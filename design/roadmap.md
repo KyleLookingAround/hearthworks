@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T11:46:25Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T11:59:22Z }
 ---
 
 # How to read this
@@ -61,7 +61,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Why now.** Everything after this assumes buildings are physical, saves exist and the cost of the sim is measured. Today villagers walk through buildings, mood and stock are island-wide, and nothing records how much work a tick costs.
 
-**Delivered early:** mood and supply per settlement (with Phase 7's map types, which needed them).
+**Delivered:** mood and supply per settlement (with Phase 7's map types, which needed them); solid buildings with doors and door fronts; work counters in every receipt (`path_searches`, `path_fails`, `path_nodes`, `job_pairs`, `planner_spots`). Still to come: versioned saves and Gate 6.
 
 **Builds.**
 - **Solid buildings. Building tiles block walking; only a building's door tile lets people in. The tile in front of each door must stay open: placement (planner and hand) refuses anything that would cover a door front. A building nobody can reach shows "No way in" and is not served. An agent caught inside a new footprint walks out through it.

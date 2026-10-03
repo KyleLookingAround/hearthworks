@@ -205,7 +205,15 @@ export interface World {
   road: Uint8Array;
   /** building id per tile, -1 when empty */
   bgrid: Int32Array;
+  /** 1 on a building's door tile: the only building tile that can be walked onto */
+  door: Uint8Array;
+  /** how many doors open onto this tile; placement keeps these tiles open */
+  front: Uint8Array;
+  /** Deterministic work counters: what the sim spent, for budgets that don't depend on the machine. */
+  work: Work;
 }
+
+export interface Work { paths: number; pathFails: number; pathNodes: number; jobPairs: number; plannerSpots: number }
 
 export interface GameEvent { kind: 'good' | 'bad' | 'info'; text: string; t: number }
 

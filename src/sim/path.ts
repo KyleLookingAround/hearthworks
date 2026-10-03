@@ -1,4 +1,8 @@
-/** A* on the tile grid: 8 directions, roads cheap, grown trees slow, water blocked. */
+/**
+ * A* on the tile grid: 8 directions, roads cheap, grown trees slow, water and buildings blocked.
+ * A building is entered only by its door; someone standing inside one (caught by a new
+ * footprint) may walk out through that building.
+ */
 import type { World } from './types.ts';
 
 interface Buffers { g: Float32Array; came: Int32Array; seen: Uint32Array; closed: Uint32Array; gen: number }
@@ -7,8 +11,10 @@ const buffers = new WeakMap<World, Buffers>();
 const DIRS: [number, number, number][] = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
 const ROAD_COST = 0.59;
 
-function cost(w: World, i: number): number {
+function cost(w: World, i: number, inside: number): number {
   if (!w.ground[i]) return Infinity;
+  const b = w.bgrid[i];
+  if (b !== -1 && !w.door[i] && b !== inside) return Infinity;
   if (w.road[i]) return ROAD_COST;
   if (w.tree[i] === 2) return 1.5;
   return 1;
@@ -16,12 +22,14 @@ function cost(w: World, i: number): number {
 
 export function findPath(w: World, sx: number, sy: number, gx: number, gy: number): [number, number][] | null {
   const W = w.w, H = w.h, inB = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H;
-  if (!inB(gx, gy) || !inB(sx, sy) || !w.ground[gy * W + gx]) return null;
+  w.work.paths++;
+  if (!inB(gx, gy) || !inB(sx, sy) || !w.ground[gy * W + gx]) { w.work.pathFails++; return null; }
   const s = sy * W + sx, goal = gy * W + gx;
   if (s === goal) return [];
   let b = buffers.get(w);
   if (!b) { const n = W * H; b = { g: new Float32Array(n), came: new Int32Array(n), seen: new Uint32Array(n), closed: new Uint32Array(n), gen: 0 }; buffers.set(w, b); }
-  const gen = ++b.gen, { g, came, seen, closed } = b;
+  // only someone trapped on a wall tile (not standing in a doorway) may cross that building to get out
+  const gen = ++b.gen, { g, came, seen, closed } = b, inside = w.door[s] ? -1 : w.bgrid[s];
   const h = (i: number) => { const dx = Math.abs(i % W - gx), dy = Math.abs(((i / W) | 0) - gy); return ROAD_COST * (Math.max(dx, dy) + 0.414 * Math.min(dx, dy)); };
   const hi: number[] = [], hf: number[] = [];
   const swap = (a: number, c: number) => { [hi[a], hi[c]] = [hi[c], hi[a]]; [hf[a], hf[c]] = [hf[c], hf[a]]; };
@@ -50,6 +58,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
     const cur = pop();
     if (closed[cur] === gen) continue;
     closed[cur] = gen;
+    w.work.pathNodes++;
     if (cur === goal) {
       const out: [number, number][] = [];
       for (let c = goal; c !== s; c = came[c]) out.push([c % W, (c / W) | 0]);
@@ -59,12 +68,14 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
     for (const [dx, dy, m] of DIRS) {
       const nx = cx + dx, ny = cy + dy;
       if (!inB(nx, ny)) continue;
-      const ni = ny * W + nx, c = cost(w, ni);
+      const ni = ny * W + nx, c = cost(w, ni, inside);
       if (c === Infinity) continue;
-      if (dx && dy && (!w.ground[cy * W + nx] || !w.ground[ny * W + cx])) continue;
+      // no cutting corners past water or walls
+      if (dx && dy && (cost(w, cy * W + nx, inside) === Infinity || cost(w, ny * W + cx, inside) === Infinity)) continue;
       const ng = g[cur] + c * m;
       if (seen[ni] !== gen || ng < g[ni]) { seen[ni] = gen; closed[ni] = 0; g[ni] = ng; came[ni] = cur; push(ni, ng + h(ni)); }
     }
   }
+  w.work.pathFails++;
   return null;
 }

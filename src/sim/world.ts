@@ -1,12 +1,13 @@
 import { makeRng, rand, valueNoise } from './rng.ts';
-import { makeAgent, removeAgent } from './agents.ts';
+import { goToBuilding, makeAgent, removeAgent } from './agents.ts';
 import { plannerOn } from './planner.ts';
 import { foundersKnowledge } from './knowledge.ts';
 import { findPath } from './path.ts';
 import type { Agent, Building, Content, GameEvent, MapDef, State, Town, World } from './types.ts';
 
 export const inB = (w: World, x: number, y: number) => x >= 0 && y >= 0 && x < w.w && y < w.h;
-export const door = (b: Building) => ({ x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 });
+/** The door: middle of the bottom row. The tile below it (the door front) must stay open. */
+export const door = (b: { x: number; y: number; w: number; h: number }) => ({ x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 });
 export const ctr = (b: { x: number; y: number; w: number; h: number }) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
 export const distAB = (a: { x: number; y: number }, b: Building) => { const p = ctr(b); return Math.hypot(a.x - p.x, a.y - p.y); };
 export const distBB = (a: Building, b: Building) => { const p = ctr(a), q = ctr(b); return Math.hypot(p.x - q.x, p.y - q.y); };
@@ -27,7 +28,7 @@ export function emit(S: State, kind: GameEvent['kind'], text: string) {
  */
 function generateWorld(M: MapDef, W: number, H: number, S: State): World {
   const r = S.rng, N = W * H, T = M.terrain, F = M.forest;
-  const w: World = { w: W, h: H, ground: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1) };
+  const w: World = { w: W, h: H, ground: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1), door: new Uint8Array(N), front: new Uint8Array(N), work: { paths: 0, pathFails: 0, pathNodes: 0, jobPairs: 0, plannerSpots: 0 } };
   const n1 = valueNoise(r, T.largeCell, W, H), n2 = valueNoise(r, T.smallCell, W, H), n3 = valueNoise(r, F.cell, W, H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x, dx = (x + 0.5 - W / 2) / (W / 2), dy = (y + 0.5 - H / 2) / (H / 2), radial = dx * dx + dy * dy;
@@ -151,16 +152,52 @@ export function nearestTown(S: State, x: number, y: number): number {
 /** The settlement a villager or bot belongs to. */
 export const townOf = (S: State, a: Agent) => a.home?.town ?? a.depot?.town ?? nearestTown(S, a.x, a.y);
 
-export function canPlace(S: State, type: string, x: number, y: number): boolean {
+/**
+ * Why `type` cannot go here, or null if it can. Every tile must be open land, the building
+ * must not cover another building's door front, and its own door front must be open land too.
+ */
+export function placeProblem(S: State, type: string, x: number, y: number): string | null {
   const B = S.content.blueprints[type], w = S.world;
-  if (!B) return false;
+  if (!B) return 'unknown building';
   for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) {
-    if (!inB(w, k, j)) return false;
+    if (!inB(w, k, j)) return 'off the edge of the map';
     const i = j * w.w + k;
-    if (!w.ground[i] || w.bgrid[i] !== -1) return false;
-    if (B.paves && w.road[i]) return false;
+    if (!w.ground[i]) return 'that is water';
+    if (w.bgrid[i] !== -1) return 'something is already built there';
+    if (B.paves) { if (w.road[i]) return 'there is a road already'; continue; }
+    if (w.front[i]) return "it would block another building's door";
   }
-  return true;
+  if (!B.paves) {
+    const d = door({ x, y, w: B.w, h: B.h }), fy = d.y + 1;
+    if (!inB(w, d.x, fy) || !w.ground[fy * w.w + d.x] || w.bgrid[fy * w.w + d.x] !== -1) return 'its door would open onto nothing';
+  }
+  return null;
+}
+
+export const canPlace = (S: State, type: string, x: number, y: number) => placeProblem(S, type, x, y) === null;
+
+/**
+ * Anyone standing where a new building goes steps out to its door front, and anyone whose
+ * route crosses it finds a new one.
+ */
+function stepOut(S: State, b: Building) {
+  const d = door(b), inFoot = (x: number, y: number) => x >= b.x && y >= b.y && x < b.x + b.w && y < b.y + b.h;
+  for (const a of S.agents) {
+    const inside = inFoot(Math.floor(a.x), Math.floor(a.y));
+    if (!inside && !a.path.some(([x, y]) => inFoot(x, y) && !(x === d.x && y === d.y))) continue;
+    if (inside) { a.x = d.x + 0.5; a.y = d.y + 1.5; }
+    a.path = [];
+    const t = a.task, to = a.state === 'toSrc' ? t?.src : a.state === 'toDst' ? t?.dst : a.state === 'toWork' ? a.work : a.state === 'visit' && a.visit ? S.bmap.get(S.towns[a.visit.back ? a.visit.from : a.visit.to].store) : null;
+    if (to && !to.dead) goToBuilding(S, a, to);
+    else if (a.state === 'wander') a.state = 'idle';
+  }
+}
+
+/** Mark or clear a building's door and the open tile in front of it. */
+function setDoor(S: State, b: Building, on: boolean) {
+  const w = S.world, d = door(b), i = d.y * w.w + d.x, f = (d.y + 1) * w.w + d.x;
+  w.door[i] = on ? 1 : 0;
+  if (inB(w, d.x, d.y + 1)) w.front[f] = Math.max(0, w.front[f] + (on ? 1 : -1));
 }
 
 /** Place a building (or a road tile). New buildings start as construction sites unless `complete`. */
@@ -172,7 +209,9 @@ export function placeBuilding(S: State, type: string, x: number, y: number, comp
     worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0, waiting: {},
   };
   for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; w.road[i] = 0; }
+  setDoor(S, b, true);
   S.buildings.push(b); S.bmap.set(b.id, b);
+  stepOut(S, b);
   if (complete) completeSite(S, b, false);
   return b;
 }
@@ -195,6 +234,7 @@ export function demolish(S: State, b: Building) {
   S.buildings = S.buildings.filter(o => o !== b); S.bmap.delete(b.id);
   const w = S.world;
   for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) w.bgrid[j * w.w + k] = -1;
+  setDoor(S, b, false);
   for (const a of S.agents) if (a.work === b) { a.work = null; a.role = 'carrier'; a.state = 'idle'; a.path = []; }
   const gone = b.residents.length;
   for (const id of [...b.residents]) { const a = S.amap.get(id); if (a) { removeAgent(S, a); S.stats.departures++; } }

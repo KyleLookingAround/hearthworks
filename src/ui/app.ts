@@ -1,5 +1,5 @@
 /** Browser shell: HUD, goals, build bar, inspector, toasts, pointer input and the frame loop. */
-import { canPlace, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { GOALS } from '../game/goals.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
@@ -204,7 +204,7 @@ export class App {
     if (t && !this.content.blueprints[t].paves) {
       const o = ghostOrigin(S, t, h);
       if (canPlace(S, t, o.x, o.y)) { const b = placeBuilding(S, t, o.x, o.y, false); this.setTool(null); this.select(b); }
-      else this.toast('That spot is blocked: pick open land', 'bad');
+      else this.toast(`Can't build there: ${placeProblem(S, t, o.x, o.y)}`, 'bad');
       return;
     }
     if (!t) {

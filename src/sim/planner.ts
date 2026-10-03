@@ -192,6 +192,7 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
   const scored: { x: number; y: number; s: number }[] = [];
   const R = P.searchRadius, ox = Math.round(home.x - B.w / 2), oy = Math.round(home.y - B.h / 2);
   for (let y = oy - R; y <= oy + R; y++) for (let x = ox - R; x <= ox + R; x++) {
+    W.work.plannerSpots++;
     if (!fits(S, type, x, y, P.gap)) continue;
     const p = { x: x + B.w / 2, y: y + B.h / 2 };
     let s = P.storeWeight * Math.hypot(p.x - home.x, p.y - home.y);

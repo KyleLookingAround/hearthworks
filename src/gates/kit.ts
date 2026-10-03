@@ -46,6 +46,11 @@ export function standardMetrics(S: State, extra: Metrics = {}): Metrics {
     deliveries_bot: d.bot,
     bot_share: total ? round(d.bot / total) : 0,
     sites_unfinished: S.buildings.filter(b => b.site).length,
+    path_searches: S.world.work.paths,
+    path_fails: S.world.work.pathFails,
+    path_nodes: S.world.work.pathNodes,
+    job_pairs: S.world.work.jobPairs,
+    planner_spots: S.world.work.plannerSpots,
     ...extra,
   };
 }

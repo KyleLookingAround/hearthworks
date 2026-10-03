@@ -4,13 +4,17 @@ title: Production and construction
 description: Construction sites and their priority queue, worker assignment and recipe cycles.
 tags: [production, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T08:55:28Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T11:59:22Z }
 tuning:
   build_seconds: 3
   replant_every_seconds: 6
   max_trees_near_forester: 9
   site_priority_tiles: 2
 ---
+
+# Placement
+
+A building needs open land under every tile, must not cover any other building's **door front** (the tile below a door), and its own door front must be open land. The player is told why a spot is refused ("it would block another building's door"). The [planner](/systems/planner.md) also keeps a ring of open land around what it builds.
 
 # Construction
 
