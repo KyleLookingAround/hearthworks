@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hearthworks</title>
+<meta name="description" content="A 2D town builder where every good is carried by hand until you build machines.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="view" aria-label="Island map. Drag to pan, scroll or pinch to zoom, tap a building to inspect it."></canvas>
+
+  <div class="topstack">
+    <header class="hud panel">
+      <div class="brand"><span class="mark">Hearthworks</span><span class="tag">prototype</span></div>
+      <div class="res" id="res" aria-label="Goods in storage"></div>
+      <div class="meta" id="meta"></div>
+      <div class="ctrl">
+        <button class="btn" id="sp0" data-speed="0" aria-pressed="false">Pause</button>
+        <button class="btn" id="sp1" data-speed="1" aria-pressed="true">1×</button>
+        <button class="btn" id="sp3" data-speed="3" aria-pressed="false">3×</button>
+        <button class="btn" id="routes" aria-pressed="false">Routes</button>
+        <button class="btn" id="newIsland">New island</button>
+      </div>
+    </header>
+    <details class="goals panel" id="goals" open>
+      <summary><span>Goals</span><span class="count" id="goalCount">0/6</span></summary>
+      <ol id="goalList"></ol>
+      <p class="hint">Drag to pan, scroll or pinch to zoom, tap a building to inspect it. Every plank and loaf is carried by hand until you build machines.</p>
+    </details>
+  </div>
+
+  <aside class="inspector panel" id="inspector" hidden>
+    <div class="ins-head"><span class="sw" id="insSw"></span><h2 id="insName"></h2><button class="ins-close" id="insClose" aria-label="Close">×</button></div>
+    <p class="ins-desc" id="insDesc"></p>
+    <div id="insDyn"></div>
+    <div class="actions" id="insActs"></div>
+  </aside>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="toolhint panel" id="toolhint" hidden></div>
+  <nav class="build panel" id="build" aria-label="Build"></nav>
+</div>
+<div class="fatal panel" id="fatal" role="alert" hidden></div>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>

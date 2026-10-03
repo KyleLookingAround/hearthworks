@@ -1,0 +1,38 @@
+# Hearthworks: working agreement for Claude Code
+
+A 2D web town builder where villagers will plan and build their own civilisation. Start with `design/index.md`: it lists every design concept with a one-line description, so you can open only what the task needs.
+
+## Layout
+
+- `design/` is an OKF v0.2 bundle (Open Knowledge Format): markdown concepts with YAML frontmatter. **It is also game content.** Blueprints, goods and the `tuning:` blocks in `design/systems/*.md` are loaded by the game and by the tests.
+- `src/sim/` is the deterministic, DOM-free simulation. All randomness goes through `rand(S.rng)`; never use `Math.random` there.
+- `src/render/`, `src/ui/`, `src/main.ts` are the browser shell. They read state and issue commands only.
+- `src/content/` parses the bundle (`yaml.ts` is a strict YAML subset: no `|`/`>` blocks, anchors or tags).
+- `design/gates/` are roadmap gates as OKF Attested Computations. Their scenarios live in `design/references/scenarios/`, the attester in `design/references/attesters/`.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Watch-compile and serve on http://localhost:5173 |
+| `npm test` | Unit tests plus every gate |
+| `npm run gates` | Gate report; `npm run gates -- 02 --seed 7 --json` for one gate with a receipt |
+| `npm run okf` | Check the bundle and regenerate every `index.md` |
+| `npm run ci` | Everything CI runs |
+
+Node 22.18 or newer runs `.ts` files directly; TypeScript is the only dependency.
+
+## Rules when changing the design
+
+1. **Change the concept, not a copy.** Balance numbers live once, in the concept's frontmatter. Never hard-code a number in `src/` that belongs in `design/`.
+2. **Record authorship.** When you write or materially change a concept, set `generated: { by: claude/<model>, at: <UTC ISO time> }`.
+3. **Never write `verified` with a `human:` actor.** Only Kyle verifies (`human:kyle`), after playtesting. You may add `process:` verifications produced by CI.
+4. **Log it.** Add a dated bullet to `design/log.md` (newest date first; `**Creation**`, `**Update**`, `**Finding**`, `**Deprecation**`).
+5. **Run `npm run okf`** so the indexes stay in sync; CI fails on stale indexes.
+6. **Gates are sanctioned computations.** Supply parameter values only. Do not edit a scenario to make a gate pass; change the game or the tuning instead. If a scenario genuinely must change, say why in the gate's body and the log.
+7. **Deprecate, don't delete.** Superseded concepts get `status: deprecated` and stay for links and history.
+8. `log.md` and `index.md` are reserved filenames at every level of the bundle.
+
+## Current focus
+
+Phase 4 of `design/roadmap.md`: the village planner (`design/systems/planner.md`, status draft). The first target is to replace Gate 2's scripted build order with a planner that matches it.

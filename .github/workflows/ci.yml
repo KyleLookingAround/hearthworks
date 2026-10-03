@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Design bundle, types, tests, gates, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: OKF conformance and indexes
+        run: npm run okf:check
+      - name: Type check
+        run: npm run typecheck
+      - name: Tests and roadmap gates
+        run: npm test
+      - name: Gate report
+        run: npm run gates
+      - name: Build site
+        run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    # Turn on in Settings > Pages (source: GitHub Actions), then add a repository
+    # variable PAGES_ENABLED = true under Settings > Secrets and variables > Actions.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PAGES_ENABLED == 'true'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
