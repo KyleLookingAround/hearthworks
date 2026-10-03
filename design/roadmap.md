@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T10:38:02Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T10:39:50Z }
 ---
 
 # Phases
@@ -20,7 +20,7 @@ Each phase closes when its gate passes in CI. Gates are [Attested Computations](
 | 5. Knowledge | Blueprints discovered, verified by use, shared, forgotten ([knowledge](/systems/knowledge.md)) | [Gate 5](/gates/05-knowledge-spreads.md) | Done |
 | 6. Room to grow | Big islands, saves, solid buildings with doors, and a sim that scales | Gate 6: 600 villagers on a large island, deterministic, within a work budget | Next |
 | 7. The lie of the land | Terrain, deposits, rivers, desire-path roads; surroundings shape mood | Gate 7: planned roads cut haul cost, and homes end up away from noise | Later |
-| 8. Village to town | Settlements change shape as they grow: roomy hamlets, streets and terraced rows in towns, rebuilding to fit more | Gate 8: a hamlet becomes a dense town by replanning, without anyone leaving | Later |
+| 8. Village to town | Settlements change shape as they grow: roomy hamlets, streets and terraced rows in towns, small houses replaced by bigger ones, and a town planner leading district planners | Gate 8: a hamlet becomes a dense town by replanning, without anyone leaving | Later |
 | 9. A deeper economy | Stone, clay, tools, fish, cloth; house tiers; more than bread | Gate 9: a three-tier town stays supplied | Later |
 | 10. People | Individuals: families, births, ageing, skills | Gate 10: a town grows by births alone | Later |
 | 11. Ways to move | Carts, boats on rivers, hubs and multi-leg routes | Gate 11: carts are invented under distance strain and carry most long hauls | Later |
@@ -82,16 +82,26 @@ A settlement's form should follow its size. A hamlet is roomy; a town packs hous
   - **Village:** houses may share a side wall in pairs; workplaces keep their ring.
   - **Town:** streets first. The planner lays a street grid ahead of growth and fills blocks with terraced rows of houses whose doors face the street, backs to back. Workshops sit on their own blocks.
   - The thresholds and widths are tuning in the planner's concept.
+- **Bigger homes replace smaller ones.** Homes come in sizes that use land better: a cottage (today's house), a family house, a terrace row and later a tenement, each with more beds per tile and a higher cost. A cottage on a good street plot is torn down for a terrace once the town has outgrown it, much as real towns rebuild. More house types are written as blueprints, so the ladder can grow.
 - **Replanning.** When the planner finds no room, it may replace low-density buildings in good spots with denser ones, but only by these rules:
   - **Re-house first.** A home is demolished only when its residents already have beds elsewhere, so nobody leaves because of a rebuild.
   - **Never the last.** It never demolishes the last building of a kind, or one still paying for itself; a building must also be older than a set age.
   - **Salvage.** Demolition returns a share of the building's cost as goods, carried away like any other.
   - **Plan the block, then rebuild it.** A replan is one decision covering the whole block, with its own priority, so the planner doesn't tear down and rebuild one house at a time.
+- **A town planner and district planners.** One planner looking at every tile does not scale, and real towns are not planned that way. Planning becomes a hierarchy:
+  - **The town planner** (in a hamlet, the elder who plans today) sets the big picture: where districts go and what they are for (homes, workshops, farms, market), the street grid, how many homes and workplaces each district should add, and which district gets materials first.
+  - **District planners** each run one district. They decide what goes on which block, when a cottage gives way to a terrace, and what that district is short of, reporting their shortages back up.
+  - **Escalation.** A shortage a district cannot fix on its own (the bakery district has no room for another farm) goes up to the town planner, who can rezone, open a new district or move the work elsewhere.
+  - **Split as it grows.** A hamlet has one planner. When a settlement passes a size threshold the town planner founds districts, and a district that grows too large is split.
+  - **Why it helps.** Each district planner looks only at its own blocks, so planning cost grows with district size, not town size (the Phase 6 work budget). Districts get a character of their own, and the plans line can say who decided what ("Mill quarter: a third sawmill; Town: open a district by the river").
+  - The planners become real villagers with a planning skill and an office (a town hall, district halls) in Phase 10, and the player steers the town planner in Phase 17.
 - **Density has a price.** Rows are close and quick to walk, but crowding lowers the surroundings score (Phase 7) and, once fire exists (Phase 16), fire spreads along a row. Parks, gardens and wells earn their place in dense towns.
 - **Gate 8.** A seed that grows past the hamlet size runs 60 game minutes on the large map. Pass when:
   - at least one block of the old hamlet is demolished and rebuilt denser;
   - the settlement ends with more homes per tile of built land than it had as a hamlet;
-  - no departures are caused by demolition, and mood stays at Gate 2's level.
+  - no departures are caused by demolition, and mood stays at Gate 2's level;
+  - the town has at least three districts, each planned by its own district planner;
+  - planning work per game minute stays within budget as the town grows.
 
 # 9. A deeper economy
 
@@ -111,6 +121,7 @@ A settlement's form should follow its size. A hamlet is roomy; a town packs hous
 
 - **Individuals.** Every villager has an age, a home, a family and a skill per trade that rises with practice. Workers are assigned by skill, and experts are slower to replace.
 - **Life cycle.** Couples have children when the town is fed and housed; children grow up, the old retire and die. Newcomers still arrive, but growth no longer depends on them.
+- **Planners are people.** The town planner and district planners from Phase 8 are villagers with a planning skill, working from a town hall and district halls. A skilled planner sees shortages sooner and lays out tighter blocks; losing the town planner leaves districts working to old plans until someone takes over.
 - **Skills are knowledge too.** A master's craft is part of the settlement's knowledge. A town whose last smith dies risks forgetting the smithy.
 - **Gate 10.** With newcomers turned off, a town grows by births for 60 game minutes, ends with at least one expert in each of its trades, and stays fed.
 
@@ -155,7 +166,7 @@ A settlement's form should follow its size. A hamlet is roomy; a town packs hous
 
 # 17. The steward
 
-- **Levers, not placement.**
+- **Levers, not placement.** Most levers act through the town planner from Phase 8: the player sets direction and the planners carry it out.
   - Laws (rationing, working hours, who may leave).
   - Priorities (which shortage comes first).
   - Zoning (where the planner may build).
