@@ -4,6 +4,8 @@
  */
 import { homesInNuisance } from './surroundings.ts';
 import { NEED_TEXT, knows } from './knowledge.ts';
+import { defence } from './hardship.ts';
+import { seasonOf, storesOnTrack } from './world.ts';
 import type { State, Town } from './types.ts';
 
 /** OKF log labels for each kind of chronicle line. */
@@ -11,6 +13,7 @@ const LABEL: Record<string, string> = {
   founded: 'Creation', invented: 'Creation', district: 'Creation', bridge: 'Creation',
   form: 'Update', replanned: 'Update', taught: 'Update', learned: 'Update', proven: 'Update', season: 'Update', trade: 'Creation', birth: 'Creation', custom: 'Update', settled: 'Creation', age: 'Update',
   forgotten: 'Deprecation',
+  fire: 'Finding', flood: 'Finding', sickness: 'Finding', raids: 'Finding', road: 'Creation',
 };
 
 /**
@@ -33,7 +36,8 @@ export function chronicleLog(S: State, town?: number): string {
 
 /**
  * Up to `n` suggestions for one settlement, most pressing first: hunger, a need nothing known answers
- * (encourage the blueprint that would), no room (zones), noisy homes, then the latest page of history.
+ * (encourage the blueprint that would), no room (zones), raiders who outnumber the defence, a winter store
+ * fallen behind (ration), the hungry kept from leaving, noisy homes, then the latest page of history.
  */
 export function advise(S: State, town: Town, n = 3): string[] {
   const out: string[] = [], status = town.planner.status;
@@ -45,6 +49,15 @@ export function advise(S: State, town: Town, n = 3): string[] {
     if (answer) out.push(`Nobody in ${town.name} has an answer to "${stuck[1]}": encourage them to think of the ${answer.name}.`);
   }
   if (/^No (room|place) for/.test(status)) out.push(`${town.name} ${status.charAt(0).toLowerCase()}${status.slice(1)}: paint a zone where there is room, or lift no-build land.`);
+  // hard times: raiders who outnumber the defence, a winter store fallen behind, the hungry kept from leaving
+  if (S.hardship) {
+    const yard = S.bmap.get(town.store), reach = S.content.tuning.hardship.raidReach;
+    const threat = yard ? Math.max(0, ...S.camps.filter(c => Math.hypot(c.x - yard.x, c.y - yard.y) <= reach).map(c => Math.floor(c.strength))) : 0;
+    if (threat > defence(S, town).total) out.push(`Raiders camped within reach of ${town.name} outnumber its defence: raise the priority of defence against raiders${knows(town, 'watchtower') ? '' : ', or encourage the Watchtower'}.`);
+  }
+  const season = seasonOf(S);
+  if ((season === 'summer' || season === 'autumn') && !storesOnTrack(S, town) && !town.laws.rationing) out.push(`${town.name}'s store for the winter has fallen behind: ration food before the frost.`);
+  if (!town.laws.leave && town.fed < 1) out.push(`The hungry of ${town.name} may not leave, and may starve: let them go, or ration food.`);
   if (homesInNuisance(S) > 0) out.push('Some homes are within a sawmill\'s noise: zone homes and workshops apart.');
   const last = [...S.chronicle].reverse().find(c => c.town === town.id && c.kind !== 'founded');
   if (last) out.push(`Latest: ${last.text}.`);

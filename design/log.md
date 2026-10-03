@@ -2,6 +2,7 @@
 
 ## 2026-10-03
 
+* **Update**: second pass, polish: the advisor warns when raiders camped within reach outnumber a settlement's defence, when its winter store has fallen behind and it does not ration, and when the hungry may not leave; the chronicle's OKF export labels hazards as Findings and roads as Creations.
 * **Update**: second pass, polish: the new-game screen's eight system checkboxes fold into one "Systems" line that says how many are on, so the screen ends at the seed.
 * **Finding**: performance with every system on, Landmass XL with four settlements (seed 1847): 0.7 milliseconds a tick at 55 villagers, 1.8 at 195 after half an hour (Node, one core); the game runs 10 ticks a second at normal speed and 30 at the fastest.
 * **Finding**: Gate 16 with planned roads on as well (Landmass L, seeds 1847, 7, 42): 40 to 44% of long-haul goods by cart, a good by cart in 0.30 to 0.37 of the time on foot. Roads speed the carts but do not raise the share toward the proposal's half: the rest of the long hauls are loads of one or two goods for a home. Raising it waits for ox carts and multi-leg deliveries (Phase 16's own second pass).
