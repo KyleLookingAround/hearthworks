@@ -73,6 +73,38 @@ export function wants(S: State, b: Building, form: string): Stock {
   return out;
 }
 
+/** What homes eat and everything that goes into making it, once per content. */
+const chains = new WeakMap<object, Set<string>>();
+function foodChainOf(S: State): Set<string> {
+  let out = chains.get(S.content);
+  if (out) return out;
+  out = new Set(Object.values(S.content.blueprints).filter(B => B.homes).flatMap(B => Object.keys(B.keepStocked)));
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const B of Object.values(S.content.blueprints)) if (Object.keys(B.output).some(g => out!.has(g))) for (const i in B.input) if (!out.has(i)) { out.add(i); grew = true; }
+  }
+  chains.set(S.content, out);
+  return out;
+}
+
+/**
+ * Enough in store: a self-planning settlement's workplace whose every output lies outside the food chain, with
+ * its stores holding at least `surplus_seconds` of what the planner uses of each (and `surplus_min`), rests:
+ * its worker goes carrying rather than pile up goods that fill the yards. Food is never enough.
+ */
+export function enoughInStore(S: State, b: Building): boolean {
+  const town = S.towns[b.town], B = bp(S, b);
+  if (!town?.planner.on) return false;
+  const outs = Object.keys(B.output), chain = foodChainOf(S), P = S.content.tuning.production;
+  if (!outs.length || outs.some(g => chain.has(g))) return false;
+  for (const g of outs) {
+    let n = 0;
+    for (const o of S.buildings) if (o.town === town.id && !o.site && bp(S, o).storage) n += o.inv[g] || 0;
+    if (n < Math.max(P.surplusMin, (town.planner.use[g] || 0) * P.surplusSeconds)) return false;
+  }
+  return true;
+}
+
 const itemsText = (S: State, items: string[]) => items.map(k => S.content.goods[k]?.name.toLowerCase() ?? k).join(' and ');
 
 export function updateBuilding(S: State, b: Building, dt: number) {
@@ -164,6 +196,12 @@ function run(S: State, b: Building, dt: number) {
     b.stall += dt;
     if (b.stall >= T.logistics.releaseAfterSeconds) { b.stall = 0; release(S, b); }
     setStatus(b, 'Output full, waiting for a carrier', 'warn'); return;
+  }
+  // between cycles, a workplace whose goods the stores already hold plenty of rests, and in time its worker goes carrying
+  if (b.timer === 0 && enoughInStore(S, b)) {
+    b.stall += dt;
+    if (b.stall >= T.logistics.releaseAfterSeconds) { b.stall = 0; release(S, b); }
+    setStatus(b, 'Enough in store: resting', 'wait'); return;
   }
   b.stall = 0;
   let tree = -1;

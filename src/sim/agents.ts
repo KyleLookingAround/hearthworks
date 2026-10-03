@@ -3,6 +3,7 @@ import { findPath, type PathOptions } from './path.ts';
 import { bp, distAB, door, inB, seasonOf, storesOnTrack } from './world.ts';
 import { blame, cancelTask, drop, findTask, pickup } from './logistics.ts';
 import { arrive } from './knowledge.ts';
+import { enoughInStore } from './production.ts';
 import type { Agent, Building, State } from './types.ts';
 
 export function makeAgent(S: State, kind: Agent['kind'], x: number, y: number): Agent {
@@ -125,6 +126,8 @@ export function assignWorkers(S: State) {
   const essential = foodChain(S), winter = seasonOf(S) === 'winter', behind: Record<number, boolean> = {};
   for (const b of S.buildings) {
     if (!bp(S, b).workers || b.site || b.worker) continue;
+    // nobody is sent to a workplace resting with enough in store
+    if (enoughInStore(S, b)) continue;
     // fields resting through winter need nobody
     if (winter && bp(S, b).seasonal) continue;
     if (b.noWay !== null && S.t - b.noWay < S.content.tuning.logistics.noWayRetrySeconds) continue;

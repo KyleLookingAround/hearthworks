@@ -4,12 +4,14 @@ title: Production and construction
 description: Construction sites and their priority queue, worker assignment and recipe cycles.
 tags: [production, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T11:59:22Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T22:00:46Z }
 tuning:
   build_seconds: 3
   replant_every_seconds: 6
   max_trees_near_forester: 9
   site_priority_tiles: 2
+  surplus_seconds: 1200
+  surplus_min: 40
 ---
 
 # Placement
@@ -32,6 +34,10 @@ Code: `siteRequests` in `src/sim/logistics.ts`.
 # Workers
 
 Each second, staffed buildings without a worker take the nearest idle carrier. One villager always stays a carrier until a [Courier Depot](/blueprints/depot.md) exists.
+
+# Enough in store
+
+In a self-planning settlement, a workplace whose every output lies outside the food chain rests between cycles while its settlement's stores hold at least `surplus_seconds` of what its planner uses of each (and at least `surplus_min`); after `release_after_seconds` its worker goes carrying, and nobody is sent to it until the stock runs down. Sawmills, quarries and foresters no longer fill the yards with planks, stone and logs that leave the harvest nowhere to go. Food is never enough. Scripted scenarios without a planner are unchanged.
 
 # Recipes
 

@@ -46,8 +46,8 @@ export function seasonOf(S: State): Season | null {
 
 /**
  * Is a settlement's winter store on track, counting `extra` more mouths? From the start of summer to the
- * first frost, the grain, bread and preserved food in its stores must keep pace with the winter's meals: none
- * at the start of summer, half at its end, all by the frost. Always true without seasons.
+ * first frost, the grain, bread and preserved food in its stores must keep pace with the winter's meals and
+ * `winter_headroom` more: none at the start of summer, half at its end, all by the frost. Always true without seasons.
  */
 export function storesOnTrack(S: State, t: Town, extra = 0): boolean {
   if (!S.seasons) return true;
@@ -57,7 +57,7 @@ export function storesOnTrack(S: State, t: Town, extra = 0): boolean {
   for (const b of S.buildings) if (b.town === t.id && bp(S, b).storage && !b.site) for (const g of ['wheat', 'bread', ...Z.preserved]) stored += b.inv[g] || 0;
   for (const a of S.agents) if (a.kind === 'villager' && a.home?.town === t.id) pop++;
   const winter = (pop * Z.yearSeconds / 4) / S.content.tuning.needs.eatEverySeconds;
-  return stored >= winter * Math.max(0, (phase - 0.25) / 0.5);
+  return stored >= winter * Z.winterHeadroom * Math.max(0, (phase - 0.25) / 0.5);
 }
 
 /** The foods a home eats, in order: its own (bread), then the preserved foods when seasons are on. */
