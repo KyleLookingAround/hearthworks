@@ -36,10 +36,11 @@ export const knows = (town: Town, id: string) => id in town.knows;
 /** How hard a settlement is struggling with a need, 0 to 1. */
 export function pressure(S: State, town: Town, need: string): number {
   if (need === 'hauling') { const t = K(S).haulTarget; return clamp01((town.haul - t) / (1 - t)); }
+  if (need === 'crossing') return town.cut;
   return 0;
 }
 
-export const NEED_TEXT: Record<string, string> = { hauling: 'carriers are run off their feet' };
+export const NEED_TEXT: Record<string, string> = { hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross' };
 
 /** Has this settlement proven the blueprint in use itself? Founders' knowledge counts. */
 const provenHere = (town: Town, k: Knowledge) => k.verified.some(v => v.by === town.name || v.by === 'founders');
@@ -142,9 +143,15 @@ function sendVisitor(S: State, town: Town): boolean {
   const a = carriers.find(c => !c.carry && (c.state === 'idle' || c.state === 'wander' || c.state === 'toSrc'));
   if (!a) return false;
   cancelTask(a);
-  a.visit = { from: town.id, to: host.id, back: false, carry: shareable(town) };
+  a.visit = { from: town.id, to: host.id, back: false, carry: shareable(town), boat: false };
   a.state = 'visit';
-  if (!goToBuilding(S, a, S.bmap.get(host.store)!)) { a.visit = null; a.state = 'idle'; return false; }
+  if (!goToBuilding(S, a, S.bmap.get(host.store)!)) {
+    // no way there: across water nobody here can cross yet. Try again next visit.
+    a.visit = null; a.state = 'idle'; town.cut = 1; town.visitT = 0;
+    return false;
+  }
+  town.cut = 0;
+  a.visit.boat = a.path.some(([x, y]) => S.world.ground[y * S.world.w + x] === 0);
   return true;
 }
 
@@ -156,8 +163,9 @@ export function arrive(S: State, a: Agent) {
   if (!v.back) {
     teach(S, to, v.carry, from.name);
     v.carry = shareable(to); v.back = true;
+    // whoever rowed over rows home from the shore they landed on
     const home = S.bmap.get(from.store);
-    if (home && goToBuilding(S, a, home)) return;
+    if (home && goToBuilding(S, a, home, { launchAnywhere: v.boat })) return;
   } else teach(S, from, v.carry, to.name);
   a.visit = null; a.state = 'idle';
 }

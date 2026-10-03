@@ -4,6 +4,7 @@
 
 * [Bakery](bakery.md) - Bakes one wheat into one loaf. Houses run on bread.
 * [Courier Depot](depot.md) - Winds up three courier bots that haul goods within twelve tiles. They never eat, so villagers are free to work.
+* [Dock](dock.md) - A jetty on the shore where rowing boats are kept. Villagers launch from it and can land on any shore.
 * [Farm](farm.md) - Grows wheat for the bakery.
 * [Forester](forester.md) - Fells grown trees within five tiles and plants saplings so the woods come back.
 * [House](house.md) - Home for three villagers. Keeps a small stock of bread on the shelf.

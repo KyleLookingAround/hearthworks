@@ -26,7 +26,7 @@ export function fnv1a(s: string): string {
 
 const isMap = (v: YamlValue | undefined): v is YamlMap => !!v && typeof v === 'object' && !Array.isArray(v);
 /** Pressures a village can struggle with, and so invent its way out of. */
-const NEEDS = ['hauling'];
+const NEEDS = ['hauling', 'crossing'];
 const slug = (path: string) => path.replace(/^.*\//, '').replace(/\.md$/, '');
 
 export function buildContent(files: SourceFile[]): Content {
@@ -98,6 +98,7 @@ export function buildContent(files: SourceFile[]): Content {
       couriers: couriers ? { count: num(d, couriers.count, 'couriers.count'), radius: num(d, couriers.radius, 'couriers.radius') } : null,
       storage: f.storage === true,
       paves: f.paves === true,
+      shore: f.shore === true,
       discovery: discovery ? { need: str(d, discovery.need, 'discovery.need'), meanSeconds: num(d, discovery.mean_seconds, 'discovery.mean_seconds') } : null,
     };
     if (bp.discovery && !NEEDS.includes(bp.discovery.need)) problems.push(`${d.path}: discovery.need "${bp.discovery.need}" is not one of ${NEEDS.join(', ')}`);
@@ -117,10 +118,15 @@ export function buildContent(files: SourceFile[]): Content {
     const part = (key: string): YamlMap => (isMap(f[key]) ? f[key] as YamlMap : (problems.push(`${d.path}: "${key}" must be a mapping`), {}));
     const t = part('terrain'), sh = part('shores'), st = part('start'), fo = part('forest');
     const shape = str(d, f.shape, 'shape');
-    if (!['island', 'landmass', 'coast'].includes(shape)) problems.push(`${d.path}: shape "${shape}" is not island, landmass or coast`);
+    if (!['island', 'islands', 'landmass', 'coast'].includes(shape)) problems.push(`${d.path}: shape "${shape}" is not island, islands, landmass or coast`);
+    const isl = isMap(f.islands) ? f.islands : null, riv = isMap(f.rivers) ? f.rivers : {};
     maps[id] = {
       id, name: str(d, f.title, 'title'), description: str(d, f.description, 'description', ''), order: num(d, f.order, 'order', 99),
       shape: shape as MapDef['shape'], coastline: num(d, f.coastline, 'coastline', 0.6),
+      islands: isl ? { countMin: num(d, isl.count_min, 'islands.count_min'), countMax: num(d, isl.count_max, 'islands.count_max'), radiusMin: num(d, isl.radius_min, 'islands.radius_min'), radiusMax: num(d, isl.radius_max, 'islands.radius_max'), minTiles: num(d, isl.min_tiles, 'islands.min_tiles', 0) } : null,
+      islets: num(d, f.islets, 'islets', 0),
+      rivers: { count: num(d, riv.count, 'rivers.count', 0), width: num(d, riv.width, 'rivers.width', 2) },
+      neighbours: f.neighbours === 'anywhere' ? 'anywhere' : 'reachable',
       terrain: { largeCell: num(d, t.large_cell, 'terrain.large_cell'), smallCell: num(d, t.small_cell, 'terrain.small_cell'), large: num(d, t.large, 'terrain.large'), small: num(d, t.small, 'terrain.small'), base: num(d, t.base, 'terrain.base'), falloff: num(d, t.falloff, 'terrain.falloff') },
       shores: { grass: num(d, sh.grass, 'shores.grass'), sand: num(d, sh.sand, 'shores.sand'), seaBorder: sh.sea_border === true },
       start: { landRadius: num(d, st.land_radius, 'start.land_radius'), clearRadius: num(d, st.clear_radius, 'start.clear_radius') },
@@ -145,16 +151,16 @@ export function buildContent(files: SourceFile[]): Content {
   if (!maps[String(mt.standard_type)]) problems.push(`${md.path}: tuning.standard_type must name a map type in maps/`);
   const q = (k: string) => num(qd, qt[k], `tuning.${k}`), k = (key: string) => num(kd, kt[key], `tuning.${key}`);
   const tuning: Tuning = {
-    map: { width: std.width, height: std.height, treeGrowSeconds: num(md, mt.tree_grow_seconds, 'tuning.tree_grow_seconds'), standardType: str(md, mt.standard_type, 'tuning.standard_type'), standardSize: str(md, mt.standard_size, 'tuning.standard_size'), sizes },
+    map: { width: std.width, height: std.height, treeGrowSeconds: num(md, mt.tree_grow_seconds, 'tuning.tree_grow_seconds'), standardType: str(md, mt.standard_type, 'tuning.standard_type'), standardSize: str(md, mt.standard_size, 'tuning.standard_size'), gameSize: str(md, mt.game_size, 'tuning.game_size'), sizes },
     start: {
       villagers: num(sd, st.villagers, 'tuning.villagers'), storage: stock(sd, st.storage, 'tuning.storage'), houseStock: stock(sd, st.house_stock, 'tuning.house_stock'),
       names: Array.isArray(st.names) && st.names.length ? st.names.map(String) : (problems.push(`${sd.path}: "tuning.names" must be a list of settlement names`), ['']),
-      neighbourMinDistance: num(sd, st.neighbour_min_distance, 'tuning.neighbour_min_distance'), neighbourSpacing: num(sd, st.neighbour_spacing, 'tuning.neighbour_spacing'), startRoomShare: num(sd, st.start_room_share, 'tuning.start_room_share'), startWoodWeight: num(sd, st.start_wood_weight, 'tuning.start_wood_weight'),
+      neighbourMinDistance: num(sd, st.neighbour_min_distance, 'tuning.neighbour_min_distance'), neighbourSpacing: num(sd, st.neighbour_spacing, 'tuning.neighbour_spacing'), neighbourMinRoom: num(sd, st.neighbour_min_room, 'tuning.neighbour_min_room'), startRoomShare: num(sd, st.start_room_share, 'tuning.start_room_share'), startWoodWeight: num(sd, st.start_wood_weight, 'tuning.start_wood_weight'),
     },
     logistics: {
       villagerCarry: num(ld, lt.villager_carry, 'tuning.villager_carry'), botCarry: num(ld, lt.bot_carry, 'tuning.bot_carry'),
       villagerSpeed: num(ld, lt.villager_speed, 'tuning.villager_speed'), botSpeed: num(ld, lt.bot_speed, 'tuning.bot_speed'),
-      roadSpeed: num(ld, lt.road_speed, 'tuning.road_speed'), forestSpeed: num(ld, lt.forest_speed, 'tuning.forest_speed'),
+      roadSpeed: num(ld, lt.road_speed, 'tuning.road_speed'), boatSpeed: num(ld, lt.boat_speed, 'tuning.boat_speed'), forestSpeed: num(ld, lt.forest_speed, 'tuning.forest_speed'),
       outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'),
     },
     needs: {
@@ -169,7 +175,7 @@ export function buildContent(files: SourceFile[]): Content {
     planner: {
       intervalSeconds: q('interval_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'),
       foodHeadroom: q('food_headroom'), growthBeds: q('growth_beds'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
-      costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), savePatienceSeconds: q('save_patience_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
+      costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), crossingWeight: q('crossing_weight'), savePatienceSeconds: q('save_patience_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
       searchRadius: q('search_radius'), gap: q('gap'), minTrees: q('min_trees'),
       treeWeight: q('tree_weight'), sharedTreeWeight: q('shared_tree_weight'), linkWeight: q('link_weight'), storeWeight: q('store_weight'), forestPenalty: q('forest_penalty'),
     },

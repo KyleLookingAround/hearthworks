@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T11:46:25Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T12:27:37Z }
 tuning:
   interval_seconds: 3
   settle_seconds: 6
@@ -18,6 +18,7 @@ tuning:
   input_cover: 0.6
   cost_weight: 0.01
   urgency_priority: 10
+  crossing_weight: 1
   save_patience_seconds: 180
   haul_weight: 3
   cover_weight: 0.5
@@ -47,6 +48,7 @@ Every `interval_seconds` the planner:
 2. **Senses** each shortage as a severity from 0 to 1:
    - *A good*: the rate it is made against the rate it is used. Producers count at the share their trees (`min_trees` grown trees in range for full rate) and inputs allow; sites count already. Bread is wanted for everyone housed plus everyone the free beds will bring, times `food_headroom`. Planks are wanted at `planks_per_villager_minute` per villager. Recipe inputs are wanted at what their consumers can use.
    - *Beds*: fewer than `growth_beds` free beds, halved while mood is below the newcomer threshold, and zero while bread is short: the village does not invite people it cannot feed. Growth is a want, not a need, so this is scaled by `growth_weight`.
+   - *Crossing*: the neighbours are across water nobody can cross, times `crossing_weight`. Relieved by a blueprint with `shore` (the dock) while the settlement has none; the dock goes on a shore whose water reaches the nearest neighbour's land.
    - *Hauling*: the settlement's hauling pressure ([knowledge](/systems/knowledge.md)) times `haul_weight`. Relieved by a blueprint with `couriers`, in proportion to the share of the settlement's buildings no bots reach yet (ignored below `min_severity`).
    - *Hands*: a finished workplace with no worker and no free bed to bring one is a beds shortage at full severity.
 3. **Proposes** for the worst shortage that something it knows can relieve (going down the list) the blueprint with the best `severity × relief − cost_weight × cost`, where relief is the share of the gap it closes. Two follow-ups make chains work:

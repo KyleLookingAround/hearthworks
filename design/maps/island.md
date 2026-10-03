@@ -1,11 +1,11 @@
 ---
 type: Map Type
-title: Island
-description: One landmass ringed by sea, with a guaranteed grove near the first settlement. The standard map.
+title: Lone isle
+description: A single island ringed by sea. The standard map every gate runs on.
 tags: [map, standard]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T12:15:45Z }
-order: 1
+generated: { by: claude/opus-5.5, at: 2026-10-03T12:19:35Z }
+order: 4
 shape: island
 terrain: { large_cell: 9, small_cell: 4, large: 0.5, small: 0.3, base: 0.45, falloff: 0.78 }
 shores: { grass: 0.5, sand: 0.45, sea_border: true }

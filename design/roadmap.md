@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T11:59:22Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T12:27:37Z }
 ---
 
 # How to read this
@@ -79,7 +79,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Why now.** On the 56 by 40 island, two settlements first find no room at 15 to 18 minutes (one settlement at 24 to 30). Every later phase needs room, players want to choose the kind of world they build in, and both need a sim that scales.
 
-**Delivered early, at Kyle's request:** map types (Island, Landmass, Coast), sizes (small, medium, large), and the new-game screen with a live preview. Still to come in this phase: the standard moving to medium, the work budgets, a job board and pathfinding that scale, the culling renderer, string gate parameters and the map suite gate.
+**Delivered early, at Kyle's request:** map types (Islands, Landmass with rivers, Coast with islets, and the Lone isle as the standard), sizes (small, medium, large), the new-game screen with a live preview, settlements placed by the seed, and boats: [docks](/blueprints/dock.md) discovered when neighbours are across water, rowing boats that land on any shore, and visitors who carry knowledge across the sea. Cargo boats, river transport networks and ships remain in Phases 16 and 18. Still to come in this phase: the standard moving to medium, the work budgets, a job board and pathfinding that scale, the culling renderer, string gate parameters and the map suite gate.
 
 **Builds.**
 - **Map types as content.** Each type is an OKF concept in a new `design/maps/` folder whose frontmatter drives the generator: land shape and falloff, water level, noise scales, forest density, and where settlements may start. New types are written, not coded.

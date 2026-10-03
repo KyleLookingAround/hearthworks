@@ -19,7 +19,10 @@ export class NewGameDialog {
     this.content = content;
     this.onStart = onStart;
     const T = content.tuning.map;
-    this.choice = { map: T.standardType, size: T.standardSize, settlements: T.sizes[T.standardSize].settlements, seed, plans: true };
+    // players start on the first map type in order (Islands); the gates keep the standard map
+    const first = Object.values(content.maps).sort((a, b) => a.order - b.order)[0]?.id ?? T.standardType;
+    const size = T.sizes[T.gameSize] ? T.gameSize : T.standardSize;
+    this.choice = { map: first, size, settlements: T.sizes[size].settlements, seed, plans: true };
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<GameChoice> | null;
       if (saved && content.maps[saved.map ?? ''] && T.sizes[saved.size ?? '']) this.choice = { ...this.choice, ...saved };

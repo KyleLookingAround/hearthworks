@@ -4,27 +4,28 @@ title: Map
 description: Map types and sizes, seeded generation, the standard map, trees and regrowth.
 tags: [world]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T11:46:25Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T12:27:37Z }
 tuning:
   standard_type: island
   standard_size: small
+  game_size: medium
   sizes: { small: { width: 56, height: 40, settlements: 2 }, medium: { width: 112, height: 80, settlements: 2 }, large: { width: 192, height: 144, settlements: 2 } }
   tree_grow_seconds: 40
 ---
 
 # Map types
 
-Each kind of world is a concept in [maps](/maps/): [Island](/maps/island.md), [Landmass](/maps/landmass.md) and [Coast](/maps/coast.md). Its frontmatter drives the generator: noise scales, how height falls off (from the centre, from one side, or not at all), water and sand levels, whether the border is sea, and forest density. Tiles are water, sand or grass. A new kind of world is written, not coded.
+Each kind of world is a concept in [maps](/maps/): [Islands](/maps/islands.md) (several islands; the first choice for players), [Landmass](/maps/landmass.md) (with rivers), [Coast](/maps/coast.md) (with islets and a river) and [Lone isle](/maps/island.md) (the standard). Its frontmatter drives the generator: noise scales, how height falls off (from the centre, from each island's centre, from one side, or not at all), islets, rivers, water and sand levels, whether the border is sea, forest density, and whether neighbours may start across water. Tiles are water, sand or grass. A new kind of world is written, not coded.
 
 The same seed and type always give the same world; the [gates](/gates/) depend on it.
 
 # Sizes
 
-`sizes` lists the sizes a player can pick, each with its width, height and the settlements a new game starts with (two on every size, so the player can watch two villages grow apart and trade).
+`sizes` lists the sizes a player can pick (a new game starts at `game_size`), each with its width, height and the settlements a new game starts with (two on every size, so the player can watch two villages grow apart and trade).
 
 # Standard map
 
-`standard_type` at `standard_size` (Island, small: the original island, reproduced exactly) is the standard map: every gate runs on it unless its scenario names another. [Roadmap](/roadmap.md) Phase 7 plans to move the standard to Island at medium size once the sim scales.
+`standard_type` at `standard_size` (Lone isle, small: the original island's land, reproduced exactly) is the standard map: every gate runs on it unless its scenario names another. [Roadmap](/roadmap.md) Phase 7 plans to move the standard to Island at medium size once the sim scales.
 
 # New-game screen
 

@@ -16,9 +16,9 @@ import type { BlueprintDef, Building, ItemId, PlannerState, State, Stock, Town }
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0 });
 
-interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean }
+interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string }
-interface Look { town: Town; pop: number; freeBeds: number; spareHands: number; uncovered: number; supply: Stock; demand: Stock; shortages: Shortage[] }
+interface Look { town: Town; pop: number; freeBeds: number; spareHands: number; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
 const goodName = (S: State, g: ItemId) => S.content.goods[g]?.name.toLowerCase() ?? g;
 const runningLow = (S: State, g: ItemId) => { const n = goodName(S, g); return `${n} ${n.endsWith('s') ? 'are' : 'is'} running low`; };
@@ -110,6 +110,9 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   const stops = mine.filter(b => !b.site);
   const uncovered = stops.length ? stops.filter(b => !covered(S, ctr(b))).length / stops.length : 0;
   shortages.push({ key: 'hauling', hauling: true, sev: clamp01(pressure(S, town, 'hauling') * P.haulWeight), why: NEED_TEXT.hauling });
+  // crossing: the neighbours are across water; a dock relieves it
+  const hasDock = mine.some(b => bp(S, b).shore);
+  shortages.push({ key: 'crossing', crossing: true, sev: clamp01(pressure(S, town, 'crossing') * P.crossingWeight), why: NEED_TEXT.crossing });
   // labour: villagers free to take a new job, keeping a share of the town hauling
   const carriers = people.filter(a => a.role === 'carrier' && a.state !== 'visit').length;
   const openJobs = mine.filter(b => bp(S, b).workers && b.worker === null).length;
@@ -123,7 +126,7 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     shortages.push({ key: 'beds', homes: true, sev: clamp01((P.growthBeds - freeBeds) / P.growthBeds) * growing * fed * P.growthWeight, why: 'no free beds for newcomers' });
   }
   shortages.sort((a, b) => b.sev - a.sev);
-  return { town, pop, freeBeds, spareHands, uncovered, supply, demand, shortages };
+  return { town, pop, freeBeds, spareHands, uncovered, hasDock, supply, demand, shortages };
 }
 
 /** Goods that construction costs are paid in. */
@@ -139,6 +142,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
   const relief = (B: BlueprintDef): number => {
     if (sh.homes) return B.homes ? clamp01(B.homes / Math.max(1, P.growthBeds - L.freeBeds)) : 0;
     if (sh.hauling) return B.couriers && L.uncovered >= P.minSeverity ? L.uncovered : 0;
+    if (sh.crossing) return B.shore && !L.hasDock ? 1 : 0;
     const add = B.seconds && B.output[sh.good!] ? B.output[sh.good!] / B.seconds : 0;
     const gap = Math.max(1e-6, (L.demand[sh.good!] || 0) - (L.supply[sh.good!] || 0));
     return clamp01(add / gap);
@@ -186,6 +190,8 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
   const usersOf = (g: ItemId) => mine.filter(b => { const O = bp(S, b); return O.input[g] || O.keepStocked[g]; });
   const houses = mine.filter(b => bp(S, b).homes);
   const unreached = B.couriers ? mine.filter(b => !b.site && !covered(S, ctr(b))) : [];
+  // a dock has to face water that reaches the nearest neighbour's shore
+  const facing = B.shore ? waterFacing(S, town) : null;
   const near = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((m, b) => Math.min(m, Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y)), Infinity);
   const mean = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((s, b) => s + Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y), 0) / bs.length;
 
@@ -194,6 +200,7 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
   for (let y = oy - R; y <= oy + R; y++) for (let x = ox - R; x <= ox + R; x++) {
     W.work.plannerSpots++;
     if (!fits(S, type, x, y, P.gap)) continue;
+    if (facing) { const d = door({ x, y, w: B.w, h: B.h }); if (!facing.has(facing.label[(d.y + 1) * W.w + d.x])) continue; }
     const p = { x: x + B.w / 2, y: y + B.h / 2 };
     let s = P.storeWeight * Math.hypot(p.x - home.x, p.y - home.y);
     if (B.harvest) {
@@ -223,6 +230,49 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
     if (findPath(W, from.x, from.y, d.x, d.y)) return { x: c.x, y: c.y };
   }
   return null;
+}
+
+/**
+ * The bodies of water that touch the nearest other settlement's land: a dock on one of them can
+ * reach it. Labels every water tile by connected body (4-way), then collects the bodies next to
+ * land connected to that settlement's storage yard.
+ */
+function waterFacing(S: State, town: Town): (Set<number> & { label: Int32Array }) | null {
+  const w = S.world, N = w.w * w.h, home = S.bmap.get(town.store);
+  let target: Building | undefined, best = Infinity;
+  for (const t of S.towns) {
+    const s = S.bmap.get(t.store);
+    if (t === town || !s || !home) continue;
+    const d = Math.hypot(s.x - home.x, s.y - home.y);
+    if (d < best) { best = d; target = s; }
+  }
+  const label = new Int32Array(N).fill(-1), land = new Uint8Array(N);
+  const flood = (start: number, water: boolean, mark: (i: number) => void, seen: (i: number) => boolean) => {
+    const stack = [start];
+    while (stack.length) {
+      const i = stack.pop()!;
+      if (seen(i) || (w.ground[i] === 0) !== water) continue;
+      mark(i);
+      const x = i % w.w, y = (i / w.w) | 0;
+      if (x > 0) stack.push(i - 1);
+      if (x < w.w - 1) stack.push(i + 1);
+      if (y > 0) stack.push(i - w.w);
+      if (y < w.h - 1) stack.push(i + w.w);
+    }
+  };
+  let n = 0;
+  for (let i = 0; i < N; i++) if (w.ground[i] === 0 && label[i] < 0) { const id = n++; flood(i, true, j => { label[j] = id; }, j => label[j] >= 0); }
+  const out = new Set<number>() as Set<number> & { label: Int32Array };
+  out.label = label;
+  if (!target) { for (let k = 0; k < n; k++) out.add(k); return out; }
+  const td = door(target);
+  flood(td.y * w.w + td.x, false, j => { land[j] = 1; }, j => land[j] === 1);
+  for (let i = 0; i < N; i++) {
+    if (!land[i]) continue;
+    const x = i % w.w, y = (i / w.w) | 0;
+    for (const j of [x > 0 ? i - 1 : -1, x < w.w - 1 ? i + 1 : -1, y > 0 ? i - w.w : -1, y < w.h - 1 ? i + w.w : -1]) if (j >= 0 && label[j] >= 0) out.add(label[j]);
+  }
+  return out;
 }
 
 /** The first good this blueprint costs that the settlement cannot pay for yet, and how much it is short. */

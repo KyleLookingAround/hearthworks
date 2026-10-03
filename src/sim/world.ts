@@ -1,4 +1,4 @@
-import { makeRng, rand, valueNoise } from './rng.ts';
+import { makeRng, rand, valueNoise, type Rng } from './rng.ts';
 import { goToBuilding, makeAgent, removeAgent } from './agents.ts';
 import { plannerOn } from './planner.ts';
 import { foundersKnowledge } from './knowledge.ts';
@@ -28,23 +28,62 @@ export function emit(S: State, kind: GameEvent['kind'], text: string, minor = fa
  */
 function generateWorld(M: MapDef, W: number, H: number, S: State): World {
   const r = S.rng, N = W * H, T = M.terrain, F = M.forest;
-  const w: World = { w: W, h: H, ground: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1), door: new Uint8Array(N), front: new Uint8Array(N), work: { paths: 0, pathFails: 0, pathNodes: 0, jobPairs: 0, plannerSpots: 0 } };
+  const w: World = { w: W, h: H, ground: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1), door: new Uint8Array(N), front: new Uint8Array(N), dock: new Uint8Array(N), docks: 0, waterCost: 1, work: { paths: 0, pathFails: 0, pathNodes: 0, jobPairs: 0, plannerSpots: 0 } };
   const n1 = valueNoise(r, T.largeCell, W, H), n2 = valueNoise(r, T.smallCell, W, H), n3 = valueNoise(r, F.cell, W, H);
+  // island centres for the islands shape, and islets out at sea: drawn only for maps that have them,
+  // so the lone isle draws exactly the random numbers it always did
+  const half = Math.min(W, H) / 2, blobs: { x: number; y: number; r: number }[] = [];
+  if (M.shape === 'islands' && M.islands) {
+    const I = M.islands, n = I.countMin + Math.floor(rand(r) * (I.countMax - I.countMin + 1));
+    for (let k = 0, tries = 0; k < n && tries < 400; tries++) {
+      const rad = Math.min(half - 3, Math.max(I.minTiles, half * (I.radiusMin + rand(r) * (I.radiusMax - I.radiusMin))));
+      const bx = rad + 2 + rand(r) * (W - 2 * rad - 4), by = rad + 2 + rand(r) * (H - 2 * rad - 4);
+      // keep a channel of sea between islands
+      if (blobs.some(o => Math.hypot(o.x - bx, o.y - by) < (o.r + rad) * 1.05)) continue;
+      blobs.push({ x: bx, y: by, r: rad }); k++;
+    }
+  }
+  for (let k = 0; k < M.islets; k++) {
+    const rad = half * (0.08 + rand(r) * 0.08);
+    const bx = W * (M.shape === 'coast' ? M.coastline + 0.12 + rand(r) * (0.82 - M.coastline) : rand(r)), by = rad + rand(r) * (H - 2 * rad);
+    blobs.push({ x: bx, y: by, r: rad });
+  }
+  const nearestBlob = (x: number, y: number) => blobs.reduce((m, o) => Math.min(m, ((x + 0.5 - o.x) ** 2 + (y + 0.5 - o.y) ** 2) / (o.r * o.r)), Infinity);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x, dx = (x + 0.5 - W / 2) / (W / 2), dy = (y + 0.5 - H / 2) / (H / 2), radial = dx * dx + dy * dy;
     let d = radial;
     if (M.shape === 'landmass') d = 0;
     else if (M.shape === 'coast') { const s = Math.max(0, (x + 0.5) / W - M.coastline) / (1 - M.coastline); d = s * s * 4; }
+    else if (M.shape === 'islands') d = nearestBlob(x, y);
+    if (M.islets && M.shape !== 'islands') d = Math.min(d, nearestBlob(x, y));
     let h = T.large * n1(x, y) + T.small * n2(x, y) + T.base - T.falloff * d;
     if (radial < M.start.landRadius) h = Math.max(h, 0.7);
     const border = x === 0 || y === 0 || x === W - 1 || y === H - 1;
     w.ground[i] = (border && M.shores.seaBorder) ? 0 : h > M.shores.grass ? 2 : h > M.shores.sand ? 1 : 0;
   }
+  for (let k = 0; k < M.rivers.count; k++) carveRiver(w, r, M.rivers.width);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x;
     if (w.ground[i] === 2 && ((n3(x, y) > F.threshold && rand(r) < F.density) || rand(r) < F.scatter)) w.tree[i] = 2;
   }
   return w;
+}
+
+/** A river from one edge of the map to the opposite one, wandering as it goes, with sandy banks. */
+function carveRiver(w: World, r: Rng, width: number) {
+  const across = rand(r) < 0.5, len = across ? w.w : w.h, span = across ? w.h : w.w;
+  let pos = span * (0.2 + rand(r) * 0.6), drift = 0;
+  for (let s = 0; s < len; s++) {
+    drift = Math.max(-1, Math.min(1, drift + (rand(r) - 0.5) * 0.5));
+    pos = Math.max(2, Math.min(span - 3, pos + drift));
+    for (let o = -width; o <= width; o++) {
+      const p = Math.round(pos) + o, x = across ? s : p, y = across ? p : s;
+      if (!inB(w, x, y)) continue;
+      const i = y * w.w + x;
+      if (Math.abs(o) < width) w.ground[i] = 0;
+      else if (w.ground[i] === 2) w.ground[i] = 1;
+    }
+  }
 }
 
 /** Ready a settlement's ground: a grove planted north-west of it so it can start a wood chain, and its centre cleared. */
@@ -121,6 +160,8 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   if (!size) throw new Error(`unknown map size "${sizeId}"`);
   S.setup = { map: mapId, size: sizeId, settlements: opts.settlements ?? 1 };
   S.world = generateWorld(M, size.width, size.height, S);
+  const L = content.tuning.logistics;
+  S.world.waterCost = L.villagerSpeed / L.boatSpeed;
   const first = firstSite(S);
   prepareSite(S, M, first.x, first.y);
   foundTown(S, first.x, first.y, opts.planner ?? false);
@@ -141,7 +182,7 @@ function foundTown(S: State, cx: number, cy: number, planner: boolean): Town {
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: plannerOn(planner), haul: 0, mood: 1, visitT: 0 };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: plannerOn(planner), haul: 0, cut: 0, mood: 1, visitT: 0 };
   S.towns.push(town);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;
   for (const b of [store, h1, h2]) b.town = id;
@@ -174,8 +215,10 @@ function neighbourSite(S: State): { x: number; y: number } | null {
     if (d < t.neighbourMinDistance || spread < bestD) continue;
     if (!layoutFits(w, cx, cy)) continue;
     const room = roomAround(w, cx, cy);
+    // never found a village where it has no room to live
+    if (room < t.neighbourMinRoom) continue;
     if (spread === bestD && room <= bestRoom) continue;
-    if (!findPath(w, home.x, home.y, cx, cy + 1)) continue;
+    if (S.content.maps[S.setup.map].neighbours === 'reachable' && !findPath(w, home.x, home.y, cx, cy + 1)) continue;
     bestD = spread; bestRoom = room; best = { x: cx, y: cy };
   }
   return best;
@@ -212,8 +255,14 @@ export function placeProblem(S: State, type: string, x: number, y: number): stri
     if (w.front[i]) return "it would block another building's door";
   }
   if (!B.paves) {
-    const d = door({ x, y, w: B.w, h: B.h }), fy = d.y + 1;
-    if (!inB(w, d.x, fy) || !w.ground[fy * w.w + d.x] || w.bgrid[fy * w.w + d.x] !== -1) return 'its door would open onto nothing';
+    const d = door({ x, y, w: B.w, h: B.h }), fy = d.y + 1, fi = fy * w.w + d.x;
+    if (B.shore) {
+      // boats launch from the door onto water; people reach the door from open land beside it
+      if (!inB(w, d.x, fy) || w.ground[fi] !== 0) return 'a dock has to open onto water';
+      const si = d.y * w.w + d.x + 1;
+      if (!inB(w, d.x + 1, d.y) || !w.ground[si] || w.bgrid[si] !== -1 || w.front[si]) return 'a dock needs open land beside its door';
+    }
+    else if (!inB(w, d.x, fy) || !w.ground[fi] || w.bgrid[fi] !== -1) return 'its door would open onto nothing';
   }
   return null;
 }
@@ -237,11 +286,12 @@ function stepOut(S: State, b: Building) {
   }
 }
 
-/** Mark or clear a building's door and the open tile in front of it. */
+/** Mark or clear a building's door and the open tile in front of it (beside it, for a dock), and a dock's launching place. */
 function setDoor(S: State, b: Building, on: boolean) {
-  const w = S.world, d = door(b), i = d.y * w.w + d.x, f = (d.y + 1) * w.w + d.x;
+  const w = S.world, d = door(b), i = d.y * w.w + d.x, f = bp(S, b).shore ? d.y * w.w + d.x + 1 : (d.y + 1) * w.w + d.x;
   w.door[i] = on ? 1 : 0;
-  if (inB(w, d.x, d.y + 1)) w.front[f] = Math.max(0, w.front[f] + (on ? 1 : -1));
+  if (bp(S, b).shore) { w.dock[i] = on ? 1 : 0; w.docks += on ? 1 : -1; }
+  if (f >= 0 && f < w.front.length) w.front[f] = Math.max(0, w.front[f] + (on ? 1 : -1));
 }
 
 /** Place a building (or a road tile). New buildings start as construction sites unless `complete`. */

@@ -1,5 +1,5 @@
 import { rand } from './rng.ts';
-import { findPath } from './path.ts';
+import { findPath, type PathOptions } from './path.ts';
 import { bp, distAB, door, inB } from './world.ts';
 import { cancelTask, drop, findTask, pickup } from './logistics.ts';
 import { arrive } from './knowledge.ts';
@@ -22,14 +22,14 @@ export function removeAgent(S: State, a: Agent) {
   S.agents = S.agents.filter(o => o !== a); S.amap.delete(a.id);
 }
 
-export function moveTo(S: State, a: Agent, tx: number, ty: number): boolean {
-  const p = findPath(S.world, Math.floor(a.x), Math.floor(a.y), tx, ty);
+export function moveTo(S: State, a: Agent, tx: number, ty: number, opts?: PathOptions): boolean {
+  const p = findPath(S.world, Math.floor(a.x), Math.floor(a.y), tx, ty, opts);
   if (!p) return false;
   a.path = p;
   return true;
 }
 
-export const goToBuilding = (S: State, a: Agent, b: Building) => { const d = door(b); return moveTo(S, a, d.x, d.y); };
+export const goToBuilding = (S: State, a: Agent, b: Building, opts?: PathOptions) => { const d = door(b); return moveTo(S, a, d.x, d.y, opts); };
 
 export function nearestStore(S: State, at: { x: number; y: number }): Building | null {
   let best: Building | null = null, bd = Infinity;
@@ -58,7 +58,8 @@ export function updateAgent(S: State, a: Agent, dt: number) {
     const [tx, ty] = a.path[0], gx = tx + 0.5, gy = ty + 0.5;
     const i = Math.floor(a.y) * w.w + Math.floor(a.x);
     let sp = a.kind === 'bot' ? L.botSpeed : L.villagerSpeed;
-    if (w.road[i]) sp *= L.roadSpeed;
+    if (!w.ground[i]) sp = L.boatSpeed;
+    else if (w.road[i]) sp *= L.roadSpeed;
     else if (w.tree[i] === 2 && a.kind !== 'bot') sp *= L.forestSpeed;
     const dx = gx - a.x, dy = gy - a.y, d = Math.hypot(dx, dy), step = sp * dt;
     if (d <= step) { a.x = gx; a.y = gy; a.path.shift(); } else { a.x += (dx / d) * step; a.y += (dy / d) * step; }

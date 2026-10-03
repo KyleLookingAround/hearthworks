@@ -1,13 +1,16 @@
 ---
 type: Map Type
 title: Coast
-description: Land on the west, open sea on the east, with bays and headlands along the shore.
+description: Land on the west, open sea on the east with small islands offshore, and a river down to the sea.
 tags: [map]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T10:58:17Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T12:19:35Z }
 order: 3
 shape: coast
 coastline: 0.62
+islets: 5
+rivers: { count: 1, width: 2 }
+neighbours: anywhere
 terrain: { large_cell: 9, small_cell: 4, large: 0.5, small: 0.3, base: 0.45, falloff: 1.6 }
 shores: { grass: 0.5, sand: 0.45, sea_border: false }
 start: { land_radius: 0.06, clear_radius: 5.5 }
@@ -16,7 +19,7 @@ forest: { cell: 6, threshold: 0.56, density: 0.8, scatter: 0.03, grove_density: 
 
 # Shape
 
-Height falls off only east of `coastline` (a share of the map's width), so the west is solid land running to the map edge and the east is sea; the noise cuts bays and headlands into the shore.
+Height falls off only east of `coastline` (a share of the map's width), so the west is solid land running to the map edge and the east is sea; the noise cuts bays and headlands into the shore. `islets` small islands lie offshore, and a river crosses the land.
 
 # Later
 

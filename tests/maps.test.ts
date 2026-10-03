@@ -16,17 +16,20 @@ test('the standard world is the island at the standard size', () => {
   assert.equal(S.world.h, T.height);
 });
 
-test('every map type and size founds its settlements on reachable land', () => {
+test('every map type and size founds its settlements where they can be reached', () => {
   for (const map of types) for (const size of sizes) for (const seed of [1847, 7]) {
     const n = 4;
     const S = createState(content, seed, { map, size, settlements: n });
     const where = `${map}/${size}/${seed}`;
     assert.equal(S.world.w, T.sizes[size].width, where);
-    assert.ok(S.towns.length >= 2, `${where}: only ${S.towns.length} settlements`);
+    // a small archipelago may only have room for one village
+    assert.ok(S.towns.length >= (map === 'islands' && size === 'small' ? 1 : 2), `${where}: only ${S.towns.length} settlements`);
     const home = door(S.bmap.get(S.towns[0].store)!);
+    // on foot where the map type says so; otherwise at least by boat
+    const byBoat = content.maps[map].neighbours === 'anywhere';
     for (const t of S.towns.slice(1)) {
       const d = door(S.bmap.get(t.store)!);
-      assert.ok(findPath(S.world, home.x, home.y, d.x, d.y), `${where}: ${t.name} unreachable`);
+      assert.ok(findPath(S.world, home.x, home.y, d.x, d.y, { launchAnywhere: byBoat }), `${where}: ${t.name} unreachable`);
     }
   }
 });

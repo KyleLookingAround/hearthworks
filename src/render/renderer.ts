@@ -218,6 +218,15 @@ export class Renderer {
         this.gear(px + pw / 2, py + ph / 2, 7, b.site ? 0 : S.t * 1.5, '#d29b4a');
         return;
       }
+      case 'dock': {
+        // a boathouse with a jetty running out from its door to the water below
+        this.hut(px, py, pw, ph * 0.8, '#b89c6c', '#7a5a3a');
+        const jx = px + (pw * 3) / 4 - 4;
+        c.fillStyle = '#8a6a44'; c.fillRect(jx, py + ph * 0.75, 8, ph * 0.5);
+        c.strokeStyle = '#5a4020'; c.lineWidth = 1;
+        for (let k = 0; k < 3; k++) { const y = py + ph * 0.8 + k * 5; c.beginPath(); c.moveTo(jx, y); c.lineTo(jx + 8, y); c.stroke(); }
+        return;
+      }
       default:
         // Any blueprint without bespoke art gets a hut in its own colour.
         this.hut(px, py, pw, ph, '#cdb892', B.color);
@@ -270,8 +279,12 @@ export class Renderer {
 
   private agent(S: State, a: Agent) {
     if (a.state === 'working') return;
-    const c = this.ctx, x = a.x * TS, y = a.y * TS;
-    c.fillStyle = 'rgba(16,26,22,.3)'; c.beginPath(); c.ellipse(x, y + 4, 4.5, 2, 0, 0, 7); c.fill();
+    const c = this.ctx, x = a.x * TS, y = a.y * TS, w = S.world;
+    if (!w.ground[Math.floor(a.y) * w.w + Math.floor(a.x)]) {
+      // rowing: a small boat under the villager
+      c.fillStyle = '#7a5a3a'; c.beginPath(); c.ellipse(x, y + 3, 8, 3.6, 0, 0, 7); c.fill();
+      c.strokeStyle = '#4e3820'; c.lineWidth = 1; c.stroke();
+    } else { c.fillStyle = 'rgba(16,26,22,.3)'; c.beginPath(); c.ellipse(x, y + 4, 4.5, 2, 0, 0, 7); c.fill(); }
     if (a.kind === 'bot') {
       const by = y - 3 + Math.sin(S.t * 6 + a.id) * 1.2;
       c.fillStyle = '#d29b4a'; this.rr(x - 4.5, by - 4.5, 9, 8, 2); c.fill(); c.strokeStyle = '#5a4020'; c.lineWidth = 1; c.stroke();

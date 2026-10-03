@@ -31,6 +31,8 @@ export interface BlueprintDef {
   couriers: { count: number; radius: number } | null;
   storage: boolean;
   paves: boolean;
+  /** Built on the shore: its door opens onto water, and boats are launched from it. */
+  shore: boolean;
   /** Not known at the start: a village invents it while it struggles with `need`. Null for founding knowledge. */
   discovery: { need: string; meanSeconds: number } | null;
 }
@@ -40,7 +42,15 @@ export interface MapSize { width: number; height: number; settlements: number }
 /** A kind of world the player can pick. Loaded from design/maps/*.md. */
 export interface MapDef {
   id: string; name: string; description: string; order: number;
-  shape: 'island' | 'landmass' | 'coast';
+  shape: 'island' | 'islands' | 'landmass' | 'coast';
+  /** Islands only: how many, and their radii as a share of half the map's shorter side. */
+  islands: { countMin: number; countMax: number; radiusMin: number; radiusMax: number; minTiles: number } | null;
+  /** Small islands scattered in open sea (coast). */
+  islets: number;
+  /** Meandering rivers cut across the land, `width` tiles wide. */
+  rivers: { count: number; width: number };
+  /** Where neighbours may be founded: only somewhere reachable on foot, or anywhere (across water too). */
+  neighbours: 'reachable' | 'anywhere';
   /** Coast only: share of the width where the sea begins. */
   coastline: number;
   terrain: { largeCell: number; smallCell: number; large: number; small: number; base: number; falloff: number };
@@ -55,11 +65,11 @@ export interface Setup { map: string; size: string; settlements: number }
 /** Balance numbers. Loaded from the `tuning` block of design/systems/*.md. */
 export interface Tuning {
   /** `width`/`height` are the standard size's; gates run on the standard map. */
-  map: { width: number; height: number; treeGrowSeconds: number; standardType: string; standardSize: string; sizes: Record<string, MapSize> };
-  start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; startRoomShare: number; startWoodWeight: number };
+  map: { width: number; height: number; treeGrowSeconds: number; standardType: string; standardSize: string; gameSize: string; sizes: Record<string, MapSize> };
+  start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
-    roadSpeed: number; forestSpeed: number; outputCap: number; dumpAt: number; requestAging: number;
+    roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; dumpAt: number; requestAging: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
@@ -73,7 +83,7 @@ export interface Tuning {
 export interface PlannerTuning {
   intervalSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
   foodHeadroom: number; growthBeds: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
-  costWeight: number; urgencyPriority: number; savePatienceSeconds: number; haulWeight: number; coverWeight: number;
+  costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; gap: number; minTrees: number;
   treeWeight: number; sharedTreeWeight: number; linkWeight: number; storeWeight: number; forestPenalty: number;
 }
@@ -162,7 +172,7 @@ export interface Agent {
   visit: Visit | null;
 }
 
-export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge> }
+export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge>; /** rowed there, so has a boat to row home in */ boat: boolean }
 
 /**
  * What one settlement knows about one blueprint. The fields mirror an OKF concept's
@@ -190,6 +200,8 @@ export interface Town {
   planner: PlannerState;
   /** Smoothed share of its carriers busy hauling. */
   haul: number;
+  /** 1 while its nearest neighbour can't be reached without crossing water it has no way across. */
+  cut: number;
   /** Share of its villagers fed and settled, 0 to 1. */
   mood: number;
   visitT: number;
@@ -209,6 +221,12 @@ export interface World {
   door: Uint8Array;
   /** how many doors open onto this tile; placement keeps these tiles open */
   front: Uint8Array;
+  /** 1 on a dock's door: where boats are launched */
+  dock: Uint8Array;
+  /** how many docks stand (or are being built); with none, nobody rows */
+  docks: number;
+  /** cost of a tile of water relative to a tile of open land on foot */
+  waterCost: number;
   /** Deterministic work counters: what the sim spent, for budgets that don't depend on the machine. */
   work: Work;
 }
