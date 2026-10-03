@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T10:46:33Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T10:54:58Z }
 ---
 
 # How to read this
@@ -23,7 +23,7 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 4 | The village plans | [Planner](/systems/planner.md) chooses and places buildings | 2 | [Gate 4](/gates/04-village-plans.md) | Done |
 | 5 | Knowledge | [Knowledge](/systems/knowledge.md): invented, proven, shared, forgotten; two settlements | 4 | [Gate 5](/gates/05-knowledge-spreads.md) | Done |
 | 6 | Solid ground | Solid buildings with doors, mood and supply per settlement, versioned saves, work counters | 5 | Nobody walks through walls; a save resumes exactly | Next |
-| 7 | Big islands | Large maps, a job board and pathfinding that scale, a renderer that culls | 6 | 600 villagers, four settlements, within a work budget | Later |
+| 7 | Worlds | Map types (island, landmass, coast) and sizes the player picks, one standard map for tests, a sim and renderer that scale | 6 | Every map type and size plays; 600 villagers on a large map within a work budget | Later |
 | 8 | The lie of the land | Terrain, rivers, deposits, bridges, desire-path roads, surroundings in mood | 7 | Roads cut delivery time; homes stay clear of nuisance | Later |
 | 9 | Village to town | Form by size, streets, a ladder of home sizes, replanning, town and district planners | 8 | A hamlet replans itself into a dense town, nobody displaced | Later |
 | 10 | The steward | Player levers through the town planner, overlays, a chronicle | 9 | Each lever measurably does what it promises | Later |
@@ -33,7 +33,7 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 14 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | Carts carry most long hauls and cut delivery time | Later |
 | 15 | New settlements | Crowded towns send settlers off with goods and knowledge | 14 | One settlement becomes four, unscripted | Later |
 | 16 | Trade | Surplus and want, traders, specialisation, money as a discovery | 15 | Trading towns beat the same towns in isolation | Later |
-| 17 | The sea | Archipelagos, ports, ships, exploration, colonies | 16 | A colony on a second island trades back | Later |
+| 17 | The sea | The archipelago map type, ports, ships, exploration, colonies | 16 | A colony on a second island trades back | Later |
 | 18 | Ages | Eras of technology, machine tiers, crafts lost | 17 | An age turns unscripted; an isolated town loses a craft | Later |
 | 19 | Hardship | Fire, flood, sickness and their counters; hard laws | 12, 18 | A town weathers each hazard and three winters | Later |
 
@@ -43,6 +43,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 - **Earlier gates keep their intent.** A new system is off by default where it would change a scripted scenario (as the [planner](/systems/planner.md) and [knowledge](/systems/knowledge.md) are), or the affected gates are reworked under [decision 0004](/decisions/0004-reworking-gates.md) and the change is logged.
 - **Deterministic and headless.** One seed and the same commands always give the same world. Each new source of chance gets its own seeded stream, as knowledge did with `S.krng`.
+- **One standard map for tests.** Gates run on the standard map: today's small island until Phase 7, then Island at medium size. Other map types and sizes are covered by the map suite (Phase 7), so every world the player can pick is known to play.
 - **Unscripted is the bar.** A system is ready when a gate shows it doing on its own what a script or the player used to do.
 - **Machines earn their place.** Every new tier is discovered under a strain the player can see (hauling, distance, cold, crowding), never unlocked on a timer.
 - **Everything moves, and nothing is named in code.** Goods, buildings, vehicles, hazards and ages are OKF concepts in `design/`; the planner and job board read their fields.
@@ -71,34 +72,44 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Kyle's call.** Should the player be stopped from placing a building that blocks a door, or warned and allowed?
 
-# 7. Big islands
+# 7. Worlds
 
-**Why now.** On the 56 by 40 island, two settlements first find no room at 15 to 18 minutes (one settlement at 24 to 30). Every later phase needs room, and room needs a sim that scales.
+**Why now.** On the 56 by 40 island, two settlements first find no room at 15 to 18 minutes (one settlement at 24 to 30). Every later phase needs room, players want to choose the kind of world they build in, and both need a sim that scales.
 
 **Builds.**
-- **Map presets** in [map](/systems/map.md) tuning: `small` (today's, kept for existing gates) and `large` (target 192 by 144). The game defaults to large, with more settlements.
-- **A richer generator:** larger landmasses with bays, lakes and inland forests, and starting sites chosen for room and wood.
+- **Map types as content.** Each type is an OKF concept in a new `design/maps/` folder whose frontmatter drives the generator: land shape and falloff, water level, noise scales, forest density, and where settlements may start. New types are written, not coded.
+  - **Island** (today's): one landmass ringed by sea.
+  - **Landmass:** land to the edges of the map, with inland lakes, forests and, from Phase 8, mountains and rivers. No sea to hem towns in.
+  - **Coast:** land on one side, open sea on the other, with bays and headlands, ready for fishing (11) and ports (17).
+  - **Archipelago** arrives with ships in Phase 17; offered earlier, its islands would be unreachable.
+- **Map sizes** in [map](/systems/map.md) tuning: small (56 by 40, today's), medium (about 112 by 80), large (about 192 by 144), and huge once the work budgets allow it. Starting settlements scale with size.
+- **The standard map:** Island at medium size, seeded like today. It is the default world in the new-game screen and the world every gate runs on.
+- **A new-game screen:** pick map type, size, seed (or random) and starting settlements, with a preview of the generated land before starting. Saves (6) record the choice. "New island" becomes "New world".
+- **A generator per type,** each with starting sites chosen for room, wood and water, deterministic per seed.
 - **A job board that scales:** a spatial index, so a carrier scores nearby requests and offers instead of every pair.
 - **Pathfinding that scales:** regions joined by portals for long trips, and paths cached between the same doors.
 - **A renderer that culls:** chunked drawing of only what is on screen, and a minimap. Move the sim to a Web Worker if the frame budget demands it.
+- **Gate parameters gain words.** Today a gate's parameters are numbers; map type and size become string parameters, so a receipt says which world it ran on.
 
-**Gate 7 (proposed).** Large preset, four settlements, 60 game minutes, no build calls: `min_peak_villagers: 600`, departures under 1% of peak, `min_mood_min: 0.6`, and every work counter per game minute within its budget. Budgets are set from the measured run plus headroom, then tightened as the code improves.
+**Gate 7 (proposed).** Two parts.
+- **Scale:** Island at large size, four settlements, 60 game minutes, no build calls: `min_peak_villagers: 600`, departures under 1% of peak, `min_mood_min: 0.6`, and every work counter per game minute within its budget. Budgets are set from the measured run plus headroom, then tightened as the code improves.
+- **Map suite:** every map type at every size on three seeds. Each run must find a starting site for every settlement and, with the planner on for 15 game minutes, end with every settlement fed and no departures. (`suite_failures = 0`.)
 
-**Disturbs.** Nothing, if gates 1 to 6 stay on the small preset.
+**Disturbs.** Every gate moves to the standard map. Gates whose intent survives the bigger map are revised in place (new defaults and re-measured thresholds); a gate whose scripted layout no longer makes sense there is superseded under [decision 0004](/decisions/0004-reworking-gates.md). The old small-island versions stay runnable by name.
 
-**Kyle's call.** Large map size, and how many settlements a new game starts with.
+**Kyle's call.** The standard map's size; the large and huge sizes; which further map types are worth having (highlands, river delta, a desert edge once climate exists); and how many settlements a new game starts with on each size.
 
 # 8. The lie of the land
 
-**Why now.** On a large map, distance and terrain start to matter, and they shape everything in Phase 9.
+**Why now.** On bigger maps and the landmass type, distance and terrain start to matter, and they shape everything in Phase 9.
 
 **Builds.**
-- **Terrain:** height with slope slowing walkers, rivers that block walking, and deposits (fertile soil, stone, clay, fishing water) that buildings must sit on or near. Deposits sit unused until Phase 11 gives them goods.
+- **Terrain on every map type:** height with slope slowing walkers, rivers that block walking, and deposits (fertile soil, stone, clay, fishing water) that buildings must sit on or near. Deposits sit unused until Phase 11 gives them goods.
 - **Bridges**, discovered when a river keeps people from somewhere they need to go (a knowledge `need` for detours).
 - **Desire paths.** Tiles accumulate wear from feet; the planner paves the worn ones, so roads follow real traffic.
 - **Surroundings in mood.** Each home scores its surroundings from blueprint fields: `nuisance: { radius, amount }` on workplaces such as the sawmill, and `amenity` from trees, water and gardens; crowding and building sites count against. Settlement mood blends being fed with surroundings, and the planner keeps homes away from nuisance.
 
-**Gate 8 (proposed).** A large-map seed with a river, run twice, with road planning on and off: on cuts `mean_delivery_seconds` by at least 15%. In the "on" run, a bridge is discovered and built, `homes_in_nuisance = 0`, and `min_fed_min: 0.6`.
+**Gate 8 (proposed).** A standard-map seed with a river, run twice, with road planning on and off: on cuts `mean_delivery_seconds` by at least 15%. In the "on" run, a bridge is discovered and built, `homes_in_nuisance = 0`, and `min_fed_min: 0.6`.
 
 **Disturbs.** Mood changes meaning, so gates 2, 4, 5 and 6 would drop for reasons unrelated to what they test. Receipts gain `fed_min`, the hunger part of mood alone, and those gates' welfare checks are revised from `mood_min` to `fed_min`, which keeps their intent ("nobody goes hungry").
 
@@ -121,7 +132,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
   - Each district planner sees only its own blocks, so planning cost follows district size, not town size.
 - **Density has a price:** crowding lowers surroundings, and later fire runs along rows (Phase 19).
 
-**Gate 9 (proposed).** Large preset, one settlement, 60 game minutes:
+**Gate 9 (proposed).** Standard map, one settlement, 60 game minutes:
 - `min_blocks_replanned: 1`;
 - homes per built tile at the end at least 1.5 times the hamlet's;
 - `min_districts: 3`;
@@ -158,7 +169,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 - **Storage:** granaries, a woodyard and warehouses with capacity; some goods spoil when left out.
 - **Planner chains** several steps deep, with upgrades planned alongside new buildings.
 
-**Gate 11 (proposed).** Large preset, one settlement, 60 game minutes: at least 20% of homes at tier three; every tier's homes stocked at least 90% of the time; departures and `fed_min` at Gate 2's level.
+**Gate 11 (proposed).** Standard map, one settlement, 60 game minutes: at least 20% of homes at tier three; every tier's homes stocked at least 90% of the time; departures and `fed_min` at Gate 2's level.
 
 # 12. Seasons
 
@@ -166,7 +177,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Builds.** A year of tuned length: crops grow from spring to autumn and are harvested; winter needs firewood for warmth and stored food. Granaries and preserved food (smoked fish) earn their place. The planner forecasts winter demand, and mood has a seasonal part.
 
-**Gate 12 (proposed).** Three game years on the large preset: no starvation, at most 2% departures, and food in store at the first frost covering at least the winter's need.
+**Gate 12 (proposed).** Three game years on the standard map: no starvation, at most 2% departures, and food in store at the first frost covering at least the winter's need.
 
 **Disturbs.** Every food gate: seasons are off by default for scenarios that predate them, like the planner was.
 
@@ -192,7 +203,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Builds.** Vehicles as blueprints, each with a capacity, a speed and the surfaces it can use: handcarts, ox carts, and river boats between jetties. The job board plans multi-leg deliveries through hubs and warehouses. Carts are discovered under distance strain and boats under river strain, and spread by the existing knowledge rules.
 
-**Gate 14 (proposed).** Large preset: carts discovered unscripted; at least 50% of deliveries over a set distance go by cart; `mean_delivery_seconds` below the Gate 8 baseline.
+**Gate 14 (proposed).** Landmass at large size, where distances are longest: carts discovered unscripted; at least 50% of deliveries over a set distance go by cart; `mean_delivery_seconds` below the Gate 8 baseline.
 
 # 15. New settlements
 
@@ -200,7 +211,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Builds.** A crowded town, or one short of land or a deposit, sends a founding party with villagers, part of the stores, and its knowledge minus the crafts it never practised. The party scores sites for land, deposits, water and distance from rivals, then walks there. Daughter towns keep visiting their mother town.
 
-**Gate 15 (proposed).** Large preset, one settlement at the start, 90 game minutes: at least four settlements, unscripted, each fed and growing.
+**Gate 15 (proposed).** Landmass at large size, one settlement at the start, 90 game minutes: at least four settlements, unscripted, each fed and growing.
 
 # 16. Trade
 
@@ -216,9 +227,9 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Why now.** It needs trade (16) and boats (14) to carry it.
 
-**Builds.** An archipelago preset with shallows, reefs and open sea. Docks, shipyards, ships with crews, and sea routes. Explorers chart islands the settlements have not seen. Settlers, goods and knowledge cross water only by ship, and colonies are founded overseas.
+**Builds.** The archipelago map type (a concept in `design/maps/`, like the others), with shallows, reefs and open sea. Docks, shipyards, ships with crews, and sea routes. Explorers chart islands the settlements have not seen. Settlers, goods and knowledge cross water only by ship, and colonies are founded overseas.
 
-**Gate 17 (proposed).** Archipelago preset: a colony is founded on a second island unscripted, survives 30 game minutes, and trades back to its mother town.
+**Gate 17 (proposed).** Archipelago map at medium size: a colony is founded on a second island unscripted, survives 30 game minutes, and trades back to its mother town.
 
 # 18. Ages
 
