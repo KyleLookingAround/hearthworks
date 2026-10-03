@@ -176,3 +176,16 @@ test('a gutted depot loses its bots and winds up new ones when rebuilt, never tw
   assert.equal(depot.site, false);
   assert.equal(S.agents.filter(a => a.kind === 'bot').length, n);
 });
+
+test('the advisor warns of raiders who outnumber the defence, and of a winter store fallen behind', async () => {
+  const { advise } = await import('../src/sim/index.ts');
+  const S = createState(quiet, 1847, { hardship: true, seasons: true, planner: true });
+  const t = S.towns[0], yard = S.bmap.get(t.store)!;
+  S.camps.push({ id: S.nextId++, x: yard.x + 20, y: yard.y, strength: 10, raidT: 1e9, raid: null });
+  assert.ok(advise(S, t, 9).some(x => /outnumber its defence/.test(x)));
+  runFor(S, content.tuning.seasons.yearSeconds * 0.6);
+  for (const b of S.buildings) b.inv = {};
+  assert.ok(advise(S, t, 9).some(x => /ration food before the frost/.test(x)));
+  t.laws.rationing = true;
+  assert.ok(!advise(S, t, 9).some(x => /ration food before the frost/.test(x)));
+});
