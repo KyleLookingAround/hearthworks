@@ -4,7 +4,7 @@ title: "Gate 7: worlds"
 description: Four self-planning settlements on an S-size island grow past 600 villagers in an hour within the work budgets, and every map type at every size a player can pick founds its settlements and feeds them.
 tags: [gate, roadmap, maps, performance]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T14:06:55Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/worlds.ts
 parameters:
@@ -15,7 +15,7 @@ parameters:
   - { name: suite_seconds, type: integer, required: true }
   - { name: suite_seeds, type: integer, required: true }
 defaults: { seed: 1847, seconds: 3600, size: s, settlements: 4, suite_seconds: 900, suite_seeds: 3 }
-pass_when: { min_settlements: 4, min_peak_villagers: 600, max_departure_share: 0.01, min_town_mood_min: 0.6, max_path_nodes_per_min: 550000, max_job_pairs_per_min: 40000, max_planner_spots_per_min: 65000, min_suite_runs: 48, max_suite_failures: 0 }
+pass_when: { min_settlements: 4, min_peak_villagers: 600, max_departure_share: 0.01, min_town_fed_min: 0.6, max_path_nodes_per_min: 550000, max_job_pairs_per_min: 40000, max_planner_spots_per_min: 65000, min_suite_runs: 48, max_suite_failures: 0 }
 executor:
   resource: ../references/skills/run-gate.md
   receipt: [gate, params, ticks, scenario_sha256, content_hash, metrics]
@@ -41,3 +41,4 @@ Phase 7 of the [roadmap](/roadmap.md): every world the player can pick plays, an
 # Revisions
 
 - 2026-10-03: map sizes renamed and enlarged at Kyle's request: the player's sizes are S (192 by 144, the old large), M, L and XL (512 by 384); the gates keep their worlds under the sizes `isle` and `standard`, which players are not offered. The scale run's world is unchanged (now named `s`). The suite now covers the four player sizes, 48 runs, and `min_suite_runs` rises from 33 to 48.
+- 2026-10-03: `town_mood_min` becomes `town_fed_min` and the suite checks each settlement's share fed, not its mood, as mood now blends in the homes' surroundings (roadmap Phase 8). Same bar, 0.6.

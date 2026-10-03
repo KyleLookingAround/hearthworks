@@ -10,6 +10,6 @@ export const run: Scenario = (content, params) => {
   const c = centre(S);
   build(S, 'forester', c);
   build(S, 'sawmill', { x: c.x, y: c.y + 4 });
-  const { minMood } = runTracked(S, seconds);
-  return { state: S, metrics: standardMetrics(S, { mood_min: minMood }) };
+  const { minMood, minFed } = runTracked(S, seconds);
+  return { state: S, metrics: standardMetrics(S, { mood_min: minMood, fed_min: minFed }) };
 };

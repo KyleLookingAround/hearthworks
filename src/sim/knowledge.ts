@@ -15,6 +15,7 @@ import { rand } from './rng.ts';
 import { goToBuilding } from './agents.ts';
 import { cancelTask } from './logistics.ts';
 import { door, emit, villagers } from './world.ts';
+import { reachable } from './path.ts';
 import type { Agent, Content, Knowledge, State, Town } from './types.ts';
 
 const K = (S: State) => S.content.tuning.knowledge;
@@ -37,10 +38,11 @@ export const knows = (town: Town, id: string) => id in town.knows;
 export function pressure(S: State, town: Town, need: string): number {
   if (need === 'hauling') { const t = K(S).haulTarget; return clamp01((town.haul - t) / (1 - t)); }
   if (need === 'crossing') return town.cut;
+  if (need === 'detours') return town.detour;
   return 0;
 }
 
-export const NEED_TEXT: Record<string, string> = { hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross' };
+export const NEED_TEXT: Record<string, string> = { hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round' };
 
 /** Has this settlement proven the blueprint in use itself? Founders' knowledge counts. */
 const provenHere = (town: Town, k: Knowledge) => k.verified.some(v => v.by === town.name || v.by === 'founders');
@@ -114,6 +116,9 @@ export function updateKnowledge(S: State, dt: number) {
       emit(S, 'bad', `${town.name} forgot how to build the ${name(S, id)}: nobody had built one in a long while`);
     }
 
+    // every ten seconds: how much grass near home cannot be walked to, and how often trips go the long way round
+    if (Math.floor(S.t) % 10 === 0) town.detour = detourPressure(S, town);
+
     town.visitT += dt;
     if (town.visitT >= P.visitEverySeconds && S.towns.length > 1 && sendVisitor(S, town)) town.visitT = 0;
   }
@@ -186,6 +191,28 @@ function strand(S: State, a: Agent, from: Town, to: Town) {
   }
   const d = door(S.bmap.get(from.store)!);
   a.x = d.x + 0.5; a.y = d.y + 0.5; a.path = [];
+}
+
+/**
+ * Pressure to bridge water, 0 to 1: the larger of the share of recent trips that went the long way round
+ * (`detour_ratio` times the straight line or more) and how much of the grass within the planner's reach
+ * cannot be walked to from storage, past the first fifth.
+ */
+function detourPressure(S: State, town: Town): number {
+  const P = S.content.tuning.planner, w = S.world, store = S.bmap.get(town.store);
+  if (!store) return 0;
+  const d = door(store), reach = reachable(w, d.x, d.y), c = { x: store.x + store.w / 2, y: store.y + store.h / 2 };
+  const R = P.searchRadius + 10;
+  let grass = 0, cut = 0;
+  for (let y = Math.max(0, Math.floor(c.y - R)); y <= Math.min(w.h - 1, Math.ceil(c.y + R)); y++) for (let x = Math.max(0, Math.floor(c.x - R)); x <= Math.min(w.w - 1, Math.ceil(c.x + R)); x++) {
+    const i = y * w.w + x;
+    if (w.ground[i] !== 2 || Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y) > R) continue;
+    grass++;
+    if (!reach[i]) cut++;
+  }
+  const away = grass ? clamp01((cut / grass - 0.2) / 0.4) : 0;
+  const trips = clamp01(town.detours.filter(t => S.t - t[5] < 300).length / 8);
+  return Math.max(away, trips);
 }
 
 /** Short provenance line for the player, e.g. "came up with here", "learned from Hearth". */

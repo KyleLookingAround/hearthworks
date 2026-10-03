@@ -3,6 +3,7 @@
 # Blueprints
 
 * [Bakery](bakery.md) - Bakes one wheat into one loaf. Houses run on bread.
+* [Bridge](bridge.md) - A plank span across a river or channel, up to six tiles of water with land at both ends. Walked like a road; boats pass under.
 * [Courier Depot](depot.md) - Winds up three courier bots that haul goods within twelve tiles. They never eat, so villagers are free to work.
 * [Dock](dock.md) - A jetty on the shore where rowing boats are kept. Villagers launch from it and can land on any shore.
 * [Farm](farm.md) - Grows wheat for the bakery.

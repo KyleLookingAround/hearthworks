@@ -1,4 +1,5 @@
 /** Browser shell: HUD, build bar, inspector, toasts, pointer input and the frame loop. */
+import { surroundings } from '../sim/surroundings.ts';
 import { loadGame, saveGame, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
@@ -160,7 +161,8 @@ export class App {
   private buildBar() {
     const bar = $('#build');
     const bps = Object.values(this.content.blueprints).sort((a, b) => a.order - b.order);
-    for (const B of bps) {
+    // bridges are planned by the villages only, for now
+    for (const B of bps.filter(B => !B.bridge)) {
       const btn = document.createElement('button');
       btn.className = 'tool'; btn.dataset.type = B.id; btn.id = 'tool-' + B.id; btn.setAttribute('aria-pressed', 'false');
       const cost = Object.entries(B.cost).map(([k, n]) => `${n} ${this.content.goods[k].name.toLowerCase()}`).join(', ') || 'free';
@@ -450,6 +452,8 @@ export class App {
     } else if (B.homes) {
       rows += row('Residents', `${b.residents.length} / ${B.homes}`);
       for (const k in B.keepStocked) rows += row(`${G[k].name} at home`, `${n0(b.inv[k])} / ${B.keepStocked[k]}`) + row('On the way', n0(b.incoming[k]));
+      const su = surroundings(S, b), good = [su.trees > 0 && 'trees', su.water > 0 && 'water'].filter(Boolean), bad = [su.noise > 0 && 'noise', su.crowd > 0 && 'crowding', su.sites > 0 && 'building work'].filter(Boolean);
+      rows += row('Surroundings', `${Math.round(su.score * 100)}%` + (good.length ? `, ${good.join(' and ')}` : '') + (bad.length ? `; ${bad.join(', ')}` : ''));
     } else if (B.storage) {
       for (const g of Object.values(G).sort((a, b) => a.order - b.order)) rows += row(g.name, n0(b.inv[g.id]));
     } else if (B.couriers) {

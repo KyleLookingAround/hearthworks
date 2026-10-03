@@ -35,6 +35,6 @@ export const run: Scenario = (content, params) => {
     }
     if (beds === 0 && queued(s, 'house') < maxHouses && planks >= 6) build(s, 'house', { x: c.x, y: c.y - 5 });
   };
-  const { minMood } = runTracked(S, seconds, 300, plan);
-  return { state: S, metrics: standardMetrics(S, { mood_min: minMood, houses: countBuilt(S, 'house'), bakeries: countBuilt(S, 'bakery') }) };
+  const { minMood, minFed } = runTracked(S, seconds, 300, plan);
+  return { state: S, metrics: standardMetrics(S, { mood_min: minMood, fed_min: minFed, houses: countBuilt(S, 'house'), bakeries: countBuilt(S, 'bakery') }) };
 };

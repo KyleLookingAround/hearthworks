@@ -71,8 +71,21 @@ export class Renderer {
     };
     for (let y = cy * CHUNK; y < Math.min(w.h, (cy + 1) * CHUNK); y++) for (let x = cx * CHUNK; x < Math.min(w.w, (cx + 1) * CHUNK); x++) {
       const i = y * w.w + x, v = hash01(i), gr = w.ground[i];
-      g.fillStyle = !gr ? (near(x, y) ? '#2a6670' : '#1f5562') : gr === 1 ? (v < 0.5 ? '#d6c08a' : '#dcc794') : v < 0.33 ? '#6c9850' : v < 0.66 ? '#719d54' : '#77a258';
+      g.fillStyle = !gr ? (near(x, y) ? '#2a6670' : '#1f5562') : gr === 1 ? (v < 0.5 ? '#d6c08a' : '#dcc794') : gr === 3 ? (v < 0.5 ? '#8c877c' : '#958f83') : v < 0.33 ? '#6c9850' : v < 0.66 ? '#719d54' : '#77a258';
       g.fillRect(x * TS, y * TS, TS, TS);
+      if (gr) {
+        // hill shading: lit from the north-west, so slopes read as relief
+        const up = (xx: number, yy: number) => (xx >= 0 && yy >= 0 ? w.height[yy * w.w + xx] : w.height[i]);
+        const shade = (up(x - 1, y - 1) - w.height[i]) / 40;
+        if (shade > 0.02) { g.fillStyle = `rgba(20,30,20,${Math.min(0.28, shade)})`; g.fillRect(x * TS, y * TS, TS, TS); }
+        else if (shade < -0.02) { g.fillStyle = `rgba(255,250,230,${Math.min(0.2, -shade)})`; g.fillRect(x * TS, y * TS, TS, TS); }
+      }
+      if (gr === 3) { g.fillStyle = 'rgba(60,58,52,.35)'; g.fillRect(x * TS + v * 14 + 2, y * TS + hash01(i + 5) * 14 + 4, 6, 3); }
+      const dep = w.deposit[i];
+      if (dep === 1) { g.fillStyle = 'rgba(92,64,38,.45)'; for (let k = 0; k < 4; k++) g.fillRect(x * TS + hash01(i * 3 + k) * 18 + 3, y * TS + hash01(i * 5 + k) * 18 + 3, 3, 2); }
+      else if (dep === 2) { g.fillStyle = 'rgba(205,200,190,.7)'; for (let k = 0; k < 2; k++) { g.beginPath(); g.arc(x * TS + 5 + hash01(i * 9 + k) * 14, y * TS + 5 + hash01(i * 11 + k) * 14, 2.4, 0, 7); g.fill(); } }
+      else if (dep === 3) { g.fillStyle = 'rgba(176,96,62,.45)'; g.fillRect(x * TS + 4 + v * 8, y * TS + 8 + hash01(i + 7) * 8, 8, 4); }
+      else if (dep === 4) { g.strokeStyle = 'rgba(230,240,235,.35)'; g.lineWidth = 1.2; g.beginPath(); const fx = x * TS + 6 + v * 10, fy = y * TS + 8 + hash01(i + 2) * 8; g.moveTo(fx, fy); g.quadraticCurveTo(fx + 4, fy - 3, fx + 8, fy); g.stroke(); }
       if (gr === 2) {
         g.fillStyle = 'rgba(40,70,30,.22)';
         for (let k = 0; k < 3; k++) g.fillRect(x * TS + hash01(i * 7 + k) * 20 + 2, y * TS + hash01(i * 13 + k) * 20 + 2, 2, 2);
@@ -92,7 +105,7 @@ export class Renderer {
       const g = ground.getContext('2d')!;
       for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) {
         const i = y * w.w + x, gr = w.ground[i];
-        g.fillStyle = !gr ? '#1f5562' : gr === 1 ? '#d8c38e' : '#719d54';
+        g.fillStyle = !gr ? '#1f5562' : gr === 1 ? '#d8c38e' : gr === 3 ? '#8f8a7f' : '#719d54';
         g.fillRect(x * O, y * O, O, O);
       }
       this.overview = { ground, trees, at: -Infinity };
@@ -134,6 +147,9 @@ export class Renderer {
     }
 
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const wr = w.wear[y * w.w + x];
+      // trodden ground: where feet have worn a path that is not paved yet
+      if (wr > 6 && !w.road[y * w.w + x] && !far) { c.fillStyle = `rgba(150,118,74,${Math.min(0.4, wr / 80)})`; c.fillRect(x * TS + 4, y * TS + 4, TS - 8, TS - 8); }
       if (!w.road[y * w.w + x]) continue;
       c.fillStyle = '#a58b5f'; c.fillRect(x * TS, y * TS, TS, TS);
       c.fillStyle = '#c2a877'; c.fillRect(x * TS + 3, y * TS + 3, TS - 6, TS - 6);
@@ -291,6 +307,7 @@ export class Renderer {
 
   private building(S: State, b: Building) {
     const c = this.ctx, B = S.content.blueprints[b.type], px = b.x * TS, py = b.y * TS, pw = b.w * TS, ph = b.h * TS;
+    if (B.bridge) { this.bridge(S, b, px, py, pw, ph); return; }
     c.fillStyle = 'rgba(16,26,22,.22)'; this.rr(px + 3, py + 4, pw - 4, ph - 4, 5); c.fill();
     if (b.site) {
       c.globalAlpha = 0.4; this.art(S, b, px, py, pw, ph); c.globalAlpha = 1;
@@ -318,6 +335,25 @@ export class Renderer {
       c.beginPath(); c.arc(x, y, 6.5, 0, 7); c.fill(); c.strokeStyle = '#1b2326'; c.lineWidth = 1.2; c.stroke();
       c.fillStyle = '#1b2326'; c.font = 'bold 10px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('!', x, y + 0.5);
     }
+  }
+
+  /** Planks across the water, rails along both sides; a site shows its first planks and the rest as an outline. */
+  private bridge(S: State, b: Building, px: number, py: number, pw: number, ph: number) {
+    const c = this.ctx, across = b.h === 1, n = across ? b.w : b.h;
+    const have = b.site ? Math.min(1, (b.inv.planks || 0) / (S.content.blueprints[b.type].cost.planks || 1)) : 1;
+    c.fillStyle = 'rgba(16,26,22,.25)'; c.fillRect(px + 2, py + 4, pw, ph);
+    const planks = Math.ceil(n * 4 * have);
+    for (let k = 0; k < planks; k++) {
+      c.fillStyle = k % 2 ? '#9a7448' : '#a77f50';
+      if (across) c.fillRect(px + k * (TS / 4), py + 3, TS / 4 - 1, ph - 6);
+      else c.fillRect(px + 3, py + k * (TS / 4), pw - 6, TS / 4 - 1);
+    }
+    c.strokeStyle = b.site ? 'rgba(122,92,60,.7)' : '#6b4f30'; c.lineWidth = 2;
+    if (b.site) c.setLineDash([4, 3]);
+    c.beginPath();
+    if (across) { c.moveTo(px, py + 3); c.lineTo(px + pw, py + 3); c.moveTo(px, py + ph - 3); c.lineTo(px + pw, py + ph - 3); }
+    else { c.moveTo(px + 3, py); c.lineTo(px + 3, py + ph); c.moveTo(px + pw - 3, py); c.lineTo(px + pw - 3, py + ph); }
+    c.stroke(); c.setLineDash([]);
   }
 
   /** Each settlement's name above its storage yard. */

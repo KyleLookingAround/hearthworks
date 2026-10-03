@@ -7,7 +7,7 @@ import type { Agent, Building, Content, GameEvent, MapDef, State, Town, World } 
 
 export const inB = (w: World, x: number, y: number) => x >= 0 && y >= 0 && x < w.w && y < w.h;
 /** The door: middle of the bottom row. The tile below it (the door front) must stay open. */
-export const door = (b: { x: number; y: number; w: number; h: number }) => ({ x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 });
+export const door = (b: { x: number; y: number; w: number; h: number; doorAt?: { x: number; y: number } | null }) => b.doorAt ?? { x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 };
 export const ctr = (b: { x: number; y: number; w: number; h: number }) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
 export const distAB = (a: { x: number; y: number }, b: Building) => { const p = ctr(b); return Math.hypot(a.x - p.x, a.y - p.y); };
 export const distBB = (a: Building, b: Building) => { const p = ctr(a), q = ctr(b); return Math.hypot(p.x - q.x, p.y - q.y); };
@@ -28,7 +28,7 @@ export function emit(S: State, kind: GameEvent['kind'], text: string, minor = fa
  */
 function generateWorld(M: MapDef, W: number, H: number, S: State): World {
   const r = S.rng, N = W * H, T = M.terrain, F = M.forest;
-  const w: World = { w: W, h: H, ground: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1), door: new Uint8Array(N), front: new Uint8Array(N), dock: new Uint8Array(N), docks: 0, waterCost: 1, work: { paths: 0, pathFails: 0, pathNodes: 0, jobPairs: 0, plannerSpots: 0 } };
+  const w: World = { w: W, h: H, ground: new Uint8Array(N), height: new Uint8Array(N), deposit: new Uint8Array(N), slopeCost: 0, rockCost: 1, roadCost: 1, forestCost: 1, wear: new Float32Array(N), bridge: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1), door: new Uint8Array(N), front: new Uint8Array(N), dock: new Uint8Array(N), docks: 0, waterCost: 1, work: { paths: 0, pathFails: 0, pathNodes: 0, jobPairs: 0, plannerSpots: 0 } };
   const n1 = valueNoise(r, T.largeCell, W, H), n2 = valueNoise(r, T.smallCell, W, H), n3 = valueNoise(r, F.cell, W, H);
   // island centres for the islands shape, and islets out at sea: drawn only for maps that have them,
   // so the lone isle draws exactly the random numbers it always did
@@ -63,13 +63,41 @@ function generateWorld(M: MapDef, W: number, H: number, S: State): World {
     if (radial < M.start.landRadius) h = Math.max(h, 0.7);
     const border = x === 0 || y === 0 || x === W - 1 || y === H - 1;
     w.ground[i] = (border && M.shores.seaBorder) ? 0 : h > M.shores.grass ? 2 : h > M.shores.sand ? 1 : 0;
+    if (w.ground[i]) w.height[i] = Math.max(0, Math.min(255, Math.round((h - M.shores.sand) * 320)));
+    if (w.ground[i] === 2 && M.mountains && h > M.mountains.level) w.ground[i] = 3;
   }
   for (let k = 0; k < M.rivers.count; k++) carveRiver(w, r, M.rivers.width);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x;
     if (w.ground[i] === 2 && ((n3(x, y) > F.threshold && rand(r) < F.density) || rand(r) < F.scatter)) w.tree[i] = 2;
   }
+  for (let i = 0; i < N; i++) if (!w.ground[i]) w.height[i] = 0;
+  placeDeposits(w, M, S.seed);
   return w;
+}
+
+/**
+ * Deposits from their own random stream (so adding them moved nothing else): fertile soil in patches of
+ * grass, stone on and beside rock (outcrops where there are no mountains), clay on banks beside water,
+ * and fish in water near land. Patches follow smooth noise, so they come in clumps.
+ */
+function placeDeposits(w: World, M: MapDef, seed: number) {
+  const r = makeRng(seed ^ 0x6465706f), W = w.w, H = w.h, D = M.deposits;
+  const soil = valueNoise(r, 7, W, H), rock = valueNoise(r, 5, W, H), mud = valueNoise(r, 4, W, H), shoal = valueNoise(r, 6, W, H);
+  const near = (x: number, y: number, g: number, R: number) => {
+    for (let j = -R; j <= R; j++) for (let k = -R; k <= R; k++) { const xx = x + k, yy = y + j; if (xx >= 0 && yy >= 0 && xx < W && yy < H && w.ground[yy * W + xx] === g) return true; }
+    return false;
+  };
+  // a share `p` of tiles kept: noise above the matching level of a roughly even spread
+  const keep = (v: number, p: number) => v > 1 - p;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, g = w.ground[i];
+    if (g === 2 && keep(soil(x, y), D.fertile)) w.deposit[i] = 1;
+    else if ((g === 3 || (g && near(x, y, 3, 1))) && keep(rock(x, y), M.mountains ? 0.6 : 0)) w.deposit[i] = 2;
+    else if (g === 2 && !M.mountains && keep(rock(x, y), D.stone)) w.deposit[i] = 2;
+    else if (g && g !== 3 && near(x, y, 0, 1) && keep(mud(x, y), D.clay)) w.deposit[i] = 3;
+    else if (!g && near(x, y, 2, 3) && keep(shoal(x, y), D.fish)) w.deposit[i] = 4;
+  }
 }
 
 /** A river from one edge of the map to the opposite one, wandering as it goes, with sandy banks. */
@@ -152,13 +180,13 @@ function firstSite(S: State): { x: number; y: number } {
  * `settlements` above 1 founds neighbours the same way, as far apart as the land allows.
  * The village planner is off unless `planner` is set, so scripted scenarios stay scripted.
  */
-export interface WorldOptions { planner?: boolean; settlements?: number; map?: string; size?: string }
+export interface WorldOptions { /** planners pave worn paths (default on) */ roads?: boolean; planner?: boolean; settlements?: number; map?: string; size?: string }
 
 export function createState(content: Content, seed: number, opts: WorldOptions = {}): State {
   const S = {
     content, seed, rng: makeRng(seed), krng: makeRng(seed ^ 0x6b6e6f77), t: 0, buildings: [], agents: [], bmap: new Map(), amap: new Map(), nextId: 1,
-    mood: 1, migT: 0, secT: 0, events: [], towns: [],
-    stats: { made: {}, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0 },
+    mood: 1, fed: 1, migT: 0, secT: 0, events: [], towns: [],
+    stats: { made: {}, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0 },
   } as unknown as State;
   const mt = content.tuning.map;
   const mapId = opts.map ?? mt.standardType, sizeId = opts.size ?? mt.standardSize;
@@ -170,14 +198,16 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   S.world = generateWorld(M, size.width, size.height, S);
   const L = content.tuning.logistics;
   S.world.waterCost = L.villagerSpeed / L.boatSpeed;
+  S.world.slopeCost = L.slopeCost; S.world.rockCost = L.rockCost;
+  S.world.roadCost = 1 / L.roadSpeed; S.world.forestCost = 1 / L.forestSpeed;
   const first = firstSite(S);
   prepareSite(S, M, first.x, first.y);
-  foundTown(S, first.x, first.y, opts.planner ?? false);
+  foundTown(S, first.x, first.y, opts.planner ?? false, opts.roads ?? true);
   for (let k = 1; k < (opts.settlements ?? 1); k++) {
     const at = neighbourSite(S);
     if (!at) break;
     prepareSite(S, M, at.x, at.y);
-    foundTown(S, at.x, at.y, opts.planner ?? false);
+    foundTown(S, at.x, at.y, opts.planner ?? false, opts.roads ?? true);
   }
   S.planner = S.towns[0].planner;
   S.stats.peakVillagers = villagers(S).length;
@@ -185,12 +215,12 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
 }
 
 /** Lay out a settlement around (cx, cy): storage, a house either side, a road and the starting villagers. */
-function foundTown(S: State, cx: number, cy: number, planner: boolean): Town {
+function foundTown(S: State, cx: number, cy: number, planner: boolean, roads: boolean): Town {
   const content = S.content, t = content.tuning.start, W = S.world.w;
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: plannerOn(planner), haul: 0, cut: 0, mood: 1, visitT: 0 };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [] };
   S.towns.push(town);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;
   for (const b of [store, h1, h2]) b.town = id;
@@ -267,6 +297,7 @@ export function placeProblem(S: State, type: string, x: number, y: number): stri
     if (!inB(w, k, j)) return 'off the edge of the map';
     const i = j * w.w + k;
     if (!w.ground[i]) return 'that is water';
+    if (w.ground[i] === 3) return 'that is bare rock';
     if (w.bgrid[i] !== -1) return 'something is already built there';
     if (B.paves) { if (w.road[i]) return 'there is a road already'; continue; }
     if (w.front[i]) return "it would block another building's door";
@@ -317,7 +348,7 @@ export function placeBuilding(S: State, type: string, x: number, y: number, comp
   if (B.paves) { const i = y * w.w + x; w.road[i] = 1; w.tree[i] = 0; return null; }
   const b: Building = {
     id: S.nextId++, type, x, y, w: B.w, h: B.h, site: !complete, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0, waiting: {}, noWay: null,
+    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0, waiting: {}, noWay: null, doorAt: null,
   };
   for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; w.road[i] = 0; }
   setDoor(S, b, true);
@@ -327,9 +358,37 @@ export function placeBuilding(S: State, type: string, x: number, y: number, comp
   return b;
 }
 
+/**
+ * A bridge over the water tiles x..x+w-1, y..y+h-1 (one row or one column), its door on the near bank
+ * `from` and the far bank `to`. Both banks are kept open like door fronts. Starts as a construction site.
+ */
+export function placeBridge(S: State, x: number, y: number, w: number, h: number, from: { x: number; y: number }, to: { x: number; y: number }, town: number): Building {
+  const W = S.world;
+  const b: Building = {
+    id: S.nextId++, type: 'bridge', x, y, w, h, site: true, build: 0, inv: {}, incoming: {}, reserved: {},
+    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town, used: 0, waiting: {}, noWay: null, doorAt: { ...from },
+  };
+  for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) W.bgrid[j * W.w + k] = b.id;
+  for (const p of [from, to]) W.front[p.y * W.w + p.x]++;
+  S.buildings.push(b); S.bmap.set(b.id, b);
+  return b;
+}
+
+/** The far bank of a bridge: one step beyond the end of its span opposite its door. */
+function farBank(b: Building) {
+  const d = door(b);
+  if (b.h === 1) return d.x < b.x ? { x: b.x + b.w, y: b.y } : { x: b.x - 1, y: b.y };
+  return d.y < b.y ? { x: b.x, y: b.y + b.h } : { x: b.x, y: b.y - 1 };
+}
+
 export function completeSite(S: State, b: Building, announce: boolean) {
   b.site = false; b.build = 0; b.inv = {}; b.incoming = {}; b.reserved = {}; b.waiting = {};
   const B = bp(S, b);
+  if (B.bridge) {
+    for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) S.world.bridge[j * S.world.w + k] = 1;
+    // the long ways round it remembered were measured before this bridge stood
+    if (S.towns[b.town]) S.towns[b.town].detours = [];
+  }
   if (B.couriers) {
     const d = door(b);
     for (let k = 0; k < B.couriers.count; k++) {
@@ -344,8 +403,9 @@ export function demolish(S: State, b: Building) {
   b.dead = true;
   S.buildings = S.buildings.filter(o => o !== b); S.bmap.delete(b.id);
   const w = S.world;
-  for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) w.bgrid[j * w.w + k] = -1;
-  setDoor(S, b, false);
+  for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) { w.bgrid[j * w.w + k] = -1; w.bridge[j * w.w + k] = 0; }
+  if (bp(S, b).bridge) for (const p of [door(b), farBank(b)]) w.front[p.y * w.w + p.x] = Math.max(0, w.front[p.y * w.w + p.x] - 1);
+  else setDoor(S, b, false);
   for (const a of S.agents) if (a.work === b) { a.work = null; a.role = 'carrier'; a.state = 'idle'; a.path = []; }
   const gone = b.residents.length;
   for (const id of [...b.residents]) { const a = S.amap.get(id); if (a) { removeAgent(S, a); S.stats.departures++; } }

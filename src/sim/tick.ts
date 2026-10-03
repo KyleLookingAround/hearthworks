@@ -4,24 +4,30 @@ import { plan } from './planner.ts';
 import { updateKnowledge } from './knowledge.ts';
 import { bp, door, emit, saplings, villagers } from './world.ts';
 import type { State } from './types.ts';
+import { surroundings } from './surroundings.ts';
 
 /**
  * Mood per settlement: the share of its villagers living in a house with food on the shelf
  * (hungry houses count 0, empty shelves 0.6). S.mood is the same over the whole world.
  */
 export function computeMood(S: State) {
-  const pop = S.towns.map(() => 0), fed = S.towns.map(() => 0);
+  const n = S.towns.length, pop = new Array(n).fill(0), fed = new Array(n).fill(0), around = new Array(n).fill(0);
+  const wgt = S.content.tuning.needs.surroundingsWeight;
   for (const b of S.buildings) {
     const B = bp(S, b);
     if (!B.homes || b.site) continue;
     const r = b.residents.length, food = Object.keys(B.keepStocked)[0];
+    if (!r) continue;
     pop[b.town] += r;
+    if (wgt > 0) around[b.town] += r * surroundings(S, b).score;
     if (b.hunger > 0) continue;
     fed[b.town] += (b.inv[food] || 0) > 0 ? r : r * 0.6;
   }
-  S.towns.forEach((t, i) => { t.mood = pop[i] ? fed[i] / pop[i] : 1; });
-  const P = pop.reduce((s, n) => s + n, 0), F = fed.reduce((s, n) => s + n, 0);
-  S.mood = P ? F / P : 1;
+  const blend = (f: number, a: number) => f * (1 - wgt) + a * wgt;
+  S.towns.forEach((t, i) => { t.fed = pop[i] ? fed[i] / pop[i] : 1; t.mood = pop[i] ? blend(t.fed, around[i] / pop[i]) : 1; });
+  const P = pop.reduce((s, k) => s + k, 0), F = fed.reduce((s, k) => s + k, 0), A = around.reduce((s, k) => s + k, 0);
+  S.fed = P ? F / P : 1;
+  S.mood = P ? blend(S.fed, A / P) : 1;
   S.stats.peakVillagers = Math.max(S.stats.peakVillagers, villagers(S).length);
 }
 
@@ -56,7 +62,12 @@ export function tick(S: State, dt: number) {
   for (const b of [...S.buildings]) if (!b.dead) updateBuilding(S, b, dt);
   for (const a of [...S.agents]) if (!a.dead) updateAgent(S, a, dt);
   S.secT += dt;
-  if (S.secT >= 1) { S.secT -= 1; assignWorkers(S); computeMood(S); updateKnowledge(S, 1); }
+  if (S.secT >= 1) {
+    S.secT -= 1; assignWorkers(S); computeMood(S); updateKnowledge(S, 1);
+    // worn paths fade when nobody walks them
+    const fade = Math.pow(0.5, 1 / S.content.tuning.planner.wearHalfLifeSeconds), wear = w.wear;
+    for (let i = 0; i < wear.length; i++) if (wear[i] > 0) wear[i] = wear[i] < 0.05 ? 0 : wear[i] * fade;
+  }
   plan(S, dt);
   S.migT += dt;
   if (S.migT >= S.content.tuning.needs.migrantEverySeconds) { S.migT = 0; migrate(S); }

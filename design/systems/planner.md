@@ -4,9 +4,17 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T14:06:55Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
 tuning:
   interval_seconds: 3
+  detour_ratio: 1.8
+  detour_weight: 1
+  bridge_reach_weight: 0.25
+  bridge_min_gain: 40
+  bridge_spacing: 10
+  pave_wear: 25
+  pave_per_look: 6
+  wear_half_life_seconds: 600
   settle_seconds: 6
   confirm_cycles: 2
   min_severity: 0.15
@@ -67,6 +75,14 @@ Every `interval_seconds` the planner:
    - courier buildings: minus `cover_weight` per building of its settlement its bots would newly reach; a spot that reaches none is skipped.
    A spot is refused if building there would cut storage off from the door of any of the settlement's buildings, or from the tile in front of its own door: on a big landmass a farm was once sealed onto a patch of sand by the next building down. If no spot qualifies, it remembers that it found no room for that blueprint and, for `no_room_retry_seconds`, plans for its next shortage instead, so one building it cannot place (a dock with no suitable shore) never holds up the bread.
 7. **Commits** a construction site through the [job board](/systems/logistics.md) with priority `1 + severity × urgency_priority` (see [site priority](/systems/production.md)) and records why on the building.
+
+# Desire paths
+
+Every look, before anything else, a planner whose `roads` is on (the default) paves up to `pave_per_look` tiles around the settlement that feet have worn past `pave_wear`, most worn first. Roads end up where people really walk. [Gate 8](/gates/08-lie-of-the-land.md) plays a village with and without it: paved, deliveries were 20 to 32% faster per tile on six seeds.
+
+# Bridges
+
+Under the `detours` shortage (water keeps the village from grass close by, or trips go the long way round water; see [knowledge](/systems/knowledge.md)) the planner plans a [Bridge](/blueprints/bridge.md) once known. It looks at every straight run of open water up to `max_span` tiles from a bank storage can reach to land on the other side, and scores it: `bridge_reach_weight` per tile of grass within 12 of the far bank that the bridge would connect and nobody can reach today, plus the tiles it would save on recent long trips whose straight line passes it, less `store_weight` × its distance from storage. It builds the best span scoring at least `bridge_min_gain`, at least `bridge_spacing` from any other bridge. A settlement forgets the long trips it recorded when one of its bridges is finished.
 
 # Not thrashing
 

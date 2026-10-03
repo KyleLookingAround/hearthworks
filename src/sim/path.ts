@@ -9,14 +9,14 @@ interface Buffers { g: Float32Array; came: Int32Array; seen: Uint32Array; closed
 const buffers = new WeakMap<World, Buffers>();
 
 const DIRS: [number, number, number][] = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
-const ROAD_COST = 0.59;
 
 function cost(w: World, i: number, inside: number): number {
-  if (!w.ground[i]) return Infinity;
+  if (!w.ground[i]) return w.bridge[i] ? w.roadCost : Infinity;
+  if (w.ground[i] === 3) return w.rockCost;
   const b = w.bgrid[i];
   if (b !== -1 && !w.door[i] && b !== inside) return Infinity;
-  if (w.road[i]) return ROAD_COST;
-  if (w.tree[i] === 2) return 1.5;
+  if (w.road[i]) return w.roadCost;
+  if (w.tree[i] === 2) return w.forestCost;
   return 1;
 }
 
@@ -33,7 +33,7 @@ export interface PathOptions {
 export function findPath(w: World, sx: number, sy: number, gx: number, gy: number, opts: PathOptions = {}): [number, number][] | null {
   const W = w.w, H = w.h, N = W * H, inB = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H;
   w.work.paths++;
-  if (!inB(gx, gy) || !inB(sx, sy) || !w.ground[gy * W + gx]) { w.work.pathFails++; return null; }
+  if (!inB(gx, gy) || !inB(sx, sy) || (!w.ground[gy * W + gx] && !w.bridge[gy * W + gx])) { w.work.pathFails++; return null; }
   const s = sy * W + sx, goal = gy * W + gx;
   if (s === goal) return [];
   const rowing = w.docks > 0 || !!opts.launchAnywhere, water = w.waterCost;
@@ -41,7 +41,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   if (!b || b.g.length < 2 * N) { const n = 2 * N; b = { g: new Float32Array(n), came: new Int32Array(n), seen: new Uint32Array(n), closed: new Uint32Array(n), gen: 0 }; buffers.set(w, b); }
   // only someone trapped on a wall tile (not standing in a doorway) may cross that building to get out
   const gen = ++b.gen, { g, came, seen, closed } = b, inside = w.door[s] ? -1 : w.bgrid[s];
-  const unit = rowing ? Math.min(ROAD_COST, water) : ROAD_COST;
+  const unit = rowing ? Math.min(w.roadCost, water) : w.roadCost;
   const h = (n: number) => { const i = n % N, dx = Math.abs(i % W - gx), dy = Math.abs(((i / W) | 0) - gy); return unit * (Math.max(dx, dy) + 0.414 * Math.min(dx, dy)); };
   const hi: number[] = [], hf: number[] = [];
   const swap = (a: number, c: number) => { [hi[a], hi[c]] = [hi[c], hi[a]]; [hf[a], hf[c]] = [hf[c], hf[a]]; };
@@ -101,7 +101,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
         }
         continue;
       }
-      if (rowing && isWater(ni)) {
+      if (rowing && isWater(ni) && !w.bridge[ni]) {
         // launch from a dock's door, or anywhere if a boat is already with us
         if (!diag && (w.dock[t] || opts.launchAnywhere)) relax(cur, ni + N, water);
         continue;
@@ -110,7 +110,8 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
       if (c === Infinity) continue;
       // no cutting corners past water or walls
       if (diag && (cost(w, cy * W + nx, inside) === Infinity || cost(w, ny * W + cx, inside) === Infinity)) continue;
-      relax(cur, ni, c * m);
+      // climbing or descending costs time
+      relax(cur, ni, c * m + w.slopeCost * Math.abs(w.height[ni] - w.height[t]));
     }
   }
   w.work.pathFails++;
@@ -120,7 +121,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
 /** Every tile reachable on foot from (sx, sy): open land, roads and building doors, 4-connected (corners are never cut). */
 export function reachable(w: World, sx: number, sy: number): Uint8Array {
   const W = w.w, N = W * w.h, seen = new Uint8Array(N), q = new Int32Array(N);
-  const open = (i: number) => w.ground[i] > 0 && (w.bgrid[i] === -1 || w.door[i] === 1);
+  const open = (i: number) => (w.ground[i] > 0 && (w.bgrid[i] === -1 || w.door[i] === 1)) || w.bridge[i] === 1;
   const s = sy * W + sx;
   if (sx < 0 || sy < 0 || sx >= W || sy >= w.h) return seen;
   let head = 0, tail = 0;

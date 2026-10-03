@@ -22,15 +22,15 @@ export function build(S: State, type: string, near: { x: number; y: number }, ma
   return placeBuilding(S, type, spot.x, spot.y, false)!;
 }
 
-/** Run, tracking the lowest mood seen after `warmup` seconds. */
-export function runTracked(S: State, seconds: number, warmup = 0, every?: (S: State) => void): { minMood: number } {
-  let minMood = 1, last = Math.floor(S.t);
+/** Run, tracking the lowest mood and the lowest share fed seen after `warmup` seconds. */
+export function runTracked(S: State, seconds: number, warmup = 0, every?: (S: State) => void): { minMood: number; minFed: number } {
+  let minMood = 1, minFed = 1, last = Math.floor(S.t);
   const until = S.t + warmup;
   runFor(S, seconds, s => {
-    if (s.t >= until) minMood = Math.min(minMood, s.mood);
+    if (s.t >= until) { minMood = Math.min(minMood, s.mood); minFed = Math.min(minFed, s.fed); }
     if (every && Math.floor(s.t) !== last) { last = Math.floor(s.t); every(s); }
   });
-  return { minMood };
+  return { minMood, minFed };
 }
 
 export function standardMetrics(S: State, extra: Metrics = {}): Metrics {
@@ -40,6 +40,7 @@ export function standardMetrics(S: State, extra: Metrics = {}): Metrics {
     villagers: villagers(S).length,
     peak_villagers: S.stats.peakVillagers,
     mood_end: round(S.mood),
+    fed_end: round(S.fed),
     arrivals: S.stats.arrivals,
     departures: S.stats.departures,
     logs_made: S.stats.made.logs || 0,

@@ -12,8 +12,11 @@ cost: { planks: 6 }
 workers: 1
 recipe: { input: { logs: 1 }, output: { planks: 1 }, seconds: 4 }
 keep_stocked: { logs: 4 }
+nuisance: { radius: 5, amount: 0.5 }
 ---
 
 # Role
 
 Turns [logs](/goods/logs.md) into [planks](/goods/planks.md). Carriers keep four logs waiting at the saw.
+
+The saw is loud: homes within `nuisance.radius` lose `nuisance.amount` from their [surroundings](/systems/needs.md), and the [planner](/systems/planner.md) keeps homes and sawmills apart.

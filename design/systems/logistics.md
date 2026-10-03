@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T14:06:55Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -17,6 +17,8 @@ tuning:
   dump_at: 3
   request_aging: 0.5
   no_way_retry_seconds: 30
+  slope_cost: 0.006
+  rock_cost: 2.5
 ---
 
 # Rules
@@ -38,6 +40,10 @@ Buildings are solid. A building is entered only through its door (the middle of 
 # Boats
 
 Water is crossed by rowing boat. Boats are launched from a [dock](/blueprints/dock.md)'s door and can land on any shore; someone who landed by boat has it with them and can launch again from wherever they are. Route finding plans walking and rowing together (walk to the dock, row, land, walk on), rowing at `boat_speed`. With no dock in the world nobody rows, so maps without docks route exactly as before.
+
+# Terrain, roads and bridges
+
+Route finding and walking speed agree: a road or [bridge](/blueprints/bridge.md) tile costs `1 / road_speed`, a tile under grown trees `1 / forest_speed`, rock `rock_cost`, and every step up or down costs `slope_cost` per unit of height more (both read from this tuning; before, two of them were copies in code). Feet wear the tiles they cross; the wear fades with a half-life of the [planner](/systems/planner.md)'s `wear_half_life_seconds`, and planners pave the most worn tiles into roads. Every delivery records its time from claim to drop-off and its straight-line length (carrier to source to destination), so receipts can report `mean_delivery_seconds` and the pace per tile.
 
 # Carriers
 

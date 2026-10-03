@@ -4,12 +4,13 @@ title: Coast
 description: Land on the west, open sea on the east with small islands offshore, and a river down to the sea.
 tags: [map]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T12:19:35Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
 order: 3
 shape: coast
 coastline: 0.62
 islets: 5
 rivers: { count: 1, width: 2 }
+mountains: { level: 1.0 }
 neighbours: anywhere
 terrain: { large_cell: 9, small_cell: 4, large: 0.5, small: 0.3, base: 0.45, falloff: 1.6 }
 shores: { grass: 0.5, sand: 0.45, sea_border: false }
@@ -24,3 +25,7 @@ Height falls off only east of `coastline` (a share of the map's width), so the w
 # Later
 
 The shore is where fishing (Phase 11) and ports (Phase 18) will go; see the [roadmap](/roadmap.md).
+
+# Mountains
+
+Land above `mountains.level` is rock: slow to cross and never built on ([map](/systems/map.md), terrain).

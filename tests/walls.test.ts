@@ -5,10 +5,10 @@ import { createState, door, findPath, placeBuilding, placeProblem, runFor, type 
 import { centre, findSpot } from '../src/gates/kit.ts';
 
 const content = loadContent();
-/** Agents standing on a building tile that is not a door. */
+/** Agents standing on a building tile that is not a door (a bridge is walked on). */
 const insideWalls = (S: State) => S.agents.filter(a => {
   const w = S.world, i = Math.floor(a.y) * w.w + Math.floor(a.x);
-  return w.bgrid[i] !== -1 && !w.door[i];
+  return w.bgrid[i] !== -1 && !w.door[i] && !w.bridge[i];
 }).length;
 
 test('paths go around buildings and enter only by the door', () => {

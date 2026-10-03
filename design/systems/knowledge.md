@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T14:06:55Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -37,6 +37,10 @@ Every settlement starts out knowing every blueprint without a `discovery` block.
 A blueprint with `discovery: { need, mean_seconds }` has to be thought of. While a settlement struggles with that need at `struggle_severity` or worse, it comes up with the blueprint at random, on average once per `mean_seconds` of struggle. The draw uses its own seeded stream (`S.krng`), so knowledge never shifts the main simulation's random numbers: scripted Gates 1 to 3 run identically.
 
 Two needs so far. **Crossing**: a settlement whose visitor finds no way to its nearest neighbour (water nobody here can cross) is under full strain, which brings the [dock](/blueprints/dock.md). **Hauling**: the share of a settlement's carriers on deliveries someone asked for (not surplus runs to storage), smoothed over `haul_smoothing_seconds`. Pressure is how far it sits above `haul_target`, scaled to 0 to 1. Without depots this runs at 0.65 to 0.9; depots bring it to about 0.45 to 0.55. The [Courier Depot](/blueprints/depot.md) is discovered this way: machines earn their place by relieving a struggle the player can see.
+
+# Detours
+
+The `detours` need ([Bridge](/blueprints/bridge.md)) is the larger of two pressures, every ten seconds: how much of the grass within reach of the settlement cannot be walked to from its storage yard (past the first fifth, full at three fifths), and how many trips in the last five minutes went the long way round water (`detour_ratio` times the straight line or more, with water on the straight line), full at eight.
 
 # Prove
 

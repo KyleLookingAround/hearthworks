@@ -4,7 +4,7 @@ title: "Gate 2: the town grows and stays fed"
 description: With a scripted build order, the town reaches 20 villagers and nobody leaves hungry over 30 game minutes.
 tags: [gate, roadmap, needs, balance]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T13:40:50Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/sustain-town.ts
 parameters:
@@ -14,7 +14,7 @@ parameters:
   - { name: size, type: string, required: true }
   - { name: max_houses, type: integer, required: false }
 defaults: { seed: 1847, seconds: 1800, max_houses: 8, map: island, size: isle }
-pass_when: { min_peak_villagers: 20, min_villagers: 18, max_departures: 2, min_mood_min: 0.6 }
+pass_when: { min_peak_villagers: 20, min_villagers: 18, max_departures: 2, min_fed_min: 0.6 }
 executor:
   resource: ../references/skills/run-gate.md
   receipt: [gate, params, ticks, scenario_sha256, content_hash, metrics]
@@ -34,3 +34,4 @@ Phase 2 of the [roadmap](/roadmap.md): the [needs](/systems/needs.md) and produc
 
 - 2026-10-03: stays on the small Lone isle, the world its scripted layout was written for, now named by the `map` and `size` parameters since the standard map moved to medium (roadmap Phase 7). Its receipts are unchanged.
 - 2026-10-03: its world's size is renamed (`isle` for the 56 by 40 Lone isle, `standard` for 112 by 80), since player sizes are now S to XL. Same world, same receipts.
+- 2026-10-03: welfare is held with `fed_min` instead of `mood_min`: mood now blends in the homes' surroundings, and this gate is about nobody going hungry (roadmap Phase 8). Same bar, 0.6.

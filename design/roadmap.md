@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T14:06:55Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
 ---
 
 # How to read this
@@ -108,13 +108,15 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Why now.** On bigger maps and the landmass type, distance and terrain start to matter, and they shape everything in Phase 9.
 
+**Delivered.** Height and slopes on every map, mountains of rock on Landmass and Coast; deposits (fertile soil, stone, clay, fish) shown and waiting for Phase 11; desire paths that planners pave; the [Bridge](/blueprints/bridge.md), discovered under the new `detours` need and placed by the planner; surroundings in mood, with the [Sawmill](/blueprints/sawmill.md) as the first nuisance; `fed_min` in every receipt; [Gate 8](/gates/08-lie-of-the-land.md). **Phase 8 is done.** Bridges are planned by villages only; letting the player place one is open.
+
 **Builds.**
 - **Terrain on every map type:** height with slope slowing walkers, rivers that block walking, and deposits (fertile soil, stone, clay, fishing water) that buildings must sit on or near. Deposits sit unused until Phase 11 gives them goods.
 - **Bridges**, discovered when a river keeps people from somewhere they need to go (a knowledge `need` for detours).
 - **Desire paths.** Tiles accumulate wear from feet; the planner paves the worn ones, so roads follow real traffic.
 - **Surroundings in mood.** Each home scores its surroundings from blueprint fields: `nuisance: { radius, amount }` on workplaces such as the sawmill, and `amenity` from trees, water and gardens; crowding and building sites count against. Settlement mood blends being fed with surroundings, and the planner keeps homes away from nuisance.
 
-**Gate 8 (proposed).** A standard-map seed with a river, run twice, with road planning on and off: on cuts `mean_delivery_seconds` by at least 15%. In the "on" run, a bridge is discovered and built, `homes_in_nuisance = 0`, and `min_fed_min: 0.6`.
+**Gate 8 (stable).** As proposed, on a Landmass at the standard size (the standard Island has no rivers), with one change: roads are judged by delivery pace (seconds per straight-line tile) rather than `mean_delivery_seconds`, because the paved village grows bigger and its trips longer. A standard-map seed with a river, run twice, with road planning on and off: on cuts delivery pace by at least 15%. In the "on" run, a bridge is discovered and built, `homes_in_nuisance = 0`, and `min_fed_min: 0.6`.
 
 **Disturbs.** Mood changes meaning, so gates 2, 4, 5 and 6 would drop for reasons unrelated to what they test. Receipts gain `fed_min`, the hunger part of mood alone, and those gates' welfare checks are revised from `mood_min` to `fed_min`, which keeps their intent ("nobody goes hungry").
 

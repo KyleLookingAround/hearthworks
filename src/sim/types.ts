@@ -33,6 +33,10 @@ export interface BlueprintDef {
   paves: boolean;
   /** Built on the shore: its door opens onto water, and boats are launched from it. */
   shore: boolean;
+  /** A bridge: spans up to `maxSpan` tiles of water in a straight line, land at both ends. */
+  bridge: { maxSpan: number } | null;
+  /** Bothers homes within `radius`: their surroundings lose `amount`. */
+  nuisance: { radius: number; amount: number } | null;
   /** Not known at the start: a village invents it while it struggles with `need`. Null for founding knowledge. */
   discovery: { need: string; meanSeconds: number } | null;
 }
@@ -44,6 +48,10 @@ export interface MapSize { width: number; height: number; settlements: number; l
 export interface MapDef {
   id: string; name: string; description: string; order: number;
   shape: 'island' | 'islands' | 'landmass' | 'coast';
+  /** Land higher than `level` is rock: mountains. Null for none. */
+  mountains: { level: number } | null;
+  /** How common each deposit is: the share of suitable tiles, roughly. */
+  deposits: { fertile: number; stone: number; clay: number; fish: number };
   /** The map sizes this type can be played at; null for every size. */
   sizes: string[] | null;
   /** Islands only: how many, and their radii as a share of half the map's shorter side. */
@@ -72,9 +80,10 @@ export interface Tuning {
   start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; neighbourSpreadShare: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
-    roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number;
+    roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
   };
-  needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number };
+  needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number };
+  surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
   planner: PlannerTuning;
   knowledge: {
@@ -84,7 +93,7 @@ export interface Tuning {
 }
 
 export interface PlannerTuning {
-  intervalSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
+  intervalSeconds: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
   foodHeadroom: number; growthBeds: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
   costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; noRoomRetrySeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; searchRadiusMax: number; gap: number; minTrees: number;
@@ -109,6 +118,8 @@ export interface PlannerState {
   /** One line for the player: what the planner is doing and why. */
   status: string;
   placed: number;
+  /** Does it pave the paths its people wear? */
+  roads: boolean;
   /** Blueprints it last found no room for, and when: it plans something else for `no_room_retry_seconds`. */
   noRoom: Record<string, number>;
 }
@@ -155,11 +166,14 @@ export interface Building {
   waiting: Record<string, number>;
   /** Game time a carrier last found no way to its door; it is left alone for `no_way_retry_seconds`. */
   noWay: number | null;
+  /** Where its door is, when not the middle of its bottom row: a bridge's door is the near bank. */
+  doorAt: { x: number; y: number } | null;
 }
 
 export type AgentState = 'idle' | 'wander' | 'toSrc' | 'toDst' | 'toWork' | 'working' | 'visit';
 
-export interface Task { src: Building; dst: Building; item: ItemId; n: number }
+/** A delivery: `at` is the game time it was claimed, for delivery times. */
+export interface Task { src: Building; dst: Building; item: ItemId; n: number; at: number; /** straight-line tiles: carrier to source to destination */ tiles: number }
 
 export interface Agent {
   id: number;
@@ -209,15 +223,25 @@ export interface Town {
   haul: number;
   /** 1 while its nearest neighbour can't be reached without crossing water it has no way across. */
   cut: number;
-  /** Share of its villagers fed and settled, 0 to 1. */
+  /** Share of its villagers fed, 0 to 1 (an empty shelf counts 0.6). */
+  fed: number;
+  /** Being fed, blended with the surroundings of its homes (`surroundings_weight`), 0 to 1. */
   mood: number;
   visitT: number;
+  /** Smoothed pressure to bridge water: trips going the long way round, land nearby that cannot be walked to. */
+  detour: number;
+  /** Recent trips that went the long way round: [from x, from y, to x, to y, tiles walked, when]. */
+  detours: number[][];
 }
 
 export interface World {
   w: number; h: number;
-  /** 0 water, 1 sand, 2 grass */
+  /** 0 water, 1 sand, 2 grass, 3 rock (mountains: walkable but slow, nothing is built on it) */
   ground: Uint8Array;
+  /** height of the land, 0 (shore) to 255; climbing between tiles costs `slopeCost` per unit */
+  height: Uint8Array;
+  /** what lies in the ground, unused until goods need it: 0 none, 1 fertile soil, 2 stone, 3 clay, 4 fish */
+  deposit: Uint8Array;
   /** 0 none, 1 sapling, 2 grown */
   tree: Uint8Array;
   grow: Float32Array;
@@ -234,6 +258,17 @@ export interface World {
   docks: number;
   /** cost of a tile of water relative to a tile of open land on foot */
   waterCost: number;
+  /** extra cost per unit of height climbed or descended between neighbouring tiles */
+  slopeCost: number;
+  /** cost of a tile of rock relative to open land */
+  rockCost: number;
+  /** cost of a road (or bridge) tile, and of a tile under grown trees, relative to open land: the inverse of their speeds */
+  roadCost: number;
+  forestCost: number;
+  /** footsteps on each tile, fading over time: where people actually walk */
+  wear: Float32Array;
+  /** 1 on water spanned by a finished bridge: walked like a road, rowed under */
+  bridge: Uint8Array;
   /** Deterministic work counters: what the sim spent, for budgets that don't depend on the machine. */
   work: Work;
 }
@@ -245,6 +280,11 @@ export interface GameEvent { kind: 'good' | 'bad' | 'info'; text: string; t: num
 
 export interface Stats {
   made: Stock;
+  /** Delivery times: total seconds from claim to drop-off, and how many deliveries. */
+  deliverySeconds: number;
+  delivered: number;
+  /** Straight-line tiles of those deliveries (carrier to source to destination), for their pace. */
+  deliveryTiles: number;
   deliveries: { villager: number; bot: number };
   arrivals: number;
   departures: number;
@@ -266,6 +306,8 @@ export interface State {
   amap: Map<number, Agent>;
   nextId: number;
   mood: number;
+  /** The world's share of villagers fed, without surroundings: what gates hold as `fed_min`. */
+  fed: number;
   migT: number;
   secT: number;
   stats: Stats;

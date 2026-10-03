@@ -9,11 +9,11 @@ import { countBuilt } from '../../../src/sim/index.ts';
 export const run: Scenario = (content, params) => {
   const { seed, seconds } = params;
   const S = start(content, seed, { planner: true, ...worldOf(params) });
-  const { minMood } = runTracked(S, seconds, 300);
+  const { minMood, minFed } = runTracked(S, seconds, 300);
   return {
     state: S,
     metrics: standardMetrics(S, {
-      mood_min: minMood,
+      mood_min: minMood, fed_min: minFed,
       planned: S.planner.placed,
       houses: countBuilt(S, 'house'),
       bakeries: countBuilt(S, 'bakery'),

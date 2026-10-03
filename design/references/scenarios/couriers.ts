@@ -19,6 +19,6 @@ export const run: Scenario = (content, params) => {
   build(S, 'bakery', { x: c.x - 4, y: c.y + 5 });
   while (S.t < seconds && !(hasBuilt(S, 'sawmill') && hasBuilt(S, 'bakery'))) runFor(S, 1);
   build(S, 'depot', { x: c.x + 4, y: c.y - 4 });
-  const { minMood } = runTracked(S, Math.max(0, seconds - S.t));
-  return { state: S, metrics: standardMetrics(S, { mood_min: minMood, depot_built: hasBuilt(S, 'depot') ? 1 : 0 }) };
+  const { minMood, minFed } = runTracked(S, Math.max(0, seconds - S.t));
+  return { state: S, metrics: standardMetrics(S, { mood_min: minMood, fed_min: minFed, depot_built: hasBuilt(S, 'depot') ? 1 : 0 }) };
 };

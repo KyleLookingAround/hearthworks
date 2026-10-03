@@ -94,7 +94,7 @@ export class NewGameDialog {
     // one pixel a tile, scaled to fit the preview whatever the map's size
     const w = S.world, img = new ImageData(w.w, w.h);
     const rgb = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
-    const colour = [rgb('#1d4b57'), rgb('#d6c38f'), rgb('#7aa960')], wood = rgb('#2f5a36');
+    const colour = [rgb('#1d4b57'), rgb('#d6c38f'), rgb('#7aa960'), rgb('#8f8a7f')], wood = rgb('#2f5a36');
     for (let i = 0; i < w.ground.length; i++) {
       const [r, g, b] = w.tree[i] === 2 ? wood : colour[w.ground[i]];
       img.data[i * 4] = r; img.data[i * 4 + 1] = g; img.data[i * 4 + 2] = b; img.data[i * 4 + 3] = 255;

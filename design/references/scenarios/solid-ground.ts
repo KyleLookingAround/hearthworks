@@ -7,10 +7,10 @@
 import { runTracked, standardMetrics, start, worldOf, type Scenario } from '../../../src/gates/kit.ts';
 import { loadGame, runFor, saveGame, type State } from '../../../src/sim/index.ts';
 
-/** Agents standing on a building tile that is not its door. */
+/** Agents standing on a building tile that is not its door (a bridge is walked on). */
 const insideWalls = (S: State) => S.agents.filter(a => {
   const w = S.world, i = Math.floor(a.y) * w.w + Math.floor(a.x);
-  return w.bgrid[i] !== -1 && !w.door[i];
+  return w.bgrid[i] !== -1 && !w.door[i] && !w.bridge[i];
 }).length;
 
 export const run: Scenario = (content, params) => {
@@ -20,12 +20,12 @@ export const run: Scenario = (content, params) => {
   let worst = 0;
   const watch = (s: State) => { worst = Math.max(worst, insideWalls(s)); };
 
-  // the world's mood averages both villages; each one must also hold up on its own
+  // the world's share fed averages both villages; each one must also be fed on its own
   let townMin = 1;
   const S = start(content, seed, opts);
-  const { minMood } = runTracked(S, seconds, 300, s => {
+  const { minMood, minFed } = runTracked(S, seconds, 300, s => {
     watch(s);
-    if (s.t >= 300) for (const t of s.towns) townMin = Math.min(townMin, t.mood);
+    if (s.t >= 300) for (const t of s.towns) townMin = Math.min(townMin, t.fed);
   });
 
   const T = start(content, seed, opts);
@@ -40,7 +40,8 @@ export const run: Scenario = (content, params) => {
     state: S,
     metrics: standardMetrics(S, {
       mood_min: minMood,
-      town_mood_min: Math.round(townMin * 1000) / 1000,
+      fed_min: minFed,
+      town_fed_min: Math.round(townMin * 1000) / 1000,
       settlements: S.towns.length,
       save_roundtrip_match: same ? 1 : 0,
       save_bytes: saved.length,

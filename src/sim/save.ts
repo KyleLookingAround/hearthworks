@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 type Json = Record<string, unknown>;
 
@@ -28,6 +28,21 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
   1: state => { for (const t of state.towns as { planner: Json }[]) t.planner.noRoom ??= {}; return state; },
   // 2 to 3: buildings remember when nobody could reach them
   2: state => { for (const b of [...state.buildings as Json[], ...(state.gone as Json[] ?? [])]) b.noWay ??= null; return state; },
+  // 3 to 4: being fed is kept apart from mood, which now counts surroundings too
+  3: state => {
+    state.fed ??= state.mood; for (const t of state.towns as Json[]) t.fed ??= t.mood;
+    // terrain arrived: older worlds are flat, with nothing in the ground
+    const w = state.world as Json, n = (w.w as number) * (w.h as number);
+    w.height ??= [0, n]; w.deposit ??= [0, n]; w.slopeCost ??= 0; w.rockCost ??= 1; w.roadCost ??= 0.59; w.forestCost ??= 1.5;
+    // paths worn by feet, delivery times and paving planners arrived too
+    w.wear ??= [0, n]; w.bridge ??= [0, n];
+    for (const b of [...state.buildings as Json[], ...(state.gone as Json[] ?? [])]) b.doorAt ??= null;
+    for (const t of state.towns as Json[]) { t.detour ??= 0; t.detours ??= []; }
+    const stats = state.stats as Json; stats.deliverySeconds ??= 0; stats.delivered ??= 0; stats.deliveryTiles ??= 0;
+    for (const a of state.agents as Json[]) if (a.task) { (a.task as Json).at ??= state.t; (a.task as Json).tiles ??= 0; }
+    for (const t of state.towns as { planner: Json }[]) t.planner.roads ??= true;
+    return state;
+  },
 };
 
 /** Run-length encoding for tile grids: [value, count, value, count, ...]. */
@@ -49,7 +64,7 @@ function unrle<T extends Uint8Array | Int32Array | Float32Array>(runs: number[],
   return into;
 }
 
-const GRIDS = { ground: Uint8Array, tree: Uint8Array, grow: Float32Array, road: Uint8Array, bgrid: Int32Array, door: Uint8Array, front: Uint8Array, dock: Uint8Array } as const;
+const GRIDS = { ground: Uint8Array, height: Uint8Array, deposit: Uint8Array, wear: Float32Array, bridge: Uint8Array, tree: Uint8Array, grow: Float32Array, road: Uint8Array, bgrid: Int32Array, door: Uint8Array, front: Uint8Array, dock: Uint8Array } as const;
 type GridName = keyof typeof GRIDS;
 
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -57,9 +72,9 @@ const ref = (b: Building | null) => (b ? b.id : null);
 
 export function saveGame(S: State): SaveFile {
   const w = S.world;
-  const world: Json = { w: w.w, h: w.h, docks: w.docks, waterCost: w.waterCost, work: { ...w.work } };
+  const world: Json = { w: w.w, h: w.h, docks: w.docks, waterCost: w.waterCost, slopeCost: w.slopeCost, rockCost: w.rockCost, roadCost: w.roadCost, forestCost: w.forestCost, work: { ...w.work } };
   for (const g of Object.keys(GRIDS) as GridName[]) world[g] = rle(w[g]);
-  const task = (t: Task | null) => (t ? { src: t.src.id, dst: t.dst.id, item: t.item, n: t.n } : null);
+  const task = (t: Task | null) => (t ? { src: t.src.id, dst: t.dst.id, item: t.item, n: t.n, at: t.at, tiles: t.tiles } : null);
   // a carrier's job can still point at a building demolished under it: keep those as `gone`
   const live = new Set(S.buildings), gone = new Map<number, Building>();
   const keep = (b: Building | null) => { if (b && !live.has(b)) gone.set(b.id, b); };
@@ -71,7 +86,7 @@ export function saveGame(S: State): SaveFile {
     content: S.content.hash,
     state: {
       seed: S.seed, setup: copy(S.setup), rng: S.rng.s, krng: S.krng.s, t: S.t, nextId: S.nextId,
-      mood: S.mood, migT: S.migT, secT: S.secT,
+      mood: S.mood, fed: S.fed, migT: S.migT, secT: S.secT,
       stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns),
       world, buildings: copy(S.buildings), gone: copy([...gone.values()]), agents,
     },
@@ -95,7 +110,7 @@ export function loadGame(content: Content, input: SaveFile | string): State {
   const file = migrate(typeof input === 'string' ? JSON.parse(input) as SaveFile : input);
   const d = copy(file.state) as any;
   const wd = d.world, N = wd.w * wd.h;
-  const world = { w: wd.w, h: wd.h, docks: wd.docks, waterCost: wd.waterCost, work: wd.work } as World;
+  const world = { w: wd.w, h: wd.h, docks: wd.docks, waterCost: wd.waterCost, slopeCost: wd.slopeCost, rockCost: wd.rockCost, roadCost: wd.roadCost, forestCost: wd.forestCost, work: wd.work } as World;
   for (const g of Object.keys(GRIDS) as GridName[]) (world as any)[g] = unrle(wd[g], new GRIDS[g](N));
 
   const buildings = d.buildings as Building[];
@@ -109,12 +124,12 @@ export function loadGame(content: Content, input: SaveFile | string): State {
   };
   const agents = (d.agents as any[]).map(a => ({
     ...a, home: get(a.home), work: get(a.work), depot: get(a.depot),
-    task: a.task ? { src: get(a.task.src)!, dst: get(a.task.dst)!, item: a.task.item, n: a.task.n } : null,
+    task: a.task ? { src: get(a.task.src)!, dst: get(a.task.dst)!, item: a.task.item, n: a.task.n, at: a.task.at, tiles: a.task.tiles } : null,
   })) as Agent[];
 
   const S = {
     content, seed: d.seed, setup: d.setup, rng: { s: d.rng }, krng: { s: d.krng }, t: d.t, nextId: d.nextId,
-    mood: d.mood, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns,
+    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns,
     world, buildings, agents, bmap, amap: new Map(agents.map(a => [a.id, a])),
   } as State;
   S.planner = S.towns[0].planner;

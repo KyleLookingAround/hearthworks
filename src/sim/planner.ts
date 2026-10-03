@@ -10,13 +10,14 @@
 import { findPath, reachable } from './path.ts';
 import { supplyOf } from './logistics.ts';
 import { fits } from './place.ts';
+import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
-import { bp, ctr, door, emit, placeBuilding, villagers } from './world.ts';
+import { bp, ctr, door, emit, placeBridge, placeBuilding, villagers } from './world.ts';
 import type { BlueprintDef, Building, ItemId, PlannerState, State, Stock, Town, World } from './types.ts';
 
-export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {} });
+export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true });
 
-interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean }
+interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string }
 interface Look { town: Town; pop: number; freeBeds: number; spareHands: number; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
@@ -113,6 +114,8 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   // crossing: the neighbours are across water; a dock relieves it
   const hasDock = mine.some(b => bp(S, b).shore);
   shortages.push({ key: 'crossing', crossing: true, sev: clamp01(pressure(S, town, 'crossing') * P.crossingWeight), why: NEED_TEXT.crossing });
+  // detours: water keeps the village from land nearby, or sends trips the long way round; a bridge relieves it
+  shortages.push({ key: 'detours', detours: true, sev: clamp01(pressure(S, town, 'detours') * P.detourWeight), why: NEED_TEXT.detours });
   // labour: villagers free to take a new job, keeping a share of the town hauling
   const carriers = people.filter(a => a.role === 'carrier' && a.state !== 'visit').length;
   const openJobs = mine.filter(b => bp(S, b).workers && b.worker === null).length;
@@ -143,6 +146,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.homes) return B.homes ? clamp01(B.homes / Math.max(1, P.growthBeds - L.freeBeds)) : 0;
     if (sh.hauling) return B.couriers && L.uncovered >= P.minSeverity ? L.uncovered : 0;
     if (sh.crossing) return B.shore && !L.hasDock ? 1 : 0;
+    if (sh.detours) return B.bridge ? 1 : 0;
     const add = B.seconds && B.output[sh.good!] ? B.output[sh.good!] / B.seconds : 0;
     const gap = Math.max(1e-6, (L.demand[sh.good!] || 0) - (L.supply[sh.good!] || 0));
     return clamp01(add / gap);
@@ -209,6 +213,9 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
     if (!reach[(y + B.h - 1) * W.w + x + Math.floor(B.w / 2)] && !reach[(y + B.h) * W.w + x + Math.floor(B.w / 2)]) continue;
     if (facing) { const d = door({ x, y, w: B.w, h: B.h }); if (!facing.has(facing.label[(d.y + 1) * W.w + d.x])) continue; }
     const p = { x: x + B.w / 2, y: y + B.h / 2 };
+    // homes and noisy workplaces stay apart
+    if (B.homes && inNuisance(S, p)) continue;
+    if (B.nuisance && S.buildings.some(o => bp(S, o).homes && Math.hypot(ctr(o).x - p.x, ctr(o).y - p.y) <= B.nuisance!.radius)) continue;
     let s = P.storeWeight * Math.hypot(p.x - home.x, p.y - home.y);
     if (B.harvest) {
       const trees = treeScore(S, p.x, p.y, B.harvest.radius, harvesters, P.sharedTreeWeight);
@@ -242,6 +249,79 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
     return { x: c.x, y: c.y };
   }
   return null;
+}
+
+/**
+ * Where to bridge: from a bank tile storage can walk to, straight across up to `max_span` tiles of open water to
+ * land on the far side. Scores each span by the grass within 8 of the far bank that cannot be walked to today
+ * (`bridge_reach_weight` each), plus the tiles it would save on recent trips that went the long way round, less
+ * `store_weight` times its distance from storage. The best span scoring at least `bridge_min_gain`, or null.
+ */
+function chooseBridge(S: State, B: BlueprintDef, town: Town) {
+  const P = T(S), W = S.world, store = S.bmap.get(town.store);
+  if (!store || !B.bridge) return null;
+  const from = door(store), reach = reachable(W, from.x, from.y), home = ctr(store), mine = mineOf(S, town);
+  const R = Math.min(P.searchRadiusMax, Math.ceil(P.searchRadius + mine.reduce((m, b) => Math.max(m, Math.hypot(ctr(b).x - home.x, ctr(b).y - home.y)), 0)));
+  const bank = (i: number) => (W.ground[i] === 1 || W.ground[i] === 2) && W.bgrid[i] === -1 && !W.front[i];
+  const open = (i: number) => !W.ground[i] && W.bgrid[i] === -1 && !W.bridge[i];
+  const trips = town.detours.filter(t => S.t - t[5] < 300);
+  const bridges = S.buildings.filter(b => bp(S, b).bridge);
+  let best: { x: number; y: number; w: number; h: number; from: { x: number; y: number }; to: { x: number; y: number } } | null = null, bs = P.bridgeMinGain;
+  for (let y = Math.max(1, Math.floor(home.y - R)); y <= Math.min(W.h - 2, Math.ceil(home.y + R)); y++) for (let x = Math.max(1, Math.floor(home.x - R)); x <= Math.min(W.w - 2, Math.ceil(home.x + R)); x++) {
+    const n = y * W.w + x;
+    if (!reach[n] || !bank(n)) continue;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      let k = 1;
+      while (k <= B.bridge.maxSpan && x + dx * k >= 0 && y + dy * k >= 0 && x + dx * k < W.w && y + dy * k < W.h && open((y + dy * k) * W.w + x + dx * k)) k++;
+      const fx = x + dx * k, fy = y + dy * k;
+      if (k === 1 || k > B.bridge.maxSpan + 1 || fx < 0 || fy < 0 || fx >= W.w || fy >= W.h || !bank(fy * W.w + fx)) continue;
+      W.work.plannerSpots++;
+      const span = k - 1;
+      // crossings keep `bridge_spacing` apart: one bridge serves the stretch of water around it
+      if (bridges.some(b => Math.hypot(ctr(b).x - (x + fx) / 2, ctr(b).y - (y + fy) / 2) < P.bridgeSpacing)) continue;
+      // land it opens: grass within 12 of the far bank that the bridge would connect and nobody can walk to yet
+      const gain = reach[fy * W.w + fx] ? 0 : opensUp(W, fx, fy, reach, 12);
+      let s = P.bridgeReachWeight * gain;
+      // a trip counts only for a span its straight line passes: the water it went round is here
+      const mx = (x + fx) / 2 + 0.5, my = (y + fy) / 2 + 0.5;
+      for (const t of trips) {
+        if (segmentDist(mx, my, t[0] + 0.5, t[1] + 0.5, t[2] + 0.5, t[3] + 0.5) > 2.5) continue;
+        const via = Math.min(Math.hypot(t[0] - x, t[1] - y) + span + Math.hypot(fx - t[2], fy - t[3]), Math.hypot(t[0] - fx, t[1] - fy) + span + Math.hypot(x - t[2], y - t[3]));
+        s += Math.max(0, t[4] - via);
+      }
+      s -= P.storeWeight * Math.hypot(x - home.x, y - home.y);
+      if (s > bs) {
+        bs = s;
+        const sx = Math.min(x + dx, x + dx * span), sy = Math.min(y + dy, y + dy * span);
+        best = { x: sx, y: sy, w: dx ? span : 1, h: dy ? span : 1, from: { x, y }, to: { x: fx, y: fy } };
+      }
+    }
+  }
+  return best;
+}
+
+/** Distance from a point to a line segment. */
+function segmentDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+  const t = L ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L)) : 0;
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+/** Grass tiles reachable on foot from (x, y) within `r` tiles of it, through land not already in `reach`. */
+function opensUp(W: World, x: number, y: number, reach: Uint8Array, r: number): number {
+  const seen = new Set<number>([y * W.w + x]), q = [y * W.w + x];
+  let grass = 0;
+  while (q.length) {
+    const i = q.pop()!, cx = i % W.w, cy = (i / W.w) | 0;
+    if (W.ground[i] === 2) grass++;
+    for (const j of [cx > 0 ? i - 1 : -1, cx < W.w - 1 ? i + 1 : -1, i - W.w, i + W.w]) {
+      if (j < 0 || j >= W.ground.length || seen.has(j) || reach[j]) continue;
+      const jx = j % W.w, jy = (j / W.w) | 0;
+      if (!W.ground[j] || W.ground[j] === 3 || W.bgrid[j] !== -1 || Math.hypot(jx - x, jy - y) > r) continue;
+      seen.add(j); q.push(j);
+    }
+  }
+  return grass;
 }
 
 /** Would a footprint at (x, y) cut storage off from any of `doors`, or from the tile in front of its own door? */
@@ -308,6 +388,24 @@ function affordable(S: State, B: BlueprintDef, town: Town): { good: ItemId; shor
   return null;
 }
 
+/**
+ * Desire paths: the most worn tiles around the settlement, worn past `pave_wear` footsteps, become road,
+ * up to `pave_per_look` at a time. Roads follow where people really walk.
+ */
+function pave(S: State, town: Town) {
+  const P = T(S), W = S.world, store = S.bmap.get(town.store);
+  if (!store) return;
+  const home = ctr(store), mine = mineOf(S, town);
+  const R = Math.min(P.searchRadiusMax, Math.ceil(P.searchRadius + mine.reduce((m, b) => Math.max(m, Math.hypot(ctr(b).x - home.x, ctr(b).y - home.y)), 0)));
+  const worn: number[] = [];
+  for (let y = Math.max(0, Math.floor(home.y - R)); y <= Math.min(W.h - 1, Math.ceil(home.y + R)); y++) for (let x = Math.max(0, Math.floor(home.x - R)); x <= Math.min(W.w - 1, Math.ceil(home.x + R)); x++) {
+    const i = y * W.w + x;
+    if (W.wear[i] >= P.paveWear && !W.road[i] && W.bgrid[i] === -1 && (W.ground[i] === 1 || W.ground[i] === 2)) worn.push(i);
+  }
+  worn.sort((a, b) => W.wear[b] - W.wear[a] || a - b);
+  for (const i of worn.slice(0, P.pavePerLook)) { W.road[i] = 1; W.tree[i] = 0; }
+}
+
 /** Advance every settlement's planner by dt. Called from tick(). */
 export function plan(S: State, dt: number) {
   for (const town of S.towns) planTown(S, town, dt);
@@ -319,6 +417,7 @@ function planTown(S: State, town: Town, dt: number) {
   Q.t -= dt;
   if (Q.t > 0) return;
   Q.t += T(S).intervalSeconds;
+  if (Q.roads) pave(S, town);
 
   const mine = Q.site !== null ? S.bmap.get(Q.site) : undefined;
   if (mine?.site) { Q.status = `Building ${article(bp(S, mine).name)} ${bp(S, mine).name}: ${mine.reason}`; return; }
@@ -360,6 +459,18 @@ function planTown(S: State, town: Town, dt: number) {
   Q.streak = Q.streak.type === c.B.id ? { type: c.B.id, n: Q.streak.n + 1 } : { type: c.B.id, n: 1 };
   if (Q.streak.n < T(S).confirmCycles) { Q.status = `Thinking about ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
 
+  if (c.B.bridge) {
+    const span = chooseBridge(S, c.B, town);
+    if (!span) { Q.noRoom[c.B.id] = S.t; Q.streak = { type: '', n: 0 }; Q.status = `No place for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
+    delete Q.noRoom[c.B.id];
+    const b = placeBridge(S, span.x, span.y, span.w, span.h, span.from, span.to, town.id);
+    b.priority = 1 + Math.round(c.sev * T(S).urgencyPriority);
+    b.reason = c.why;
+    Q.site = b.id; Q.placed++; Q.streak = { type: '', n: 0 };
+    Q.status = `Planning ${article(c.B.name)} ${c.B.name}: ${c.why}`;
+    emit(S, 'info', S.towns.length > 1 ? `${town.name}: ${Q.status}` : Q.status, true);
+    return;
+  }
   const spot = chooseSpot(S, c.B.id, town);
   if (!spot) { Q.noRoom[c.B.id] = S.t; Q.streak = { type: '', n: 0 }; Q.status = `No room for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
   delete Q.noRoom[c.B.id];

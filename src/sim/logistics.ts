@@ -125,7 +125,7 @@ export function findTask(S: State, a: Agent): boolean {
   if (!best) return false;
   add(best.src.reserved, best.item, best.n);
   add(best.dst.incoming, best.item, best.n);
-  a.task = best; a.state = 'toSrc';
+  a.task = { ...best, at: S.t, tiles: distAB(a, best.src) + distBB(best.src, best.dst) }; a.state = 'toSrc';
   if (!goToBuilding(S, a, best.src)) {
     blame(S, a, best.src);
     add(best.src.reserved, best.item, -best.n); add(best.dst.incoming, best.item, -best.n);
@@ -167,6 +167,7 @@ export function drop(S: State, a: Agent) {
   if (t && !t.dst.dead) {
     add(t.dst.inv, t.item, t.n); add(t.dst.incoming, t.item, -t.n);
     S.stats.deliveries[a.kind]++;
+    S.stats.deliverySeconds += S.t - t.at; S.stats.delivered++; S.stats.deliveryTiles += t.tiles;
   }
   a.task = null; a.carry = null; a.state = 'idle'; a.cool = 0;
 }

@@ -9,7 +9,7 @@ import { countBuilt } from '../../../src/sim/index.ts';
 export const run: Scenario = (content, params) => {
   const { seed, seconds } = params;
   const S = start(content, seed, { planner: true, settlements: 2, ...worldOf(params) });
-  const { minMood } = runTracked(S, seconds, 300);
+  const { minMood, minFed } = runTracked(S, seconds, 300);
   let practiceSpread = 0;
   for (const town of S.towns) for (const k of Object.values(town.knows)) {
     if (k.from && k.verified.some(v => v.by === town.name)) practiceSpread++;
@@ -17,7 +17,7 @@ export const run: Scenario = (content, params) => {
   return {
     state: S,
     metrics: standardMetrics(S, {
-      mood_min: minMood,
+      mood_min: minMood, fed_min: minFed,
       settlements: S.towns.length,
       invented: S.stats.invented,
       taught: S.stats.taught,
