@@ -6,7 +6,7 @@ okf_version: "0.2"
 
 # Roadmap
 
-* [Roadmap](roadmap.md) (draft) - Phases from the player-placed prototype to a self-building civilisation, each closed by a headless gate.
+* [Roadmap](roadmap.md) (draft) - Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 
 # Vision
 
