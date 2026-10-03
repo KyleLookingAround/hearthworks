@@ -4,11 +4,13 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T16:17:19Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
   struggle_severity: 0.3
+  encourage_factor: 3
+  encourage_threshold: 0.5
   verify_seconds: 30
   forget_after_seconds: 600
   visit_every_seconds: 45
@@ -75,3 +77,7 @@ The **Knowledge** panel lists, per settlement, what it has learned beyond its fo
 - Forgetting is exercised by tests, not by the gates: planned villages keep using what they learn.
 
 A visitor who finds no way home (the way they came has been built over, or the search could not find it) settles with the hosts if they have a free bed, and is otherwise moved home, so nobody is left working for a village they cannot reach.
+
+# Encouragement
+
+The player may encourage one undiscovered blueprint per settlement ([planner](/systems/planner.md), the steward): it is thought of at `encourage_threshold` times the usual `struggle_severity` and `encourage_factor` times as fast. On six seeds, encouraging the Courier Depot brought it sooner on five.

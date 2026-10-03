@@ -12,13 +12,13 @@ import { supplyOf } from './logistics.ts';
 import { fits } from './place.ts';
 import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
-import { bp, ctr, demolish, door, emit, placeBridge, placeBuilding, villagers } from './world.ts';
-import type { BlueprintDef, Building, Form, ItemId, PlannerState, State, Stock, Town, World } from './types.ts';
+import { bp, chronicle, ctr, demolish, door, emit, nearestTown, placeBridge, placeBuilding, villagers } from './world.ts';
+import { ZONES, type BlueprintDef, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
 
-export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0 });
+export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {} });
 
 interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean }
-interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string }
+interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
 interface Look { town: Town; pop: number; freeBeds: number; spareHands: number; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
 const goodName = (S: State, g: ItemId) => S.content.goods[g]?.name.toLowerCase() ?? g;
@@ -128,6 +128,8 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     const growing = town.mood >= needs.migrateMinMood ? 1 : 0.5;
     shortages.push({ key: 'beds', homes: true, sev: clamp01((P.growthBeds - freeBeds) / P.growthBeds) * growing * fed * P.growthWeight, why: 'no free beds for newcomers' });
   }
+  // the player's priorities weigh each need
+  for (const sh of shortages) sh.sev = clamp01(sh.sev * (town.levers.priority[sh.key] ?? 1));
   shortages.sort((a, b) => b.sev - a.sev);
   return { town, pop, freeBeds, spareHands, uncovered, hasDock, supply, demand, shortages };
 }
@@ -174,7 +176,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (score > bs) { bs = score; best = B; }
   }
   if (!best) return null;
-  return follow(S, L, { B: best, sev: sh.sev, why: sh.why }, 0);
+  return { ...follow(S, L, { B: best, sev: sh.sev, why: sh.why }, 0), key: sh.key };
 }
 
 /** If the chosen producer would starve for an input, plan that input's producer first. */
@@ -197,6 +199,14 @@ function follow(S: State, L: Look, c: Choice, depth: number): Choice {
     return follow(S, L, { B: maker, sev: c.sev, why: `${c.why}, and a new ${users} would need ${goodName(S, i)}` }, depth + 1);
   }
   return c;
+}
+
+const NOBUILD = 1 + ZONES.indexOf('nobuild');
+
+/** Does a footprint touch land the player has zoned for no building? */
+function onNoBuild(W: World, x: number, y: number, w: number, h: number): boolean {
+  for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) if (k >= 0 && j >= 0 && k < W.w && j < W.h && W.zone[j * W.w + k] === NOBUILD) return true;
+  return false;
 }
 
 /** The storage yards at the heart of a settlement's districts, first district first. */
@@ -233,7 +243,7 @@ function foundDistrict(S: State, town: Town): boolean {
     const p = { x: x + B.w / 2, y: y + B.h / 2 };
     const d = hs.reduce((m, h) => Math.min(m, Math.hypot(ctr(h).x - p.x, ctr(h).y - p.y)), Infinity);
     if (d < P.districtSpacing * 0.8 || d > P.districtSpacing * 1.4) continue;
-    if (!fits(S, 'storage', x, y, P.gap)) continue;
+    if (!fits(S, 'storage', x, y, P.gap) || onNoBuild(W, x, y, B.w, B.h)) continue;
     const dr = door({ x, y, w: B.w, h: B.h });
     if (!reach[(dr.y + 1) * W.w + dr.x]) continue;
     let grass = 0;
@@ -249,12 +259,13 @@ function foundDistrict(S: State, town: Town): boolean {
   const Q = town.planner;
   Q.site = b.id; Q.placed++; Q.streak = { type: '', n: 0 };
   Q.status = `Founding district ${town.districts.length}: ${b.reason}`;
+  chronicle(S, town.id, 'district', `${town.name} founded its district ${town.districts.length}`);
   emit(S, 'info', `${town.name}: ${Q.status}`);
   return true;
 }
 
 /** Place: score every free spot near the town for this blueprint; lower is better. */
-export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x: number; y: number } | null {
+export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZone = false): { x: number; y: number } | null {
   const P = T(S), B = S.content.blueprints[type], W = S.world;
   // a settlement grows in its newest district: search around that district's centre
   const hs = hubs(S, town), store = hs[hs.length - 1] ?? S.bmap.get(town.store);
@@ -286,9 +297,35 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
   const from = door(store), reach = reachable(W, from.x, from.y);
   // the search reaches `search_radius` beyond the district's farthest building, so a growing district keeps finding room
   const R = reachOf(S, town, store), ox = Math.round(home.x - B.w / 2), oy = Math.round(home.y - B.h / 2);
-  for (let y = oy - R; y <= oy + R; y++) for (let x = ox - R; x <= ox + R; x++) {
+  // zones the player painted: a building keeps to its own kind's zone while that zone has room in reach,
+  // stays off other kinds' zones otherwise, and nothing is built on no-build land
+  const mine1 = B.zone && !anyZone ? 1 + ZONES.indexOf(B.zone) : 0, nobuild = NOBUILD;
+  // a zone belongs to the settlement whose first storage yard is nearest: neighbours keep off each other's
+  const ours = (x: number, y: number) => S.towns.length < 2 || nearestTown(S, x + 0.5, y + 0.5) === town.id;
+  // a zone of its kind within reach of any of the settlement's districts: search that zone, wherever it lies
+  let zoned = false, x0 = ox - R, x1 = ox + R, y0 = oy - R, y1 = oy + R;
+  if (mine1) {
+    let zx0 = Infinity, zx1 = -Infinity, zy0 = Infinity, zy1 = -Infinity;
+    for (const h of hubs(S, town).length ? hubs(S, town) : [store]) {
+      const c = ctr(h), M = P.searchRadiusMax;
+      for (let y = Math.max(0, Math.floor(c.y - M)); y <= Math.min(W.h - 1, Math.ceil(c.y + M)); y++) for (let x = Math.max(0, Math.floor(c.x - M)); x <= Math.min(W.w - 1, Math.ceil(c.x + M)); x++) {
+        if (W.zone[y * W.w + x] !== mine1 || !ours(x, y)) continue;
+        zx0 = Math.min(zx0, x); zx1 = Math.max(zx1, x); zy0 = Math.min(zy0, y); zy1 = Math.max(zy1, y);
+      }
+    }
+    if (zx0 <= zx1) { zoned = true; x0 = zx0; x1 = zx1 - B.w + 1; y0 = zy0; y1 = zy1 - B.h + 1; }
+  }
+  const zoneOk = (x: number, y: number, strict: boolean) => {
+    for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) {
+      const z = W.zone[j * W.w + k];
+      if (z === nobuild || (strict ? z !== mine1 : z !== 0 && (z !== mine1 || !ours(k, j)))) return false;
+    }
+    return true;
+  };
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     W.work.plannerSpots++;
     if (!fits(S, type, x, y, gap)) continue;
+    if (!zoneOk(x, y, zoned)) continue;
     // homes share walls only with other homes: anything else keeps its ring of open land
     if (dense && touchesNonHome(x, y)) continue;
     if (!reach[(y + B.h - 1) * W.w + x + Math.floor(B.w / 2)] && !reach[(y + B.h) * W.w + x + Math.floor(B.w / 2)]) continue;
@@ -326,6 +363,8 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
     }
     scored.push({ x, y, s });
   }
+  // a zone with no spot that fits: fall back to unzoned land rather than build nothing
+  if (zoned && !scored.length) return chooseSpot(S, type, town, true);
   scored.sort((a, b) => a.s - b.s);
   // doors that can be reached now must stay reachable: a new building never seals off another's way in.
   // Judged from the settlement's first storage yard, which every district centre can reach.
@@ -531,7 +570,7 @@ function replan(S: State, town: Town, c: Choice): boolean {
       if (Object.entries(counts).some(([k, n]) => kinds[k] - n < 1)) continue;
       const movers = [...covers].reduce((n, o) => n + o.residents.length, 0);
       if (spare(covers) < movers) continue;
-      if (inNuisance(S, { x: x + B.w / 2, y: y + B.h / 2 })) continue;
+      if (inNuisance(S, { x: x + B.w / 2, y: y + B.h / 2 }) || onNoBuild(W, x, y, B.w, B.h)) continue;
       if (!fitsWithout(S, B.id, x, y, covers, town)) continue;
       const s = B.homes - lost - 0.05 * Math.hypot(x + B.w / 2 - hub.x, y + B.h / 2 - hub.y);
       if (!best || s > best.s) best = { x, y, covers: [...covers], s };
@@ -561,6 +600,7 @@ function replan(S: State, town: Town, c: Choice): boolean {
   Q.site = b.id; Q.placed++; Q.streak = { type: '', n: 0 };
   Q.status = `Replanning a block for ${article(B.name)} ${B.name}: ${b.reason}`;
   S.stats.replanned++;
+  chronicle(S, town.id, 'replanned', `${town.name} replanned a block: ${b.reason}`);
   emit(S, 'info', `${town.name}: ${Q.status}`);
   return true;
 }
@@ -597,7 +637,7 @@ function layStreets(S: State, town: Town) {
       const row = ((y - d.y - 1) % P.streetEveryRows + P.streetEveryRows) % P.streetEveryRows === 0;
       const col = ((x - d.x) % P.streetEveryCols + P.streetEveryCols) % P.streetEveryCols === 0;
       const i = y * W.w + x;
-      if ((row || col) && (W.ground[i] === 1 || W.ground[i] === 2) && W.bgrid[i] === -1 && W.tree[i] !== 2) W.road[i] = 1;
+      if ((row || col) && (W.ground[i] === 1 || W.ground[i] === 2) && W.bgrid[i] === -1 && W.tree[i] !== 2 && W.zone[i] !== NOBUILD) W.road[i] = 1;
     }
     emit(S, 'info', `${town.name} laid out streets: it has grown into a town`, true);
   }
@@ -613,7 +653,7 @@ function pave(S: State, town: Town) {
   const home = ctr(hub), R = reachOf(S, town, hub);
   for (let y = Math.max(0, Math.floor(home.y - R)); y <= Math.min(W.h - 1, Math.ceil(home.y + R)); y++) for (let x = Math.max(0, Math.floor(home.x - R)); x <= Math.min(W.w - 1, Math.ceil(home.x + R)); x++) {
     const i = y * W.w + x;
-    if (W.wear[i] >= P.paveWear && !W.road[i] && W.bgrid[i] === -1 && (W.ground[i] === 1 || W.ground[i] === 2) && !seen.has(i)) { seen.add(i); worn.push(i); }
+    if (W.wear[i] >= P.paveWear && !W.road[i] && W.bgrid[i] === -1 && W.zone[i] !== NOBUILD && (W.ground[i] === 1 || W.ground[i] === 2) && !seen.has(i)) { seen.add(i); worn.push(i); }
   }
   }
   worn.sort((a, b) => W.wear[b] - W.wear[a] || a - b);
@@ -630,14 +670,16 @@ function planTown(S: State, town: Town, dt: number) {
   if (!Q.on) return;
   Q.t -= dt;
   if (Q.t > 0) return;
-  Q.t += T(S).intervalSeconds;
+  Q.t += T(S).intervalSeconds / town.levers.pace;
+  const form = formOf(S, town);
+  if (form !== town.form) { chronicle(S, town.id, 'form', `${town.name} became a ${form}`); town.form = form; }
   if (Q.roads) pave(S, town);
   if (formOf(S, town) === 'town') layStreets(S, town);
 
   const mine = Q.site !== null ? S.bmap.get(Q.site) : undefined;
   if (mine?.site) { Q.status = `Building ${article(bp(S, mine).name)} ${bp(S, mine).name}: ${mine.reason}`; return; }
-  if (Q.site !== null) { Q.site = null; Q.settle = T(S).settleSeconds; }
-  if (Q.settle > 0) { Q.settle -= T(S).intervalSeconds; return; }
+  if (Q.site !== null) { Q.site = null; Q.settle = T(S).settleSeconds / town.levers.pace; }
+  if (Q.settle > 0) { Q.settle -= T(S).intervalSeconds / town.levers.pace; return; }
 
   // the worst shortage something known can relieve
   const L = look(S, town), worst = L.shortages[0];
@@ -688,6 +730,8 @@ function planTown(S: State, town: Town, dt: number) {
     b.priority = 1 + Math.round(c.sev * T(S).urgencyPriority);
     b.reason = c.why;
     Q.site = b.id; Q.placed++; Q.streak = { type: '', n: 0 };
+    if (c.key && !(c.key in Q.firstFor)) Q.firstFor[c.key] = S.t;
+    chronicle(S, town.id, 'bridge', `${town.name} planned a bridge: ${c.why}`);
     Q.status = `Planning ${article(c.B.name)} ${c.B.name}: ${c.why}`;
     emit(S, 'info', S.towns.length > 1 ? `${town.name}: ${Q.status}` : Q.status, true);
     return;
@@ -700,6 +744,7 @@ function planTown(S: State, town: Town, dt: number) {
   b.priority = 1 + Math.round(c.sev * T(S).urgencyPriority);
   b.reason = c.why;
   Q.site = b.id; Q.placed++; Q.streak = { type: '', n: 0 };
+  if (c.key && !(c.key in Q.firstFor)) Q.firstFor[c.key] = S.t;
   Q.status = `Planning ${article(c.B.name)} ${c.B.name}: ${c.why}`;
   emit(S, 'info', S.towns.length > 1 ? `${town.name}: ${Q.status}` : Q.status, true);
 }

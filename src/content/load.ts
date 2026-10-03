@@ -101,6 +101,7 @@ export function buildContent(files: SourceFile[]): Content {
       storage: f.storage === true,
       paves: f.paves === true,
       shore: f.shore === true,
+      zone: f.zone === 'farms' || f.zone === 'workshops' || f.zone === 'homes' ? f.zone : (num(d, f.homes, 'homes', 0) > 0 ? 'homes' : null),
       form: f.form === 'town' ? 'town' : f.form === 'village' ? 'village' : 'hamlet',
       bridge: bridge ? { maxSpan: num(d, bridge.max_span, 'bridge.max_span') } : null,
       nuisance: nuisance ? { radius: num(d, nuisance.radius, 'nuisance.radius'), amount: num(d, nuisance.amount, 'nuisance.amount') } : null,
@@ -192,7 +193,7 @@ export function buildContent(files: SourceFile[]): Content {
       treeWeight: q('tree_weight'), sharedTreeWeight: q('shared_tree_weight'), linkWeight: q('link_weight'), storeWeight: q('store_weight'), forestPenalty: q('forest_penalty'),
     },
     knowledge: {
-      haulTarget: k('haul_target'), haulSmoothingSeconds: k('haul_smoothing_seconds'), struggleSeverity: k('struggle_severity'),
+      haulTarget: k('haul_target'), haulSmoothingSeconds: k('haul_smoothing_seconds'), struggleSeverity: k('struggle_severity'), encourageFactor: k('encourage_factor'), encourageThreshold: k('encourage_threshold'),
       verifySeconds: k('verify_seconds'), forgetAfterSeconds: k('forget_after_seconds'), visitEverySeconds: k('visit_every_seconds'), visitMinVillagers: k('visit_min_villagers'),
     },
   };

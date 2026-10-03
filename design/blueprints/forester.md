@@ -12,6 +12,7 @@ cost: { planks: 4 }
 workers: 1
 recipe: { output: { logs: 1 }, seconds: 5 }
 harvest: { resource: tree, radius: 5, replant: true }
+zone: farms
 ---
 
 # Role

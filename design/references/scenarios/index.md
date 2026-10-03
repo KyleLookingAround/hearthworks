@@ -7,6 +7,7 @@
 * [knowledge-spreads.ts](knowledge-spreads.ts)
 * [lie-of-the-land.ts](lie-of-the-land.ts)
 * [solid-ground.ts](solid-ground.ts)
+* [steward.ts](steward.ts)
 * [sustain-town.ts](sustain-town.ts)
 * [village-plans.ts](village-plans.ts)
 * [village-to-town.ts](village-to-town.ts)

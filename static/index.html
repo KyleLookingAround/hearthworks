@@ -50,6 +50,26 @@
         <option value="off">None</option>
       </select>
     </label>
+    <label class="drawer-row">Overlay
+      <select id="overlay">
+        <option value="none">None</option>
+        <option value="mood">Homes: how they feel</option>
+        <option value="nuisance">Noise</option>
+        <option value="districts">Districts</option>
+        <option value="traffic">Traffic</option>
+        <option value="coverage">Bot coverage</option>
+      </select>
+    </label>
+    <details class="goals steward" id="steward">
+      <summary><span>Steward</span><span class="count" id="stewardTown"></span></summary>
+      <div id="stewardBody"></div>
+      <p class="hint">Steer the villages rather than place every building: rank their needs, back a line of thought, set their pace, and paint zones from the build bar.</p>
+    </details>
+    <details class="goals chronicle" id="chronicle">
+      <summary><span>Chronicle</span><span class="count" id="chronCount"></span></summary>
+      <ol class="chron" id="chronList"></ol>
+      <button class="btn" id="chronExport" type="button">Export as OKF log</button>
+    </details>
     <details class="goals knowledge" id="knowledge">
       <summary><span>Knowledge</span><span class="count" id="knowCount"></span></summary>
       <div id="knowList"></div>

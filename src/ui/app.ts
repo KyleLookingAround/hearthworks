@@ -1,7 +1,7 @@
 /** Browser shell: HUD, build bar, inspector, toasts, pointer input and the frame loop. */
 import { surroundings } from '../sim/surroundings.ts';
 import { formOf, hubs } from '../sim/planner.ts';
-import { loadGame, saveGame, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { ZONES, advise, chronicleLog, loadGame, saveGame, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
 
@@ -9,6 +9,11 @@ const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySele
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const SAVE_KEY = 'hearthworks.save';
 const AUTOSAVE_SECONDS = 20;
+/** Zone tools: id, name, swatch, what it does. */
+const ZONE_TOOLS: [string, string, string, string][] = [
+  ['zone:homes', 'Homes zone', '#e89a8a', 'paint'], ['zone:farms', 'Farm zone', '#e3c454', 'paint'],
+  ['zone:workshops', 'Workshop zone', '#8fa6c8', 'paint'], ['zone:nobuild', 'No building', '#b0413e', 'paint'], ['zone:clear', 'Clear zones', '#6b7a80', 'erase'],
+];
 const n0 = (v: number | undefined) => Math.max(0, Math.round(v || 0));
 
 export class App {
@@ -35,7 +40,7 @@ export class App {
     this.r = new Renderer($<HTMLCanvasElement>('#view'));
     this.S = createState(content, seed);
     this.dialog = new NewGameDialog(content, c => this.newGame(c), () => this.continueGame(), seed);
-    this.view = { cam: { x: 0, y: 0, z: 1 }, hover: null, tool: null, sel: null, routes: false };
+    this.view = { cam: { x: 0, y: 0, z: 1 }, hover: null, tool: null, sel: null, routes: false, overlay: 'none' };
     this.buildBar();
     this.wireControls();
     this.wireInput();
@@ -172,6 +177,14 @@ export class App {
       btn.addEventListener('click', () => this.setTool(this.view.tool === B.id ? null : B.id));
       bar.appendChild(btn);
     }
+    // zones: paint where the villages should put homes, farms and workshops, or build nothing
+    for (const [id, name, colour, what] of ZONE_TOOLS) {
+      const btn = document.createElement('button');
+      btn.className = 'tool zone'; btn.dataset.type = id; btn.id = 'tool-' + id.replace(':', '-'); btn.setAttribute('aria-pressed', 'false');
+      btn.innerHTML = `<span class="sw" style="background:${colour}"></span><span class="nm">${esc(name)}</span><span class="cs">${esc(what)}</span>`;
+      btn.addEventListener('click', () => this.setTool(this.view.tool === id ? null : id));
+      bar.appendChild(btn);
+    }
   }
 
   private wireControls() {
@@ -196,6 +209,15 @@ export class App {
     $('#drawerClose').addEventListener('click', () => this.setMenu(false));
     $('#planLine').addEventListener('click', () => { const p = $('#planLine'); p.setAttribute('aria-expanded', String(p.getAttribute('aria-expanded') !== 'true')); this.measure(); });
     $('#hideUi').addEventListener('click', () => this.setUiHidden(true));
+    const overlay = $<HTMLSelectElement>('#overlay');
+    overlay.addEventListener('change', () => { this.view.overlay = overlay.value as View['overlay']; });
+    $('#steward').addEventListener('toggle', () => this.renderSteward(true));
+    $('#chronicle').addEventListener('toggle', () => this.renderChronicle());
+    $('#chronExport').addEventListener('click', () => {
+      const blob = new Blob([chronicleLog(this.S)], { type: 'text/markdown' }), a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = `chronicle-${this.S.setup.map}-${this.S.seed}.md`; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
     $('#showUi').addEventListener('click', () => this.setUiHidden(false));
     $('#buildToggle').addEventListener('click', () => {
       const open = $('#build').hidden === true;
@@ -258,6 +280,10 @@ export class App {
     this.r.canvas.classList.toggle('placing', !!t);
     const hint = $('#toolhint');
     if (!t) { hint.hidden = true; return; }
+    if (t.startsWith('zone:')) {
+      hint.textContent = t === 'zone:clear' ? 'Drag across the map to clear zones.' : `Drag across the map to paint a ${ZONE_TOOLS.find(z => z[0] === t)![1].toLowerCase()}. The village plans keep to it.`;
+      hint.hidden = false; this.select(null); return;
+    }
     const B = this.content.blueprints[t];
     const cost = Object.entries(B.cost).map(([k, n]) => `${n} ${this.content.goods[k].name.toLowerCase()}`).join(' and ');
     hint.textContent = B.paves ? 'Drag across the map to lay road. Esc or the Road button to stop.' : `Tap open land to place a ${B.name}. Carriers will bring ${cost} to build it.`;
@@ -273,7 +299,17 @@ export class App {
     let painting = false;
     const cam = this.view.cam;
     const hover = (sx: number, sy: number) => { const w = this.r.toWorld(cam, sx, sy); this.view.hover = { x: Math.floor(w.x / TS), y: Math.floor(w.y / TS) }; };
-    const paint = () => { const h = this.view.hover; if (h && this.view.tool && canPlace(this.S, this.view.tool, h.x, h.y)) placeBuilding(this.S, this.view.tool, h.x, h.y, true); };
+    const paint = () => {
+      const h = this.view.hover, t = this.view.tool;
+      if (!h || !t) return;
+      if (t.startsWith('zone:')) {
+        // a 3 by 3 brush
+        const w = this.S.world, z = t === 'zone:clear' ? 0 : 1 + ZONES.indexOf(t.slice(5) as (typeof ZONES)[number]);
+        for (let y = h.y - 1; y <= h.y + 1; y++) for (let x = h.x - 1; x <= h.x + 1; x++) if (x >= 0 && y >= 0 && x < w.w && y < w.h) w.zone[y * w.w + x] = z;
+        return;
+      }
+      if (canPlace(this.S, t, h.x, h.y)) placeBuilding(this.S, t, h.x, h.y, true);
+    };
 
     cv.addEventListener('pointerdown', e => {
       cv.setPointerCapture(e.pointerId);
@@ -286,7 +322,8 @@ export class App {
       if (e.button === 2) { this.setTool(null); return; }
       drag = { sx: e.offsetX, sy: e.offsetY, cx: cam.x, cy: cam.y, moved: false };
       hover(e.offsetX, e.offsetY);
-      if (this.view.tool && this.content.blueprints[this.view.tool].paves) { painting = true; paint(); }
+      const t = this.view.tool;
+      if (t && (t.startsWith('zone:') || this.content.blueprints[t].paves)) { painting = true; paint(); }
     });
     cv.addEventListener('pointermove', e => {
       if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
@@ -326,6 +363,7 @@ export class App {
     const h = this.view.hover, S = this.S;
     if (!h) return;
     const t = this.view.tool;
+    if (t && t.startsWith('zone:')) return;
     if (t && !this.content.blueprints[t].paves) {
       const o = ghostOrigin(S, t, h);
       if (canPlace(S, t, o.x, o.y)) { const b = placeBuilding(S, t, o.x, o.y, false); this.setTool(null); this.select(b); }
@@ -358,11 +396,67 @@ export class App {
       }).join(' <br>')
       : 'Plans are off: you place the buildings';
     this.renderKnowledge();
+    this.renderSteward(false);
+    this.renderChronicle();
     $('#meta').innerHTML = `<span class="chip" title="Villagers and beds"><span class="lbl">Villagers</span> 👤 <b>${vs.length}/${cap}</b></span><span class="chip" id="chipCarriers">Carriers <b>${carriers}</b></span><span class="chip ${mc}" title="Mood"><span class="lbl">Mood</span> ☺ <b>${m}%</b></span>` + (bots ? `<span class="chip" title="Bots"><span class="lbl">Bots</span> ⚙ <b>${bots}</b></span>` : '');
     this.updateInspector();
   }
 
   /** Per settlement: what it has learned beyond its founding, how, and whether it has proven it; and what is still undiscovered. */
+  /** Which settlement the steward panel steers. */
+  private stewardTown = 0;
+  private stewardKey = '';
+
+  /**
+   * The steward panel: for one settlement, a priority for each need, the line of thought to encourage,
+   * the planner's pace, and the advisor's suggestions. Rebuilt only when something it shows changes,
+   * so a select being used is never replaced under the pointer.
+   */
+  private renderSteward(force: boolean) {
+    const panel = $<HTMLDetailsElement>('#steward');
+    if (!panel.open) return;
+    const S = this.S, t = S.towns[Math.min(this.stewardTown, S.towns.length - 1)];
+    if (!t) return;
+    const unknown = Object.values(this.content.blueprints).filter(B => B.discovery && !(B.id in t.knows));
+    const tips = advise(S, t);
+    const key = JSON.stringify([t.id, t.levers, unknown.map(B => B.id), tips, S.towns.length]);
+    if (!force && key === this.stewardKey) return;
+    this.stewardKey = key;
+    const needs: [string, string][] = [
+      ['bread', 'Bread'], ['wheat', 'Wheat'], ['planks', 'Planks'], ['logs', 'Logs'], ['beds', 'Homes for newcomers'],
+      ['hauling', 'Hauling'], ['crossing', 'Reaching the neighbours'], ['detours', 'Getting across water'],
+    ];
+    const levels: [number, string][] = [[0.5, 'Low'], [1, 'Normal'], [2, 'High'], [4, 'First']];
+    const sel = (id: string, v: number, opts: [number, string][]) => `<select data-lever="${id}">${opts.map(([n, l]) => `<option value="${n}"${n === v ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
+    let html = '';
+    if (S.towns.length > 1) html += `<div class="steward-grid"><span>Settlement</span><select id="stewardPick">${S.towns.map(o => `<option value="${o.id}"${o.id === t.id ? ' selected' : ''}>${esc(o.name)}</option>`).join('')}</select></div>`;
+    html += '<div class="steward-grid">' + needs.map(([k, label]) => `<span>${label}</span>${sel('p:' + k, t.levers.priority[k] ?? 1, levels)}`).join('');
+    html += `<span>Encourage thinking about</span><select data-lever="encourage"><option value="">Nothing in particular</option>${unknown.map(B => `<option value="${B.id}"${t.levers.encourage === B.id ? ' selected' : ''}>${esc(B.name)}</option>`).join('')}</select>`;
+    html += `<span>Pace</span>${sel('pace', t.levers.pace, [[0.5, 'Unhurried'], [1, 'Normal'], [2, 'Brisk']])}</div>`;
+    if (tips.length) html += `<ul class="advice">${tips.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
+    $('#stewardBody').innerHTML = html;
+    $('#stewardTown').textContent = t.name;
+    $('#stewardPick')?.addEventListener('change', e => { this.stewardTown = Number((e.target as HTMLSelectElement).value); this.renderSteward(true); });
+    document.querySelectorAll<HTMLSelectElement>('#stewardBody [data-lever]').forEach(s => s.addEventListener('change', () => {
+      const id = s.dataset.lever!;
+      if (id === 'encourage') t.levers.encourage = s.value || null;
+      else if (id === 'pace') t.levers.pace = Number(s.value);
+      else t.levers.priority[id.slice(2)] = Number(s.value);
+      this.renderSteward(true);
+    }));
+  }
+
+  /** The chronicle, newest first: every settlement's history as it happened. */
+  private chronShown = -1;
+  private renderChronicle() {
+    const S = this.S, n = S.chronicle.length;
+    $('#chronCount').textContent = String(n);
+    if (!$<HTMLDetailsElement>('#chronicle').open || n === this.chronShown) return;
+    this.chronShown = n;
+    const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    $('#chronList').innerHTML = [...S.chronicle].reverse().slice(0, 80).map(c => `<li><b>${clock(c.t)}</b>${esc(c.text)}</li>`).join('');
+  }
+
   private renderKnowledge() {
     const S = this.S, bps = Object.values(this.content.blueprints).sort((a, b) => a.order - b.order);
     const discoverable = bps.filter(B => B.discovery);

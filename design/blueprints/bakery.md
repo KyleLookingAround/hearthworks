@@ -12,6 +12,7 @@ cost: { planks: 8 }
 workers: 1
 recipe: { input: { wheat: 1 }, output: { bread: 1 }, seconds: 5 }
 keep_stocked: { wheat: 4 }
+zone: workshops
 ---
 
 # Role

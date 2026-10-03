@@ -1,7 +1,11 @@
 /** Canvas 2D renderer. Reads sim state; never changes it. */
 import { canPlace, ctr, hash01, type Agent, type Building, type State } from '../sim/index.ts';
 
+import { surroundings } from '../sim/surroundings.ts';
+
 export const TS = 24;
+/** Zone tints, in ZONES order: homes, farms, workshops, no-build. */
+const ZONE_TINT = ['rgba(232,154,138,.22)', 'rgba(227,196,84,.22)', 'rgba(143,166,200,.25)', 'rgba(176,65,62,.18)'];
 const CHUNK = 32, MAX_CHUNKS = 48, OVERVIEW = 4;
 /** Below this zoom the world is drawn from the overview, not tile by tile. */
 const FAR = 0.3;
@@ -13,6 +17,8 @@ export interface View {
   tool: string | null;
   sel: Building | null;
   routes: boolean;
+  /** What to lay over the map: nothing, mood, nuisance, districts, traffic or courier coverage. */
+  overlay: 'none' | 'mood' | 'nuisance' | 'districts' | 'traffic' | 'coverage';
 }
 
 type Ctx = CanvasRenderingContext2D;
@@ -166,7 +172,9 @@ export class Renderer {
       c.fillStyle = t === 2 ? (h < 0.5 ? '#2f5a36' : '#355f37') : '#5e8d4a'; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.fill();
       c.fillStyle = t === 2 ? '#43774a' : '#7aa960'; c.beginPath(); c.arc(cx - r * 0.3, cy - r * 0.3, r * 0.45, 0, 7); c.fill();
     }
+    this.zones(S, x0, x1, y0, y1);
     for (const b of [...S.buildings].sort((p, q) => p.y - q.y)) this.building(S, b);
+    if (v.overlay !== 'none') this.overlay(S, v.overlay, x0, x1, y0, y1);
 
     if (v.sel && !v.sel.dead) {
       const b = v.sel, B = S.content.blueprints[b.type];
@@ -188,7 +196,9 @@ export class Renderer {
     }
     for (const a of S.agents) this.agent(S, a);
     if (S.towns.length > 1 || cam.z < 0.6) this.townLabels(S, cam.z);
-    if (v.tool && v.hover) {
+    if (v.tool?.startsWith('zone:') && v.hover) {
+      c.strokeStyle = '#f0c27a'; c.lineWidth = 2; c.strokeRect((v.hover.x - 1) * TS, (v.hover.y - 1) * TS, 3 * TS, 3 * TS);
+    } else if (v.tool && v.hover) {
       const B = S.content.blueprints[v.tool], o = B.paves ? v.hover : ghostOrigin(S, v.tool, v.hover), ok = canPlace(S, v.tool, o.x, o.y);
       c.fillStyle = ok ? 'rgba(127,194,138,.35)' : 'rgba(226,115,94,.4)';
       c.strokeStyle = ok ? '#7fc28a' : '#e2735e'; c.lineWidth = 1.5;
@@ -340,6 +350,54 @@ export class Renderer {
       c.fillStyle = b.status.l === 'bad' ? '#e2735e' : '#e8b04a';
       c.beginPath(); c.arc(x, y, 6.5, 0, 7); c.fill(); c.strokeStyle = '#1b2326'; c.lineWidth = 1.2; c.stroke();
       c.fillStyle = '#1b2326'; c.font = 'bold 10px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('!', x, y + 0.5);
+    }
+  }
+
+  /** The player's zones, tinted lightly; no-build land hatched. */
+  private zones(S: State, x0: number, x1: number, y0: number, y1: number) {
+    const c = this.ctx, w = S.world;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const z = w.zone[y * w.w + x];
+      if (!z) continue;
+      c.fillStyle = ZONE_TINT[z - 1]; c.fillRect(x * TS, y * TS, TS, TS);
+      if (z === 4) { c.strokeStyle = 'rgba(176,65,62,.5)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x * TS, y * TS + TS); c.lineTo(x * TS + TS, y * TS); c.stroke(); }
+    }
+  }
+
+  /** Overlays: how each home feels, where the saws are heard, whose district a tile is, where feet go, where bots reach. */
+  private overlay(S: State, kind: View['overlay'], x0: number, x1: number, y0: number, y1: number) {
+    const c = this.ctx, w = S.world;
+    if (kind === 'traffic') {
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+        const v = w.wear[y * w.w + x];
+        if (v < 1) continue;
+        c.fillStyle = `rgba(240,120,40,${Math.min(0.7, 0.1 + v / 60)})`; c.fillRect(x * TS, y * TS, TS, TS);
+      }
+    } else if (kind === 'districts') {
+      const hubs = S.towns.flatMap(t => t.districts.map((id, k) => ({ b: S.bmap.get(id), hue: (t.id * 97 + k * 61) % 360 }))).filter(h => h.b);
+      if (!hubs.length) return;
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+        if (!w.ground[y * w.w + x]) continue;
+        let best = hubs[0], bd = Infinity;
+        for (const h of hubs) { const d = (h.b!.x + 1.5 - x) ** 2 + (h.b!.y + 1.5 - y) ** 2; if (d < bd) { bd = d; best = h; } }
+        if (bd > 30 * 30) continue;
+        c.fillStyle = `hsla(${best.hue},60%,55%,.18)`; c.fillRect(x * TS, y * TS, TS, TS);
+      }
+    } else if (kind === 'mood') {
+      for (const b of S.buildings) {
+        const B = S.content.blueprints[b.type];
+        if (!B.homes || b.site) continue;
+        const v = surroundings(S, b).score * (b.hunger > 0 ? 0.3 : 1);
+        c.fillStyle = `hsla(${Math.round(v * 120)},70%,50%,.55)`; this.rr(b.x * TS + 2, b.y * TS + 2, b.w * TS - 4, b.h * TS - 4, 4); c.fill();
+      }
+    } else if (kind === 'nuisance' || kind === 'coverage') {
+      for (const b of S.buildings) {
+        const B = S.content.blueprints[b.type], r = kind === 'nuisance' ? B.nuisance?.radius : B.couriers?.radius;
+        if (!r || b.site) continue;
+        c.fillStyle = kind === 'nuisance' ? 'rgba(226,115,94,.18)' : 'rgba(240,194,122,.16)';
+        c.beginPath(); c.arc((b.x + b.w / 2) * TS, (b.y + b.h / 2) * TS, r * TS, 0, 7); c.fill();
+        this.ring(b, r, kind === 'nuisance' ? 'rgba(226,115,94,.8)' : 'rgba(240,194,122,.85)');
+      }
     }
   }
 

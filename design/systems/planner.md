@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T15:43:36Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T16:17:19Z }
 tuning:
   interval_seconds: 3
   replan_min_age: 300
@@ -99,6 +99,19 @@ A settlement's form follows its people: a **hamlet** below `village_at`, a **vil
 - **Replanning.** A town with free beds renews an old block at most every `replan_every_seconds`: it tears down homes of a sparser rung where its densest home would stand, as one block, and plans that home there. Every home covered must be finished and at least `replan_min_age` seconds in use, at least one of each kind must remain, the new home must add beds, and everyone living there must fit in free beds elsewhere. They move before anything comes down, so nobody leaves; `salvage_share` of the cost goes back into storage. The block that adds most beds nearest its district centre goes first.
 - **Districts.** Each district has a storage yard at its heart. Once the newest district holds `district_buildings` buildings, a new district is founded: a storage yard on open land storage can walk to, about `district_spacing` from every other centre, where most grass lies around (`district_room_weight`). The settlement grows in its newest district: placement searches only there (`search_radius` beyond that district's farthest building), so planning cost follows district size, not town size. Paving covers every district.
 - **Never wall anyone in.** Every placement, replanned block and district centre is refused if it would cut the settlement's first storage yard off from the door of any building it reaches today, of any settlement: two towns growing into each other once sealed a house of one inside a pocket made by the other's homes.
+
+# The steward
+
+The player steers each settlement's planner with levers (the Steward panel in the menu), and hand placement stays.
+
+- **Priorities.** Each need (a good, homes for newcomers, hauling, reaching the neighbours, getting across water) has a weight on its severity: Low 0.5, Normal 1, High 2, First 4. A need put first is answered first: raising logs to First got the first forester planned 2 to 10 minutes sooner on six seeds ([Gate 10](/gates/10-steward.md)).
+- **Encouragement.** One undiscovered blueprint can be encouraged: the settlement thinks of it at `encourage_threshold` of the usual strain and `encourage_factor` times as fast ([knowledge](/systems/knowledge.md)). Once thought of, the encouragement lapses.
+- **Pace.** Unhurried, Normal or Brisk (0.5, 1, 2): divides how long the planner waits between looks and settles after a building.
+- **Zones.** The player paints land from the build bar: homes, farms, workshops, or no building. A blueprint's `zone` (homes for any home) says which zone it keeps to. While a zone of its kind belongs to the settlement and has room, a building is placed only inside it, wherever in the settlement's reach it lies; with none, or none with room, it stays off other kinds' zones. Nothing is ever built, paved or laid out as a street on no-build land. A zoned tile belongs to the settlement whose first storage yard is nearest, so neighbours keep off each other's zones.
+- **The chronicle** records each settlement's history as it happens: founded, its form, inventions, teachings and learning by hand, proving, forgetting, replanned blocks, new districts and bridges. It reads in the menu and exports as an OKF log (dated sections newest first; Creation, Update and Deprecation bullets; game minutes for dates).
+- **The advisor** reads the planners and the chronicle and suggests a lever: bread first when a settlement goes hungry, encouraging the blueprint that would answer a need nobody knows how to meet, a zone when there is no room, keeping homes and workshops apart, and the latest page of history.
+
+Overlays in the menu show how each home feels (surroundings, hunger), the reach of noise, districts, traffic and courier coverage.
 
 # Desire paths
 

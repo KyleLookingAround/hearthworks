@@ -13,6 +13,7 @@ workers: 1
 recipe: { input: { logs: 1 }, output: { planks: 1 }, seconds: 4 }
 keep_stocked: { logs: 4 }
 nuisance: { radius: 5, amount: 0.5 }
+zone: workshops
 ---
 
 # Role

@@ -17,6 +17,11 @@ export const villagers = (S: State): Agent[] => S.agents.filter(a => a.kind === 
 export const hasBuilt = (S: State, type: string) => S.buildings.some(b => b.type === type && !b.site);
 export const countBuilt = (S: State, type: string) => S.buildings.filter(b => b.type === type && !b.site).length;
 
+/** Write a line of a settlement's history. */
+export function chronicle(S: State, town: number, kind: string, text: string) {
+  S.chronicle.push({ t: S.t, town, kind, text });
+}
+
 export function emit(S: State, kind: GameEvent['kind'], text: string, minor = false) {
   S.events.push({ kind, text, t: S.t, minor });
   if (S.events.length > 200) S.events.splice(0, S.events.length - 200);
@@ -28,7 +33,7 @@ export function emit(S: State, kind: GameEvent['kind'], text: string, minor = fa
  */
 function generateWorld(M: MapDef, W: number, H: number, S: State): World {
   const r = S.rng, N = W * H, T = M.terrain, F = M.forest;
-  const w: World = { w: W, h: H, ground: new Uint8Array(N), height: new Uint8Array(N), deposit: new Uint8Array(N), slopeCost: 0, rockCost: 1, roadCost: 1, forestCost: 1, wear: new Float32Array(N), bridge: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1), door: new Uint8Array(N), front: new Uint8Array(N), dock: new Uint8Array(N), docks: 0, waterCost: 1, work: { paths: 0, pathFails: 0, pathNodes: 0, jobPairs: 0, plannerSpots: 0 } };
+  const w: World = { w: W, h: H, ground: new Uint8Array(N), height: new Uint8Array(N), deposit: new Uint8Array(N), slopeCost: 0, rockCost: 1, roadCost: 1, forestCost: 1, wear: new Float32Array(N), bridge: new Uint8Array(N), zone: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1), door: new Uint8Array(N), front: new Uint8Array(N), dock: new Uint8Array(N), docks: 0, waterCost: 1, work: { paths: 0, pathFails: 0, pathNodes: 0, jobPairs: 0, plannerSpots: 0 } };
   const n1 = valueNoise(r, T.largeCell, W, H), n2 = valueNoise(r, T.smallCell, W, H), n3 = valueNoise(r, F.cell, W, H);
   // island centres for the islands shape, and islets out at sea: drawn only for maps that have them,
   // so the lone isle draws exactly the random numbers it always did
@@ -185,7 +190,7 @@ export interface WorldOptions { /** planners pave worn paths (default on) */ roa
 export function createState(content: Content, seed: number, opts: WorldOptions = {}): State {
   const S = {
     content, seed, rng: makeRng(seed), krng: makeRng(seed ^ 0x6b6e6f77), t: 0, buildings: [], agents: [], bmap: new Map(), amap: new Map(), nextId: 1,
-    mood: 1, fed: 1, migT: 0, secT: 0, events: [], towns: [],
+    mood: 1, fed: 1, migT: 0, secT: 0, events: [], towns: [], chronicle: [],
     stats: { made: {}, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0 },
   } as unknown as State;
   const mt = content.tuning.map;
@@ -220,8 +225,9 @@ function foundTown(S: State, cx: number, cy: number, planner: boolean, roads: bo
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [] };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet' };
   S.towns.push(town);
+  chronicle(S, id, 'founded', `${town.name} was founded with ${t.villagers} villagers`);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;
   for (const b of [store, h1, h2]) b.town = id;
   h1.inv = { ...t.houseStock }; h2.inv = { ...t.houseStock };

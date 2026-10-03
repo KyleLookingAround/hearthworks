@@ -7,3 +7,5 @@ export { findSpot, treeSpot, fits, clear, treesAround } from './place.ts';
 export { plan, plannerOn } from './planner.ts';
 export { knows, originText, verifiedHere, pressure, NEED_TEXT } from './knowledge.ts';
 export { saveGame, loadGame, migrate, SAVE_VERSION, type SaveFile } from './save.ts';
+export { chronicleLog, advise } from './steward.ts';
+export { chronicle } from './world.ts';

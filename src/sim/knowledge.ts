@@ -14,7 +14,7 @@
 import { rand } from './rng.ts';
 import { goToBuilding } from './agents.ts';
 import { cancelTask } from './logistics.ts';
-import { door, emit, villagers } from './world.ts';
+import { chronicle, door, emit, villagers } from './world.ts';
 import { reachable } from './path.ts';
 import type { Agent, Content, Knowledge, State, Town } from './types.ts';
 
@@ -67,6 +67,7 @@ function teach(S: State, town: Town, recs: Record<string, Knowledge>, from: stri
     }
     town.knows[id] = { by: r.by, at: r.at, verified: r.verified.map(v => ({ ...v })), from, learned: S.t, used: S.t };
     S.stats.taught++;
+    chronicle(S, town.id, 'taught', `A visitor from ${from} taught ${town.name} the ${name(S, id)}`);
     emit(S, 'good', `A visitor from ${from} taught ${town.name} the ${name(S, id)}`);
   }
 }
@@ -88,22 +89,27 @@ export function updateKnowledge(S: State, dt: number) {
         // built before the village knew how: the player's hand taught it
         k = town.knows[b.type] = { by: 'hand', at: S.t, verified: [], from: null, learned: S.t, used: S.t };
         emit(S, 'info', `${town.name} learned the ${name(S, b.type)} from the one you built`);
+        chronicle(S, town.id, 'learned', `${town.name} learned the ${name(S, b.type)} from the one the steward built`);
       }
       k.used = S.t;
       if (b.site || b.status.l !== 'ok') continue;
       b.used += dt;
       if (b.used >= P.verifySeconds && !k.verified.some(v => v.by === town.name)) {
         k.verified.push({ by: town.name, at: S.t });
-        if (k.by !== 'founders') emit(S, 'good', `${town.name} has proven the ${name(S, b.type)} in use`);
+        if (k.by !== 'founders') { emit(S, 'good', `${town.name} has proven the ${name(S, b.type)} in use`); chronicle(S, town.id, 'proven', `${town.name} proved the ${name(S, b.type)} in use`); }
       }
     }
 
     for (const B of Object.values(S.content.blueprints)) {
       if (!B.discovery || knows(town, B.id)) continue;
-      if (pressure(S, town, B.discovery.need) < P.struggleSeverity) continue;
-      if (rand(S.krng) >= dt / B.discovery.meanSeconds) continue;
+      // encouragement: the player backs this line of thought, so it comes at less strain and sooner
+      const backed = town.levers.encourage === B.id;
+      if (pressure(S, town, B.discovery.need) < P.struggleSeverity * (backed ? P.encourageThreshold : 1)) continue;
+      if (rand(S.krng) >= dt / (B.discovery.meanSeconds / (backed ? P.encourageFactor : 1))) continue;
       town.knows[B.id] = { by: town.name, at: S.t, verified: [], from: null, learned: S.t, used: S.t };
       S.stats.invented++;
+      chronicle(S, town.id, 'invented', `${town.name} came up with the ${B.name}: ${NEED_TEXT[B.discovery.need] ?? B.discovery.need}`);
+      if (town.levers.encourage === B.id) town.levers.encourage = null;
       emit(S, 'good', `${town.name} came up with the ${B.name}: ${NEED_TEXT[B.discovery.need] ?? B.discovery.need}`);
     }
 
@@ -113,6 +119,7 @@ export function updateKnowledge(S: State, dt: number) {
       if (k.by === 'founders' || S.t - k.used <= P.forgetAfterSeconds) continue;
       delete town.knows[id];
       S.stats.forgotten++;
+      chronicle(S, town.id, 'forgotten', `${town.name} forgot how to build the ${name(S, id)}`);
       emit(S, 'bad', `${town.name} forgot how to build the ${name(S, id)}: nobody had built one in a long while`);
     }
 

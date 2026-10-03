@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T15:43:36Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T16:17:19Z }
 ---
 
 # How to read this
@@ -155,6 +155,8 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Why now.** The vision says the player steers rather than places. With town and district planners in place, there is something to steer, so levers should not wait for the end.
 
+**Delivered.** Levers on each settlement's planner: priorities, encouragement and pace, in a Steward panel; zones painted from the build bar (homes, farms, workshops, no building), owned by the nearest settlement; overlays for how homes feel, noise, districts, traffic and courier coverage; the chronicle, read in game and exported as an OKF log; an advisor that points at a lever; [Gate 10](/gates/10-steward.md). **Phase 10 is done.** A district's purpose is painted as zones rather than set per district.
+
 **Builds.**
 - **Levers through the town planner:**
   - **priorities:** rank shortages;
@@ -165,7 +167,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 - **Overlays:** mood, nuisance, districts, traffic and coverage.
 - **A chronicle:** each settlement's history as it happens (founded, invented, taught, forgotten, replanned), readable in game and exportable as an OKF log. An advisor points at what the chronicle shows (the tutorial goals were removed at Kyle's request).
 
-**Gate 10 (proposed).** A paired scenario per lever. Zoning keeps at least 90% of farms in the farm zone; raising a priority moves that need's first relief earlier; encouragement brings a discovery earlier on at least five of six internal seeds. Also: every invention, teaching and forgetting appears in the chronicle.
+**Gate 10 (stable)**, as proposed, plus a minute's gain for the raised priority and the zone painted on the side away from the neighbour. A paired scenario per lever. Zoning keeps at least 90% of farms in the farm zone; raising a priority moves that need's first relief earlier; encouragement brings a discovery earlier on at least five of six internal seeds. Also: every invention, teaching and forgetting appears in the chronicle.
 
 # 11. A deeper economy
 

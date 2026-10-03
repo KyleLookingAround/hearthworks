@@ -15,6 +15,20 @@ export interface GoodDef {
 /** How a settlement builds, by size: a roomy hamlet, a village of homes wall to wall, a town of streets and rows. */
 export type Form = 'hamlet' | 'village' | 'town';
 
+/** What the player has painted a tile for: the planner keeps buildings of that kind there, and builds nothing on no-build land. */
+export type ZoneKind = 'homes' | 'farms' | 'workshops';
+export const ZONES: (ZoneKind | 'nobuild')[] = ['homes', 'farms', 'workshops', 'nobuild'];
+
+/** The player's levers on one settlement's planner. */
+export interface Levers {
+  /** Weight on each need's severity, by shortage key (a good, 'beds', 'hauling', 'crossing', 'detours'): 1 normal, more to put it first. */
+  priority: Record<string, number>;
+  /** A blueprint the settlement is encouraged to think of: likelier to be discovered. */
+  encourage: string | null;
+  /** How fast the planner looks and settles: 1 normal. */
+  pace: number;
+}
+
 export interface BlueprintDef {
   id: string;
   name: string;
@@ -36,6 +50,8 @@ export interface BlueprintDef {
   paves: boolean;
   /** Built on the shore: its door opens onto water, and boats are launched from it. */
   shore: boolean;
+  /** The zone a planner keeps it in, when the player has painted one: homes (any home), farms or workshops. */
+  zone: ZoneKind | null;
   /** The settlement form it takes before a planner builds it: homes climb a ladder as a hamlet becomes a village and a town. */
   form: Form;
   /** A bridge: spans up to `maxSpan` tiles of water in a straight line, land at both ends. */
@@ -92,7 +108,7 @@ export interface Tuning {
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
   planner: PlannerTuning;
   knowledge: {
-    haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number;
+    haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number; encourageFactor: number; encourageThreshold: number;
     verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number; visitMinVillagers: number;
   };
 }
@@ -127,6 +143,8 @@ export interface PlannerState {
   roads: boolean;
   /** When it last replanned a block. */
   replanAt: number;
+  /** When it first planned a building for each need, by shortage key. */
+  firstFor: Record<string, number>;
   /** Blueprints it last found no room for, and when: it plans something else for `no_room_retry_seconds`. */
   noRoom: Record<string, number>;
 }
@@ -237,6 +255,10 @@ export interface Town {
   visitT: number;
   /** Smoothed pressure to bridge water: trips going the long way round, land nearby that cannot be walked to. */
   detour: number;
+  /** The player's levers on its planner. */
+  levers: Levers;
+  /** The form it was last seen in, for the chronicle. */
+  form: Form;
   /** Storage yards at the heart of each district, the first one first. */
   districts: number[];
   /** District centres that have had their street grid laid. */
@@ -278,6 +300,8 @@ export interface World {
   forestCost: number;
   /** footsteps on each tile, fading over time: where people actually walk */
   wear: Float32Array;
+  /** the player's zones: 0 none, then 1 + index in ZONES (homes, farms, workshops, no-build) */
+  zone: Uint8Array;
   /** 1 on water spanned by a finished bridge: walked like a road, rowed under */
   bridge: Uint8Array;
   /** Deterministic work counters: what the sim spent, for budgets that don't depend on the machine. */
@@ -288,6 +312,9 @@ export interface Work { paths: number; pathFails: number; pathNodes: number; job
 
 /** Something worth telling the player. `minor` marks routine news (a building finished, a newcomer) the UI can keep quiet. */
 export interface GameEvent { kind: 'good' | 'bad' | 'info'; text: string; t: number; minor: boolean }
+
+/** One line of history. `kind` sorts it: founded, form, invented, taught, proven, forgotten, replanned, district, bridge. */
+export interface Chronicle { t: number; town: number; kind: string; text: string }
 
 export interface Stats {
   made: Stock;
@@ -330,6 +357,8 @@ export interface State {
   setup: Setup;
   /** The first settlement's planner (the player's village). Every settlement has its own in `towns`. */
   planner: PlannerState;
+  /** Each settlement's history as it happens: what the chronicle and its OKF export show. */
+  chronicle: Chronicle[];
   /** Separate stream for discovery, so knowledge never shifts the main simulation's random numbers. */
   krng: Rng;
 }

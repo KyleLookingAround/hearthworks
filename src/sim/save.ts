@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 type Json = Record<string, unknown>;
 
@@ -49,6 +49,13 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     const stats = state.stats as Json; stats.replanned ??= 0; stats.demolitionDepartures ??= 0;
     return state;
   },
+  // 5 to 6: the steward's levers and zones, and the chronicle
+  5: state => {
+    const w = state.world as Json; w.zone ??= [0, (w.w as number) * (w.h as number)];
+    for (const t of state.towns as (Json & { planner: Json })[]) { t.levers ??= { priority: {}, encourage: null, pace: 1 }; t.form ??= 'hamlet'; t.planner.firstFor ??= {}; }
+    state.chronicle ??= [];
+    return state;
+  },
 };
 
 /** Run-length encoding for tile grids: [value, count, value, count, ...]. */
@@ -70,7 +77,7 @@ function unrle<T extends Uint8Array | Int32Array | Float32Array>(runs: number[],
   return into;
 }
 
-const GRIDS = { ground: Uint8Array, height: Uint8Array, deposit: Uint8Array, wear: Float32Array, bridge: Uint8Array, tree: Uint8Array, grow: Float32Array, road: Uint8Array, bgrid: Int32Array, door: Uint8Array, front: Uint8Array, dock: Uint8Array } as const;
+const GRIDS = { ground: Uint8Array, height: Uint8Array, deposit: Uint8Array, wear: Float32Array, bridge: Uint8Array, zone: Uint8Array, tree: Uint8Array, grow: Float32Array, road: Uint8Array, bgrid: Int32Array, door: Uint8Array, front: Uint8Array, dock: Uint8Array } as const;
 type GridName = keyof typeof GRIDS;
 
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -93,7 +100,7 @@ export function saveGame(S: State): SaveFile {
     state: {
       seed: S.seed, setup: copy(S.setup), rng: S.rng.s, krng: S.krng.s, t: S.t, nextId: S.nextId,
       mood: S.mood, fed: S.fed, migT: S.migT, secT: S.secT,
-      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns),
+      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns), chronicle: copy(S.chronicle),
       world, buildings: copy(S.buildings), gone: copy([...gone.values()]), agents,
     },
   };
@@ -135,7 +142,7 @@ export function loadGame(content: Content, input: SaveFile | string): State {
 
   const S = {
     content, seed: d.seed, setup: d.setup, rng: { s: d.rng }, krng: { s: d.krng }, t: d.t, nextId: d.nextId,
-    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns,
+    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns, chronicle: d.chronicle,
     world, buildings, agents, bmap, amap: new Map(agents.map(a => [a.id, a])),
   } as State;
   S.planner = S.towns[0].planner;
