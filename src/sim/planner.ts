@@ -291,5 +291,5 @@ function planTown(S: State, town: Town, dt: number) {
   b.reason = c.why;
   Q.site = b.id; Q.placed++; Q.streak = { type: '', n: 0 };
   Q.status = `Planning ${article(c.B.name)} ${c.B.name}: ${c.why}`;
-  emit(S, 'info', S.towns.length > 1 ? `${town.name}: ${Q.status}` : Q.status);
+  emit(S, 'info', S.towns.length > 1 ? `${town.name}: ${Q.status}` : Q.status, true);
 }

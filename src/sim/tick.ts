@@ -40,7 +40,7 @@ function migrate(S: State) {
   const a = makeAgent(S, 'villager', d.x + 0.5, d.y + 0.5);
   a.home = house; house.residents.push(a.id);
   S.stats.arrivals++;
-  emit(S, 'good', 'A newcomer moved in');
+  emit(S, 'good', 'A newcomer moved in', true);
 }
 
 /** Advance the simulation by dt game seconds. Deterministic for a given seed and command sequence. */

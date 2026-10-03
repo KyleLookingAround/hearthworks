@@ -18,12 +18,15 @@ export class App {
   plans = true;
   goals: boolean[];
   private seenEvents = 0;
+  /** Which notices pop up: important ones (default), everything, or none. */
+  notices: 'important' | 'all' | 'off' = 'important';
   private knowKey = '';
   private confirmDel = false;
   private readonly dialog: NewGameDialog;
 
   constructor(content: Content, seed: number) {
     this.content = content;
+    try { const n = localStorage.getItem('hearthworks.notices'); if (n === 'all' || n === 'off' || n === 'important') this.notices = n; } catch { /* default */ }
     this.r = new Renderer($<HTMLCanvasElement>('#view'));
     this.S = createState(content, seed);
     this.dialog = new NewGameDialog(content, c => this.newGame(c), seed);
@@ -79,8 +82,14 @@ export class App {
 
   private resize() {
     this.r.resize();
-    document.documentElement.style.setProperty('--buildH', $('#build').offsetHeight + 'px');
+    this.measure();
     this.clampCam();
+  }
+  /** Panels float over the map; keep the drawer, toasts and hints clear of the HUD and build bar. */
+  private measure() {
+    const root = document.documentElement.style;
+    root.setProperty('--buildH', ($('#buildwrap').offsetHeight || 0) + 'px');
+    root.setProperty('--hudH', ($('.topstack').offsetHeight || 0) + 'px');
   }
   private clampCam() {
     const c = this.view.cam, w = this.S.world;
@@ -106,12 +115,53 @@ export class App {
     document.querySelectorAll<HTMLButtonElement>('[data-speed]').forEach(b => b.addEventListener('click', () => this.setSpeed(Number(b.dataset.speed))));
     $('#plans').addEventListener('click', () => this.setPlans(!this.plans));
     $('#routes').addEventListener('click', () => { this.view.routes = !this.view.routes; $('#routes').setAttribute('aria-pressed', String(this.view.routes)); });
-    $('#newWorld').addEventListener('click', () => { this.setSpeed(0); this.dialog.open(true); });
+    $('#newWorld').addEventListener('click', () => { this.setMenu(false); this.setSpeed(0); this.dialog.open(true); });
     $('#insClose').addEventListener('click', () => this.select(null));
-    window.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { if (this.view.tool) this.setTool(null); else this.select(null); }
-      if (e.key === ' ' && e.target === document.body) { e.preventDefault(); this.setSpeed(this.speed ? 0 : 1); }
+    $('#menuBtn').addEventListener('click', () => this.setMenu($('#drawer').hidden === true));
+    $('#drawerClose').addEventListener('click', () => this.setMenu(false));
+    $('#planLine').addEventListener('click', () => { const p = $('#planLine'); p.setAttribute('aria-expanded', String(p.getAttribute('aria-expanded') !== 'true')); this.measure(); });
+    $('#hideUi').addEventListener('click', () => this.setUiHidden(true));
+    $('#showUi').addEventListener('click', () => this.setUiHidden(false));
+    $('#buildToggle').addEventListener('click', () => {
+      const open = $('#build').hidden === true;
+      $('#build').hidden = !open; $('#buildToggle').setAttribute('aria-expanded', String(open));
+      if (!open) this.setTool(null);
+      this.measure();
     });
+    const fs = $('#fullscreen');
+    fs.hidden = !document.fullscreenEnabled;
+    fs.addEventListener('click', () => this.toggleFullscreen());
+    document.addEventListener('fullscreenchange', () => { fs.setAttribute('aria-pressed', String(!!document.fullscreenElement)); this.resize(); });
+    const notices = $<HTMLSelectElement>('#notices');
+    notices.value = this.notices;
+    notices.addEventListener('change', () => { this.notices = notices.value as App['notices']; try { localStorage.setItem('hearthworks.notices', this.notices); } catch { /* not kept */ } });
+    window.addEventListener('keydown', e => {
+      const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
+      if (e.key === 'Escape') { if (this.view.tool) this.setTool(null); else if (!$('#drawer').hidden) this.setMenu(false); else this.select(null); }
+      if (e.key === ' ' && e.target === document.body) { e.preventDefault(); this.setSpeed(this.speed ? 0 : 1); }
+      if (typing || !$('#newgame').hidden) return;
+      if (e.key === 'h' || e.key === 'H') this.setUiHidden(!document.body.classList.contains('ui-hidden'));
+      if ((e.key === 'f' || e.key === 'F') && document.fullscreenEnabled) this.toggleFullscreen();
+    });
+  }
+
+  private setMenu(open: boolean) {
+    $('#drawer').hidden = !open;
+    $('#menuBtn').setAttribute('aria-expanded', String(open));
+    if (open) this.select(null);
+  }
+
+  /** Hide every panel so the map fills the screen; a small button brings them back. */
+  private setUiHidden(hidden: boolean) {
+    document.body.classList.toggle('ui-hidden', hidden);
+    $('#showUi').hidden = !hidden;
+    if (hidden) { this.setMenu(false); this.setTool(null); }
+    this.measure();
+  }
+
+  private toggleFullscreen() {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen().catch(() => this.toast('Full screen is not available here'));
   }
 
   setSpeed(v: number) {
@@ -226,10 +276,10 @@ export class App {
     const line = $('#planLine'), on = S.planner.on, multi = S.towns.length > 1;
     line.classList.toggle('off', !on);
     $('#planText').innerHTML = on
-      ? S.towns.map(t => (multi ? `<b class="tn">${esc(t.name)}</b> ` : '') + esc(t.planner.status)).join('<br>')
+      ? S.towns.map(t => (multi ? `<b class="tn">${esc(t.name)}</b> ` : '') + esc(t.planner.status)).join(' <br>')
       : 'Plans are off: you place the buildings';
     this.renderKnowledge();
-    $('#meta').innerHTML = `<span class="chip">Villagers <b>${vs.length}/${cap}</b></span><span class="chip" id="chipCarriers">Carriers <b>${carriers}</b></span><span class="chip ${mc}">Mood <b>${m}%</b></span>` + (bots ? `<span class="chip">Bots <b>${bots}</b></span>` : '');
+    $('#meta').innerHTML = `<span class="chip" title="Villagers and beds"><span class="lbl">Villagers</span> 👤 <b>${vs.length}/${cap}</b></span><span class="chip" id="chipCarriers">Carriers <b>${carriers}</b></span><span class="chip ${mc}" title="Mood"><span class="lbl">Mood</span> ☺ <b>${m}%</b></span>` + (bots ? `<span class="chip" title="Bots"><span class="lbl">Bots</span> ⚙ <b>${bots}</b></span>` : '');
     this.updateInspector();
   }
 
@@ -282,15 +332,19 @@ export class App {
   private drainEvents() {
     const ev = this.S.events;
     if (this.seenEvents > ev.length) this.seenEvents = 0;
-    for (const e of ev.slice(this.seenEvents)) this.toast(e.text, e.kind === 'info' ? '' : e.kind);
+    // routine news (buildings finished, newcomers, plans) shows only when notices are set to everything
+    for (const e of ev.slice(this.seenEvents)) {
+      if (this.notices === 'off' || (this.notices === 'important' && e.minor)) continue;
+      this.toast(e.text, e.kind === 'info' ? '' : e.kind);
+    }
     this.seenEvents = ev.length;
   }
   toast(msg: string, kind = '') {
     const el = document.createElement('div');
     el.className = 'toast panel ' + kind; el.textContent = msg;
     const box = $('#toasts'); box.prepend(el);
-    while (box.children.length > 3) box.lastChild!.remove();
-    setTimeout(() => el.remove(), 3800);
+    while (box.children.length > 2) box.lastChild!.remove();
+    setTimeout(() => el.remove(), 3200);
   }
 
   // ---------- inspector ----------

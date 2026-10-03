@@ -215,7 +215,8 @@ export interface World {
 
 export interface Work { paths: number; pathFails: number; pathNodes: number; jobPairs: number; plannerSpots: number }
 
-export interface GameEvent { kind: 'good' | 'bad' | 'info'; text: string; t: number }
+/** Something worth telling the player. `minor` marks routine news (a building finished, a newcomer) the UI can keep quiet. */
+export interface GameEvent { kind: 'good' | 'bad' | 'info'; text: string; t: number; minor: boolean }
 
 export interface Stats {
   made: Stock;

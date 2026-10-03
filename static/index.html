@@ -14,34 +14,54 @@
 <div id="app">
   <canvas id="view" aria-label="Island map. Drag to pan, scroll or pinch to zoom, tap a building to inspect it."></canvas>
 
-  <div class="topstack">
+  <div class="topstack ui">
     <header class="hud panel">
       <div class="brand"><span class="mark">Hearthworks</span><span class="tag" id="world">prototype</span></div>
       <div class="res" id="res" aria-label="Goods in storage"></div>
       <div class="meta" id="meta"></div>
       <div class="ctrl">
-        <button class="btn" id="sp0" data-speed="0" aria-pressed="false">Pause</button>
-        <button class="btn" id="sp1" data-speed="1" aria-pressed="true">1×</button>
-        <button class="btn" id="sp3" data-speed="3" aria-pressed="false">3×</button>
-        <button class="btn" id="plans" aria-pressed="true" title="Let the villagers decide what to build and where. Turn off to place every building by hand.">Village plans</button>
-        <button class="btn" id="routes" aria-pressed="false">Routes</button>
-        <button class="btn" id="newWorld">New world</button>
+        <div class="speed" role="group" aria-label="Speed">
+          <button class="btn icon" id="sp0" data-speed="0" aria-pressed="false" aria-label="Pause" title="Pause (space)">❚❚</button>
+          <button class="btn icon" id="sp1" data-speed="1" aria-pressed="true" aria-label="Normal speed" title="Normal speed">▶</button>
+          <button class="btn icon" id="sp3" data-speed="3" aria-pressed="false" aria-label="Three times speed" title="Three times speed">▶▶</button>
+        </div>
+        <button class="btn" id="menuBtn" aria-expanded="false" aria-controls="drawer">Menu</button>
       </div>
     </header>
-    <p class="planline panel" id="planLine" aria-live="polite"><span class="lbl">Plans</span> <span id="planText"></span></p>
-    <details class="goals panel knowledge" id="knowledge">
+    <button class="planline panel" id="planLine" type="button" aria-expanded="false" title="Tap to see every settlement's plans"><span class="lbl">Plans</span> <span id="planText"></span></button>
+  </div>
+
+  <aside class="drawer panel ui" id="drawer" hidden aria-label="Menu">
+    <div class="drawer-head"><h2>Menu</h2><button class="ins-close" id="drawerClose" aria-label="Close menu">×</button></div>
+    <div class="drawer-actions">
+      <button class="btn" id="plans" aria-pressed="true" title="Let the villagers decide what to build and where. Turn off to place every building by hand.">Village plans</button>
+      <button class="btn" id="routes" aria-pressed="false">Routes</button>
+      <button class="btn" id="newWorld">New world</button>
+      <button class="btn" id="fullscreen" hidden>Full screen</button>
+      <button class="btn" id="hideUi" title="Hide every panel (H)">Hide interface</button>
+    </div>
+    <label class="drawer-row">Notices
+      <select id="notices">
+        <option value="important">Important only</option>
+        <option value="all">Everything</option>
+        <option value="off">None</option>
+      </select>
+    </label>
+    <details class="goals knowledge" id="knowledge">
       <summary><span>Knowledge</span><span class="count" id="knowCount"></span></summary>
       <div id="knowList"></div>
       <p class="hint">What each settlement knows how to build. New ideas come from hardship, visitors carry them between settlements, and what nobody builds is forgotten.</p>
     </details>
-    <details class="goals panel" id="goals" open>
+    <details class="goals" id="goals">
       <summary><span>Goals</span><span class="count" id="goalCount">0/6</span></summary>
       <ol id="goalList"></ol>
-      <p class="hint">Drag to pan, scroll or pinch to zoom, tap a building to inspect it. Every plank and loaf is carried by hand until you build machines.</p>
     </details>
-  </div>
+    <p class="hint">Drag to pan, scroll or pinch to zoom, tap a building to inspect it. Space pauses, H hides the interface, F goes full screen.</p>
+  </aside>
 
-  <aside class="inspector panel" id="inspector" hidden>
+  <button class="btn showui" id="showUi" hidden title="Show the interface (H)">Show interface</button>
+
+  <aside class="inspector panel ui" id="inspector" hidden>
     <div class="ins-head"><span class="sw" id="insSw"></span><h2 id="insName"></h2><button class="ins-close" id="insClose" aria-label="Close">×</button></div>
     <p class="ins-desc" id="insDesc"></p>
     <p class="ins-why" id="insWhy" hidden></p>
@@ -49,9 +69,12 @@
     <div class="actions" id="insActs"></div>
   </aside>
 
-  <div class="toasts" id="toasts" aria-live="polite"></div>
-  <div class="toolhint panel" id="toolhint" hidden></div>
-  <nav class="build panel" id="build" aria-label="Build"></nav>
+  <div class="toasts ui" id="toasts" aria-live="polite"></div>
+  <div class="toolhint panel ui" id="toolhint" hidden></div>
+  <div class="buildwrap ui" id="buildwrap">
+    <button class="btn buildtoggle" id="buildToggle" aria-expanded="true" aria-controls="build">Build</button>
+    <nav class="build panel" id="build" aria-label="Build"></nav>
+  </div>
 </div>
 <div class="newgame-backdrop" id="newgame" hidden>
   <div class="newgame panel" role="dialog" aria-modal="true" aria-labelledby="ngTitle">

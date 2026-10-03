@@ -17,8 +17,8 @@ export const villagers = (S: State): Agent[] => S.agents.filter(a => a.kind === 
 export const hasBuilt = (S: State, type: string) => S.buildings.some(b => b.type === type && !b.site);
 export const countBuilt = (S: State, type: string) => S.buildings.filter(b => b.type === type && !b.site).length;
 
-export function emit(S: State, kind: GameEvent['kind'], text: string) {
-  S.events.push({ kind, text, t: S.t });
+export function emit(S: State, kind: GameEvent['kind'], text: string, minor = false) {
+  S.events.push({ kind, text, t: S.t, minor });
   if (S.events.length > 200) S.events.splice(0, S.events.length - 200);
 }
 
@@ -225,8 +225,8 @@ export function completeSite(S: State, b: Building, announce: boolean) {
       const a = makeAgent(S, 'bot', d.x + 0.5 + (k - 1) * 0.3, d.y + 0.5);
       a.depot = b; b.bots.push(a.id);
     }
-    if (announce) emit(S, 'good', `${B.name} finished: ${B.couriers.count} bots are hauling`);
-  } else if (announce) emit(S, 'good', `${B.name} finished`);
+    if (announce) emit(S, 'good', `${B.name} finished: ${B.couriers.count} bots are hauling`, true);
+  } else if (announce) emit(S, 'good', `${B.name} finished`, true);
 }
 
 export function demolish(S: State, b: Building) {
