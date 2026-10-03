@@ -4,7 +4,7 @@ title: Trade
 description: Neighbouring settlements send porters to swap what they can spare for what they want, one load at a time, and count steady imports as relief.
 tags: [trade, settlement, economy]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T18:22:59Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T20:14:54Z }
 tuning:
   every_seconds: 15
   load: 4
@@ -18,6 +18,7 @@ tuning:
   export_demand: 0.2
   want_cover: 30
   spare_cover: 60
+  kin_bonus: 0.3
 ---
 
 # Idea
@@ -33,7 +34,7 @@ A settlement weighs each good by its **cover**: how many seconds its stock lasts
 
 # Porters
 
-Every `every_seconds` a settlement of at least `min_villagers`, with fewer porters out than one for every `villagers_per_porter` (at least one), looks for the best deal: a want of its own that a neighbour can spare, for a spare good of its own that neighbour wants, scored by both wants less `distance_weight` per tile between storage yards. A carrier takes up to `load` of the spare good from the stores and walks to the neighbour's yard like a [visitor](/systems/knowledge.md), gossiping as they do.
+Every `every_seconds` a settlement of at least `min_villagers`, with fewer porters out than one for every `villagers_per_porter` (at least one), looks for the best deal: a want of its own that a neighbour can spare, for a spare good of its own that neighbour wants, scored by both wants less `distance_weight` per tile between storage yards, plus `kin_bonus` between a [daughter](/systems/settling.md) and her mother: kin keep trading. A carrier takes up to `load` of the spare good from the stores and walks to the neighbour's yard like a [visitor](/systems/knowledge.md), gossiping as they do.
 
 # Barter
 

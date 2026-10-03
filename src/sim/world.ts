@@ -292,7 +292,7 @@ export function foundTown(S: State, cx: number, cy: number, planner: boolean, ro
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', rites: [], graves: {}, copyT: 0, reach: 0, mother: null, sentAt: -1e9, settleT: 0 };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', rites: [], graves: {}, copyT: 0, reach: 0, mother: null, overseas: false, sentAt: -1e9, settleT: 0 };
   S.towns.push(town);
   if (!party) chronicle(S, id, 'founded', `${town.name} was founded with ${t.villagers} villagers`);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;
@@ -327,7 +327,7 @@ export function foundTown(S: State, cx: number, cy: number, planner: boolean, ro
  * `start_room_share` of the best on room and wood, as for the first settlement.
  * Null if the land has no room.
  */
-export function neighbourSite(S: State, from: Town = S.towns[0]): { x: number; y: number } | null {
+export function neighbourSite(S: State, from: Town = S.towns[0], reach = false): { x: number; y: number } | null {
   const w = S.world, t = S.content.tuning.start;
   const centres = S.towns.map(tn => ctr(S.bmap.get(tn.store)!));
   const home = door(S.bmap.get(from.store)!);
@@ -348,7 +348,8 @@ export function neighbourSite(S: State, from: Town = S.towns[0]): { x: number; y
   const onFoot = S.content.maps[S.setup.map].neighbours === 'reachable';
   while (good.length) {
     const k = Math.floor(rand(S.rng) * good.length), p = good[k];
-    if (!onFoot || findPath(w, home.x, home.y, p.x, p.y + 1)) return { x: p.x, y: p.y };
+    // with `reach`, the site must be reachable from `from`: on foot, or rowing from a dock
+    if ((!onFoot && !reach) || findPath(w, home.x, home.y, p.x, p.y + 1)) return { x: p.x, y: p.y };
     good.splice(k, 1);
   }
   return null;

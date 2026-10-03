@@ -107,6 +107,8 @@ function bestDeal(S: State, town: Town) {
     const hs = S.bmap.get(host.store);
     if (host === town || !hs) continue;
     const theirs = spareOf(S, host), hst = stockOf(S, host), far = Math.hypot(hs.x - home.x, hs.y - home.y) * X(S).distanceWeight;
+    // kin keep trading: a daughter and her mother favour each other
+    const kin = host.mother === town.id || town.mother === host.id ? X(S).kinBonus : 0;
     for (const want in theirs) {
       const w = wantOf(S, town, want, st);
       if (!(w > 0)) continue;
@@ -114,7 +116,7 @@ function bestDeal(S: State, town: Town) {
         // a neighbour takes what it wants, or anything it is not itself unloading, at a poor rate
         const h = wantOf(S, host, give, hst);
         if (!(h > 0) && (theirs[give] || 0) > 0) continue;
-        const score = w + h - far;
+        const score = w + h - far + kin;
         if (score > (best?.score ?? 0)) best = { host, give, want, score };
       }
     }

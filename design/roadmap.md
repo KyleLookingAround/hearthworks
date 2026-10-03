@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T19:56:47Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T20:14:54Z }
 ---
 
 # How to read this
@@ -34,7 +34,7 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 15 | Learning | Libraries, schools, universities; knowledge kept, taught and pursued | 14 | [Gate 15](/gates/15-learning.md) | Done |
 | 16 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | [Gate 16](/gates/16-ways-to-move.md) | Done |
 | 17 | New settlements | Crowded towns send settlers off with goods, knowledge and customs | 16 | [Gate 17](/gates/17-new-settlements.md) | Done |
-| 18 | The sea | The archipelago map type, ports, ships, exploration, colonies | 13, 17 | A colony on a second island trades back | Later |
+| 18 | The sea | The archipelago map type, ports, ships, exploration, colonies | 13, 17 | [Gate 18](/gates/18-the-sea.md) | Done |
 | 19 | Ages | Eras of technology, machine tiers, crafts lost | 15, 18 | An age turns unscripted; an isolated town loses a craft | Later |
 | 20 | Hardship | Fire, flood, sickness and their counters; hard laws | 12, 19 | A town weathers each hazard and three winters | Later |
 
@@ -284,6 +284,10 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 **Why now.** It needs trade (13), new settlements (17) and boats (16) to grow from.
 
 **Builds.** The archipelago map type (a concept in `design/maps/`, like the others), with shallows, reefs and open sea. Docks, shipyards, ships with crews, and sea routes. Explorers chart islands the settlements have not seen. Settlers, goods and knowledge cross water only by ship, and colonies are founded overseas.
+
+**Delivered, in part.** Colonies: a founding party must reach its site on foot or by boat; a settlement whose own land is full but sees land across the water comes up with the dock, builds one and sends its next party by sea, and the daughter is a colony. Kin (a daughter and her mother) favour each other in trade, so colonies trade back. The [Archipelago](/maps/archipelago.md) map type: many small islands. Saves go to version 14. **Phase 18 is done in part:** shallows and reefs, shipyards and crewed ships, sea routes and explorers charting unseen islands wait for a later phase; rowing boats carry everyone today.
+
+**Gate 18 (stable)**, as proposed: Islands at size M, an hour: a colony founded on a second island unscripted, alive for 30 game minutes, with porters crossing between it and its mother.
 
 **Gate 18 (proposed).** Islands map at size M: a colony is founded on a second island unscripted, survives 30 game minutes, and trades back to its mother town.
 

@@ -2,6 +2,7 @@
 
 # Map Types
 
+* [Archipelago](archipelago.md) - Many small islands strewn across the sea. No village has room for long on its own island; it grows by its boats and colonies.
 * [Coast](coast.md) - Land on the west, open sea on the east with small islands offshore, and a river down to the sea.
 * [Lone isle](island.md) - A single island ringed by sea. The standard map every gate runs on.
 * [Islands](islands.md) - Several islands of different sizes across open sea. Villages may start on different islands and need boats to meet.

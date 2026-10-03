@@ -26,6 +26,10 @@ Every `check_every_seconds` a self-planning settlement with at least `min_villag
 
 The party looks for a site as the world's first neighbours were placed ([settlement](/systems/settlement.md)): the whole starting layout on open grass, at least `neighbour_min_distance` from every settlement, with room to grow, scored for room and wood, reachable on foot from its mother unless the map allows neighbours across water.
 
+# Across the water
+
+The party must be able to reach its site: on foot, or rowing from a [dock](/blueprints/dock.md). A settlement with no such site left but land across the water feels the need to cross it, so it comes up with the dock and builds one, and its next party sails: the daughter is a colony (`overseas`), and the chronicle says so.
+
 # Who and what
 
 - **People.** `party_size` villagers who are not working (carriers first; with [people](/systems/people.md) on, adults and not elders), who leave their homes and walk to the new yard.

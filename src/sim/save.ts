@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 13;
+export const SAVE_VERSION = 14;
 
 type Json = Record<string, unknown>;
 
@@ -103,6 +103,11 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
   12: state => {
     state.settlers ??= false;
     for (const t of state.towns as Json[]) { t.mother ??= null; t.sentAt ??= -1e9; t.settleT ??= 0; }
+    return state;
+  },
+  // 13 to 14: the sea: whether each settlement was founded across water
+  13: state => {
+    for (const t of state.towns as Json[]) t.overseas ??= false;
     return state;
   },
 };

@@ -55,8 +55,13 @@ export function sendParty(S: State, mother: Town): Town | null {
   const P = S.content.tuning.people;
   const free = pop.filter(a => a.role === 'carrier' && !a.visit && !a.carry && (!S.people || (S.t - a.born >= P.adultSeconds && S.t - a.born < P.elderSeconds)));
   if (free.length < Z(S).partySize) return null;
-  const site = neighbourSite(S, mother);
-  if (!site) return null;
+  // a site the party can reach, on foot or by boat from a dock; with none, but land across the water,
+  // the settlement feels the need to cross it (and so comes up with the dock and builds one)
+  const site = neighbourSite(S, mother, true);
+  if (!site) {
+    if (neighbourSite(S, mother, false)) mother.cut = 1;
+    return null;
+  }
   const party: Agent[] = free.slice(0, Z(S).partySize);
   for (const a of party) cancelTask(a);
   // what they carry: the cost of their first buildings and a share of every good in store
@@ -83,7 +88,10 @@ export function sendParty(S: State, mother: Town): Town | null {
   d.levers = { priority: { ...mother.levers.priority }, encourage: null, pace: mother.levers.pace };
   mother.sentAt = S.t;
   for (const a of party) { a.path = []; a.state = 'idle'; goToBuilding(S, a, yard); }
-  chronicle(S, mother.id, 'settled', `${mother.name} sent ${party.length} settlers off to found ${d.name}`);
+  // across the water: a colony
+  const W = S.world, overseas = party.some(a => a.path.some(([x, y]) => !W.ground[y * W.w + x] && !W.bridge[y * W.w + x]));
+  d.overseas = overseas;
+  chronicle(S, mother.id, 'settled', `${mother.name} sent ${party.length} settlers ${overseas ? 'across the sea' : 'off'} to found ${d.name}`);
   chronicle(S, d.id, 'founded', `${d.name} was founded by ${party.length} settlers from ${mother.name}`);
   emit(S, 'good', `Settlers from ${mother.name} founded ${d.name}`);
   return d;

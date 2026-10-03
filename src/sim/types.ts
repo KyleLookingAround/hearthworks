@@ -129,7 +129,7 @@ export interface Tuning {
     practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
     changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number;
   };
-  trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number };
+  trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number };
   seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[] };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
@@ -331,6 +331,8 @@ export interface Town {
   reach: number;
   /** The settlement that sent its founding party, if any, and when it last sent one of its own. */
   mother: number | null;
+  /** Founded across water from its mother: a colony. */
+  overseas: boolean;
   sentAt: number;
   settleT: number;
 }
