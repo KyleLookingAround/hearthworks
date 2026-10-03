@@ -179,6 +179,7 @@ export class Renderer {
     if (season === 'winter' || season === 'autumn') { c.fillStyle = season === 'winter' ? 'rgba(235,242,248,.32)' : 'rgba(210,140,60,.10)'; c.fillRect(x0 * TS, y0 * TS, (x1 - x0 + 1) * TS, (y1 - y0 + 1) * TS); }
     this.zones(S, x0, x1, y0, y1);
     for (const b of [...S.buildings].sort((p, q) => p.y - q.y)) this.building(S, b);
+    if (S.hardship) this.hardship(S);
     if (v.overlay !== 'none') this.overlay(S, v.overlay, x0, x1, y0, y1);
 
     if (v.sel && !v.sel.dead) {
@@ -186,6 +187,7 @@ export class Renderer {
       c.strokeStyle = '#f0c27a'; c.lineWidth = 2; this.rr(b.x * TS, b.y * TS, b.w * TS, b.h * TS, 6); c.stroke();
       if (B.harvest) this.ring(b, B.harvest.radius, 'rgba(127,194,138,.8)');
       if (B.couriers) this.ring(b, B.couriers.radius, 'rgba(240,194,122,.85)');
+      if (B.guards) this.ring(b, B.guards.radius, 'rgba(140,190,230,.85)');
     }
     if (v.routes) {
       for (const b of S.buildings) { const B = S.content.blueprints[b.type]; if (B.couriers && !b.site) this.ring(b, B.couriers.radius, 'rgba(240,194,122,.45)'); }
@@ -211,6 +213,44 @@ export class Renderer {
       const fake = { x: o.x, y: o.y, w: B.w, h: B.h };
       if (B.harvest) this.ring(fake, B.harvest.radius, 'rgba(127,194,138,.8)');
       if (B.couriers) this.ring(fake, B.couriers.radius, 'rgba(240,194,122,.85)');
+      if (B.guards) this.ring(fake, B.guards.radius, 'rgba(140,190,230,.85)');
+    }
+  }
+
+  /** Hardship on the map: flames, standing water and sickness on buildings; barbarian camps and their raiders. */
+  private hardship(S: State) {
+    const c = this.ctx;
+    for (const b of S.buildings) {
+      const px = b.x * TS, py = b.y * TS, pw = b.w * TS, ph = b.h * TS;
+      if (b.flood > 0) { c.fillStyle = 'rgba(70,130,190,.45)'; this.rr(px + 1, py + 1, pw - 2, ph - 2, 4); c.fill(); }
+      if (b.sick > 0) { c.fillStyle = 'rgba(150,190,80,.35)'; this.rr(px + 1, py + 1, pw - 2, ph - 2, 4); c.fill(); }
+      if (b.site && b.reason === 'rebuilding after the fire') { c.fillStyle = 'rgba(30,24,20,.35)'; this.rr(px + 2, py + 2, pw - 4, ph - 4, 4); c.fill(); }
+      if (b.burn > 0) {
+        // flames that flicker with the game clock
+        for (let k = 0; k < b.w + 1; k++) {
+          const f = 0.6 + 0.4 * Math.sin(S.t * 9 + k * 2.1 + b.id), x = px + (k + 0.5) * pw / (b.w + 1), h = ph * 0.55 * f;
+          c.fillStyle = 'rgba(232,110,40,.85)'; c.beginPath(); c.moveTo(x - 6, py + ph * 0.7); c.quadraticCurveTo(x, py + ph * 0.7 - h * 1.4, x + 6, py + ph * 0.7); c.fill();
+          c.fillStyle = 'rgba(250,210,90,.9)'; c.beginPath(); c.moveTo(x - 3, py + ph * 0.7); c.quadraticCurveTo(x, py + ph * 0.7 - h * 0.8, x + 3, py + ph * 0.7); c.fill();
+        }
+      }
+    }
+    for (const camp of S.camps) {
+      const x = camp.x * TS, y = camp.y * TS;
+      // a tent for every few raiders, and a red pennant
+      const tents = Math.max(1, Math.min(4, Math.round(camp.strength / 2.5)));
+      for (let k = 0; k < tents; k++) {
+        const tx = x + (k - (tents - 1) / 2) * 14, ty = y + (k % 2) * 5;
+        c.fillStyle = '#5b4a3a'; c.beginPath(); c.moveTo(tx - 7, ty + 6); c.lineTo(tx, ty - 7); c.lineTo(tx + 7, ty + 6); c.closePath(); c.fill();
+        c.strokeStyle = '#2a2018'; c.lineWidth = 1; c.stroke();
+      }
+      c.strokeStyle = '#2a2018'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, y - 7); c.lineTo(x, y - 20); c.stroke();
+      c.fillStyle = '#c0392b'; c.beginPath(); c.moveTo(x, y - 20); c.lineTo(x + 10, y - 16); c.lineTo(x, y - 12); c.fill();
+      const r = camp.raid;
+      if (r) for (let k = 0; k < r.n; k++) {
+        const ox = ((k % 3) - 1) * 5, oy = (Math.floor(k / 3) - 1) * 5;
+        c.fillStyle = '#b03a2e'; c.beginPath(); c.arc(r.x * TS + ox, r.y * TS + oy, 3.2, 0, 7); c.fill();
+        c.strokeStyle = '#1b1210'; c.lineWidth = 1; c.stroke();
+      }
     }
   }
 

@@ -5,7 +5,7 @@
  */
 import { parseDoc, type Doc } from './frontmatter.ts';
 import type { YamlMap, YamlValue } from './yaml.ts';
-import type { BlueprintDef, Content, EraDef, GoodDef, MapDef, MapSize, Stock, Tuning } from '../sim/types.ts';
+import type { BlueprintDef, Content, Hazard, EraDef, GoodDef, MapDef, MapSize, Stock, Tuning } from '../sim/types.ts';
 
 export interface SourceFile { path: string; raw: string }
 
@@ -26,7 +26,8 @@ export function fnv1a(s: string): string {
 
 const isMap = (v: YamlValue | undefined): v is YamlMap => !!v && typeof v === 'object' && !Array.isArray(v);
 /** Pressures a village can struggle with, and so invent its way out of. */
-const NEEDS = ['hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance'];
+const NEEDS = ['hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'fire', 'flood', 'sickness', 'raids'];
+const HAZARDS = ['fire', 'flood', 'sickness', 'raids'];
 const slug = (path: string) => path.replace(/^.*\//, '').replace(/\.md$/, '');
 
 export function buildContent(files: SourceFile[]): Content {
@@ -82,6 +83,7 @@ export function buildContent(files: SourceFile[]): Content {
     const nuisance = isMap(f.nuisance) ? f.nuisance : null;
     const bridge = isMap(f.bridge) ? f.bridge : null;
     const discovery = isMap(f.discovery) ? f.discovery : null;
+    const guards = isMap(f.guards) ? f.guards : null;
     const bp: BlueprintDef = {
       id,
       name: str(d, f.title, 'title'),
@@ -114,9 +116,11 @@ export function buildContent(files: SourceFile[]): Content {
       form: f.form === 'town' ? 'town' : f.form === 'village' ? 'village' : 'hamlet',
       bridge: bridge ? { maxSpan: num(d, bridge.max_span, 'bridge.max_span') } : null,
       nuisance: nuisance ? { radius: num(d, nuisance.radius, 'nuisance.radius'), amount: num(d, nuisance.amount, 'nuisance.amount') } : null,
+      guards: guards ? { hazard: str(d, guards.hazard, 'guards.hazard') as Hazard, radius: num(d, guards.radius, 'guards.radius'), defence: num(d, guards.defence, 'guards.defence', 0) } : null,
       discovery: discovery ? { need: str(d, discovery.need, 'discovery.need'), meanSeconds: num(d, discovery.mean_seconds, 'discovery.mean_seconds') } : null,
     };
     if (bp.discovery && !NEEDS.includes(bp.discovery.need)) problems.push(`${d.path}: discovery.need "${bp.discovery.need}" is not one of ${NEEDS.join(', ')}`);
+    if (bp.guards && !HAZARDS.includes(bp.guards.hazard)) problems.push(`${d.path}: guards.hazard "${bp.guards.hazard}" is not one of ${HAZARDS.join(', ')}`);
     if (bp.workers > 1) problems.push(`${d.path}: workers above 1 are not supported yet`);
     if (Object.keys(bp.output).length && bp.seconds <= 0) problems.push(`${d.path}: recipe.seconds must be above 0 when there is an output`);
     if (Object.keys(bp.output).length && !bp.workers) problems.push(`${d.path}: a recipe needs workers: 1`);
@@ -167,7 +171,7 @@ export function buildContent(files: SourceFile[]): Content {
     if (!isMap(d.data.tuning)) { problems.push(`${d.path}: needs a "tuning:" block`); return [d, {}]; }
     return [d, d.data.tuning];
   };
-  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people'), [ld2, lt2] = sys('settling');
+  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people'), [ld2, lt2] = sys('settling'), [hd, ht] = sys('hardship');
   const sizes: Record<string, MapSize> = {};
   for (const [id, v] of Object.entries(isMap(mt.sizes) ? mt.sizes : {})) {
     const m = isMap(v) ? v : {};
@@ -226,6 +230,14 @@ export function buildContent(files: SourceFile[]): Content {
       searchRadius: q('search_radius'), searchRadiusMax: q('search_radius_max'), gap: q('gap'), minTrees: q('min_trees'),
       treeWeight: q('tree_weight'), sharedTreeWeight: q('shared_tree_weight'), linkWeight: q('link_weight'), storeWeight: q('store_weight'), forestPenalty: q('forest_penalty'),
     },
+    hardship: (() => { const g = (k: string) => num(hd, ht[k], `tuning.${k}`); return {
+      fireEverySeconds: g('fire_every_seconds'), spreadGap: g('spread_gap'), spreadChance: g('spread_chance'), burnSeconds: g('burn_seconds'), douseSeconds: g('douse_seconds'), rebuildShare: g('rebuild_share'), fireLoss: g('fire_loss'), fireproof: Array.isArray(ht.fireproof) ? ht.fireproof.map(String) : [],
+      floodChance: g('flood_chance'), floodReach: g('flood_reach'), floodHeight: g('flood_height'), floodSeconds: g('flood_seconds'), floodLoss: g('flood_loss'),
+      sicknessEverySeconds: g('sickness_every_seconds'), sickAt: g('sick_at'), sickSeconds: g('sick_seconds'), sickSpreadGap: g('sick_spread_gap'), sickSpreadChance: g('sick_spread_chance'), sickDeath: g('sick_death'), healedSeconds: g('healed_seconds'), healedDeath: g('healed_death'), sickMood: g('sick_mood'),
+      wildDistance: g('wild_distance'), wildTilesPerCamp: g('wild_tiles_per_camp'), campEverySeconds: g('camp_every_seconds'), campStrength: g('camp_strength'), campGrowSeconds: g('camp_grow_seconds'), campMax: g('camp_max'), raidEverySeconds: g('raid_every_seconds'), raidReach: g('raid_reach'), raidSpeed: g('raid_speed'), raidTake: g('raid_take'), raidLoss: g('raid_loss'),
+      militiaShare: g('militia_share'), surprisedShare: g('surprised_share'), memorySeconds: g('memory_seconds'), guardWeight: g('guard_weight'),
+      rationFactor: g('ration_factor'), rationMood: g('ration_mood'), longPace: g('long_pace'), longMood: g('long_mood'), shortPace: g('short_pace'), shortMood: g('short_mood'), stayMood: g('stay_mood'), starveFactor: g('starve_factor'),
+    }; })(),
     knowledge: {
       haulTarget: k('haul_target'), haulSmoothingSeconds: k('haul_smoothing_seconds'), struggleSeverity: k('struggle_severity'), encourageFactor: k('encourage_factor'), encourageThreshold: k('encourage_threshold'),
       verifySeconds: k('verify_seconds'), forgetAfterSeconds: k('forget_after_seconds'), visitEverySeconds: k('visit_every_seconds'), visitMinVillagers: k('visit_min_villagers'),

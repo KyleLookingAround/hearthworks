@@ -3,6 +3,7 @@
 # Systems
 
 * [Ages](ages.md) - Eras group discoveries; a settlement's age is the latest era whose discoveries it mostly knows, and it falls back an age when it forgets them.
+* [Hardship](hardship.md) (draft) - Fire, flood, sickness and barbarian raids, the counters a settlement finds for each, and the steward's laws for hard times.
 * [Knowledge](knowledge.md) - Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 * [Logistics](logistics.md) - The job board — requests, offers, reservations, carriers and courier bots.
 * [Map](map.md) - Map types and sizes, seeded generation, the standard map, trees and regrowth.

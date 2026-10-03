@@ -14,11 +14,12 @@ import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
 import { bp, chronicle, ctr, demolish, door, emit, nearestTown, placeBridge, placeBuilding, seasonOf, villagers } from './world.ts';
 import { hasPlace } from './people.ts';
-import { ZONES, type BlueprintDef, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
+import { atRisk, guarded, struckLately, unguarded } from './hardship.ts';
+import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
 
-interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; learn?: 'library' | 'school' | 'university' }
+interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; learn?: 'library' | 'school' | 'university' }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
 interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
@@ -209,6 +210,13 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     const p = pressure(S, town, 'distance');
     if (p > 0 && sheds < want) shortages.push({ key: 'hauling', carts: true, sev: p * (1 - sheds / want), why: NEED_TEXT.distance });
   }
+  // hardship: struck lately by a hazard it knows a counter for, with buildings at risk no counter guards
+  if (S.hardship) for (const h of HAZARDS) {
+    if (!struckLately(S, town, h) || !known(S, town).some(B => B.guards?.hazard === h)) continue;
+    // like comforts, counters wait while bread is short: food first
+    const open = unguarded(S, town, h);
+    if (open > 0) shortages.push({ key: h, guard: h, sev: foodShort ? 0 : clamp01(open * S.content.tuning.hardship.guardWeight), why: NEED_TEXT[h] });
+  }
   // the player's priorities weigh each need
   for (const sh of shortages) sh.sev = clamp01(sh.sev * (town.levers.priority[sh.key] ?? 1));
   shortages.sort((a, b) => b.sev - a.sev);
@@ -251,6 +259,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.carts) return B.carts ? 1 : 0;
     if (sh.rite) return B.rite === L.town.custom ? 1 : 0;
     if (sh.learn) return B.learning === sh.learn ? 1 : 0;
+    if (sh.guard) return B.guards?.hazard === sh.guard ? 1 : 0;
     if (sh.store) return B.storage && (!B.keeps || B.keeps.includes('wheat')) ? clamp01((B.capacity || 300) / Math.max(1, L.storeNeed - L.storeRoom)) : 0;
     const add = B.seconds && B.output[sh.good!] ? B.output[sh.good!] / B.seconds : 0;
     const gap = Math.max(1e-6, (L.demand[sh.good!] || 0) - (L.supply[sh.good!] || 0));
@@ -376,6 +385,8 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
   const usersOf = (g: ItemId) => mine.filter(b => { const O = bp(S, b); return O.input[g] || O.keepStocked[g]; });
   const houses = mine.filter(b => bp(S, b).homes);
   const unreached = B.couriers ? mine.filter(b => !b.site && !covered(S, ctr(b))) : [];
+  // a counter goes where it guards buildings at risk that nothing guards yet
+  const exposed = B.guards ? mine.filter(b => atRisk(S, b, B.guards!.hazard) && !guarded(S, b, B.guards!.hazard)) : [];
   // a dock has to face water that reaches the nearest neighbour's shore
   const facing = B.shore ? waterFacing(S, town) : null;
   const near = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((m, b) => Math.min(m, Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y)), Infinity);
@@ -462,6 +473,11 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
       const reach = unreached.filter(b => Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y) <= B.couriers!.radius).length;
       if (!reach) continue;
       s -= P.coverWeight * reach;
+    }
+    if (B.guards) {
+      const n = exposed.filter(b => Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y) <= B.guards!.radius).length;
+      if (!n) continue;
+      s -= P.coverWeight * n;
     }
     scored.push({ x, y, s });
   }

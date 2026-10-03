@@ -14,14 +14,14 @@ okf_version: "0.2"
 
 # Sections
 
-* [blueprints](blueprints/) - Bakery, Brickworks, Bridge, Cart Shed, 26 more
+* [blueprints](blueprints/) - Bakery, Brickworks, Bridge, Cart Shed, 31 more
 * [decisions](decisions/) - 0001: Keep design knowledge as an OKF bundle, 0002: Deterministic, DOM-free simulation core, 0003: Plain TypeScript, no bundler yet, 0004: Gates may be reworked as the game grows
 * [eras](eras/) - The Age of Clockwork, The Age of Hand Tools, The Age of Letters, The Age of Wheel and Keel
-* [gates](gates/) - Gate 1: a plank with no player clicks, Gate 2: the town grows and stays fed, Gate 3: bots carry a real share, Gate 4: the village plans its own town, 15 more
+* [gates](gates/) - Gate 1: a plank with no player clicks, Gate 2: the town grows and stays fed, Gate 3: bots carry a real share, Gate 4: the village plans its own town, 16 more
 * [goods](goods/) - Bread, Bricks, Clay, Cloth, 10 more
 * [maps](maps/) - Archipelago, Coast, Lone isle, Islands, 1 more
 * [references](references/) - attesters/, scenarios/, skills/
-* [systems](systems/) - Ages, Knowledge, Logistics, Map, 9 more
+* [systems](systems/) - Ages, Hardship, Knowledge, Logistics, 10 more
 
 # History
 

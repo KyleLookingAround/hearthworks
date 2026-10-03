@@ -86,6 +86,7 @@ export function sendParty(S: State, mother: Town): Town | null {
   d.custom = mother.custom;
   d.mother = mother.id;
   d.levers = { priority: { ...mother.levers.priority }, encourage: null, pace: mother.levers.pace };
+  d.laws = { ...mother.laws };
   mother.sentAt = S.t;
   for (const a of party) { a.path = []; a.state = 'idle'; goToBuilding(S, a, yard); }
   // across the water: a colony

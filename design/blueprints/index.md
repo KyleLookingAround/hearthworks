@@ -16,10 +16,13 @@
 * [Forester](forester.md) - Fells grown trees within five tiles and plants saplings so the woods come back.
 * [Granary](granary.md) - A stone store for food: keeps grain, bread, fish and flax from spoiling.
 * [Graveyard](graveyard.md) - Where a village that buries its dead lays them to rest. It takes land, fills with the years, and is never built over.
+* [Healer's House](healer.md) (draft) - A healer tends the sick nearby, so sickness passes sooner, spreads no further and takes fewer lives.
 * [Cottage](house.md) - A small home for three villagers on a roomy plot, the first rung of the ladder of homes. Keeps a small stock of bread on the shelf.
+* [Levee](levee.md) (draft) - An earth bank that keeps the rising waters off the low land behind it.
 * [Library](library.md) - Holds the settlement's knowledge in the world, so nothing on its shelves is forgotten; its scribe copies records for the neighbours.
 * [Mason](mason.md) - Dresses two rough stones into one block of cut stone.
 * [Mine](mine.md) - Digs iron ore from an iron deposit within three tiles.
+* [Palisade](palisade.md) (draft) - A stake wall and gate that guards the stores against raiders.
 * [Pyre](pyre.md) - Where a village that cremates its dead burns them. Every farewell burns logs, so a timber-poor village feels it.
 * [Quarry](quarry.md) - Cuts rough stone from a stone deposit within three tiles.
 * [Road](road.md) - Paved tiles. Villagers walk faster on roads.
@@ -31,4 +34,6 @@
 * [Terrace](terrace.md) - A row of small homes for twelve villagers on a 4 by 2 plot, built facing a street; towns build them in rows.
 * [University](university.md) - Scholars pursue lines of inquiry, so a town comes up with new ideas faster under strain.
 * [Warehouse](warehouse.md) - A brick store with room for six hundred goods.
+* [Watchtower](watchtower.md) (draft) - A lookout on watch sees raiders coming, so the whole militia musters to meet them.
 * [Weaver](weaver.md) - Weaves two bundles of flax into a bolt of cloth.
+* [Well](well.md) (draft) - Water for a fire crew mustered from the neighbours, who put out a fire within reach quickly, before it spreads.

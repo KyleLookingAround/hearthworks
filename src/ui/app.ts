@@ -2,7 +2,7 @@
 import { surroundings } from '../sim/surroundings.ts';
 import { homeTier } from '../sim/production.ts';
 import { formOf, hubs } from '../sim/planner.ts';
-import { ZONES, advise, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
 
@@ -56,7 +56,7 @@ export class App {
   }
 
   newGame(c: GameChoice) {
-    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, trade: c.trade !== false, people: c.people !== false, carts: c.carts !== false, settlers: c.settlers !== false, settlements: c.settlements, map: c.map, size: c.size }));
+    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, trade: c.trade !== false, people: c.people !== false, carts: c.carts !== false, settlers: c.settlers !== false, hardship: c.hardship !== false, settlements: c.settlements, map: c.map, size: c.size }));
     this.save();
   }
 
@@ -425,12 +425,16 @@ export class App {
     // trade so far: the three biggest of each way, in whole loads
     const top = (r: Record<string, number>) => Object.entries(r).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([g, n]) => `${n} ${(this.content.goods[g]?.name ?? g).toLowerCase()}`).join(', ');
     const trade = S.trade && S.towns.length > 1 ? [top(t.trade.exported) || 'nothing yet', top(t.trade.imported) || 'nothing yet'] : null;
-    const key = JSON.stringify([t.id, t.levers, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.rites.length, t.age]);
+    // hardship: the defence at its first yard against raiders, and camps in reach
+    const D = S.hardship ? defence(S, t) : null, near = S.hardship ? S.camps.filter(c => { const y = S.bmap.get(t.store); return !!y && Math.hypot(c.x - y.x, c.y - y.y) <= this.content.tuning.hardship.raidReach; }).length : 0;
+    const guard = D ? [Math.round(D.total), D.warned, near] : null;
+    const key = JSON.stringify([t.id, t.levers, t.laws, guard, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.rites.length, t.age]);
     if (!force && key === this.stewardKey) return;
     this.stewardKey = key;
     const needs: [string, string][] = [
       ['bread', 'Bread'], ['wheat', 'Wheat'], ['planks', 'Planks'], ['logs', 'Logs'], ['beds', 'Homes for newcomers'],
       ['hauling', 'Hauling'], ['crossing', 'Reaching the neighbours'], ['detours', 'Getting across water'],
+      ...(S.hardship ? [['fire', 'Guarding against fire'], ['flood', 'Holding back floods'], ['sickness', 'Tending the sick'], ['raids', 'Defence against raiders']] as [string, string][] : []),
     ];
     const levels: [number, string][] = [[0.5, 'Low'], [1, 'Normal'], [2, 'High'], [4, 'First']];
     const sel = (id: string, v: number, opts: [number, string][]) => `<select data-lever="${id}">${opts.map(([n, l]) => `<option value="${n}"${n === v ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
@@ -439,6 +443,11 @@ export class App {
     html += '<div class="steward-grid">' + needs.map(([k, label]) => `<span>${label}</span>${sel('p:' + k, t.levers.priority[k] ?? 1, levels)}`).join('');
     html += `<span>Encourage thinking about</span><select data-lever="encourage"><option value="">Nothing in particular</option>${unknown.map(B => `<option value="${B.id}"${t.levers.encourage === B.id ? ' selected' : ''}>${esc(B.name)}</option>`).join('')}</select>`;
     html += `<span>Pace</span>${sel('pace', t.levers.pace, [[0.5, 'Unhurried'], [1, 'Normal'], [2, 'Brisk']])}</div>`;
+    // the laws for hard times
+    html += `<div class="steward-grid"><span>Rationing</span><select data-law="rationing"><option value="0"${t.laws.rationing ? '' : ' selected'}>Eat as usual</option><option value="1"${t.laws.rationing ? ' selected' : ''}>Ration food</option></select>`;
+    html += `<span>Working hours</span><select data-law="hours">${(['short', 'normal', 'long'] as const).map(h => `<option value="${h}"${t.laws.hours === h ? ' selected' : ''}>${{ short: 'Short', normal: 'Normal', long: 'Long' }[h]}</option>`).join('')}</select>`;
+    html += `<span>The hungry</span><select data-law="leave"><option value="1"${t.laws.leave ? ' selected' : ''}>May leave</option><option value="0"${t.laws.leave ? '' : ' selected'}>Must stay</option></select></div>`;
+    if (guard) html += `<div class="steward-grid"><span>Defence</span><span>${guard[0]}${guard[1] ? ', a lookout on watch' : ', no lookout'}</span><span>Camps in reach</span><span>${guard[2] || 'none'}</span></div>`;
     html += `<div class="steward-grid"><span>Age</span><span>${esc(this.content.eras[t.age]?.name ?? '')}</span></div>`;
     if (S.people) {
       const word = { burial: 'Burial', cremation: 'Cremation', ship: 'Ship burial' }[t.custom];
@@ -454,6 +463,13 @@ export class App {
       if (id === 'encourage') t.levers.encourage = s.value || null;
       else if (id === 'pace') t.levers.pace = Number(s.value);
       else t.levers.priority[id.slice(2)] = Number(s.value);
+      this.renderSteward(true);
+    }));
+    document.querySelectorAll<HTMLSelectElement>('#stewardBody [data-law]').forEach(s => s.addEventListener('change', () => {
+      const id = s.dataset.law!;
+      if (id === 'rationing') t.laws.rationing = s.value === '1';
+      else if (id === 'leave') t.laws.leave = s.value === '1';
+      else t.laws.hours = s.value as typeof t.laws.hours;
       this.renderSteward(true);
     }));
   }
@@ -593,10 +609,12 @@ export class App {
         rows += row('On the shelves', shelf.length ? '' : 'nothing yet beyond what the founders knew');
         for (const [id, k] of shelf) rows += row(this.content.blueprints[id]?.name ?? id, `by ${k.by}` + (k.from ? `, from ${k.from}` : '') + `; proven by ${k.verified.length}`);
       } else if (B.learning) rows += row('Work', B.learning === 'school' ? 'Teaching the children' : 'Pursuing lines of inquiry');
-      else rows += row('Cycle', `${B.seconds}s each`);
+      else if (!B.guards) rows += row('Cycle', `${B.seconds}s each`);
       if (B.tools) rows += row('Tools', (b.inv.tools || 0) >= 1 ? `${n0(b.inv.tools)}: working ${B.tools.speedup}× as fast` : 'none: slower work');
       progress = B.seconds ? b.timer / B.seconds : 0;
     }
+    // a counter: what it guards against and how far
+    if (B.guards) rows += row('Guards against', `${({ fire: 'fire', flood: 'floods', sickness: 'sickness', raids: 'raiders' })[B.guards.hazard]} within ${B.guards.radius} tiles` + (B.guards.defence ? `; defence ${B.guards.defence}` : ''));
     const pct = progress === null ? null : Math.round(Math.max(0, Math.min(1, progress)) * 100);
     $('#insDyn').innerHTML = `<div class="ins-body"><span class="status ${b.status.l}">${esc(b.status.t)}</span><dl class="rows">${rows}</dl>${pct === null ? '' : `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div>`}</div>`;
   }

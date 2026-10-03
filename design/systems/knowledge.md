@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T20:47:55Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T21:28:49Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -50,6 +50,8 @@ Three buildings keep and grow knowledge (Phase 15):
 - A [University](/blueprints/university.md) with a scholar makes invention `university_factor` times as fast, on top of the steward's encouragement. It is thought of under `inquiry`: the settlement's strongest strain on the need of a blueprint it does not know.
 
 The planner wants a library while it holds knowledge beyond its founders', a school once there are `school_children` children, and a university in a town that knows of one, each at `learning_weight`.
+
+With [hardship](/systems/hardship.md) on, the needs `fire`, `flood`, `sickness` and `raids` are full for `memory_seconds` after the hazard last struck the settlement, and lead to its counters: the [Well](/blueprints/well.md), [Levee](/blueprints/levee.md), [Healer's House](/blueprints/healer.md), [Watchtower](/blueprints/watchtower.md) and [Palisade](/blueprints/palisade.md).
 
 The need `distance` (with carts on) grows from 0 when a settlement's deliveries average `distance_from` tiles to 1 at `distance_span` more, the average smoothed over about `reach_smoothing` deliveries.
 

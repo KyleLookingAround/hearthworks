@@ -10,3 +10,4 @@ export { saveGame, loadGame, migrate, SAVE_VERSION, type SaveFile } from './save
 export { chronicleLog, advise } from './steward.ts';
 export { chronicle } from './world.ts';
 export { seasonOf, foodsOf, type Season } from './world.ts';
+export { defence, guarded, unguarded, atRisk, wildLand, ignite, strike } from './hardship.ts';

@@ -106,3 +106,17 @@ test('a game with people saves and loads with ages, skills and customs', () => {
   assert.equal(back.towns[0].custom, S.towns[0].custom);
   assert.equal(back.prng.s, S.prng.s);
 });
+
+test('a version 15 save is upgraded to version 16: hardship off, no camps, laws as usual, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v15.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 15);
+  const S = loadGame(content, file);
+  assert.equal(S.hardship, false);
+  assert.deepEqual(S.camps, []);
+  assert.deepEqual(S.towns[0].laws, { rationing: false, hours: 'normal', leave: true });
+  assert.ok(S.buildings.every(b => b.burn === 0 && b.flood === 0 && b.sick === 0));
+  assert.equal(S.stats.fires, 0);
+  runFor(S, 60);
+  assert.equal(S.stats.fires + S.stats.raids, 0);
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});

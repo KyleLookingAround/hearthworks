@@ -77,6 +77,9 @@ const itemsText = (S: State, items: string[]) => items.map(k => S.content.goods[
 
 export function updateBuilding(S: State, b: Building, dt: number) {
   run(S, b, dt);
+  if (b.burn > 0) setStatus(b, 'On fire!', 'bad');
+  else if (b.flood > 0) { b.flood = Math.max(0, b.flood - dt); setStatus(b, 'Flooded: the water stands in it', 'bad'); }
+  else if (b.sick > 0) setStatus(b, 'Sickness in the house', 'bad');
   if (b.noWay !== null && S.t - b.noWay < S.content.tuning.logistics.noWayRetrySeconds) setStatus(b, 'No way in: nobody can walk to its door', 'bad');
 }
 
@@ -99,8 +102,9 @@ function run(S: State, b: Building, dt: number) {
   if (B.homes) {
     const r = b.residents.length;
     if (!r) { setStatus(b, 'Empty, waiting for newcomers', 'wait'); return; }
-    const food = Object.keys(B.keepStocked)[0], foods = foodsOf(S, b);
-    b.eat += (dt * r) / T.needs.eatEverySeconds;
+    const food = Object.keys(B.keepStocked)[0], foods = foodsOf(S, b), laws = S.towns[b.town]?.laws;
+    // rationing: everyone eats less often
+    b.eat += (dt * r) / (T.needs.eatEverySeconds * (laws?.rationing ? T.hardship.rationFactor : 1));
     if (b.eat >= 1) {
       // bread first, then preserved food
       const meal = foods.find(f => (b.inv[f] || 0) >= 1);
@@ -114,10 +118,13 @@ function run(S: State, b: Building, dt: number) {
     }
     if (b.hunger > 0) {
       setStatus(b, `Out of ${itemsText(S, [food])}`, 'bad');
-      if (b.hunger > T.needs.leaveAfterHungrySeconds) {
+      // the hungry leave, unless the law keeps them: then, after `starve_factor` times as long, one dies
+      const stay = laws && !laws.leave;
+      if (b.hunger > T.needs.leaveAfterHungrySeconds * (stay ? T.hardship.starveFactor : 1)) {
         const people = b.residents.map(id => S.amap.get(id)).filter(a => !!a);
         const leaver = people.find(a => a.role === 'carrier') ?? people[0];
-        if (leaver) { removeAgent(S, leaver); S.stats.departures++; emit(S, 'bad', `A villager left: no ${itemsText(S, [food])} at home`); }
+        if (leaver && stay) { removeAgent(S, leaver); S.stats.deaths++; S.stats.starved++; if (S.people) S.towns[b.town].rites.push(S.t); emit(S, 'bad', `A villager starved: no ${itemsText(S, [food])} at home, and the law forbids leaving`); }
+        else if (leaver) { removeAgent(S, leaver); S.stats.departures++; emit(S, 'bad', `A villager left: no ${itemsText(S, [food])} at home`); }
         b.hunger = 0; b.eat = 0;
       }
     } else if (!foods.some(f => (b.inv[f] || 0) > 0)) setStatus(b, `Last of the ${itemsText(S, [food])} eaten`, 'warn');
@@ -130,7 +137,7 @@ function run(S: State, b: Building, dt: number) {
   }
 
   if (!B.workers) {
-    setStatus(b, B.couriers ? `${b.bots.length} bots hauling` : 'Open', 'ok');
+    setStatus(b, B.couriers ? `${b.bots.length} bots hauling` : B.guards ? ({ fire: 'Ready for fire', flood: 'Holding the water back', sickness: 'Keeping the sick apart', raids: 'Standing guard' })[B.guards.hazard] : 'Open', 'ok');
     return;
   }
   if (B.harvest?.replant && !b.paused) {
@@ -138,10 +145,16 @@ function run(S: State, b: Building, dt: number) {
     if (b.plantT >= T.production.replantEverySeconds) { b.plantT = 0; replant(S, b, B.harvest.radius); }
   }
   if (b.paused) { setStatus(b, 'Paused', 'wait'); return; }
+  // nothing is made in a building on fire or under water
+  if (b.burn > 0 || b.flood > 0) return;
   // in winter the fields rest and their workers go carrying
   if (B.seasonal && seasonOf(S) === 'winter') { if (b.worker !== null) release(S, b); setStatus(b, 'Winter: the fields rest', 'wait'); return; }
   const w = b.worker !== null ? S.amap.get(b.worker) : undefined;
   if (!w || w.state !== 'working') { setStatus(b, w ? 'Worker on the way' : 'No worker free', w ? 'wait' : 'bad'); return; }
+  // a worker from a sick home stays in bed
+  if (w.home && w.home.sick > 0) { setStatus(b, 'Its worker is sick in bed', 'bad'); return; }
+  // counters have no recipe: their worker stands ready
+  if (B.guards) { setStatus(b, { fire: 'The fire crew stands ready', flood: 'Holding the water back', sickness: 'The healer is in', raids: 'A lookout on watch' }[B.guards.hazard], 'ok'); return; }
   // places of learning have no recipe: their worker keeps, teaches or studies
   if (B.learning) { setStatus(b, { library: 'A scribe at work', school: 'Lessons under way', university: 'Scholars at their inquiries' }[B.learning], 'ok'); return; }
   const lacking = Object.keys(B.input).filter(k => (b.inv[k] || 0) < B.input[k]);
@@ -161,7 +174,9 @@ function run(S: State, b: Building, dt: number) {
   // tools speed the work up, and wear out
   const tooled = !!B.tools && (b.inv.tools || 0) >= 1;
   setStatus(b, tooled ? 'Working, with tools' : 'Working', 'ok');
-  b.timer += dt * (tooled ? B.tools!.speedup : 1) * skillPace(S, w, b);
+  // working hours, by law
+  const hours = S.towns[b.town]?.laws.hours, pace = hours === 'long' ? T.hardship.longPace : hours === 'short' ? T.hardship.shortPace : 1;
+  b.timer += dt * (tooled ? B.tools!.speedup : 1) * skillPace(S, w, b) * pace;
   if (b.timer >= B.seconds) {
     b.timer = 0;
     if (tooled && ++b.wear >= B.tools!.wearCycles) { b.wear = 0; add(b.inv, 'tools', -1); }

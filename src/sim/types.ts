@@ -77,8 +77,27 @@ export interface BlueprintDef {
   bridge: { maxSpan: number } | null;
   /** Bothers homes within `radius`: their surroundings lose `amount`. */
   nuisance: { radius: number; amount: number } | null;
+  /** Answers a hardship (fire, flood, sickness, raids) for buildings within `radius`; `defence` against raiders (watchtowers and palisades). */
+  guards: { hazard: Hazard; radius: number; defence: number } | null;
   /** Not known at the start: a village invents it while it struggles with `need`. Null for founding knowledge. */
   discovery: { need: string; meanSeconds: number } | null;
+}
+
+/** The hardships a settlement can be struck by. */
+export type Hazard = 'fire' | 'flood' | 'sickness' | 'raids';
+export const HAZARDS: Hazard[] = ['fire', 'flood', 'sickness', 'raids'];
+
+/** The steward's laws for one settlement: rationing, working hours, and whether the hungry may leave. */
+export interface Laws { rationing: boolean; hours: 'short' | 'normal' | 'long'; leave: boolean }
+
+/** A barbarian camp in the wilds, and the raiding party it has out, if any. */
+export interface Camp {
+  id: number; x: number; y: number;
+  /** How many raiders it can send. */
+  strength: number;
+  /** Seconds until it next raids. */
+  raidT: number;
+  raid: { town: number; path: [number, number][]; x: number; y: number; n: number; back: boolean; loot: number } | null;
 }
 
 /** A map size: `label` is what the player sees; sizes with `offered: false` exist for the gates only. */
@@ -134,6 +153,15 @@ export interface Tuning {
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
   planner: PlannerTuning;
+  hardship: {
+    fireEverySeconds: number; spreadGap: number; spreadChance: number; burnSeconds: number; douseSeconds: number; rebuildShare: number; fireLoss: number; fireproof: ItemId[];
+    floodChance: number; floodReach: number; floodHeight: number; floodSeconds: number; floodLoss: number;
+    sicknessEverySeconds: number; sickAt: number; sickSeconds: number; sickSpreadGap: number; sickSpreadChance: number; sickDeath: number; healedSeconds: number; healedDeath: number; sickMood: number;
+    wildDistance: number; wildTilesPerCamp: number; campEverySeconds: number; campStrength: number; campGrowSeconds: number; campMax: number; raidEverySeconds: number; raidReach: number; raidSpeed: number; raidTake: number; raidLoss: number;
+    militiaShare: number; surprisedShare: number;
+    memorySeconds: number; guardWeight: number;
+    rationFactor: number; rationMood: number; longPace: number; longMood: number; shortPace: number; shortMood: number; stayMood: number; starveFactor: number;
+  };
   knowledge: {
     haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number; encourageFactor: number; encourageThreshold: number;
     verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number; visitMinVillagers: number;
@@ -238,6 +266,10 @@ export interface Building {
   noWay: number | null;
   /** Where its door is, when not the middle of its bottom row: a bridge's door is the near bank. */
   doorAt: { x: number; y: number } | null;
+  /** Hardship: seconds left burning, flooded, and (a home) sick; 0 when none. */
+  burn: number;
+  flood: number;
+  sick: number;
 }
 
 export type AgentState = 'idle' | 'wander' | 'toSrc' | 'toDst' | 'toWork' | 'working' | 'visit';
@@ -340,6 +372,9 @@ export interface Town {
   overseas: boolean;
   /** Its age: the index of the latest era it has reached in content.eras. */
   age: number;
+  /** The steward's laws, and when each hardship last struck it (game time). */
+  laws: Laws;
+  struck: Record<string, number>;
   sentAt: number;
   settleT: number;
 }
@@ -431,6 +466,8 @@ export interface Stats {
   invented: number;
   taught: number;
   forgotten: number;
+  /** Hardship: each kind struck, buildings burnt out, raids beaten off, goods raiders took, and people lost to sickness and hunger with leaving forbidden. */
+  fires: number; burnt: number; floods: number; outbreaks: number; raids: number; repelled: number; looted: number; sickDeaths: number; starved: number; camps: number;
 }
 
 export interface State {
@@ -469,6 +506,14 @@ export interface State {
   newcomers: boolean;
   /** Separate stream for births, lifespans and the like, so people never shift the rest of the world. */
   prng: Rng;
+  /** Hardship on: fire, flood, sickness and barbarians strike, and the laws can be set. */
+  hardship: boolean;
+  /** Separate stream for hardship, so hazards never shift the rest of the world. */
+  hrng: Rng;
+  /** Barbarian camps in the wilds. */
+  camps: Camp[];
+  /** Seconds since the wilds were last looked over for a new camp. */
+  campT: number;
   /** Each settlement's history as it happens: what the chronicle and its OKF export show. */
   chronicle: Chronicle[];
   /** Separate stream for discovery, so knowledge never shifts the main simulation's random numbers. */

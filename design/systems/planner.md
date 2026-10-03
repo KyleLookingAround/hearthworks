@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T19:35:38Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T21:28:49Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -140,6 +140,10 @@ When a settlement's stores (those that take anything) hold `store_full_share` of
 # People
 
 With [people](/systems/people.md) on, the dead waiting with no place for the settlement's custom make it plan one (a graveyard, another when that is full, a pyre, a dock), and a settlement short of what a workplace makes moves a worker onto it, as a hungry one does for its food chain.
+
+# Hardship
+
+With [hardship](/systems/hardship.md) on, a settlement struck by a hazard within `memory_seconds` that knows a counter for it wants one while anything the hazard threatens stands unguarded: severity `guard_weight` times the unguarded share, zero while bread is short (food first, as for comforts). It sites the counter where it guards the most unguarded buildings at risk, as it sites a depot where its bots reach the most. Each hazard is also a priority in the Steward panel.
 
 # Learning
 

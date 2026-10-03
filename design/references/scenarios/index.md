@@ -7,6 +7,7 @@
 * [couriers.ts](couriers.ts)
 * [deeper-economy.ts](deeper-economy.ts)
 * [first-plank.ts](first-plank.ts)
+* [hardship.ts](hardship.ts)
 * [knowledge-spreads.ts](knowledge-spreads.ts)
 * [learning.ts](learning.ts)
 * [lie-of-the-land.ts](lie-of-the-land.ts)

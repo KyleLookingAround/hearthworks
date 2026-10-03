@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T20:47:55Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T21:29:04Z }
 ---
 
 # How to read this
@@ -36,10 +36,10 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 17 | New settlements | Crowded towns send settlers off with goods, knowledge and customs | 16 | [Gate 17](/gates/17-new-settlements.md) | Done |
 | 18 | The sea | The archipelago map type, ports, ships, exploration, colonies | 13, 17 | [Gate 18](/gates/18-the-sea.md) | Done |
 | 19 | Ages | Eras of technology, machine tiers, crafts lost | 15, 18 | [Gate 19](/gates/19-ages.md) | Done |
-| 20 | Hardship | Fire, flood, sickness, barbarians and their counters; hard laws | 12, 17, 19 | A town weathers each hazard and three winters | Later |
-| 21 | Paths and roads | Worn paths become paths; roads are planned as long straight strips, cut through what stands, and the town is planned around them | 9, 16 | A town's main roads run straight through it, and travel along them beats the paths | Later |
+| 20 | Hardship | Fire, flood, sickness, barbarians and their counters; hard laws | 12, 17, 19 | [Gate 20](/gates/20-hardship.md) | Done |
+| 21 | Paths and roads | Worn paths become paths; roads are planned as long straight strips, cut through what stands, and the town is planned around them | 9, 16 | A town's main roads run straight through it, and travel along them beats the paths | Next |
 
-Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to 10), **depth of life** (11 to 15: goods, seasons, trade, people and learning), **many peoples** (16 to 18) and **ages and trials** (19 and 20).
+Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to 10), **depth of life** (11 to 15: goods, seasons, trade, people and learning), **many peoples** (16 to 18), **ages and trials** (19 and 20), and **the shape of roads** (21).
 
 # Principles for every phase
 
@@ -320,6 +320,12 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
   - Each counter is discovered under its strain.
 - **The remaining laws** for the steward: rationing, working hours, who may leave.
 
+**Delivered, in part.** [Hardship](/systems/hardship.md), on in new games and off in older scenarios, with its own random stream (`S.hrng`). Fire guts wooden buildings (rebuilt at half their cost) and jumps along rows built wall to wall, answered by the [Well](/blueprints/well.md) and a fire crew from the neighbours; each spring the waters rise over low land by the shore, answered by the [Levee](/blueprints/levee.md); sickness spreads home to home in settlements of 30 or more, answered by the [Healer's House](/blueprints/healer.md); barbarian camps are pitched in wild land far from every settlement (one per 3000 tiles of it) and raid the nearest first storage yard, answered by the [Watchtower](/blueprints/watchtower.md) (whose lookout musters the whole militia), the [Palisade](/blueprints/palisade.md), a militia of a fifth of the grown villagers, and settling the wilds, which breaks camps up. Each counter is thought of while its hazard is fresh in memory, and the planner sites it where it guards the most. The laws: rationing, working hours and whether the hungry may leave, per settlement in the Steward panel. Saves go to version 16. **Phase 20 is done in part:** sanitation, and trading with or settling barbarians, wait for later.
+
+**Kyle's call, answered for now.** Fire damages: a burnt-out building stands gutted and is rebuilt at `rebuild_share` of its cost; a storage yard loses what burnt and stands.
+
+**Gate 20 (stable)**, as proposed, on Landmass M (the standard island is settled to its shores in ten minutes, so no wild land is left for camps, and it has no rivers): three winters, each kind of hazard at least once (any that has not come of itself by the second summer is brought down once), at most 10% of the people lost; rationing saves people in a lean winter (food cut to a quarter at the first frost). Added: a counter for each kind built, and a raid beaten off.
+
 **Gate 20 (proposed).** A planned town weathers one hazard of each kind (barbarian raids among them) and three winters, losing at most 10% of its people. In a paired scenario, rationing brings a town through a lean winter that kills or drives off more people without it.
 
 **Kyle's call.** Can fire destroy buildings for good, or only damage them?
@@ -340,7 +346,7 @@ Kyle's idea. **Why.** Today's "roads" are desire paths: worn where people walk, 
 
 Kyle's call: once Phases 20 and 21 are built, the roadmap is walked again from Phase 1, giving each phase depth and polish rather than new systems. In particular:
 
-- **What was delivered in part:** ox carts, river boats and multi-leg deliveries (16); shipyards, crewed ships, reefs and explorers (18); eras that unlock blueprints, conveyors and rail (19); planners as people and traditions beyond the dead (14); reading from libraries and discoveries that need a university (15).
+- **What was delivered in part:** ox carts, river boats and multi-leg deliveries (16); shipyards, crewed ships, reefs and explorers (18); eras that unlock blueprints, conveyors and rail (19); planners as people and traditions beyond the dead (14); reading from libraries and discoveries that need a university (15); sanitation, and trading with or settling barbarians (20).
 - **Gates held below their proposals:** trade that beats isolation and real specialisation (13), half of long deliveries by cart against Gate 8's baseline (16); and the seeds logged as findings (Gate 12 seeds 42 and 2026, Gate 14 seed 2026, Gate 18 seeds 7 and 99).
 - **Polish:** how each system reads and feels in the game (inspector lines, overlays, chronicle wording, the advisor), the new-game screen's growing list of options, and performance on the largest maps with every system on.
 
