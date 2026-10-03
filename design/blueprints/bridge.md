@@ -6,7 +6,7 @@ tags: [logistics, water]
 status: stable
 generated: { by: claude/opus-5.5, at: 2026-10-03T14:48:56Z }
 color: "#9a7448"
-order: 9
+order: 29
 size: [1, 1]
 cost: { planks: 12 }
 bridge: { max_span: 6 }

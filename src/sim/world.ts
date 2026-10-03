@@ -88,7 +88,7 @@ function generateWorld(M: MapDef, W: number, H: number, S: State): World {
  */
 function placeDeposits(w: World, M: MapDef, seed: number) {
   const r = makeRng(seed ^ 0x6465706f), W = w.w, H = w.h, D = M.deposits;
-  const soil = valueNoise(r, 7, W, H), rock = valueNoise(r, 5, W, H), mud = valueNoise(r, 4, W, H), shoal = valueNoise(r, 6, W, H);
+  const soil = valueNoise(r, 7, W, H), rock = valueNoise(r, 5, W, H), mud = valueNoise(r, 4, W, H), shoal = valueNoise(r, 6, W, H), ore = valueNoise(r, 5, W, H);
   const near = (x: number, y: number, g: number, R: number) => {
     for (let j = -R; j <= R; j++) for (let k = -R; k <= R; k++) { const xx = x + k, yy = y + j; if (xx >= 0 && yy >= 0 && xx < W && yy < H && w.ground[yy * W + xx] === g) return true; }
     return false;
@@ -102,6 +102,8 @@ function placeDeposits(w: World, M: MapDef, seed: number) {
     else if (g === 2 && !M.mountains && keep(rock(x, y), D.stone)) w.deposit[i] = 2;
     else if (g && g !== 3 && near(x, y, 0, 1) && keep(mud(x, y), D.clay)) w.deposit[i] = 3;
     else if (!g && near(x, y, 2, 3) && keep(shoal(x, y), D.fish)) w.deposit[i] = 4;
+    // iron: veins in rock, and small outcrops in grass where there are no mountains (drawn last, so the rest stay put)
+    if (((g === 3 && keep(ore(x, y), 0.3)) || (g === 2 && !M.mountains && keep(ore(x, y), D.iron))) && w.deposit[i] !== 4) w.deposit[i] = 5;
   }
 }
 
@@ -191,7 +193,7 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   const S = {
     content, seed, rng: makeRng(seed), krng: makeRng(seed ^ 0x6b6e6f77), t: 0, buildings: [], agents: [], bmap: new Map(), amap: new Map(), nextId: 1,
     mood: 1, fed: 1, migT: 0, secT: 0, events: [], towns: [], chronicle: [],
-    stats: { made: {}, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0 },
+    stats: { made: {}, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, spoiled: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0 },
   } as unknown as State;
   const mt = content.tuning.map;
   const mapId = opts.map ?? mt.standardType, sizeId = opts.size ?? mt.standardSize;
@@ -354,7 +356,7 @@ export function placeBuilding(S: State, type: string, x: number, y: number, comp
   if (B.paves) { const i = y * w.w + x; w.road[i] = 1; w.tree[i] = 0; return null; }
   const b: Building = {
     id: S.nextId++, type, x, y, w: B.w, h: B.h, site: !complete, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0, waiting: {}, noWay: null, doorAt: null,
+    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0, waiting: {}, noWay: null, doorAt: null, extra: 0, wear: 0,
   };
   for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; w.road[i] = 0; }
   setDoor(S, b, true);
@@ -372,7 +374,7 @@ export function placeBridge(S: State, x: number, y: number, w: number, h: number
   const W = S.world;
   const b: Building = {
     id: S.nextId++, type: 'bridge', x, y, w, h, site: true, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town, used: 0, waiting: {}, noWay: null, doorAt: { ...from },
+    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town, used: 0, waiting: {}, noWay: null, doorAt: { ...from }, extra: 0, wear: 0,
   };
   for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) W.bgrid[j * W.w + k] = b.id;
   for (const p of [from, to]) W.front[p.y * W.w + p.x]++;

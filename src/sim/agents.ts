@@ -94,8 +94,20 @@ export function updateAgent(S: State, a: Agent, dt: number) {
   }
 }
 
+/** The goods homes eat, and every good that goes into making them. */
+function foodChain(S: State): Set<string> {
+  const out = new Set<string>();
+  for (const B of Object.values(S.content.blueprints)) if (B.homes) { const f = Object.keys(B.keepStocked)[0]; if (f) out.add(f); }
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const B of Object.values(S.content.blueprints)) if (Object.keys(B.output).some(g => out.has(g))) for (const i in B.input) if (!out.has(i)) { out.add(i); grew = true; }
+  }
+  return out;
+}
+
 /** Give each staffed building a worker from its own settlement, keeping one carrier there until it has bots. */
 export function assignWorkers(S: State) {
+  const essential = foodChain(S);
   for (const b of S.buildings) {
     if (!bp(S, b).workers || b.site || b.worker) continue;
     if (b.noWay !== null && S.t - b.noWay < S.content.tuning.logistics.noWayRetrySeconds) continue;
@@ -105,6 +117,11 @@ export function assignWorkers(S: State) {
     // someone who has just found they cannot get anywhere waits out that long cool-down (idle carriers
     // otherwise only pause under a second between looks for work)
     const idle = carriers.filter(a => !a.task && a.cool <= 1);
+    // a hungry settlement takes a worker off a workplace outside the food chain to staff one in it
+    if (!idle.length && S.towns[b.town] && S.towns[b.town].fed < 1 && Object.keys(bp(S, b).output).some(g => essential.has(g))) {
+      const spare = S.agents.find(a => a.role === 'worker' && a.work && a.home?.town === b.town && !Object.keys(bp(S, a.work).output).some(g => essential.has(g)));
+      if (spare) { spare.work!.worker = null; spare.work = null; spare.role = 'carrier'; spare.state = 'idle'; spare.path = []; idle.push(spare); }
+    }
     if (!idle.length) continue;
     let pick = idle[0], pd = Infinity;
     for (const a of idle) { const d = distAB(a, b); if (d < pd) { pd = d; pick = a; } }

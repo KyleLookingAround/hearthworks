@@ -3,6 +3,15 @@
 # Goods
 
 * [Bread](bread.md) - The staple food. Houses keep a few loaves; villagers leave when it runs out.
+* [Bricks](bricks.md) - Fired bricks: terraces and warehouses are built of them.
+* [Clay](clay.md) - Wet clay dug from a bank beside water.
+* [Cloth](cloth.md) - Woven cloth: with fish, the comfort of a second-tier home.
+* [Cut Stone](cut_stone.md) - Dressed stone blocks for buildings that must last.
+* [Fish](fish.md) - Fresh fish: with cloth, the comfort of a second-tier home. Spoils left out in a storage yard.
+* [Flax](flax.md) - Flax grown on fertile soil, for cloth.
+* [Iron Ore](iron_ore.md) - Ore from a mine on an iron deposit.
 * [Logs](logs.md) - Felled timber. The Forester produces them; the Sawmill consumes them.
 * [Planks](planks.md) - Sawn timber. Every construction site is built from planks.
+* [Stone](stone.md) - Rough stone from a quarry on a stone deposit.
+* [Tools](tools.md) - Iron tools: they speed up the work of farms, sawmills, quarries and mines, and wear out. Homes of the third tier keep some.
 * [Wheat](wheat.md) - Grain grown on farms and baked into bread.

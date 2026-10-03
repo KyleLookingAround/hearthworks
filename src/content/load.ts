@@ -66,7 +66,7 @@ export function buildContent(files: SourceFile[]): Content {
   for (const d of docs.filter(d => d.path.startsWith('goods/'))) {
     if (d.data.type !== 'Good') continue;
     const id = slug(d.path);
-    goods[id] = { id, name: str(d, d.data.title, 'title'), color: str(d, d.data.color, 'color'), description: str(d, d.data.description, 'description', ''), order: num(d, d.data.order, 'order', 99) };
+    goods[id] = { id, name: str(d, d.data.title, 'title'), color: str(d, d.data.color, 'color'), description: str(d, d.data.description, 'description', ''), order: num(d, d.data.order, 'order', 99), spoils: num(d, d.data.spoils, 'spoils', 0) };
   }
   const checkGoods = (d: Doc, s: Stock, key: string) => { for (const k in s) if (!goods[k]) problems.push(`${d.path}: ${key} names "${k}", which has no goods/${k}.md`); };
 
@@ -99,6 +99,10 @@ export function buildContent(files: SourceFile[]): Content {
       harvest: harvest ? { radius: num(d, harvest.radius, 'harvest.radius'), replant: harvest.replant === true } : null,
       couriers: couriers ? { count: num(d, couriers.count, 'couriers.count'), radius: num(d, couriers.radius, 'couriers.radius') } : null,
       storage: f.storage === true,
+      capacity: num(d, f.capacity, 'capacity', 0),
+      keeps: Array.isArray(f.keeps) ? f.keeps.map(String) : null,
+      deposit: isMap(f.deposit) ? { kind: str(d, f.deposit.kind, 'deposit.kind'), radius: num(d, f.deposit.radius, 'deposit.radius') } : null,
+      tools: isMap(f.tools) ? { speedup: num(d, f.tools.speedup, 'tools.speedup'), wearCycles: num(d, f.tools.wear_cycles, 'tools.wear_cycles') } : null,
       paves: f.paves === true,
       shore: f.shore === true,
       zone: f.zone === 'farms' || f.zone === 'workshops' || f.zone === 'homes' ? f.zone : (num(d, f.homes, 'homes', 0) > 0 ? 'homes' : null),
@@ -135,7 +139,7 @@ export function buildContent(files: SourceFile[]): Content {
       neighbours: f.neighbours === 'anywhere' ? 'anywhere' : 'reachable',
       sizes: Array.isArray(f.sizes) ? f.sizes.map(String) : null,
       mountains: isMap(f.mountains) ? { level: num(d, f.mountains.level, 'mountains.level') } : null,
-      deposits: (() => { const dp = isMap(f.deposits) ? f.deposits : {}; return { fertile: num(d, dp.fertile, 'deposits.fertile', 0.2), stone: num(d, dp.stone, 'deposits.stone', 0.05), clay: num(d, dp.clay, 'deposits.clay', 0.3), fish: num(d, dp.fish, 'deposits.fish', 0.25) }; })(),
+      deposits: (() => { const dp = isMap(f.deposits) ? f.deposits : {}; return { fertile: num(d, dp.fertile, 'deposits.fertile', 0.2), stone: num(d, dp.stone, 'deposits.stone', 0.05), clay: num(d, dp.clay, 'deposits.clay', 0.3), fish: num(d, dp.fish, 'deposits.fish', 0.25), iron: num(d, dp.iron, 'deposits.iron', 0.04) }; })(),
       terrain: { largeCell: num(d, t.large_cell, 'terrain.large_cell'), smallCell: num(d, t.small_cell, 'terrain.small_cell'), large: num(d, t.large, 'terrain.large'), small: num(d, t.small, 'terrain.small'), base: num(d, t.base, 'terrain.base'), falloff: num(d, t.falloff, 'terrain.falloff') },
       shores: { grass: num(d, sh.grass, 'shores.grass'), sand: num(d, sh.sand, 'shores.sand'), seaBorder: sh.sea_border === true },
       start: { landRadius: num(d, st.land_radius, 'start.land_radius'), clearRadius: num(d, st.clear_radius, 'start.clear_radius') },
@@ -175,6 +179,8 @@ export function buildContent(files: SourceFile[]): Content {
     needs: {
       eatEverySeconds: num(nd, nt.eat_every_seconds, 'tuning.eat_every_seconds'), leaveAfterHungrySeconds: num(nd, nt.leave_after_hungry_seconds, 'tuning.leave_after_hungry_seconds'),
       migrantEverySeconds: num(nd, nt.migrant_every_seconds, 'tuning.migrant_every_seconds'), migrateMinMood: num(nd, nt.migrate_min_mood, 'tuning.migrate_min_mood'), surroundingsWeight: num(nd, nt.surroundings_weight, 'tuning.surroundings_weight'),
+      tierTwo: Array.isArray(nt.tier_two) ? nt.tier_two.map(String) : [], tierThree: Array.isArray(nt.tier_three) ? nt.tier_three.map(String) : [],
+      extrasEverySeconds: num(nd, nt.extras_every_seconds, 'tuning.extras_every_seconds'), extrasStock: num(nd, nt.extras_stock, 'tuning.extras_stock'), varietyBonus: num(nd, nt.variety_bonus, 'tuning.variety_bonus'),
     },
     surroundings: (() => {
       const su = isMap(nt.surroundings) ? nt.surroundings : {}, g = (k: string) => num(nd, su[k], `tuning.surroundings.${k}`);
@@ -186,7 +192,7 @@ export function buildContent(files: SourceFile[]): Content {
       sitePriorityTiles: num(pd, pt.site_priority_tiles, 'tuning.site_priority_tiles'),
     },
     planner: {
-      intervalSeconds: q('interval_seconds'), replanMinAge: q('replan_min_age'), districtBuildings: q('district_buildings'), districtSpacing: q('district_spacing'), districtRoomWeight: q('district_room_weight'), replanEverySeconds: q('replan_every_seconds'), salvageShare: q('salvage_share'), villageAt: q('village_at'), townAt: q('town_at'), rowWeight: q('row_weight'), streetWeight: q('street_weight'), streetEveryRows: q('street_every_rows'), streetEveryCols: q('street_every_cols'), streetRadius: q('street_radius'), detourRatio: q('detour_ratio'), detourWeight: q('detour_weight'), bridgeReachWeight: q('bridge_reach_weight'), bridgeMinGain: q('bridge_min_gain'), bridgeSpacing: q('bridge_spacing'), paveWear: q('pave_wear'), pavePerLook: q('pave_per_look'), wearHalfLifeSeconds: q('wear_half_life_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'),
+      intervalSeconds: q('interval_seconds'), sitePatienceSeconds: q('site_patience_seconds'), buildGoods: Array.isArray(qt.build_goods) ? qt.build_goods.map(String) : ['planks'], comfortWeight: q('comfort_weight'), depositWeight: q('deposit_weight'), replanMinAge: q('replan_min_age'), districtBuildings: q('district_buildings'), districtSpacing: q('district_spacing'), districtRoomWeight: q('district_room_weight'), replanEverySeconds: q('replan_every_seconds'), salvageShare: q('salvage_share'), villageAt: q('village_at'), townAt: q('town_at'), rowWeight: q('row_weight'), streetWeight: q('street_weight'), streetEveryRows: q('street_every_rows'), streetEveryCols: q('street_every_cols'), streetRadius: q('street_radius'), detourRatio: q('detour_ratio'), detourWeight: q('detour_weight'), bridgeReachWeight: q('bridge_reach_weight'), bridgeMinGain: q('bridge_min_gain'), bridgeSpacing: q('bridge_spacing'), paveWear: q('pave_wear'), pavePerLook: q('pave_per_look'), wearHalfLifeSeconds: q('wear_half_life_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'),
       foodHeadroom: q('food_headroom'), growthBeds: q('growth_beds'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
       costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), crossingWeight: q('crossing_weight'), savePatienceSeconds: q('save_patience_seconds'), noRoomRetrySeconds: q('no_room_retry_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
       searchRadius: q('search_radius'), searchRadiusMax: q('search_radius_max'), gap: q('gap'), minTrees: q('min_trees'),

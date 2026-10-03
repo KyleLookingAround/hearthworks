@@ -9,6 +9,8 @@ export interface GoodDef {
   color: string;
   description: string;
   order: number;
+  /** Share of a stock left out in a storage yard (not one that `keeps` it) lost each minute. */
+  spoils: number;
 }
 
 /** A building the village knows how to make. Loaded from design/blueprints/*.md. */
@@ -47,6 +49,13 @@ export interface BlueprintDef {
   harvest: { radius: number; replant: boolean } | null;
   couriers: { count: number; radius: number } | null;
   storage: boolean;
+  /** For storage: how many goods it holds in all (0: no limit), and which goods it takes (null: any). */
+  capacity: number;
+  keeps: ItemId[] | null;
+  /** Must stand within `radius` of a deposit of `kind` (fertile, stone, clay, fish, iron). */
+  deposit: { kind: string; radius: number } | null;
+  /** Works `speedup` times as fast while it holds tools, and wears one out every `wearCycles` cycles. */
+  tools: { speedup: number; wearCycles: number } | null;
   paves: boolean;
   /** Built on the shore: its door opens onto water, and boats are launched from it. */
   shore: boolean;
@@ -72,7 +81,7 @@ export interface MapDef {
   /** Land higher than `level` is rock: mountains. Null for none. */
   mountains: { level: number } | null;
   /** How common each deposit is: the share of suitable tiles, roughly. */
-  deposits: { fertile: number; stone: number; clay: number; fish: number };
+  deposits: { fertile: number; stone: number; clay: number; fish: number; iron: number };
   /** The map sizes this type can be played at; null for every size. */
   sizes: string[] | null;
   /** Islands only: how many, and their radii as a share of half the map's shorter side. */
@@ -103,7 +112,7 @@ export interface Tuning {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
     roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
   };
-  needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number };
+  needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
   planner: PlannerTuning;
@@ -114,7 +123,7 @@ export interface Tuning {
 }
 
 export interface PlannerTuning {
-  intervalSeconds: number; replanMinAge: number; districtBuildings: number; districtSpacing: number; districtRoomWeight: number; replanEverySeconds: number; salvageShare: number; villageAt: number; townAt: number; rowWeight: number; streetWeight: number; streetEveryRows: number; streetEveryCols: number; streetRadius: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
+  intervalSeconds: number; sitePatienceSeconds: number; buildGoods: ItemId[]; comfortWeight: number; depositWeight: number; replanMinAge: number; districtBuildings: number; districtSpacing: number; districtRoomWeight: number; replanEverySeconds: number; salvageShare: number; villageAt: number; townAt: number; rowWeight: number; streetWeight: number; streetEveryRows: number; streetEveryCols: number; streetRadius: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
   foodHeadroom: number; growthBeds: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
   costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; noRoomRetrySeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; searchRadiusMax: number; gap: number; minTrees: number;
@@ -185,6 +194,10 @@ export interface Building {
   reason: string;
   /** The settlement it belongs to (index into State.towns). */
   town: number;
+  /** A home's clock for using its comforts (fish, cloth, tools), in seconds. */
+  extra: number;
+  /** Cycles worked since its tools last wore out. */
+  wear: number;
   /** Seconds it has spent running well; verifies its blueprint in use. */
   used: number;
   /** When each of its requests started waiting for a carrier (game time), for request aging. */
@@ -273,7 +286,7 @@ export interface World {
   ground: Uint8Array;
   /** height of the land, 0 (shore) to 255; climbing between tiles costs `slopeCost` per unit */
   height: Uint8Array;
-  /** what lies in the ground, unused until goods need it: 0 none, 1 fertile soil, 2 stone, 3 clay, 4 fish */
+  /** what lies in the ground: 0 none, 1 fertile soil, 2 stone, 3 clay, 4 fish, 5 iron */
   deposit: Uint8Array;
   /** 0 none, 1 sapling, 2 grown */
   tree: Uint8Array;
@@ -323,6 +336,8 @@ export interface Stats {
   delivered: number;
   /** Straight-line tiles of those deliveries (carrier to source to destination), for their pace. */
   deliveryTiles: number;
+  /** Goods lost to spoiling in storage. */
+  spoiled: number;
   /** Blocks replanned, and people who left because their home came down. */
   replanned: number;
   demolitionDepartures: number;

@@ -4,9 +4,13 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T16:17:19Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T16:49:28Z }
 tuning:
   interval_seconds: 3
+  site_patience_seconds: 120
+  build_goods: [planks]
+  comfort_weight: 0.5
+  deposit_weight: 0.3
   replan_min_age: 300
   district_buildings: 30
   district_spacing: 18
@@ -112,6 +116,15 @@ The player steers each settlement's planner with levers (the Steward panel in th
 - **The advisor** reads the planners and the chronicle and suggests a lever: bread first when a settlement goes hungry, encouraging the blueprint that would answer a need nobody knows how to meet, a zone when there is no room, keeping homes and workshops apart, and the latest page of history.
 
 Overlays in the menu show how each home feels (surroundings, hunger), the reach of noise, districts, traffic and courier coverage.
+
+# A deeper economy
+
+- **Chains.** Goods beyond bread and planks come from chains several steps deep ([Quarry](/blueprints/quarry.md), [Mason](/blueprints/mason.md), [Clay Pit](/blueprints/clay_pit.md), [Brickworks](/blueprints/brickworks.md), [Mine](/blueprints/mine.md), [Smithy](/blueprints/smithy.md), [Fishery](/blueprints/fishery.md), [Flax Farm](/blueprints/flax_farm.md), [Weaver](/blueprints/weaver.md)). Only the `build_goods` (planks) are wanted as a steady flow; other materials are made when the planner saves for something that costs them, and comforts when homes want them.
+- **Comforts.** From a village, homes want fish and cloth; in a town, tools; workplaces that use tools want them too ([needs](/systems/needs.md)). Their shortages count at `comfort_weight`, and not at all while bread is short or anyone goes hungry: food first.
+- **Deposits.** A blueprint with a `deposit` is placed only within its radius of a deposit of that kind, the more the better (`deposit_weight` per tile).
+- **Never waiting on the work it plans.** A home built to bring a worker is the densest the settlement can pay for today. A site starved for `site_patience_seconds` of a good nobody has no longer holds up the planner, and its beds no longer count as on the way.
+- **Keep back for the maker.** Until something in the settlement makes a good, the planner keeps back enough of it to build the cheapest building that makes it: it never spends the last planks before a sawmill.
+- **Food workers first.** A hungry settlement takes a worker off a workplace outside the food chain to staff one in it.
 
 # Desire paths
 

@@ -4,13 +4,18 @@ title: Needs and population
 description: Eating, mood, newcomers arriving and villagers leaving.
 tags: [needs, population, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T16:49:28Z }
 tuning:
   eat_every_seconds: 45
   leave_after_hungry_seconds: 30
   migrant_every_seconds: 15
   migrate_min_mood: 0.8
   surroundings_weight: 0.25
+  tier_two: [fish, cloth]
+  tier_three: [tools]
+  extras_every_seconds: 600
+  extras_stock: 2
+  variety_bonus: 0.1
   surroundings: { base: 0.5, tree_radius: 4, tree_amenity: 0.03, tree_max: 0.3, water_radius: 5, water_amenity: 0.2, crowd_radius: 3, crowd_penalty: 0.06, site_penalty: 0.1 }
 ---
 
@@ -25,6 +30,10 @@ Being fed (`fed`) is the share of villagers in fed houses: a stocked house count
 # Surroundings
 
 Each home scores its surroundings from 0 to 1 (`tuning.surroundings`): `base`, plus `tree_amenity` per grown tree within `tree_radius` (at most `tree_max`) and `water_amenity` with water within `water_radius`; minus the `nuisance.amount` of every finished workplace whose `nuisance.radius` reaches it (the [Sawmill](/blueprints/sawmill.md) is loud), `crowd_penalty` per building within `crowd_radius`, and `site_penalty` more for each of those still a building site. The inspector shows a home's score and why. The [planner](/systems/planner.md) never puts a home within a noisy workplace's reach, or a noisy workplace within reach of a home.
+
+# Tiers by goods
+
+Separate from its size, a home has a tier by the goods on its shelf: **1** with its food (bread), **2** with also any of `tier_two` ([fish](/goods/fish.md) or [cloth](/goods/cloth.md)), **3** with also all of `tier_three` ([tools](/goods/tools.md)). Homes ask for comforts by their settlement's form: fish and cloth (`extras_stock` each) from a village, a tool in a town. Every `extras_every_seconds` per resident a home uses one of each comfort it holds. Mood rewards variety: up to `variety_bonus` more for homes above the first tier; lacking comforts never lowers it. The inspector shows a home's tier.
 
 # Newcomers
 

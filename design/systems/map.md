@@ -4,7 +4,7 @@ title: Map
 description: Map types and sizes, seeded generation, the standard map, trees and regrowth.
 tags: [world]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T16:49:28Z }
 tuning:
   standard_type: island
   standard_size: standard
@@ -43,7 +43,7 @@ Before a game starts the player picks the type, the size, one to four settlement
 
 Every tile of land has a height (0 to 255) from the same noise that shapes the land. Climbing or descending between tiles costs `slope_cost` per unit of height, in route finding and in walking speed alike ([logistics](/systems/logistics.md)). Map types may have `mountains`: land above `mountains.level` is rock, walked at a crawl (`rock_cost`) and never built on (Landmass above 0.85, about 3% of the land; Coast above 1.0, about 10%). Rivers carve through everything.
 
-Deposits lie in the ground, drawn from their own random stream so adding them moved nothing else: fertile soil in patches of grass, stone on and beside rock (small outcrops on maps without mountains), clay on banks beside water, and fish in water near land. Each map type sets how common each is (`deposits`). They are shown on the map and used by nothing yet: goods that need them arrive in [roadmap](/roadmap.md) Phase 11.
+Deposits lie in the ground, drawn from their own random stream so adding them moved nothing else: fertile soil in patches of grass, stone on and beside rock (small outcrops on maps without mountains), clay on banks beside water, fish in water near land, and iron in veins in rock and small outcrops in grass where there are no mountains. Each map type sets how common each is (`deposits`). Since Phase 11, workplaces that dig or catch them must stand near them ([planner](/systems/planner.md)).
 
 # Trees
 

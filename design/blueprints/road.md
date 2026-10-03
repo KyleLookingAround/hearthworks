@@ -6,7 +6,7 @@ tags: [logistics]
 status: stable
 generated: { by: claude/opus-5.5, at: 2026-10-03T08:15:00Z }
 color: "#b89c6c"
-order: 10
+order: 30
 size: [1, 1]
 paves: true
 ---

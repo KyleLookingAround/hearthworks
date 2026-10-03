@@ -10,6 +10,7 @@ order: 6
 size: [3, 3]
 cost: { planks: 10 }
 storage: true
+capacity: 300
 ---
 
 # Role

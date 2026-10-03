@@ -3,6 +3,7 @@
 # Files
 
 * [couriers.ts](couriers.ts)
+* [deeper-economy.ts](deeper-economy.ts)
 * [first-plank.ts](first-plank.ts)
 * [knowledge-spreads.ts](knowledge-spreads.ts)
 * [lie-of-the-land.ts](lie-of-the-land.ts)

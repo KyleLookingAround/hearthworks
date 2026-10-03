@@ -3,5 +3,5 @@
 # Sections
 
 * [attesters](attesters/) - thresholds.ts
-* [scenarios](scenarios/) - couriers.ts, first-plank.ts, knowledge-spreads.ts, lie-of-the-land.ts, 6 more
+* [scenarios](scenarios/) - couriers.ts, deeper-economy.ts, first-plank.ts, knowledge-spreads.ts, 7 more
 * [skills](skills/) - Run a gate

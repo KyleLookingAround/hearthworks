@@ -1,7 +1,7 @@
 import { rand } from './rng.ts';
 import { removeAgent } from './agents.ts';
 import { add, bp, completeSite, ctr, emit, inB, plant } from './world.ts';
-import type { Building, Level, State } from './types.ts';
+import type { Building, Level, State, Stock } from './types.ts';
 
 const setStatus = (b: Building, t: string, l: Level) => { b.status.t = t; b.status.l = l; };
 
@@ -31,6 +31,31 @@ function replant(S: State, b: Building, r: number) {
     const i = spots[Math.floor(rand(S.rng) * spots.length)];
     plant(w, i);
   }
+}
+
+/**
+ * A home's tier by the goods on its shelves: 0 hungry, 1 fed (its food in stock), 2 also any of `tier_two`
+ * (fish or cloth), 3 also all of `tier_three` (tools).
+ */
+export function homeTier(S: State, b: Building): number {
+  const B = bp(S, b), N = S.content.tuning.needs, food = Object.keys(B.keepStocked)[0];
+  if (!B.homes || b.hunger > 0 || !food || !((b.inv[food] || 0) > 0)) return 0;
+  if (!N.tierTwo.some(g => (b.inv[g] || 0) >= 1)) return 1;
+  return N.tierThree.every(g => (b.inv[g] || 0) >= 1) ? 3 : 2;
+}
+
+/**
+ * What a building wants kept in stock: its blueprint's `keep_stocked`, tools for a workplace that uses them,
+ * and for a home the comforts its settlement's form reaches for (tier two from a village, tier three in a town).
+ */
+export function wants(S: State, b: Building, form: string): Stock {
+  const B = bp(S, b), N = S.content.tuning.needs, out: Stock = { ...B.keepStocked };
+  if (B.tools) out.tools = 1;
+  if (B.homes) {
+    if (form !== 'hamlet') for (const g of N.tierTwo) out[g] = N.extrasStock;
+    if (form === 'town') for (const g of N.tierThree) out[g] = 1;
+  }
+  return out;
 }
 
 const itemsText = (S: State, items: string[]) => items.map(k => S.content.goods[k]?.name.toLowerCase() ?? k).join(' and ');
@@ -74,7 +99,10 @@ function run(S: State, b: Building, dt: number) {
         b.hunger = 0; b.eat = 0;
       }
     } else if (!((b.inv[food] || 0) > 0)) setStatus(b, `Last of the ${itemsText(S, [food])} eaten`, 'warn');
-    else setStatus(b, 'Fed and settled', 'ok');
+    else setStatus(b, ['', 'Fed and settled', 'Comfortable', 'Well off'][homeTier(S, b)], 'ok');
+    // comforts (fish, cloth, tools) are used up slowly, one of each in stock per resident cycle
+    b.extra += (dt * r) / T.needs.extrasEverySeconds;
+    if (b.extra >= 1) { b.extra -= 1; for (const g of [...T.needs.tierTwo, ...T.needs.tierThree]) if ((b.inv[g] || 0) >= 1) add(b.inv, g, -1); }
     return;
   }
 
@@ -97,10 +125,13 @@ function run(S: State, b: Building, dt: number) {
     tree = nearestGrownTree(S, b, B.harvest.radius);
     if (tree < 0) { setStatus(b, 'No grown trees nearby', 'bad'); return; }
   }
-  setStatus(b, 'Working', 'ok');
-  b.timer += dt;
+  // tools speed the work up, and wear out
+  const tooled = !!B.tools && (b.inv.tools || 0) >= 1;
+  setStatus(b, tooled ? 'Working, with tools' : 'Working', 'ok');
+  b.timer += dt * (tooled ? B.tools!.speedup : 1);
   if (b.timer >= B.seconds) {
     b.timer = 0;
+    if (tooled && ++b.wear >= B.tools!.wearCycles) { b.wear = 0; add(b.inv, 'tools', -1); }
     for (const k in B.input) add(b.inv, k, -B.input[k]);
     if (tree >= 0) plant(S.world, tree);
     for (const k in B.output) { add(b.inv, k, B.output[k]); add(S.stats.made, k, B.output[k]); }

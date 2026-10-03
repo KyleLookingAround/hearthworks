@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T16:17:19Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T16:49:28Z }
 ---
 
 # How to read this
@@ -173,6 +173,8 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Why now.** Deposits exist (8) and towns have room for workshops (9). The planner needs richer choices, and home tiers need goods.
 
+**Delivered.** Nine new goods (stone, cut stone, clay, bricks, iron ore, tools, fish, flax, cloth) from eleven new buildings, placed on deposits (iron added); two-input recipes; tools that speed work and wear out; home tiers by goods with mood rewarding variety; terraces built of bricks; storage capacity, a granary and a warehouse, and food that spoils when left out; planner chains with comforts after food; [Gate 11](/gates/11-deeper-economy.md). **Phase 11 is done.** Upgrades are planned as replanning (Phase 9) rather than alongside new buildings.
+
 **Builds.**
 - **New goods:** stone, then cut stone; clay, then bricks; iron ore, then tools; fish; flax, then cloth.
 - **Multi-input recipes.** Tools wear out and speed up the work that uses them.
@@ -180,7 +182,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 - **Storage:** granaries, a woodyard and warehouses with capacity; some goods spoil when left out.
 - **Planner chains** several steps deep, with upgrades planned alongside new buildings.
 
-**Gate 11 (proposed).** Standard map, one settlement, 60 game minutes: at least 20% of homes at tier three; every tier's homes stocked at least 90% of the time; departures and `fed_min` at Gate 2's level.
+**Gate 11 (stable)**, as proposed, plus `goods_made` (chains several steps deep); "stocked" is checked as each lived-in home having its food on the shelf, sampled every ten seconds. Standard map, one settlement, 60 game minutes: at least 20% of homes at tier three; every tier's homes stocked at least 90% of the time; departures and `fed_min` at Gate 2's level.
 
 # 12. Seasons
 

@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T16:49:28Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -44,6 +44,10 @@ Water is crossed by rowing boat. Boats are launched from a [dock](/blueprints/do
 # Terrain, roads and bridges
 
 Route finding and walking speed agree: a road or [bridge](/blueprints/bridge.md) tile costs `1 / road_speed`, a tile under grown trees `1 / forest_speed`, rock `rock_cost`, and every step up or down costs `slope_cost` per unit of height more (both read from this tuning; before, two of them were copies in code). Feet wear the tiles they cross; the wear fades with a half-life of the [planner](/systems/planner.md)'s `wear_half_life_seconds`, and planners pave the most worn tiles into roads. Every delivery records its time from claim to drop-off and its straight-line length (carrier to source to destination), so receipts can report `mean_delivery_seconds` and the pace per tile.
+
+# Storage and spoiling
+
+A store holds at most its blueprint's `capacity` goods in all, and takes only the goods it `keeps` if it lists them: a [Storage Yard](/blueprints/storage.md) 300 of anything, a [Warehouse](/blueprints/warehouse.md) 600, a [Granary](/blueprints/granary.md) 400 of food. Surplus goes to the nearest store with room that takes it. Once a minute, food left in a store that does not keep it loses the whole units of its `spoils` share of the pile ([bread](/goods/bread.md) 2%, [fish](/goods/fish.md) 5%), so only large piles go off. A home's food is delivered before its comforts.
 
 # Carriers
 

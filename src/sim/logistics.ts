@@ -7,6 +7,7 @@
 import { add, bp, ctr, distAB, distBB, door } from './world.ts';
 import { findPath } from './path.ts';
 import { goToBuilding } from './agents.ts';
+import { wants } from './production.ts';
 import type { Agent, Building, ItemId, State } from './types.ts';
 
 export interface Request { dst: Building; item: ItemId; need: number; pri: number }
@@ -69,10 +70,12 @@ export function collectRequests(S: State): Request[] {
     const B = bp(S, b);
     if (b.site) continue;
     if (b.paused) continue;
-    for (const item in B.keepStocked) {
-      const need = B.keepStocked[item] - (b.inv[item] || 0) - (b.incoming[item] || 0);
+    const want = wants(S, b, S.towns[b.town]?.form ?? 'hamlet'), food = Object.keys(B.keepStocked)[0];
+    for (const item in want) {
+      const need = want[item] - (b.inv[item] || 0) - (b.incoming[item] || 0);
       const age = aged(S, b, item, need);
-      if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? -4 : 0) - age });
+      // a home's food comes before its comforts
+      if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? (item === food ? -4 : 2) : 0) - age });
     }
   }
   return reqs;
@@ -111,13 +114,16 @@ export function findTask(S: State, a: Agent): boolean {
   }
   // surplus goes to the nearest storage yard so producers don't stall
   const stores = S.buildings.filter(b => bp(S, b).storage && !b.site && inRange(b));
+  // a store takes a good if it keeps that kind and has room left
+  const room = (st: Building, item: ItemId) => { const B = bp(S, st); if (B.keeps && !B.keeps.includes(item)) return false; if (!B.capacity) return true; let n = 0; for (const k in st.inv) n += st.inv[k]; for (const k in st.incoming) n += st.incoming[k]; return n < B.capacity; };
   if (stores.length) for (const s of S.buildings) {
     if (s.site) continue;
     for (const item in bp(S, s).output) {
       const av = available(S, s, item);
       if (av < L.dumpAt || !inRange(s)) continue;
-      let st = stores[0], sd = Infinity;
-      for (const d of stores) { const dd = distBB(s, d); if (dd < sd) { sd = dd; st = d; } }
+      let st: Building | null = null, sd = Infinity;
+      for (const d of stores) { if (d === s || !room(d, item)) continue; const dd = distBB(s, d); if (dd < sd) { sd = dd; st = d; } }
+      if (!st) continue;
       const score = distAB(a, s) + sd + 12;
       if (score < bestScore) { bestScore = score; best = { src: s, dst: st, item, n: Math.min(cap, av) }; }
     }

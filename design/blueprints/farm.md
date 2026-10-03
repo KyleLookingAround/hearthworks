@@ -11,6 +11,7 @@ size: [3, 2]
 cost: { planks: 4 }
 workers: 1
 recipe: { output: { wheat: 1 }, seconds: 4 }
+tools: { speedup: 1.5, wear_cycles: 40 }
 zone: farms
 ---
 

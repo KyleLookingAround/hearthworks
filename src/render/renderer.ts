@@ -91,6 +91,7 @@ export class Renderer {
       if (dep === 1) { g.fillStyle = 'rgba(92,64,38,.45)'; for (let k = 0; k < 4; k++) g.fillRect(x * TS + hash01(i * 3 + k) * 18 + 3, y * TS + hash01(i * 5 + k) * 18 + 3, 3, 2); }
       else if (dep === 2) { g.fillStyle = 'rgba(205,200,190,.7)'; for (let k = 0; k < 2; k++) { g.beginPath(); g.arc(x * TS + 5 + hash01(i * 9 + k) * 14, y * TS + 5 + hash01(i * 11 + k) * 14, 2.4, 0, 7); g.fill(); } }
       else if (dep === 3) { g.fillStyle = 'rgba(176,96,62,.45)'; g.fillRect(x * TS + 4 + v * 8, y * TS + 8 + hash01(i + 7) * 8, 8, 4); }
+      else if (dep === 5) { g.fillStyle = 'rgba(120,70,60,.75)'; for (let k = 0; k < 3; k++) g.fillRect(x * TS + 4 + hash01(i * 13 + k) * 14, y * TS + 4 + hash01(i * 17 + k) * 14, 3, 3); }
       else if (dep === 4) { g.strokeStyle = 'rgba(230,240,235,.35)'; g.lineWidth = 1.2; g.beginPath(); const fx = x * TS + 6 + v * 10, fy = y * TS + 8 + hash01(i + 2) * 8; g.moveTo(fx, fy); g.quadraticCurveTo(fx + 4, fy - 3, fx + 8, fy); g.stroke(); }
       if (gr === 2) {
         g.fillStyle = 'rgba(40,70,30,.22)';

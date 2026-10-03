@@ -19,7 +19,7 @@ test('terrain: heights on land, rock on mountain maps only, deposits in the grou
 
 test('deposits come from their own random stream: settlements start where they did', () => {
   const a = createState(content, 42, { settlements: 2 });
-  const b = structuredClone(content); b.maps.island.deposits = { fertile: 0, stone: 0, clay: 0, fish: 0 };
+  const b = structuredClone(content); b.maps.island.deposits = { fertile: 0, stone: 0, clay: 0, fish: 0, iron: 0 };
   const c = createState(b, 42, { settlements: 2 });
   assert.deepEqual(a.towns.map(t => t.store), c.towns.map(t => t.store));
   assert.deepEqual([...a.world.ground], [...c.world.ground]);

@@ -87,7 +87,8 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   let freeBeds = 0, food: ItemId | null = null;
   for (const b of mine) {
     const B = bp(S, b);
-    if (!B.homes) continue;
+    // beds on the way count, but not on a site starved of a good nobody has
+    if (!B.homes || starved(S, b, town)) continue;
     freeBeds += B.homes - b.residents.length;
     food ??= Object.keys(B.keepStocked)[0] ?? null;
   }
@@ -97,14 +98,24 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     // feed everyone here plus everyone the free beds will bring
     demand[food] = (demand[food] || 0) + ((pop + freeBeds) / needs.eatEverySeconds) * P.foodHeadroom;
   }
-  // planks build everything: want a steady flow that grows with the town
-  for (const g of buildGoods(S)) demand[g] = (demand[g] || 0) + (pop * P.planksPerVillagerMinute) / 60;
+  // planks build everything: want a steady flow that grows with the town (other materials are made when saved for)
+  for (const g of P.buildGoods) demand[g] = (demand[g] || 0) + (pop * P.planksPerVillagerMinute) / 60;
+  // comforts by form: fish and cloth from a village, tools in a town; every comfort is wanted, for variety
+  const comfort = new Set<ItemId>();
+  const form = formOf(S, town);
+  if (form !== 'hamlet') for (const g of needs.tierTwo) { comfort.add(g); demand[g] = (demand[g] || 0) + pop / needs.extrasEverySeconds; }
+  if (form === 'town') for (const g of needs.tierThree) { comfort.add(g); demand[g] = (demand[g] || 0) + pop / needs.extrasEverySeconds; }
+  // tools wear out where they are used: a speed-up a village reaches for, like a comfort
+  if (form !== 'hamlet') for (const b of mine) { const B = bp(S, b); if (B.tools && !b.site && B.seconds) { comfort.add('tools'); demand.tools = (demand.tools || 0) + B.tools.speedup / (B.seconds * B.tools.wearCycles); } }
 
   const goods = Object.values(S.content.goods).sort((a, b) => (a.id === food ? -1 : b.id === food ? 1 : a.order - b.order));
+  // comforts wait while bread is short: food first
+  const foodShort = food ? clamp01(1 - (supply[food] || 0) / (demand[food] || 1)) >= P.minSeverity || town.fed < 1 : false;
   for (const g of goods) {
     const d = demand[g.id] || 0;
     if (d <= 0) continue;
-    shortages.push({ key: g.id, good: g.id, sev: clamp01(1 - (supply[g.id] || 0) / d), why: runningLow(S, g.id) });
+    const sev = clamp01(1 - (supply[g.id] || 0) / d) * (comfort.has(g.id) ? (foodShort ? 0 : P.comfortWeight) : 1);
+    shortages.push({ key: g.id, good: g.id, sev, why: comfort.has(g.id) ? `homes want ${goodName(S, g.id)}` : runningLow(S, g.id) });
   }
   // hauling: carriers run off their feet; machines that haul relieve it where they reach.
   // Listed before beds so that, at full strain, it wins a tie with growth.
@@ -136,23 +147,27 @@ export function look(S: State, town: Town = S.towns[0]): Look {
 
 const FORMS: Form[] = ['hamlet', 'village', 'town'];
 
+/** A site that has waited `site_patience_seconds` for a good nobody in its settlement has. */
+function starved(S: State, b: Building, town: Town): boolean {
+  if (!b.site) return false;
+  const B = bp(S, b);
+  return Object.keys(B.cost).some(k => (b.inv[k] || 0) < B.cost[k] && k in b.waiting && S.t - b.waiting[k] > T(S).sitePatienceSeconds && supplyOf(S, k, town.id) <= 0);
+}
+
 /** A settlement's form, by its people: a hamlet, a village from `village_at`, a town from `town_at`. */
 export function formOf(S: State, town: Town): Form {
   const pop = villagers(S).filter(a => a.home?.town === town.id).length, P = T(S);
   return pop >= P.townAt ? 'town' : pop >= P.villageAt ? 'village' : 'hamlet';
 }
 
-/** The densest home the settlement knows and its form allows: the rung of the ladder it builds now. */
-function homeFor(S: State, town: Town): BlueprintDef | undefined {
+/**
+ * The densest home the settlement knows and its form allows: the rung of the ladder it builds now.
+ * With `afford`, the densest of those it can pay for today (a home built to bring a worker must not wait on the work).
+ */
+function homeFor(S: State, town: Town, afford = false): BlueprintDef | undefined {
   const f = FORMS.indexOf(formOf(S, town));
-  return known(S, town).filter(B => B.homes && FORMS.indexOf(B.form) <= f).sort((a, b) => b.homes / (b.w * b.h) - a.homes / (a.w * a.h) || b.homes - a.homes)[0];
-}
-
-/** Goods that construction costs are paid in. */
-function buildGoods(S: State): ItemId[] {
-  const out = new Set<ItemId>();
-  for (const B of Object.values(S.content.blueprints)) for (const k in B.cost) out.add(k);
-  return [...out];
+  const homes = known(S, town).filter(B => B.homes && FORMS.indexOf(B.form) <= f).sort((a, b) => b.homes / (b.w * b.h) - a.homes / (a.w * a.h) || b.homes - a.homes);
+  return afford ? homes.find(B => !affordable(S, B, town)) ?? homes[homes.length - 1] : homes[0];
 }
 
 /** Propose: the best blueprint for a shortage, following a recipe's inputs when they would leave it idle. */
@@ -185,7 +200,7 @@ function follow(S: State, L: Look, c: Choice, depth: number): Choice {
   if (c.B.workers && L.spareHands < c.B.workers) {
     // nobody free to work it: newcomers will come if there are beds, otherwise build homes
     if (L.freeBeds > 0) return { ...c, wait: `Waiting for newcomers to work ${article(c.B.name)} ${c.B.name}: ${c.why}` };
-    const home = homeFor(S, L.town);
+    const home = homeFor(S, L.town, true);
     if (home) return { B: home, sev: c.sev, why: `${c.why}, and a new ${c.B.name.toLowerCase()} would need a worker` };
   }
   for (const i in c.B.input) {
@@ -202,6 +217,17 @@ function follow(S: State, L: Look, c: Choice, depth: number): Choice {
 }
 
 const NOBUILD = 1 + ZONES.indexOf('nobuild');
+const DEPOSITS = ['', 'fertile', 'stone', 'clay', 'fish', 'iron'];
+
+/** Deposit tiles of `kind` within `r` of a point. */
+function depositsNear(W: World, cx: number, cy: number, kind: string, r: number): number {
+  const k = DEPOSITS.indexOf(kind);
+  let n = 0;
+  for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(W.h - 1, Math.ceil(cy + r)); y++) for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W.w - 1, Math.ceil(cx + r)); x++) {
+    if (W.deposit[y * W.w + x] === k && Math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= r) n++;
+  }
+  return n;
+}
 
 /** Does a footprint touch land the player has zoned for no building? */
 function onNoBuild(W: World, x: number, y: number, w: number, h: number): boolean {
@@ -326,6 +352,8 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     W.work.plannerSpots++;
     if (!fits(S, type, x, y, gap)) continue;
     if (!zoneOk(x, y, zoned)) continue;
+    const ore = B.deposit ? depositsNear(W, x + B.w / 2, y + B.h / 2, B.deposit.kind, B.deposit.radius + Math.max(B.w, B.h) / 2) : 0;
+    if (B.deposit && !ore) continue;
     // homes share walls only with other homes: anything else keeps its ring of open land
     if (dense && touchesNonHome(x, y)) continue;
     if (!reach[(y + B.h - 1) * W.w + x + Math.floor(B.w / 2)] && !reach[(y + B.h) * W.w + x + Math.floor(B.w / 2)]) continue;
@@ -334,7 +362,7 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     // homes and noisy workplaces stay apart
     if (B.homes && inNuisance(S, p)) continue;
     if (B.nuisance && S.buildings.some(o => bp(S, o).homes && Math.hypot(ctr(o).x - p.x, ctr(o).y - p.y) <= B.nuisance!.radius)) continue;
-    let s = P.storeWeight * Math.hypot(p.x - home.x, p.y - home.y);
+    let s = -P.depositWeight * ore + P.storeWeight * Math.hypot(p.x - home.x, p.y - home.y);
     if (B.harvest) {
       const trees = treeScore(S, p.x, p.y, B.harvest.radius, harvesters, P.sharedTreeWeight);
       if (trees < P.minTrees) continue;
@@ -524,7 +552,10 @@ function affordable(S: State, B: BlueprintDef, town: Town): { good: ItemId; shor
     let owed = 0;
     for (const b of S.buildings) if (b.site && b.town === town.id) owed += Math.max(0, (bp(S, b).cost[k] || 0) - (b.inv[k] || 0) - (b.incoming[k] || 0));
     const free = supplyOf(S, k, town.id) - owed;
-    if (free < B.cost[k]) return { good: k, short: B.cost[k] - free };
+    // with nothing yet making this good, keep back enough to build what makes it: never spend the last planks before a sawmill
+    const makers = known(S, town).filter(M => M.output[k]);
+    const keep = !B.output[k] && makers.length && !S.buildings.some(b => b.town === town.id && bp(S, b).output[k]) ? Math.min(...makers.map(M => M.cost[k] || 0)) : 0;
+    if (free - keep < B.cost[k]) return { good: k, short: B.cost[k] + keep - free };
   }
   return null;
 }
@@ -671,13 +702,12 @@ function planTown(S: State, town: Town, dt: number) {
   Q.t -= dt;
   if (Q.t > 0) return;
   Q.t += T(S).intervalSeconds / town.levers.pace;
-  const form = formOf(S, town);
-  if (form !== town.form) { chronicle(S, town.id, 'form', `${town.name} became a ${form}`); town.form = form; }
   if (Q.roads) pave(S, town);
   if (formOf(S, town) === 'town') layStreets(S, town);
 
   const mine = Q.site !== null ? S.bmap.get(Q.site) : undefined;
-  if (mine?.site) { Q.status = `Building ${article(bp(S, mine).name)} ${bp(S, mine).name}: ${mine.reason}`; return; }
+  // a site waits its turn, unless it has waited `site_patience_seconds` for a good nobody has: then plan around it
+  if (mine?.site && !starved(S, mine, town)) { Q.status = `Building ${article(bp(S, mine).name)} ${bp(S, mine).name}: ${mine.reason}`; return; }
   if (Q.site !== null) { Q.site = null; Q.settle = T(S).settleSeconds / town.levers.pace; }
   if (Q.settle > 0) { Q.settle -= T(S).intervalSeconds / town.levers.pace; return; }
 

@@ -1,5 +1,6 @@
 /** Browser shell: HUD, build bar, inspector, toasts, pointer input and the frame loop. */
 import { surroundings } from '../sim/surroundings.ts';
+import { homeTier } from '../sim/production.ts';
 import { formOf, hubs } from '../sim/planner.ts';
 import { ZONES, advise, chronicleLog, loadGame, saveGame, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
@@ -381,7 +382,8 @@ export class App {
   private updateHud() {
     const S = this.S, totals: Record<string, number> = {};
     for (const b of S.buildings) if (this.content.blueprints[b.type].storage && !b.site) for (const k in b.inv) totals[k] = (totals[k] || 0) + b.inv[k];
-    $('#res').innerHTML = Object.values(this.content.goods).sort((a, b) => a.order - b.order).map(g =>
+    // the four staples always; other goods once there is some in storage
+    $('#res').innerHTML = Object.values(this.content.goods).sort((a, b) => a.order - b.order).filter(g => g.order <= 4 || (totals[g.id] || 0) >= 1).map(g =>
       `<span class="chip" title="${esc(g.name)} in storage"><span class="dot" style="background:${g.color}"></span><span class="lbl">${esc(g.name)}</span> <b>${n0(totals[g.id])}</b></span>`).join('');
     const vs = villagers(S), cap = S.buildings.reduce((n, b) => n + (b.site ? 0 : this.content.blueprints[b.type].homes), 0), bots = S.agents.length - vs.length;
     const carriers = vs.filter(a => a.role === 'carrier').length, m = Math.round(S.mood * 100);
@@ -552,9 +554,15 @@ export class App {
       rows += row('Residents', `${b.residents.length} / ${B.homes}`);
       for (const k in B.keepStocked) rows += row(`${G[k].name} at home`, `${n0(b.inv[k])} / ${B.keepStocked[k]}`) + row('On the way', n0(b.incoming[k]));
       const su = surroundings(S, b), good = [su.trees > 0 && 'trees', su.water > 0 && 'water'].filter(Boolean), bad = [su.noise > 0 && 'noise', su.crowd > 0 && 'crowding', su.sites > 0 && 'building work'].filter(Boolean);
+      const tier = homeTier(S, b), N = T.needs;
+      rows += row('Tier', ['Hungry', 'Fed', 'Comfortable', 'Well off'][tier]);
+      for (const g of [...N.tierTwo, ...N.tierThree]) if ((b.inv[g] || 0) >= 1 || (b.incoming[g] || 0) > 0) rows += row(G[g].name, `${n0(b.inv[g])}` + ((b.incoming[g] || 0) > 0 ? ` (+${n0(b.incoming[g])})` : ''));
       rows += row('Surroundings', `${Math.round(su.score * 100)}%` + (good.length ? `, ${good.join(' and ')}` : '') + (bad.length ? `; ${bad.join(', ')}` : ''));
     } else if (B.storage) {
-      for (const g of Object.values(G).sort((a, b) => a.order - b.order)) rows += row(g.name, n0(b.inv[g.id]));
+      const held = Object.values(b.inv).reduce((s, n) => s + n, 0);
+      if (B.capacity) rows += row('Holding', `${n0(held)} / ${B.capacity}`);
+      if (B.keeps) rows += row('Keeps', B.keeps.map(k => G[k].name).join(', '));
+      for (const g of Object.values(G).sort((a, b) => a.order - b.order)) if ((b.inv[g.id] || 0) >= 1 || g.order <= 4) rows += row(g.name, n0(b.inv[g.id]));
     } else if (B.couriers) {
       const busy = b.bots.filter(id => S.amap.get(id)?.task).length;
       rows += row('Bots', b.bots.length) + row('Hauling now', busy) + row('Range', `${B.couriers.radius} tiles`);
@@ -564,6 +572,7 @@ export class App {
       for (const k in B.input) rows += row(`${G[k].name} in`, `${n0(b.inv[k])} / ${B.keepStocked[k] ?? B.input[k]}` + ((b.incoming[k] || 0) > 0 ? ` (+${n0(b.incoming[k])})` : ''));
       for (const k in B.output) rows += row(`${G[k].name} out`, `${n0(b.inv[k])} / ${T.logistics.outputCap}`);
       rows += row('Cycle', `${B.seconds}s each`);
+      if (B.tools) rows += row('Tools', (b.inv.tools || 0) >= 1 ? `${n0(b.inv.tools)}: working ${B.tools.speedup}× as fast` : 'none: slower work');
       progress = B.seconds ? b.timer / B.seconds : 0;
     }
     const pct = progress === null ? null : Math.round(Math.max(0, Math.min(1, progress)) * 100);
