@@ -11,6 +11,7 @@
 * [lie-of-the-land.ts](lie-of-the-land.ts)
 * [people.ts](people.ts)
 * [seasons.ts](seasons.ts)
+* [settling.ts](settling.ts)
 * [solid-ground.ts](solid-ground.ts)
 * [steward.ts](steward.ts)
 * [sustain-town.ts](sustain-town.ts)

@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T19:35:38Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T19:56:47Z }
 ---
 
 # How to read this
@@ -33,7 +33,7 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 14 | People and traditions | Individuals: families, births, ageing, skills, apprenticeships; death and each village's own customs for it | 12 | [Gate 14](/gates/14-people.md) | Done |
 | 15 | Learning | Libraries, schools, universities; knowledge kept, taught and pursued | 14 | [Gate 15](/gates/15-learning.md) | Done |
 | 16 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | [Gate 16](/gates/16-ways-to-move.md) | Done |
-| 17 | New settlements | Crowded towns send settlers off with goods, knowledge and customs | 16 | One settlement becomes four, unscripted | Later |
+| 17 | New settlements | Crowded towns send settlers off with goods, knowledge and customs | 16 | [Gate 17](/gates/17-new-settlements.md) | Done |
 | 18 | The sea | The archipelago map type, ports, ships, exploration, colonies | 13, 17 | A colony on a second island trades back | Later |
 | 19 | Ages | Eras of technology, machine tiers, crafts lost | 15, 18 | An age turns unscripted; an isolated town loses a craft | Later |
 | 20 | Hardship | Fire, flood, sickness and their counters; hard laws | 12, 19 | A town weathers each hazard and three winters | Later |
@@ -272,6 +272,10 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 **Why now.** Daughter towns need room (7), transport to stay in touch (16), and people to send (14).
 
 **Builds.** A crowded town, or one short of land or a deposit, sends a founding party with villagers, part of the stores, its knowledge minus the crafts it never practised, and its customs. The party scores sites for land, deposits, water and distance from rivals, then walks there. Daughter towns keep visiting and trading with their mother town, and their customs drift.
+
+**Delivered.** [Settling](/systems/settling.md), on in new games and off in older scenarios: a self-planning settlement of 70 or more, at most once every 20 minutes and while the world has fewer than 8 settlements, sends 6 villagers off with the cost of a yard and two cottages, a new game's starting stores and a quarter of what else it holds, to a site chosen as the first neighbours are. The daughter keeps the founders' knowledge and what its mother proved in use, its mother's custom and levers, and plans for itself; the chronicle records both ends. Saves go to version 13. **Phase 17 is done.** Settling for want of land or a deposit, rather than crowding alone, waits for later.
+
+**Gate 17 (stable)**, as proposed: Landmass L, one settlement, 90 minutes: at least four settlements, each fed (`fed_min` 0.6 from five minutes after its founding) and growing (1.5 times its first people, once fifteen minutes old).
 
 **Gate 17 (proposed).** Landmass at large size, one settlement at the start, 90 game minutes: at least four settlements, unscripted, each fed and growing.
 

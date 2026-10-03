@@ -174,6 +174,14 @@ function carveRiver(w: World, r: Rng, width: number) {
 }
 
 /** Ready a settlement's ground: a grove planted north-west of it so it can start a wood chain, and its centre cleared. */
+/** Clear the trees off a new settlement's layout (a founding party's first work). */
+export function clearSite(S: State, M: MapDef, cx: number, cy: number) {
+  const w = S.world, W = w.w;
+  for (let y = Math.max(0, cy - 8); y <= Math.min(w.h - 1, cy + 8); y++) for (let x = Math.max(0, cx - 8); x <= Math.min(W - 1, cx + 8); x++) {
+    if (Math.hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
+  }
+}
+
 function prepareSite(S: State, M: MapDef, cx: number, cy: number) {
   const w = S.world, W = w.w;
   for (let y = cy - 8; y <= cy - 3; y++) for (let x = cx - 12; x <= cx - 6; x++) {
@@ -236,7 +244,7 @@ function firstSite(S: State): { x: number; y: number } {
  * `settlements` above 1 founds neighbours the same way, as far apart as the land allows.
  * The village planner is off unless `planner` is set, so scripted scenarios stay scripted.
  */
-export interface WorldOptions { /** the year turns (default off, for scenarios that predate seasons) */ seasons?: boolean; /** neighbours trade (default off, for scenarios that predate it) */ trade?: boolean; /** villagers age, are born and die, learn, and honour their dead (default off) */ people?: boolean; /** cart sheds and handcarts (default off) */ carts?: boolean; /** newcomers arrive (default on) */ newcomers?: boolean; /** planners pave worn paths (default on) */ roads?: boolean; planner?: boolean; settlements?: number; map?: string; size?: string }
+export interface WorldOptions { /** the year turns (default off, for scenarios that predate seasons) */ seasons?: boolean; /** neighbours trade (default off, for scenarios that predate it) */ trade?: boolean; /** villagers age, are born and die, learn, and honour their dead (default off) */ people?: boolean; /** cart sheds and handcarts (default off) */ carts?: boolean; /** crowded settlements found daughter towns (default off) */ settlers?: boolean; /** newcomers arrive (default on) */ newcomers?: boolean; /** planners pave worn paths (default on) */ roads?: boolean; planner?: boolean; settlements?: number; map?: string; size?: string }
 
 export function createState(content: Content, seed: number, opts: WorldOptions = {}): State {
   const S = {
@@ -255,6 +263,7 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   S.trade = opts.trade ?? false;
   S.people = opts.people ?? false;
   S.carts = opts.carts ?? false;
+  S.settlers = opts.settlers ?? false;
   S.newcomers = opts.newcomers ?? true;
   S.prng = makeRng(seed ^ 0x70656f70);
   S.world = generateWorld(M, size.width, size.height, S);
@@ -278,19 +287,29 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
 }
 
 /** Lay out a settlement around (cx, cy): storage, a house either side, a road and the starting villagers. */
-function foundTown(S: State, cx: number, cy: number, planner: boolean, roads: boolean): Town {
+export function foundTown(S: State, cx: number, cy: number, planner: boolean, roads: boolean, party?: Agent[]): Town {
   const content = S.content, t = content.tuning.start, W = S.world.w;
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', rites: [], graves: {}, copyT: 0, reach: 0 };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', rites: [], graves: {}, copyT: 0, reach: 0, mother: null, sentAt: -1e9, settleT: 0 };
   S.towns.push(town);
-  chronicle(S, id, 'founded', `${town.name} was founded with ${t.villagers} villagers`);
+  if (!party) chronicle(S, id, 'founded', `${town.name} was founded with ${t.villagers} villagers`);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;
   for (const b of [store, h1, h2]) b.town = id;
   h1.inv = { ...t.houseStock }; h2.inv = { ...t.houseStock };
   for (let x = cx - 5; x <= cx + 4; x++) if (S.world.ground[(cy + 2) * W + x]) { S.world.road[(cy + 2) * W + x] = 1; S.world.tree[(cy + 2) * W + x] = 0; }
   const homes = [h1, h2], cap = content.blueprints.house.homes;
+  // a founding party moves in rather than new villagers
+  if (party) {
+    for (const a of party) {
+      const home = homes.find(h => h.residents.length < cap);
+      if (a.home) a.home.residents = a.home.residents.filter(r => r !== a.id);
+      a.home = home ?? null;
+      if (home) home.residents.push(a.id);
+    }
+    return town;
+  }
   for (let k = 0; k < t.villagers; k++) {
     const home = homes.find(h => h.residents.length < cap);
     const a = makeAgent(S, 'villager', cx - 1.5 + (k % 5), cy + 2.5);
@@ -308,10 +327,10 @@ function foundTown(S: State, cx: number, cy: number, planner: boolean, roads: bo
  * `start_room_share` of the best on room and wood, as for the first settlement.
  * Null if the land has no room.
  */
-function neighbourSite(S: State): { x: number; y: number } | null {
+export function neighbourSite(S: State, from: Town = S.towns[0]): { x: number; y: number } | null {
   const w = S.world, t = S.content.tuning.start;
   const centres = S.towns.map(tn => ctr(S.bmap.get(tn.store)!));
-  const home = door(S.bmap.get(S.towns[0].store)!);
+  const home = door(S.bmap.get(from.store)!);
   const { layoutFits, roomAround, woodAround } = siteTests(w);
   const spots: { x: number; y: number; spread: number; score: number }[] = [];
   for (let cy = 3; cy < w.h - 4; cy++) for (let cx = 7; cx < w.w - 6; cx++) {

@@ -4,12 +4,12 @@ title: Starting settlement
 description: What a new game begins with, per settlement — a storage yard, two houses, a road and five villagers.
 tags: [world, balance]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T13:41:22Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T19:56:47Z }
 tuning:
   villagers: 5
   storage: { planks: 30, bread: 12, logs: 4 }
   house_stock: { bread: 3 }
-  names: [Hearth, Brook, Ashby, Fenwick]
+  names: [Hearth, Brook, Ashby, Fenwick, Thornby, Millhaven, Oakridge, Wrenford, Elmstead, Kettlewell, Harrowgate, Dunmere]
   neighbour_min_distance: 12
   neighbour_spacing: 30
   neighbour_min_room: 160

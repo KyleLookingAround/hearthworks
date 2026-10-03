@@ -123,6 +123,7 @@ export interface Tuning {
     roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
+  settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; storesShare: number; maxSettlements: number };
   people: {
     adultSeconds: number; elderSeconds: number; lifespanSeconds: number; lifespanJitterSeconds: number; founderAgeMaxSeconds: number; birthEverySeconds: number;
     practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
@@ -328,6 +329,10 @@ export interface Town {
   copyT: number;
   /** Smoothed tiles its deliveries go (walk to the goods plus the haul): the strain of distance. */
   reach: number;
+  /** The settlement that sent its founding party, if any, and when it last sent one of its own. */
+  mother: number | null;
+  sentAt: number;
+  settleT: number;
 }
 
 export interface World {
@@ -449,6 +454,8 @@ export interface State {
   people: boolean;
   /** Carts on: cart sheds can be thought of, and lend handcarts for long hauls. */
   carts: boolean;
+  /** Settling on: crowded settlements send founding parties to found daughter towns. */
+  settlers: boolean;
   /** Newcomers arrive (off to grow by births alone). */
   newcomers: boolean;
   /** Separate stream for births, lifespans and the like, so people never shift the rest of the world. */
