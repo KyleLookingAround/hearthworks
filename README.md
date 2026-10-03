@@ -2,7 +2,7 @@
 
 A cosy 2D town builder for the web. Every log, plank and loaf is carried by a villager until you invent machines to do it. The goal is a town whose villagers decide what to build themselves, growing from a hamlet into a civilisation.
 
-**Status:** playable prototype. You place the buildings; villagers staff them, haul every good through a shared job board, eat bread, arrive when fed and leave when not. Courier bots are the first automation. The village planner is next.
+**Status:** playable prototype. The villagers plan their own town: they notice shortages and decide what to build and where (switch **Village plans** off to place buildings yourself). They staff the buildings, haul every good through a shared job board, eat bread, arrive when fed and leave when not. Courier bots are the first automation.
 
 ## Run it
 

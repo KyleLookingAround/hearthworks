@@ -13,6 +13,8 @@ export class App {
   readonly r: Renderer;
   view: View;
   speed = 1;
+  /** Village plans: the planner chooses and places buildings. On by default; the player can still place by hand. */
+  plans = true;
   goals: boolean[];
   private seenEvents = 0;
   private confirmDel = false;
@@ -33,7 +35,7 @@ export class App {
   }
 
   newGame(seed: number) {
-    this.S = createState(this.content, seed);
+    this.S = createState(this.content, seed, { planner: this.plans });
     this.seenEvents = 0;
     this.goals = GOALS.map(() => false);
     const cx = Math.floor(this.S.world.w / 2), cy = Math.floor(this.S.world.h / 2);
@@ -88,6 +90,7 @@ export class App {
 
   private wireControls() {
     document.querySelectorAll<HTMLButtonElement>('[data-speed]').forEach(b => b.addEventListener('click', () => this.setSpeed(Number(b.dataset.speed))));
+    $('#plans').addEventListener('click', () => this.setPlans(!this.plans));
     $('#routes').addEventListener('click', () => { this.view.routes = !this.view.routes; $('#routes').setAttribute('aria-pressed', String(this.view.routes)); });
     $('#newIsland').addEventListener('click', () => { this.newGame(Math.floor(Math.random() * 1e9)); this.toast('A new island rises from the sea'); });
     $('#insClose').addEventListener('click', () => this.select(null));
@@ -100,6 +103,15 @@ export class App {
   setSpeed(v: number) {
     this.speed = v;
     document.querySelectorAll<HTMLButtonElement>('[data-speed]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.speed) === v)));
+  }
+
+  setPlans(on: boolean) {
+    this.plans = on;
+    this.S.planner.on = on;
+    this.S.planner.t = 0;
+    $('#plans').setAttribute('aria-pressed', String(on));
+    this.toast(on ? 'The villagers will plan what to build' : 'Village plans off: you place the buildings');
+    this.updateHud();
   }
 
   setTool(t: string | null) {
@@ -198,6 +210,9 @@ export class App {
     const vs = villagers(S), cap = countBuilt(S, 'house') * this.content.blueprints.house.homes, bots = S.agents.length - vs.length;
     const carriers = vs.filter(a => a.role === 'carrier').length, m = Math.round(S.mood * 100);
     const mc = m >= 80 ? 'mood-good' : m >= 50 ? 'mood-warn' : 'mood-bad';
+    const plan = S.planner, line = $('#planLine');
+    line.classList.toggle('off', !plan.on);
+    $('#planText').textContent = plan.on ? plan.status : 'Plans are off: you place the buildings';
     $('#meta').innerHTML = `<span class="chip">Villagers <b>${vs.length}/${cap}</b></span><span class="chip" id="chipCarriers">Carriers <b>${carriers}</b></span><span class="chip ${mc}">Mood <b>${m}%</b></span>` + (bots ? `<span class="chip">Bots <b>${bots}</b></span>` : '');
     this.updateInspector();
   }
@@ -268,6 +283,9 @@ export class App {
     $('#insSw').style.background = B.color;
     $('#insName').textContent = b.site ? `${B.name} (site)` : B.name;
     $('#insDesc').textContent = B.description;
+    const why = $('#insWhy');
+    why.hidden = !b.reason;
+    if (b.reason) why.innerHTML = `<b>${b.site ? 'Planned' : 'Built'} by the village:</b> ${esc(b.reason)}`;
     const row = (k: string, v: string | number) => `<dt>${esc(k)}</dt><dd>${esc(String(v))}</dd>`;
     let rows = '', progress: number | null = null;
     if (b.site) {

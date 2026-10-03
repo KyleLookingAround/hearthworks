@@ -35,4 +35,4 @@ Node 22.18 or newer runs `.ts` files directly; TypeScript is the only dependency
 
 ## Current focus
 
-Phase 4 of `design/roadmap.md`: the village planner (`design/systems/planner.md`, status draft). The first target is to replace Gate 2's scripted build order with a planner that matches it.
+Phase 4 of `design/roadmap.md` is done: the village planner (`design/systems/planner.md`, `src/sim/planner.ts`) passes Gate 4 with no build calls. It is off by default in `createState` so scripted gates stay scripted; pass `{ planner: true }` to turn it on. Phase 5 (knowledge) is next.

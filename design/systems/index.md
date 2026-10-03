@@ -5,6 +5,6 @@
 * [Logistics](logistics.md) - The job board — requests, offers, reservations, carriers and courier bots.
 * [Map](map.md) - Seeded island generation, terrain, trees and regrowth.
 * [Needs and population](needs.md) - Eating, mood, newcomers arriving and villagers leaving.
-* [Village planner](planner.md) (draft) - Next system — villagers decide what to build and where, so the town grows into a civilisation on its own.
-* [Production and construction](production.md) - Construction sites, worker assignment and recipe cycles.
+* [Village planner](planner.md) - Villagers sense shortages, choose what to build and where, and queue one site at a time, so the town grows on its own.
+* [Production and construction](production.md) - Construction sites and their priority queue, worker assignment and recipe cycles.
 * [Starting settlement](settlement.md) - What a new game begins with — a storage yard, two houses, a road and five villagers.

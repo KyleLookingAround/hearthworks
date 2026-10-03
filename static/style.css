@@ -47,6 +47,9 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--brass-hi);out
 .btn.danger{border-color:color-mix(in srgb,var(--bad) 60%,var(--line));color:var(--bad)}
 .btn.danger.armed{background:var(--bad);color:var(--panel);border-color:var(--bad)}
 
+.planline{margin:0;max-width:100%;padding:5px 12px;font-size:14px;color:var(--ink)}
+.planline .lbl{font-family:var(--display);font-weight:700;letter-spacing:.06em;color:var(--brass-hi);margin-right:4px}
+.planline.off{color:var(--ink-2)}
 .goals{width:min(290px,100%);padding:8px 12px 10px}
 .goals summary{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.06em;color:var(--brass-hi);cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px}
 .goals summary::-webkit-details-marker{display:none}
@@ -81,6 +84,8 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--brass-hi);out
 .ins-head h2{margin:0;font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:.03em;flex:1}
 .ins-close{background:none;border:none;color:var(--ink-2);font-size:20px;line-height:1;cursor:pointer;padding:0 4px}
 .ins-desc{margin:0;font-size:13.5px;color:var(--ink-2)}
+.ins-why{margin:0;font-size:13.5px;color:var(--ink);border-left:2px solid var(--brass);padding-left:8px}
+.ins-why b{font-family:var(--display);letter-spacing:.03em;color:var(--brass-hi);font-weight:700}
 .status{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700}
 .status::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
 .status.ok{color:var(--good)} .status.warn{color:var(--warn)} .status.bad{color:var(--bad)} .status.wait{color:var(--ink-2)}

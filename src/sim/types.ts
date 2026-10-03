@@ -42,7 +42,32 @@ export interface Tuning {
     roadSpeed: number; forestSpeed: number; outputCap: number; dumpAt: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number };
-  production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number };
+  production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
+  planner: PlannerTuning;
+}
+
+export interface PlannerTuning {
+  intervalSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
+  foodHeadroom: number; growthBeds: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
+  costWeight: number; urgencyPriority: number;
+  searchRadius: number; gap: number; minTrees: number;
+  treeWeight: number; sharedTreeWeight: number; linkWeight: number; storeWeight: number; forestPenalty: number;
+}
+
+/** What the village planner is doing. Off unless the game or a scenario turns it on. */
+export interface PlannerState {
+  on: boolean;
+  /** Seconds until the next look around. */
+  t: number;
+  /** Seconds to wait after a planned building finishes before planning again. */
+  settle: number;
+  /** The blueprint that topped the last looks, and for how many in a row. */
+  streak: { type: string; n: number };
+  /** The planner's own open site, if any. */
+  site: number | null;
+  /** One line for the player: what the planner is doing and why. */
+  status: string;
+  placed: number;
 }
 
 export interface Content {
@@ -74,6 +99,10 @@ export interface Building {
   hunger: number;
   bots: number[];
   dead: boolean;
+  /** Construction sites with a higher priority are supplied first. Hand-placed sites are 0. */
+  priority: number;
+  /** Why the village planned this building; empty when placed by hand. */
+  reason: string;
 }
 
 export type AgentState = 'idle' | 'wander' | 'toSrc' | 'toDst' | 'toWork' | 'working';
@@ -134,4 +163,5 @@ export interface State {
   secT: number;
   stats: Stats;
   events: GameEvent[];
+  planner: PlannerState;
 }
