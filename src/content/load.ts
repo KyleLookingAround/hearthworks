@@ -106,6 +106,7 @@ export function buildContent(files: SourceFile[]): Content {
       paves: f.paves === true,
       shore: f.shore === true,
       zone: f.zone === 'farms' || f.zone === 'workshops' || f.zone === 'homes' ? f.zone : (num(d, f.homes, 'homes', 0) > 0 ? 'homes' : null),
+      seasonal: f.seasonal === true,
       form: f.form === 'town' ? 'town' : f.form === 'village' ? 'village' : 'hamlet',
       bridge: bridge ? { maxSpan: num(d, bridge.max_span, 'bridge.max_span') } : null,
       nuisance: nuisance ? { radius: num(d, nuisance.radius, 'nuisance.radius'), amount: num(d, nuisance.amount, 'nuisance.amount') } : null,
@@ -154,7 +155,7 @@ export function buildContent(files: SourceFile[]): Content {
     if (!isMap(d.data.tuning)) { problems.push(`${d.path}: needs a "tuning:" block`); return [d, {}]; }
     return [d, d.data.tuning];
   };
-  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge');
+  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons');
   const sizes: Record<string, MapSize> = {};
   for (const [id, v] of Object.entries(isMap(mt.sizes) ? mt.sizes : {})) {
     const m = isMap(v) ? v : {};
@@ -174,13 +175,18 @@ export function buildContent(files: SourceFile[]): Content {
       villagerCarry: num(ld, lt.villager_carry, 'tuning.villager_carry'), botCarry: num(ld, lt.bot_carry, 'tuning.bot_carry'),
       villagerSpeed: num(ld, lt.villager_speed, 'tuning.villager_speed'), botSpeed: num(ld, lt.bot_speed, 'tuning.bot_speed'),
       roadSpeed: num(ld, lt.road_speed, 'tuning.road_speed'), boatSpeed: num(ld, lt.boat_speed, 'tuning.boat_speed'), forestSpeed: num(ld, lt.forest_speed, 'tuning.forest_speed'),
-      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'), noWayRetrySeconds: num(ld, lt.no_way_retry_seconds, 'tuning.no_way_retry_seconds'), slopeCost: num(ld, lt.slope_cost, 'tuning.slope_cost'), rockCost: num(ld, lt.rock_cost, 'tuning.rock_cost'),
+      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), releaseAfterSeconds: num(ld, lt.release_after_seconds, 'tuning.release_after_seconds'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'), noWayRetrySeconds: num(ld, lt.no_way_retry_seconds, 'tuning.no_way_retry_seconds'), slopeCost: num(ld, lt.slope_cost, 'tuning.slope_cost'), rockCost: num(ld, lt.rock_cost, 'tuning.rock_cost'),
     },
     needs: {
       eatEverySeconds: num(nd, nt.eat_every_seconds, 'tuning.eat_every_seconds'), leaveAfterHungrySeconds: num(nd, nt.leave_after_hungry_seconds, 'tuning.leave_after_hungry_seconds'),
       migrantEverySeconds: num(nd, nt.migrant_every_seconds, 'tuning.migrant_every_seconds'), migrateMinMood: num(nd, nt.migrate_min_mood, 'tuning.migrate_min_mood'), surroundingsWeight: num(nd, nt.surroundings_weight, 'tuning.surroundings_weight'),
       tierTwo: Array.isArray(nt.tier_two) ? nt.tier_two.map(String) : [], tierThree: Array.isArray(nt.tier_three) ? nt.tier_three.map(String) : [],
       extrasEverySeconds: num(nd, nt.extras_every_seconds, 'tuning.extras_every_seconds'), extrasStock: num(nd, nt.extras_stock, 'tuning.extras_stock'), varietyBonus: num(nd, nt.variety_bonus, 'tuning.variety_bonus'),
+    },
+    seasons: {
+      yearSeconds: num(ed, et.year_seconds, 'tuning.year_seconds'), firewoodEverySeconds: num(ed, et.firewood_every_seconds, 'tuning.firewood_every_seconds'),
+      firewoodStock: num(ed, et.firewood_stock, 'tuning.firewood_stock'), coldPenalty: num(ed, et.cold_penalty, 'tuning.cold_penalty'), winterHeadroom: num(ed, et.winter_headroom, 'tuning.winter_headroom'),
+      preserved: Array.isArray(et.preserved) ? et.preserved.map(String) : [],
     },
     surroundings: (() => {
       const su = isMap(nt.surroundings) ? nt.surroundings : {}, g = (k: string) => num(nd, su[k], `tuning.surroundings.${k}`);

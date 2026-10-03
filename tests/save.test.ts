@@ -59,3 +59,10 @@ test('a version 1 save is upgraded: planners gain their memory of where there wa
   assert.equal(up.version, SAVE_VERSION);
   for (const t of (up.state.towns as { planner: { noRoom: unknown } }[])) assert.deepEqual(t.planner.noRoom, {});
 });
+
+test('an older save is upgraded to version 8: seasons off, homes without a fire, nobody stalled', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v1.json', import.meta.url), 'utf8')) as SaveFile;
+  const up = migrate(file);
+  assert.equal((up.state as { seasons: boolean }).seasons, false);
+  for (const b of up.state.buildings as { fire: number; stall: number }[]) { assert.equal(b.fire, 0); assert.equal(b.stall, 0); }
+});

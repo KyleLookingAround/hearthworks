@@ -1,6 +1,6 @@
 import { rand } from './rng.ts';
 import { findPath, type PathOptions } from './path.ts';
-import { bp, distAB, door, inB } from './world.ts';
+import { bp, distAB, door, inB, seasonOf, storesOnTrack } from './world.ts';
 import { blame, cancelTask, drop, findTask, pickup } from './logistics.ts';
 import { arrive } from './knowledge.ts';
 import type { Agent, Building, State } from './types.ts';
@@ -106,10 +106,19 @@ function foodChain(S: State): Set<string> {
 }
 
 /** Give each staffed building a worker from its own settlement, keeping one carrier there until it has bots. */
+/** Send a building's worker back to carrying. */
+export function release(S: State, b: Building) {
+  const w = b.worker !== null ? S.amap.get(b.worker) : undefined;
+  b.worker = null;
+  if (w) { w.work = null; w.role = 'carrier'; w.state = 'idle'; w.path = []; }
+}
+
 export function assignWorkers(S: State) {
-  const essential = foodChain(S);
+  const essential = foodChain(S), winter = seasonOf(S) === 'winter', behind: Record<number, boolean> = {};
   for (const b of S.buildings) {
     if (!bp(S, b).workers || b.site || b.worker) continue;
+    // fields resting through winter need nobody
+    if (winter && bp(S, b).seasonal) continue;
     if (b.noWay !== null && S.t - b.noWay < S.content.tuning.logistics.noWayRetrySeconds) continue;
     const anyBots = S.agents.some(a => a.kind === 'bot' && a.depot?.town === b.town);
     const carriers = S.agents.filter(a => a.kind === 'villager' && a.role === 'carrier' && a.state !== 'visit' && a.home?.town === b.town);
@@ -118,7 +127,8 @@ export function assignWorkers(S: State) {
     // otherwise only pause under a second between looks for work)
     const idle = carriers.filter(a => !a.task && a.cool <= 1);
     // a hungry settlement takes a worker off a workplace outside the food chain to staff one in it
-    if (!idle.length && S.towns[b.town] && S.towns[b.town].fed < 1 && Object.keys(bp(S, b).output).some(g => essential.has(g))) {
+    // (and so does one whose winter store has fallen behind)
+    if (!idle.length && S.towns[b.town] && (S.towns[b.town].fed < 1 || (behind[b.town] ??= !storesOnTrack(S, S.towns[b.town]))) && Object.keys(bp(S, b).output).some(g => essential.has(g))) {
       const spare = S.agents.find(a => a.role === 'worker' && a.work && a.home?.town === b.town && !Object.keys(bp(S, a.work).output).some(g => essential.has(g)));
       if (spare) { spare.work!.worker = null; spare.work = null; spare.role = 'carrier'; spare.state = 'idle'; spare.path = []; idle.push(spare); }
     }

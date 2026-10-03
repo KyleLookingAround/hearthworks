@@ -1,0 +1,83 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { loadContent } from '../src/content/node.ts';
+import { createState, placeBuilding, runFor, ctr, bp } from '../src/sim/index.ts';
+import { seasonOf, storesOnTrack } from '../src/sim/world.ts';
+import { wants } from '../src/sim/production.ts';
+import { computeMood } from '../src/sim/tick.ts';
+import { findSpot } from '../src/gates/kit.ts';
+
+const content = loadContent();
+const Y = content.tuning.seasons.yearSeconds;
+
+test('seasons are off unless asked for, and turn in quarters of the year', () => {
+  assert.equal(seasonOf(createState(content, 1847, {})), null);
+  const S = createState(content, 1847, { seasons: true });
+  const at = (t: number) => { S.t = t; return seasonOf(S); };
+  assert.deepEqual([at(0), at(Y / 4), at(Y / 2), at(Y * 0.75), at(Y)], ['spring', 'summer', 'autumn', 'winter', 'spring']);
+});
+
+test('fields rest in winter and their worker goes carrying', () => {
+  const S = createState(content, 1847, { seasons: true });
+  const store = S.bmap.get(S.towns[0].store)!, at = findSpot(S, 'farm', ctr(store))!;
+  const f = placeBuilding(S, 'farm', at.x, at.y, true)!;
+  S.t = Y * 0.75 + 1;
+  runFor(S, 30);
+  const made = S.stats.made.wheat || 0;
+  runFor(S, 60);
+  assert.equal(S.stats.made.wheat || 0, made, 'no wheat grows in winter');
+  assert.equal(f.worker, null, 'nobody works a resting field');
+  assert.match(f.status.t, /Winter/);
+});
+
+test('homes keep firewood and preserved food from autumn, and a home with no fire in winter is cold', () => {
+  const S = createState(content, 1847, { seasons: true });
+  const home = S.buildings.find(b => bp(S, b).homes && b.residents.length)!;
+  S.t = 10;
+  assert.equal(wants(S, home, 'hamlet').logs, undefined, 'no firewood wanted in spring');
+  S.t = Y / 2 + 10;
+  assert.equal(wants(S, home, 'hamlet').logs, content.tuning.seasons.firewoodStock);
+  for (const g of content.tuning.seasons.preserved) assert.ok(wants(S, home, 'hamlet')[g]! > 0);
+  S.t = Y * 0.75 + 10;
+  for (const b of S.buildings) if (bp(S, b).homes) { b.inv.logs = 0; b.inv.bread = 5; b.hunger = 0; }
+  computeMood(S);
+  const cold = S.mood;
+  for (const b of S.buildings) if (bp(S, b).homes) b.inv.logs = 5;
+  computeMood(S);
+  assert.ok(S.mood > cold, `${S.mood} warm against ${cold} cold`);
+  assert.ok(S.mood - cold <= content.tuning.seasons.coldPenalty + 1e-9);
+});
+
+test('homes eat preserved food when the bread is gone', () => {
+  const S = createState(content, 1847, { seasons: true });
+  const home = S.buildings.find(b => bp(S, b).homes && b.residents.length)!;
+  home.inv.bread = 0; home.inv.smoked_fish = 10; home.eat = 0.99;
+  runFor(S, 1);
+  assert.ok(home.inv.smoked_fish < 10, 'smoked fish eaten');
+  assert.equal(home.hunger, 0);
+});
+
+test('summer newcomers wait for the winter store to keep pace', () => {
+  const S = createState(content, 1847, { seasons: true });
+  const t = S.towns[0];
+  for (const b of S.buildings) if (bp(S, b).storage) for (const g of ['wheat', 'bread']) b.inv[g] = 0;
+  S.t = 10;
+  assert.ok(storesOnTrack(S, t, 1), 'spring asks nothing yet');
+  S.t = Y / 2 - 10;
+  assert.ok(!storesOnTrack(S, t, 1), 'empty stores at the end of summer are behind');
+  S.bmap.get(t.store)!.inv.wheat = 500;
+  assert.ok(storesOnTrack(S, t, 1));
+});
+
+test('a workplace left standing full sends its worker carrying', () => {
+  const S = createState(content, 1847, {});
+  const store = S.bmap.get(S.towns[0].store)!, at = findSpot(S, 'farm', ctr(store))!;
+  const f = placeBuilding(S, 'farm', at.x, at.y, true)!;
+  runFor(S, 30);
+  assert.notEqual(f.worker, null, 'staffed');
+  f.inv.wheat = content.tuning.logistics.outputCap;
+  f.paused = false;
+  const w = f.worker;
+  for (let k = 0; k < content.tuning.logistics.releaseAfterSeconds * 10 + 5 && f.worker === w; k++) { f.inv.wheat = content.tuning.logistics.outputCap; runFor(S, 0.1); }
+  assert.notEqual(f.worker, w, 'the worker left a full farm');
+});

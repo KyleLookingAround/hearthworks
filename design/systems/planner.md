@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T16:49:28Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T17:39:15Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -125,6 +125,16 @@ Overlays in the menu show how each home feels (surroundings, hunger), the reach 
 - **Never waiting on the work it plans.** A home built to bring a worker is the densest the settlement can pay for today. A site starved for `site_patience_seconds` of a good nobody has no longer holds up the planner, and its beds no longer count as on the way.
 - **Keep back for the maker.** Until something in the settlement makes a good, the planner keeps back enough of it to build the cheapest building that makes it: it never spends the last planks before a sawmill.
 - **Food workers first.** A hungry settlement takes a worker off a workplace outside the food chain to staff one in it.
+- **Follow what it can afford.** When a choice needs an input nobody makes, the planner plans that input's maker first, but only if it can pay for it today; otherwise it builds the maker of what it lacks.
+
+# Seasons
+
+With [seasons](/systems/seasons.md) on, the planner plans for winter all year:
+
+- **Grain.** It wants a quarter more grain than the bakeries use, at `winter_headroom`, since three growing seasons must feed four. Before the frost it adds the gap: the winter's meals less the food already in store, over the time left.
+- **Firewood.** Logs at the winter rate, one per villager every `firewood_every_seconds`.
+- **Room for the store.** In summer and autumn it wants room for the winter's food at `winter_headroom`: a store's room is its capacity less the planks, logs and stone already in it, so a yard full of timber does not count as a granary.
+- **Growth waits.** Homes for newcomers wait through autumn and winter, when nobody comes. In summer a newcomer comes only while the stores keep pace with the winter's meals for one more mouth (none at the start of summer, half by its end), and a settlement whose store has fallen behind moves workers to its food chain as a hungry one does.
 
 # Desire paths
 

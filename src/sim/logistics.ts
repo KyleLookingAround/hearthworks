@@ -4,7 +4,7 @@
  * An idle carrier claims the cheapest request/offer pair and reserves the
  * goods at both ends, so two carriers never fetch the same stack.
  */
-import { add, bp, ctr, distAB, distBB, door } from './world.ts';
+import { add, bp, ctr, distAB, distBB, door, seasonOf } from './world.ts';
 import { findPath } from './path.ts';
 import { goToBuilding } from './agents.ts';
 import { wants } from './production.ts';
@@ -66,16 +66,20 @@ function siteRequests(S: State, reqs: Request[]) {
 export function collectRequests(S: State): Request[] {
   const reqs: Request[] = [];
   siteRequests(S, reqs);
+  const winter = seasonOf(S) === 'winter', homeFood = new Set<ItemId>();
+  if (winter) for (const id in S.content.blueprints) for (const g of Object.keys(S.content.blueprints[id].keepStocked)) if (S.content.blueprints[id].homes) homeFood.add(g);
   for (const b of S.buildings) {
     const B = bp(S, b);
     if (b.site) continue;
     if (b.paused) continue;
     const want = wants(S, b, S.towns[b.town]?.form ?? 'hamlet'), food = Object.keys(B.keepStocked)[0];
+    // in winter a bakery's grain comes as soon as a home's bread: the stores are all there is
+    const kitchen = winter && Object.keys(B.output).some(g => homeFood.has(g));
     for (const item in want) {
       const need = want[item] - (b.inv[item] || 0) - (b.incoming[item] || 0);
       const age = aged(S, b, item, need);
-      // a home's food comes before its comforts
-      if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? (item === food ? -4 : 2) : 0) - age });
+      // a home's food comes first, then firewood and preserved food, then its comforts
+      if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? (item === food ? -4 : item === 'logs' || S.content.tuning.seasons.preserved.includes(item) ? -3 : 2) : kitchen ? -4 : 0) - age });
     }
   }
   return reqs;

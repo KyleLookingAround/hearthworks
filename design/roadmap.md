@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T16:49:28Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T17:39:15Z }
 ---
 
 # How to read this
@@ -23,12 +23,12 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 4 | The village plans | [Planner](/systems/planner.md) chooses and places buildings | 2 | [Gate 4](/gates/04-village-plans.md) | Done |
 | 5 | Knowledge | [Knowledge](/systems/knowledge.md): invented, proven, shared, forgotten; two settlements | 4 | [Gate 5](/gates/05-knowledge-spreads.md) | Done |
 | 6 | Solid ground | Solid buildings with doors, mood and supply per settlement, versioned saves, work counters | 5 | Nobody walks through walls; a save resumes exactly | Next |
-| 7 | Worlds | Map types (island, landmass, coast) and sizes the player picks, one standard map for tests, a sim and renderer that scale | 6 | Every map type and size plays; 600 villagers on a large map within a work budget | Later |
-| 8 | The lie of the land | Terrain, rivers, deposits, bridges, desire-path roads, surroundings in mood | 7 | Roads cut delivery time; homes stay clear of nuisance | Later |
-| 9 | Village to town | Form by size, streets, a ladder of home sizes, replanning, town and district planners | 8 | A hamlet replans itself into a dense town, nobody displaced | Later |
-| 10 | The steward | Player levers through the town planner, overlays, a chronicle | 9 | Each lever measurably does what it promises | Later |
-| 11 | A deeper economy | Stone, clay, tools, fish, cloth; multi-input recipes; home tiers by goods; storage | 9 | A tier-three town stays supplied | Later |
-| 12 | Seasons | A year: growing seasons, winter, warmth, storing food | 11 | A town lives through three winters | Later |
+| 7 | Worlds | Map types (island, landmass, coast) and sizes the player picks, one standard map for tests, a sim and renderer that scale | 6 | [Gate 7](/gates/07-worlds.md) | Done |
+| 8 | The lie of the land | Terrain, rivers, deposits, bridges, desire-path roads, surroundings in mood | 7 | [Gate 8](/gates/08-lie-of-the-land.md) | Done |
+| 9 | Village to town | Form by size, streets, a ladder of home sizes, replanning, town and district planners | 8 | [Gate 9](/gates/09-village-to-town.md) | Done |
+| 10 | The steward | Player levers through the town planner, overlays, a chronicle | 9 | [Gate 10](/gates/10-steward.md) | Done |
+| 11 | A deeper economy | Stone, clay, tools, fish, cloth; multi-input recipes; home tiers by goods; storage | 9 | [Gate 11](/gates/11-deeper-economy.md) | Done |
+| 12 | Seasons | A year: growing seasons, winter, warmth, storing food | 11 | [Gate 12](/gates/12-seasons.md) | Done |
 | 13 | Neighbours trade | Settlements swap surplus for want, on foot at first; specialisation | 11 | Two trading neighbours beat the same two in isolation | Later |
 | 14 | People and traditions | Individuals: families, births, ageing, skills, apprenticeships; death and each village's own customs for it | 12 | A town grows by births alone; neighbours keep different customs | Later |
 | 15 | Learning | Libraries, schools, universities; knowledge kept, taught and pursued | 14 | A library keeps a craft alive; a university speeds a discovery | Later |
@@ -190,7 +190,9 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Builds.** A year of tuned length: crops grow from spring to autumn and are harvested; winter needs firewood for warmth and stored food. Granaries and preserved food (smoked fish) earn their place. The planner forecasts winter demand, and mood has a seasonal part.
 
-**Gate 12 (proposed).** Three game years on the standard map: no starvation, at most 2% departures, and food in store at the first frost covering at least the winter's need.
+**Delivered.** A year of `year_seconds` (twenty game minutes) in four seasons, on in every new game and off in older scenarios. Farms and flax farms rest in winter and their workers go carrying; homes burn firewood and feel the cold; [smoked fish](/goods/smoked_fish.md) from the [Smokehouse](/blueprints/smokehouse.md) keeps; newcomers come in spring and summer, in summer only while the winter store keeps pace; the planner wants more grain, firewood and room for the winter's store. The HUD shows the season and the land turns with it. Saves go to version 8. A worker left at a full workplace goes carrying (every game, not only with seasons). **Phase 12 is done.**
+
+**Gate 12 (stable)**, as proposed, plus `peak_villagers` at least 60 so a settlement that never grows cannot pass. Three game years on the standard map: departures at most 2% of the peak, `fed_min` at least 0.5, and food in store at the first frost covering at least the winter's need.
 
 **Disturbs.** Every food gate: seasons are off by default for scenarios that predate them, like the planner was.
 

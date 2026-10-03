@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T16:49:28Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T17:39:15Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -14,6 +14,7 @@ tuning:
   forest_speed: 0.65
   boat_speed: 4
   output_cap: 6
+  release_after_seconds: 20
   dump_at: 3
   request_aging: 0.5
   no_way_retry_seconds: 30
@@ -31,7 +32,7 @@ tuning:
 5. **Waiting requests come closer.** A request nobody has started serving counts as `request_aging` tiles nearer for every second it waits, so a far forester's logs are fetched in the end even while short surplus runs keep coming up.
 6. Claiming **reserves** the goods at the source and marks them **incoming** at the destination, so no two carriers chase the same stack.
 7. A producer holding at least `dump_at` of an output nobody asked for sends it to the nearest [storage yard](/blueprints/storage.md).
-8. A producer whose output reaches `output_cap` stalls.
+8. A producer whose output reaches `output_cap` stalls. Once it has stood full for `release_after_seconds`, its worker leaves to carry, and the job is filled again by the next idle carrier.
 
 # Walls and doors
 

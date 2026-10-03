@@ -7,6 +7,7 @@
 * [first-plank.ts](first-plank.ts)
 * [knowledge-spreads.ts](knowledge-spreads.ts)
 * [lie-of-the-land.ts](lie-of-the-land.ts)
+* [seasons.ts](seasons.ts)
 * [solid-ground.ts](solid-ground.ts)
 * [steward.ts](steward.ts)
 * [sustain-town.ts](sustain-town.ts)

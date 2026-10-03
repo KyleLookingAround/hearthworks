@@ -2,7 +2,7 @@
 import { surroundings } from '../sim/surroundings.ts';
 import { homeTier } from '../sim/production.ts';
 import { formOf, hubs } from '../sim/planner.ts';
-import { ZONES, advise, chronicleLog, loadGame, saveGame, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { ZONES, advise, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
 
@@ -56,7 +56,7 @@ export class App {
   }
 
   newGame(c: GameChoice) {
-    this.adopt(createState(this.content, c.seed, { planner: c.plans, settlements: c.settlements, map: c.map, size: c.size }));
+    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, settlements: c.settlements, map: c.map, size: c.size }));
     this.save();
   }
 
@@ -400,7 +400,8 @@ export class App {
     this.renderKnowledge();
     this.renderSteward(false);
     this.renderChronicle();
-    $('#meta').innerHTML = `<span class="chip" title="Villagers and beds"><span class="lbl">Villagers</span> 👤 <b>${vs.length}/${cap}</b></span><span class="chip" id="chipCarriers">Carriers <b>${carriers}</b></span><span class="chip ${mc}" title="Mood"><span class="lbl">Mood</span> ☺ <b>${m}%</b></span>` + (bots ? `<span class="chip" title="Bots"><span class="lbl">Bots</span> ⚙ <b>${bots}</b></span>` : '');
+    const season = seasonOf(S), year = Math.floor(S.t / this.content.tuning.seasons.yearSeconds) + 1;
+    $('#meta').innerHTML = (season ? `<span class="chip season ${season}" title="Year ${year}"><span class="lbl">${season[0].toUpperCase() + season.slice(1)}</span> ${['🌱', '☀', '🍂', '❄'][['spring', 'summer', 'autumn', 'winter'].indexOf(season)]} <b>Y${year}</b></span>` : '') + `<span class="chip" title="Villagers and beds"><span class="lbl">Villagers</span> 👤 <b>${vs.length}/${cap}</b></span><span class="chip" id="chipCarriers">Carriers <b>${carriers}</b></span><span class="chip ${mc}" title="Mood"><span class="lbl">Mood</span> ☺ <b>${m}%</b></span>` + (bots ? `<span class="chip" title="Bots"><span class="lbl">Bots</span> ⚙ <b>${bots}</b></span>` : '');
     this.updateInspector();
   }
 

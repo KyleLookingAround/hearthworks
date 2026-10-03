@@ -17,6 +17,38 @@ export const villagers = (S: State): Agent[] => S.agents.filter(a => a.kind === 
 export const hasBuilt = (S: State, type: string) => S.buildings.some(b => b.type === type && !b.site);
 export const countBuilt = (S: State, type: string) => S.buildings.filter(b => b.type === type && !b.site).length;
 
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
+
+/** The season now, or null with seasons off. The year opens in spring; each season is a quarter of `year_seconds`. */
+export function seasonOf(S: State): Season | null {
+  if (!S.seasons) return null;
+  const Y = S.content.tuning.seasons.yearSeconds;
+  return SEASONS[Math.floor(((S.t % Y) / Y) * 4) % 4];
+}
+
+/**
+ * Is a settlement's winter store on track, counting `extra` more mouths? From the start of summer to the
+ * first frost, the grain, bread and preserved food in its stores must keep pace with the winter's meals: none
+ * at the start of summer, half at its end, all by the frost. Always true without seasons.
+ */
+export function storesOnTrack(S: State, t: Town, extra = 0): boolean {
+  if (!S.seasons) return true;
+  const Z = S.content.tuning.seasons, phase = (S.t % Z.yearSeconds) / Z.yearSeconds;
+  if (phase >= 0.75) return true;
+  let stored = 0, pop = extra;
+  for (const b of S.buildings) if (b.town === t.id && bp(S, b).storage && !b.site) for (const g of ['wheat', 'bread', ...Z.preserved]) stored += b.inv[g] || 0;
+  for (const a of S.agents) if (a.kind === 'villager' && a.home?.town === t.id) pop++;
+  const winter = (pop * Z.yearSeconds / 4) / S.content.tuning.needs.eatEverySeconds;
+  return stored >= winter * Math.max(0, (phase - 0.25) / 0.5);
+}
+
+/** The foods a home eats, in order: its own (bread), then the preserved foods when seasons are on. */
+export function foodsOf(S: State, b: Building): string[] {
+  const f = Object.keys(bp(S, b).keepStocked)[0];
+  return f ? [f, ...(S.seasons ? S.content.tuning.seasons.preserved : [])] : [];
+}
+
 /** Write a line of a settlement's history. */
 export function chronicle(S: State, town: number, kind: string, text: string) {
   S.chronicle.push({ t: S.t, town, kind, text });
@@ -187,12 +219,12 @@ function firstSite(S: State): { x: number; y: number } {
  * `settlements` above 1 founds neighbours the same way, as far apart as the land allows.
  * The village planner is off unless `planner` is set, so scripted scenarios stay scripted.
  */
-export interface WorldOptions { /** planners pave worn paths (default on) */ roads?: boolean; planner?: boolean; settlements?: number; map?: string; size?: string }
+export interface WorldOptions { /** the year turns (default off, for scenarios that predate seasons) */ seasons?: boolean; /** planners pave worn paths (default on) */ roads?: boolean; planner?: boolean; settlements?: number; map?: string; size?: string }
 
 export function createState(content: Content, seed: number, opts: WorldOptions = {}): State {
   const S = {
     content, seed, rng: makeRng(seed), krng: makeRng(seed ^ 0x6b6e6f77), t: 0, buildings: [], agents: [], bmap: new Map(), amap: new Map(), nextId: 1,
-    mood: 1, fed: 1, migT: 0, secT: 0, events: [], towns: [], chronicle: [],
+    mood: 1, fed: 1, migT: 0, secT: 0, events: [], towns: [], chronicle: [], seasons: false,
     stats: { made: {}, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, spoiled: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0 },
   } as unknown as State;
   const mt = content.tuning.map;
@@ -202,6 +234,7 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   if (!size) throw new Error(`unknown map size "${sizeId}"`);
   if (M.sizes && !M.sizes.includes(sizeId)) throw new Error(`${M.name} is not offered at size "${sizeId}"`);
   S.setup = { map: mapId, size: sizeId, settlements: opts.settlements ?? 1 };
+  S.seasons = opts.seasons ?? false;
   S.world = generateWorld(M, size.width, size.height, S);
   const L = content.tuning.logistics;
   S.world.waterCost = L.villagerSpeed / L.boatSpeed;
@@ -356,7 +389,7 @@ export function placeBuilding(S: State, type: string, x: number, y: number, comp
   if (B.paves) { const i = y * w.w + x; w.road[i] = 1; w.tree[i] = 0; return null; }
   const b: Building = {
     id: S.nextId++, type, x, y, w: B.w, h: B.h, site: !complete, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0, waiting: {}, noWay: null, doorAt: null, extra: 0, wear: 0,
+    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0, waiting: {}, noWay: null, doorAt: null, extra: 0, wear: 0, fire: 0, stall: 0,
   };
   for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; w.road[i] = 0; }
   setDoor(S, b, true);
@@ -374,7 +407,7 @@ export function placeBridge(S: State, x: number, y: number, w: number, h: number
   const W = S.world;
   const b: Building = {
     id: S.nextId++, type: 'bridge', x, y, w, h, site: true, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town, used: 0, waiting: {}, noWay: null, doorAt: { ...from }, extra: 0, wear: 0,
+    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town, used: 0, waiting: {}, noWay: null, doorAt: { ...from }, extra: 0, wear: 0, fire: 0, stall: 0,
   };
   for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) W.bgrid[j * W.w + k] = b.id;
   for (const p of [from, to]) W.front[p.y * W.w + p.x]++;

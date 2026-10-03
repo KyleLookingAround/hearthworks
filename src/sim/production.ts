@@ -1,6 +1,6 @@
 import { rand } from './rng.ts';
-import { removeAgent } from './agents.ts';
-import { add, bp, completeSite, ctr, emit, inB, plant } from './world.ts';
+import { release, removeAgent } from './agents.ts';
+import { add, bp, completeSite, ctr, emit, foodsOf, inB, plant, seasonOf } from './world.ts';
 import type { Building, Level, State, Stock } from './types.ts';
 
 const setStatus = (b: Building, t: string, l: Level) => { b.status.t = t; b.status.l = l; };
@@ -38,8 +38,8 @@ function replant(S: State, b: Building, r: number) {
  * (fish or cloth), 3 also all of `tier_three` (tools).
  */
 export function homeTier(S: State, b: Building): number {
-  const B = bp(S, b), N = S.content.tuning.needs, food = Object.keys(B.keepStocked)[0];
-  if (!B.homes || b.hunger > 0 || !food || !((b.inv[food] || 0) > 0)) return 0;
+  const B = bp(S, b), N = S.content.tuning.needs;
+  if (!B.homes || b.hunger > 0 || !foodsOf(S, b).some(f => (b.inv[f] || 0) > 0)) return 0;
   if (!N.tierTwo.some(g => (b.inv[g] || 0) >= 1)) return 1;
   return N.tierThree.every(g => (b.inv[g] || 0) >= 1) ? 3 : 2;
 }
@@ -48,8 +48,16 @@ export function homeTier(S: State, b: Building): number {
  * What a building wants kept in stock: its blueprint's `keep_stocked`, tools for a workplace that uses them,
  * and for a home the comforts its settlement's form reaches for (tier two from a village, tier three in a town).
  */
+/** A home in winter with no firewood. */
+export const cold = (S: State, b: Building) => seasonOf(S) === 'winter' && !!bp(S, b).homes && b.residents.length > 0 && !((b.inv.logs || 0) >= 1);
+
 export function wants(S: State, b: Building, form: string): Stock {
-  const B = bp(S, b), N = S.content.tuning.needs, out: Stock = { ...B.keepStocked };
+  const B = bp(S, b), N = S.content.tuning.needs, out: Stock = { ...B.keepStocked }, season = seasonOf(S);
+  // ahead of and through winter, homes keep firewood and some preserved food
+  if (B.homes && (season === 'autumn' || season === 'winter')) {
+    out.logs = S.content.tuning.seasons.firewoodStock;
+    for (const g of S.content.tuning.seasons.preserved) out[g] = 2;
+  }
   if (B.tools) out.tools = 1;
   if (B.homes) {
     if (form !== 'hamlet') for (const g of N.tierTwo) out[g] = N.extrasStock;
@@ -84,11 +92,18 @@ function run(S: State, b: Building, dt: number) {
   if (B.homes) {
     const r = b.residents.length;
     if (!r) { setStatus(b, 'Empty, waiting for newcomers', 'wait'); return; }
-    const food = Object.keys(B.keepStocked)[0];
+    const food = Object.keys(B.keepStocked)[0], foods = foodsOf(S, b);
     b.eat += (dt * r) / T.needs.eatEverySeconds;
     if (b.eat >= 1) {
-      if (food && (b.inv[food] || 0) > 0) { add(b.inv, food, -1); b.eat -= 1; b.hunger = 0; }
+      // bread first, then preserved food
+      const meal = foods.find(f => (b.inv[f] || 0) >= 1);
+      if (meal) { add(b.inv, meal, -1); b.eat -= 1; b.hunger = 0; }
       else { b.eat = 1; b.hunger += dt; }
+    }
+    // in winter each resident burns a log every `firewood_every_seconds`; without one the home is cold
+    if (seasonOf(S) === 'winter') {
+      b.fire = Math.min(1, b.fire + (dt * r) / T.seasons.firewoodEverySeconds);
+      if (b.fire >= 1 && (b.inv.logs || 0) >= 1) { add(b.inv, 'logs', -1); b.fire -= 1; }
     }
     if (b.hunger > 0) {
       setStatus(b, `Out of ${itemsText(S, [food])}`, 'bad');
@@ -98,7 +113,8 @@ function run(S: State, b: Building, dt: number) {
         if (leaver) { removeAgent(S, leaver); S.stats.departures++; emit(S, 'bad', `A villager left: no ${itemsText(S, [food])} at home`); }
         b.hunger = 0; b.eat = 0;
       }
-    } else if (!((b.inv[food] || 0) > 0)) setStatus(b, `Last of the ${itemsText(S, [food])} eaten`, 'warn');
+    } else if (!foods.some(f => (b.inv[f] || 0) > 0)) setStatus(b, `Last of the ${itemsText(S, [food])} eaten`, 'warn');
+    else if (cold(S, b)) setStatus(b, 'Cold: no firewood', 'warn');
     else setStatus(b, ['', 'Fed and settled', 'Comfortable', 'Well off'][homeTier(S, b)], 'ok');
     // comforts (fish, cloth, tools) are used up slowly, one of each in stock per resident cycle
     b.extra += (dt * r) / T.needs.extrasEverySeconds;
@@ -115,11 +131,19 @@ function run(S: State, b: Building, dt: number) {
     if (b.plantT >= T.production.replantEverySeconds) { b.plantT = 0; replant(S, b, B.harvest.radius); }
   }
   if (b.paused) { setStatus(b, 'Paused', 'wait'); return; }
+  // in winter the fields rest and their workers go carrying
+  if (B.seasonal && seasonOf(S) === 'winter') { if (b.worker !== null) release(S, b); setStatus(b, 'Winter: the fields rest', 'wait'); return; }
   const w = b.worker !== null ? S.amap.get(b.worker) : undefined;
   if (!w || w.state !== 'working') { setStatus(b, w ? 'Worker on the way' : 'No worker free', w ? 'wait' : 'bad'); return; }
   const lacking = Object.keys(B.input).filter(k => (b.inv[k] || 0) < B.input[k]);
   if (lacking.length) { setStatus(b, `Needs ${itemsText(S, lacking)}`, 'bad'); return; }
-  if (Object.keys(B.output).some(k => (b.inv[k] || 0) >= T.logistics.outputCap)) { setStatus(b, 'Output full, waiting for a carrier', 'warn'); return; }
+  if (Object.keys(B.output).some(k => (b.inv[k] || 0) >= T.logistics.outputCap)) {
+    // a worker left standing at a full workplace goes carrying instead
+    b.stall += dt;
+    if (b.stall >= T.logistics.releaseAfterSeconds) { b.stall = 0; release(S, b); }
+    setStatus(b, 'Output full, waiting for a carrier', 'warn'); return;
+  }
+  b.stall = 0;
   let tree = -1;
   if (B.harvest) {
     tree = nearestGrownTree(S, b, B.harvest.radius);

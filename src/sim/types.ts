@@ -59,6 +59,8 @@ export interface BlueprintDef {
   paves: boolean;
   /** Built on the shore: its door opens onto water, and boats are launched from it. */
   shore: boolean;
+  /** A crop: works from spring to autumn and rests in winter, when seasons are on. */
+  seasonal: boolean;
   /** The zone a planner keeps it in, when the player has painted one: homes (any home), farms or workshops. */
   zone: ZoneKind | null;
   /** The settlement form it takes before a planner builds it: homes climb a ladder as a hamlet becomes a village and a town. */
@@ -110,9 +112,10 @@ export interface Tuning {
   start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; neighbourSpreadShare: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
-    roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
+    roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
+  seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[] };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
   planner: PlannerTuning;
@@ -198,6 +201,10 @@ export interface Building {
   extra: number;
   /** Cycles worked since its tools last wore out. */
   wear: number;
+  /** A home's firewood clock in winter, in logs owed. */
+  fire: number;
+  /** Seconds a workplace has stood with its output full; past `release_after_seconds` its worker goes carrying. */
+  stall: number;
   /** Seconds it has spent running well; verifies its blueprint in use. */
   used: number;
   /** When each of its requests started waiting for a carrier (game time), for request aging. */
@@ -372,6 +379,8 @@ export interface State {
   setup: Setup;
   /** The first settlement's planner (the player's village). Every settlement has its own in `towns`. */
   planner: PlannerState;
+  /** Seasons on: the year turns and winter comes. Off for scenarios that predate them. */
+  seasons: boolean;
   /** Each settlement's history as it happens: what the chronicle and its OKF export show. */
   chronicle: Chronicle[];
   /** Separate stream for discovery, so knowledge never shifts the main simulation's random numbers. */

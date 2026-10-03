@@ -21,6 +21,7 @@
 * [Road](road.md) - Paved tiles. Villagers walk faster on roads.
 * [Sawmill](sawmill.md) - Cuts one log into one plank. Planks build everything.
 * [Smithy](smithy.md) - Forges iron ore with logs into tools: a two-input recipe.
+* [Smokehouse](smokehouse.md) - Smokes fish over a log fire into food that keeps all winter.
 * [Storage Yard](storage.md) - Holds surplus goods. Carriers fetch from here when nothing nearer has what they need.
 * [Terrace](terrace.md) - A row of small homes for twelve villagers on a 4 by 2 plot, built facing a street; towns build them in rows.
 * [Warehouse](warehouse.md) - A brick store with room for six hundred goods.

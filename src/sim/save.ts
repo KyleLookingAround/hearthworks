@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 type Json = Record<string, unknown>;
 
@@ -62,6 +62,12 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     (state.stats as Json).spoiled ??= 0;
     return state;
   },
+  // 7 to 8: seasons (off for older games), homes' firewood, and how long a workplace has stood full
+  7: state => {
+    state.seasons ??= false;
+    for (const b of [...state.buildings as Json[], ...(state.gone as Json[] ?? [])]) { b.fire ??= 0; b.stall ??= 0; }
+    return state;
+  },
 };
 
 /** Run-length encoding for tile grids: [value, count, value, count, ...]. */
@@ -106,7 +112,7 @@ export function saveGame(S: State): SaveFile {
     state: {
       seed: S.seed, setup: copy(S.setup), rng: S.rng.s, krng: S.krng.s, t: S.t, nextId: S.nextId,
       mood: S.mood, fed: S.fed, migT: S.migT, secT: S.secT,
-      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns), chronicle: copy(S.chronicle),
+      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns), chronicle: copy(S.chronicle), seasons: S.seasons,
       world, buildings: copy(S.buildings), gone: copy([...gone.values()]), agents,
     },
   };
@@ -148,7 +154,7 @@ export function loadGame(content: Content, input: SaveFile | string): State {
 
   const S = {
     content, seed: d.seed, setup: d.setup, rng: { s: d.rng }, krng: { s: d.krng }, t: d.t, nextId: d.nextId,
-    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns, chronicle: d.chronicle,
+    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns, chronicle: d.chronicle, seasons: d.seasons,
     world, buildings, agents, bmap, amap: new Map(agents.map(a => [a.id, a])),
   } as State;
   S.planner = S.towns[0].planner;

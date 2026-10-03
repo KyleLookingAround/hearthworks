@@ -2,6 +2,7 @@
 import { canPlace, ctr, hash01, type Agent, type Building, type State } from '../sim/index.ts';
 
 import { surroundings } from '../sim/surroundings.ts';
+import { seasonOf } from '../sim/world.ts';
 
 export const TS = 24;
 /** Zone tints, in ZONES order: homes, farms, workshops, no-build. */
@@ -173,6 +174,9 @@ export class Renderer {
       c.fillStyle = t === 2 ? (h < 0.5 ? '#2f5a36' : '#355f37') : '#5e8d4a'; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.fill();
       c.fillStyle = t === 2 ? '#43774a' : '#7aa960'; c.beginPath(); c.arc(cx - r * 0.3, cy - r * 0.3, r * 0.45, 0, 7); c.fill();
     }
+    // the season on the land: whitening in winter, a warm cast in autumn
+    const season = seasonOf(S);
+    if (season === 'winter' || season === 'autumn') { c.fillStyle = season === 'winter' ? 'rgba(235,242,248,.32)' : 'rgba(210,140,60,.10)'; c.fillRect(x0 * TS, y0 * TS, (x1 - x0 + 1) * TS, (y1 - y0 + 1) * TS); }
     this.zones(S, x0, x1, y0, y1);
     for (const b of [...S.buildings].sort((p, q) => p.y - q.y)) this.building(S, b);
     if (v.overlay !== 'none') this.overlay(S, v.overlay, x0, x1, y0, y1);

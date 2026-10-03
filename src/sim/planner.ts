@@ -12,14 +12,14 @@ import { supplyOf } from './logistics.ts';
 import { fits } from './place.ts';
 import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
-import { bp, chronicle, ctr, demolish, door, emit, nearestTown, placeBridge, placeBuilding, villagers } from './world.ts';
+import { bp, chronicle, ctr, demolish, door, emit, nearestTown, placeBridge, placeBuilding, seasonOf, villagers } from './world.ts';
 import { ZONES, type BlueprintDef, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {} });
 
-interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean }
+interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
-interface Look { town: Town; pop: number; freeBeds: number; spareHands: number; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
+interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
 const goodName = (S: State, g: ItemId) => S.content.goods[g]?.name.toLowerCase() ?? g;
 const runningLow = (S: State, g: ItemId) => { const n = goodName(S, g); return `${n} ${n.endsWith('s') ? 'are' : 'is'} running low`; };
@@ -100,6 +100,20 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   }
   // planks build everything: want a steady flow that grows with the town (other materials are made when saved for)
   for (const g of P.buildGoods) demand[g] = (demand[g] || 0) + (pop * P.planksPerVillagerMinute) / 60;
+  // seasons: plan for winter all year: crops grow three seasons of four, firewood burns at the winter rate
+  if (S.seasons) {
+    const crops = new Set(Object.values(S.content.blueprints).filter(B => B.seasonal).flatMap(B => Object.keys(B.output)));
+    for (const g of crops) if (demand[g]) demand[g] *= (4 / 3) * S.content.tuning.seasons.winterHeadroom;
+    demand.logs = (demand.logs || 0) + pop / S.content.tuning.seasons.firewoodEverySeconds;
+    // the gap: what the winter will eat, less the food already in store, over the time left before the frost
+    const Z = S.content.tuning.seasons, phase = (S.t % Z.yearSeconds) / Z.yearSeconds;
+    if (phase < 0.75) {
+      let stored = 0;
+      for (const b of mine) if (bp(S, b).storage && !b.site) for (const g of ['wheat', 'bread', ...Z.preserved]) stored += b.inv[g] || 0;
+      const winter = (pop * Z.yearSeconds / 4 / needs.eatEverySeconds) * Z.winterHeadroom, left = (0.75 - phase) * Z.yearSeconds;
+      if (winter > stored) demand.wheat = (demand.wheat || 0) + (winter - stored) / Math.max(60, left);
+    }
+  }
   // comforts by form: fish and cloth from a village, tools in a town; every comfort is wanted, for variety
   const comfort = new Set<ItemId>();
   const form = formOf(S, town);
@@ -136,13 +150,31 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   else {
     // don't invite newcomers the village can't feed yet
     const fed = (shortages.find(s => s.good === food)?.sev ?? 0) < P.minSeverity ? 1 : 0;
-    const growing = town.mood >= needs.migrateMinMood ? 1 : 0.5;
+    // no newcomers come in autumn or winter: homes for them wait for spring
+    const growing = (town.mood >= needs.migrateMinMood ? 1 : 0.5) * (S.seasons && (seasonOf(S) === 'autumn' || seasonOf(S) === 'winter') ? 0 : 1);
     shortages.push({ key: 'beds', homes: true, sev: clamp01((P.growthBeds - freeBeds) / P.growthBeds) * growing * fed * P.growthWeight, why: 'no free beds for newcomers' });
+  }
+  // winter stores: from summer, room enough for the winter's grain (a quarter year of meals, with headroom)
+  let storeNeed = 0, storeRoom = 0;
+  const season = seasonOf(S);
+  if (S.seasons && (season === 'summer' || season === 'autumn')) {
+    const Z = S.content.tuning.seasons;
+    storeNeed = (pop * Z.yearSeconds / 4 / needs.eatEverySeconds) * Z.winterHeadroom;
+    // a store's room for food is what other goods (planks, logs, stone) leave of it
+    const foods = new Set(['wheat', 'bread', ...Z.preserved]);
+    for (const b of mine) {
+      const B = bp(S, b);
+      if (!B.storage || b.site || (B.keeps && !B.keeps.includes('wheat'))) continue;
+      let other = 0;
+      for (const k in b.inv) if (!foods.has(k)) other += b.inv[k];
+      storeRoom += B.capacity ? Math.max(0, B.capacity - other) : storeNeed;
+    }
+    shortages.push({ key: 'storage', store: true, sev: clamp01((storeNeed - storeRoom) / Math.max(1, storeNeed)), why: 'there is no room to store the grain for winter' });
   }
   // the player's priorities weigh each need
   for (const sh of shortages) sh.sev = clamp01(sh.sev * (town.levers.priority[sh.key] ?? 1));
   shortages.sort((a, b) => b.sev - a.sev);
-  return { town, pop, freeBeds, spareHands, uncovered, hasDock, supply, demand, shortages };
+  return { storeNeed, storeRoom, town, pop, freeBeds, spareHands, uncovered, hasDock, supply, demand, shortages };
 }
 
 const FORMS: Form[] = ['hamlet', 'village', 'town'];
@@ -178,6 +210,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.hauling) return B.couriers && L.uncovered >= P.minSeverity ? L.uncovered : 0;
     if (sh.crossing) return B.shore && !L.hasDock ? 1 : 0;
     if (sh.detours) return B.bridge ? 1 : 0;
+    if (sh.store) return B.storage && (!B.keeps || B.keeps.includes('wheat')) ? clamp01((B.capacity || 300) / Math.max(1, L.storeNeed - L.storeRoom)) : 0;
     const add = B.seconds && B.output[sh.good!] ? B.output[sh.good!] / B.seconds : 0;
     const gap = Math.max(1e-6, (L.demand[sh.good!] || 0) - (L.supply[sh.good!] || 0));
     return clamp01(add / gap);
@@ -744,8 +777,12 @@ function planTown(S: State, town: Town, dt: number) {
     const stuck = (L.supply[owe.good] || 0) <= 0 || S.t - Q.saving.since > T(S).savePatienceSeconds;
     const maker = stuck ? known(S, town).find(B => B.seconds && B.output[owe.good]) : undefined;
     if (maker) Q.saving.since = S.t;
-    if (maker && !affordable(S, maker, town)) c = follow(S, L, { B: maker, sev: c.sev, why: `${runningLow(S, owe.good)} to build ${article(c.B.name)} ${c.B.name}` }, 0);
+    const why = `${runningLow(S, owe.good)} to build ${article(c.B.name)} ${c.B.name}`;
+    if (maker && !affordable(S, maker, town)) c = follow(S, L, { B: maker, sev: c.sev, why }, 0);
     else { Q.status = `Saving ${goodName(S, owe.good)} for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
+    // what the maker led to (an input's maker, a home for its worker) must be affordable as well;
+    // if it is not, build the maker itself: its inputs can follow, but nothing comes without it
+    if (affordable(S, c.B, town)) c = { B: maker, sev: c.sev, why };
   }
 
   if (!owe) Q.saving = null;
