@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T18:22:59Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T19:05:47Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -15,6 +15,12 @@ tuning:
   forget_after_seconds: 600
   visit_every_seconds: 45
   visit_min_villagers: 8
+  copy_every_seconds: 120
+  university_factor: 3
+  school_factor: 2
+  forgetting_memory_seconds: 600
+  learning_weight: 0.35
+  school_children: 3
 ---
 
 # Idea
@@ -31,6 +37,16 @@ tuning:
 Code: `src/sim/knowledge.ts`, run once a game second.
 
 Porters on [trade](/systems/trade.md) errands gossip as visitors do: they carry what their home has verified, and bring back what the neighbour has.
+
+# Learning
+
+Three buildings keep and grow knowledge (Phase 15):
+
+- A [Library](/blueprints/library.md) keeps what its settlement knows: nothing is forgotten while one stands. With a scribe at work it sends a copy of its records to every neighbour each `copy_every_seconds`. A village thinks of one after it forgets something (the need `forgetting`, full for `forgetting_memory_seconds` after a loss).
+- A [School](/blueprints/school.md) with a teacher schools the settlement's children: grown up, they learn trades `school_factor` times as fast ([people](/systems/people.md)).
+- A [University](/blueprints/university.md) with a scholar makes invention `university_factor` times as fast, on top of the steward's encouragement. It is thought of under `inquiry`: the settlement's strongest strain on the need of a blueprint it does not know.
+
+The planner wants a library while it holds knowledge beyond its founders', a school once there are `school_children` children, and a university in a town that knows of one, each at `learning_weight`.
 
 # Founding
 

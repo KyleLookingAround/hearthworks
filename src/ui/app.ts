@@ -586,7 +586,13 @@ export class App {
       rows += row('Worker', w ? (w.state === 'working' ? 'On the job' : 'Walking over') : 'None free');
       for (const k in B.input) rows += row(`${G[k].name} in`, `${n0(b.inv[k])} / ${B.keepStocked[k] ?? B.input[k]}` + ((b.incoming[k] || 0) > 0 ? ` (+${n0(b.incoming[k])})` : ''));
       for (const k in B.output) rows += row(`${G[k].name} out`, `${n0(b.inv[k])} / ${T.logistics.outputCap}`);
-      rows += row('Cycle', `${B.seconds}s each`);
+      if (B.learning === 'library') {
+        // the shelves: every record its settlement holds beyond founding knowledge, with who thought of it
+        const t = S.towns[b.town], shelf = t ? Object.entries(t.knows).filter(([, k]) => k.by !== 'founders') : [];
+        rows += row('On the shelves', shelf.length ? '' : 'nothing yet beyond what the founders knew');
+        for (const [id, k] of shelf) rows += row(this.content.blueprints[id]?.name ?? id, `by ${k.by}` + (k.from ? `, from ${k.from}` : '') + `; proven by ${k.verified.length}`);
+      } else if (B.learning) rows += row('Work', B.learning === 'school' ? 'Teaching the children' : 'Pursuing lines of inquiry');
+      else rows += row('Cycle', `${B.seconds}s each`);
       if (B.tools) rows += row('Tools', (b.inv.tools || 0) >= 1 ? `${n0(b.inv.tools)}: working ${B.tools.speedup}× as fast` : 'none: slower work');
       progress = B.seconds ? b.timer / B.seconds : 0;
     }

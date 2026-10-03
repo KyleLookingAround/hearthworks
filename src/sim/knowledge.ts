@@ -15,7 +15,7 @@ import { rand } from './rng.ts';
 import { goToBuilding } from './agents.ts';
 import { cancelTask } from './logistics.ts';
 import { barter, homecoming } from './trade.ts';
-import { chronicle, door, emit, villagers } from './world.ts';
+import { chronicle, door, emit, learningAt, villagers } from './world.ts';
 import { reachable } from './path.ts';
 import type { Agent, Content, Knowledge, State, Town } from './types.ts';
 
@@ -40,10 +40,18 @@ export function pressure(S: State, town: Town, need: string): number {
   if (need === 'hauling') { const t = K(S).haulTarget; return clamp01((town.haul - t) / (1 - t)); }
   if (need === 'crossing') return town.cut;
   if (need === 'detours') return town.detour;
+  // learning (with people on): a loss still fresh in memory, and the strain of needs nothing known meets
+  if (need === 'forgetting') return S.people && S.chronicle.some(c => c.town === town.id && c.kind === 'forgotten' && S.t - c.t <= K(S).forgettingMemorySeconds) ? 1 : 0;
+  if (need === 'inquiry') {
+    if (!S.people) return 0;
+    let p = 0;
+    for (const B of Object.values(S.content.blueprints)) if (B.discovery && B.discovery.need !== 'inquiry' && !knows(town, B.id)) p = Math.max(p, pressure(S, town, B.discovery.need));
+    return p;
+  }
   return 0;
 }
 
-export const NEED_TEXT: Record<string, string> = { hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round' };
+export const NEED_TEXT: Record<string, string> = { forgetting: 'it had lost knowledge it needed', inquiry: 'it strains at needs nothing it knows can meet', hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round' };
 
 /** Has this settlement proven the blueprint in use itself? Founders' knowledge counts. */
 const provenHere = (town: Town, k: Knowledge) => k.verified.some(v => v.by === town.name || v.by === 'founders');
@@ -106,7 +114,9 @@ export function updateKnowledge(S: State, dt: number) {
       // encouragement: the player backs this line of thought, so it comes at less strain and sooner
       const backed = town.levers.encourage === B.id;
       if (pressure(S, town, B.discovery.need) < P.struggleSeverity * (backed ? P.encourageThreshold : 1)) continue;
-      if (rand(S.krng) >= dt / (B.discovery.meanSeconds / (backed ? P.encourageFactor : 1))) continue;
+      // scholars at a university pursue every line of inquiry faster
+      const scholars = learningAt(S, town.id, 'university') ? P.universityFactor : 1;
+      if (rand(S.krng) >= dt / (B.discovery.meanSeconds / (backed ? P.encourageFactor : 1) / scholars)) continue;
       town.knows[B.id] = { by: town.name, at: S.t, verified: [], from: null, learned: S.t, used: S.t };
       S.stats.invented++;
       chronicle(S, town.id, 'invented', `${town.name} came up with the ${B.name}: ${NEED_TEXT[B.discovery.need] ?? B.discovery.need}`);
@@ -115,7 +125,10 @@ export function updateKnowledge(S: State, dt: number) {
     }
 
     if (town.planner.want && town.knows[town.planner.want]) town.knows[town.planner.want].used = S.t;
+    // a library keeps everything on its shelves: nothing is forgotten while one stands
+    const shelved = learningAt(S, town.id, 'library');
     for (const id of Object.keys(town.knows)) {
+      if (shelved) break;
       const k = town.knows[id];
       if (k.by === 'founders' || S.t - k.used <= P.forgetAfterSeconds) continue;
       delete town.knows[id];
@@ -126,6 +139,13 @@ export function updateKnowledge(S: State, dt: number) {
 
     // every ten seconds: how much grass near home cannot be walked to, and how often trips go the long way round
     if (Math.floor(S.t) % 10 === 0) town.detour = detourPressure(S, town);
+
+    // a library's scribe copies its records for every neighbour now and then
+    town.copyT += dt;
+    if (town.copyT >= P.copyEverySeconds) {
+      town.copyT = 0;
+      if (S.towns.length > 1 && learningAt(S, town.id, 'library', true)) for (const o of S.towns) if (o !== town) teach(S, o, shareable(town), town.name);
+    }
 
     town.visitT += dt;
     if (town.visitT >= P.visitEverySeconds && S.towns.length > 1 && sendVisitor(S, town)) town.visitT = 0;

@@ -1,6 +1,6 @@
 import { rand } from './rng.ts';
 import { makeAgent, release, removeAgent } from './agents.ts';
-import { add, bp, chronicle, door, emit, foodsOf, villagers } from './world.ts';
+import { add, bp, chronicle, door, emit, foodsOf, learningAt, villagers } from './world.ts';
 import type { Agent, Building, Custom, State, Town } from './types.ts';
 
 /**
@@ -69,13 +69,18 @@ export function updatePeople(S: State, dt: number) {
   for (const a of villagers(S)) {
     const age = ageOf(S, a);
     if (a.dies && age >= a.dies) { die(S, a); continue; }
-    if (a.role === 'child' && age >= T.adultSeconds) { a.role = 'carrier'; a.state = 'idle'; }
+    if (a.role === 'child' && age >= T.adultSeconds) {
+      a.role = 'carrier'; a.state = 'idle';
+      // a child of a settlement with a school at work grows up schooled
+      if (a.home && learningAt(S, a.home.town, 'school')) a.schooled = true;
+    }
     // the old retire from their workplace, and lend a hand carrying
     else if (a.role === 'worker' && age >= T.elderSeconds && a.work) release(S, a.work);
     // practice: a worker at work learns the trade, faster with a master in the settlement
     if (a.role === 'worker' && a.work && a.state === 'working') {
       const k = a.work.type, s = a.skill[k] || 0, master = a.home ? hasExpert(S, a.home.town, k, a) : false;
-      a.skill[k] = Math.min(1, s + (1 - s) * (dt / T.practiceSeconds) * (master ? T.apprenticeFactor : 1));
+      const K = S.content.tuning.knowledge;
+      a.skill[k] = Math.min(1, s + (1 - s) * (dt / T.practiceSeconds) * (master ? T.apprenticeFactor : 1) * (a.schooled ? K.schoolFactor : 1));
     }
   }
   births(S, dt);

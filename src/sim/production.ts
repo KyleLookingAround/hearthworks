@@ -142,6 +142,8 @@ function run(S: State, b: Building, dt: number) {
   if (B.seasonal && seasonOf(S) === 'winter') { if (b.worker !== null) release(S, b); setStatus(b, 'Winter: the fields rest', 'wait'); return; }
   const w = b.worker !== null ? S.amap.get(b.worker) : undefined;
   if (!w || w.state !== 'working') { setStatus(b, w ? 'Worker on the way' : 'No worker free', w ? 'wait' : 'bad'); return; }
+  // places of learning have no recipe: their worker keeps, teaches or studies
+  if (B.learning) { setStatus(b, { library: 'A scribe at work', school: 'Lessons under way', university: 'Scholars at their inquiries' }[B.learning], 'ok'); return; }
   const lacking = Object.keys(B.input).filter(k => (b.inv[k] || 0) < B.input[k]);
   if (lacking.length) { setStatus(b, `Needs ${itemsText(S, lacking)}`, 'bad'); return; }
   if (Object.keys(B.output).some(k => (b.inv[k] || 0) >= T.logistics.outputCap)) {

@@ -6,6 +6,7 @@
 * [deeper-economy.ts](deeper-economy.ts)
 * [first-plank.ts](first-plank.ts)
 * [knowledge-spreads.ts](knowledge-spreads.ts)
+* [learning.ts](learning.ts)
 * [lie-of-the-land.ts](lie-of-the-land.ts)
 * [people.ts](people.ts)
 * [seasons.ts](seasons.ts)

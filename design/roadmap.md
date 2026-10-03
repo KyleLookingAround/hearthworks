@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T18:48:55Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T19:05:47Z }
 ---
 
 # How to read this
@@ -31,7 +31,7 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 12 | Seasons | A year: growing seasons, winter, warmth, storing food | 11 | [Gate 12](/gates/12-seasons.md) | Done |
 | 13 | Neighbours trade | Settlements swap surplus for want, on foot at first; specialisation | 11 | [Gate 13](/gates/13-trade.md) | Done |
 | 14 | People and traditions | Individuals: families, births, ageing, skills, apprenticeships; death and each village's own customs for it | 12 | [Gate 14](/gates/14-people.md) | Done |
-| 15 | Learning | Libraries, schools, universities; knowledge kept, taught and pursued | 14 | A library keeps a craft alive; a university speeds a discovery | Later |
+| 15 | Learning | Libraries, schools, universities; knowledge kept, taught and pursued | 14 | [Gate 15](/gates/15-learning.md) | Done |
 | 16 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | Carts carry most long hauls and cut delivery time | Later |
 | 17 | New settlements | Crowded towns send settlers off with goods, knowledge and customs | 16 | One settlement becomes four, unscripted | Later |
 | 18 | The sea | The archipelago map type, ports, ships, exploration, colonies | 13, 17 | A colony on a second island trades back | Later |
@@ -251,7 +251,9 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 - **Libraries.** A library holds the settlement's knowledge in the world: what it holds is not forgotten while the library stands, and scribes copy its records for neighbours. The record format is the knowledge bundle from Phase 5, so a library's shelves can be browsed in game. A village thinks of the library after it loses knowledge it needed.
 - **Schools.** Children who go to school learn trades faster as apprentices, and read, so they can learn from a library without a visitor.
 - **Universities.** Scholars pursue a line of inquiry: invention under strain becomes likelier and faster, and some discoveries need a university at all. The steward's "encourage a line of inquiry" lever (10) acts through them.
-- **Gate 15 (proposed).** Two paired scenarios. With a library, a settlement keeps a craft through a long spell without using it that loses the craft without one. With a university, a discovery comes earlier on at least five of six internal seeds.
+**Delivered.** The [Library](/blueprints/library.md), thought of after a loss (need `forgetting`): nothing is forgotten while one stands, its scribe copies its records to every neighbour, and its shelves list in its inspector. The [School](/blueprints/school.md): children who grow up with a teacher at work learn trades twice as fast. The [University](/blueprints/university.md), thought of under `inquiry` (strain on needs nothing known meets): with a scholar at work, invention comes three times as fast, on top of the steward's encouragement, which still works without one (Gate 10). The planner builds each with people on. Saves go to version 11. **Phase 15 is done.** Reading from a library without a visitor, and discoveries that need a university at all, wait for a later phase.
+
+- **Gate 15 (stable, as proposed).** Two paired scenarios. With a library, a settlement keeps a craft through a long spell without using it that loses the craft without one. With a university, a discovery comes earlier on at least five of six internal seeds.
 
 # 16. Ways to move
 

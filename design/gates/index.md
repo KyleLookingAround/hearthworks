@@ -16,3 +16,4 @@
 * [Gate 12: seasons](12-seasons.md) - A self-planning settlement grows through three years of seasons, storing enough food by the first frost, with hardly anyone leaving and nobody starving.
 * [Gate 13: neighbours trade](13-trade.md) - Two self-planning settlements trade by porter, both ways and at volume, at no real cost to their growth or to being fed.
 * [Gate 14: people and traditions](14-people.md) - A settlement grows by births alone with an expert in every trade, and two settlements on different land honour every death by their own custom.
+* [Gate 15: learning](15-learning.md) - A library keeps a craft its settlement would otherwise forget, and a university brings a discovery sooner on at least five of six seeds.

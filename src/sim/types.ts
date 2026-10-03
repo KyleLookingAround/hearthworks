@@ -63,6 +63,8 @@ export interface BlueprintDef {
   seasonal: boolean;
   /** The custom for the dead it serves (burial, cremation, ship), if any. */
   rite: Custom | null;
+  /** A place of learning: a library keeps knowledge, a school schools children, a university speeds invention. */
+  learning: 'library' | 'school' | 'university' | null;
   /** How many of the dead it holds (a graveyard). */
   graves: number;
   /** The zone a planner keeps it in, when the player has painted one: homes (any home), farms or workshops. */
@@ -132,6 +134,7 @@ export interface Tuning {
   knowledge: {
     haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number; encourageFactor: number; encourageThreshold: number;
     verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number; visitMinVillagers: number;
+    copyEverySeconds: number; universityFactor: number; schoolFactor: number; forgettingMemorySeconds: number; learningWeight: number; schoolChildren: number;
   };
 }
 
@@ -255,6 +258,8 @@ export interface Agent {
   born: number;
   dies: number;
   skill: Record<string, number>;
+  /** Went to school as a child: learns trades faster. */
+  schooled: boolean;
 }
 
 export type Custom = 'burial' | 'cremation' | 'ship';
@@ -315,6 +320,8 @@ export interface Town {
   custom: Custom;
   rites: number[];
   graves: Record<number, number>;
+  /** Seconds since its library's scribe last copied records for the neighbours. */
+  copyT: number;
 }
 
 export interface World {

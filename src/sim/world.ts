@@ -6,6 +6,19 @@ import { initPeople } from './people.ts';
 import { findPath } from './path.ts';
 import type { Agent, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
 
+/**
+ * A place of learning of this kind in a settlement: standing, or with `working` its worker at work.
+ * A library keeps knowledge just by standing; a school and a university need their teacher or scholar.
+ */
+export function learningAt(S: State, town: number, kind: 'library' | 'school' | 'university', working = kind !== 'library'): boolean {
+  return S.buildings.some(b => {
+    if (b.town !== town || b.site || S.content.blueprints[b.type].learning !== kind) return false;
+    if (!working) return true;
+    const w = b.worker !== null ? S.amap.get(b.worker) : undefined;
+    return !!w && w.state === 'working';
+  });
+}
+
 /** A new settlement's trade ledger. */
 export const newLedger = (): Ledger => ({ t: 0, imports: {}, made: {}, exported: {}, imported: {} });
 
@@ -269,7 +282,7 @@ function foundTown(S: State, cx: number, cy: number, planner: boolean, roads: bo
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', rites: [], graves: {} };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', rites: [], graves: {}, copyT: 0 };
   S.towns.push(town);
   chronicle(S, id, 'founded', `${town.name} was founded with ${t.villagers} villagers`);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;

@@ -8,7 +8,7 @@ import type { Agent, Building, State } from './types.ts';
 export function makeAgent(S: State, kind: Agent['kind'], x: number, y: number): Agent {
   const a: Agent = {
     id: S.nextId++, kind, x, y, path: [], state: 'idle', role: kind === 'bot' ? 'bot' : 'carrier', task: null, carry: null,
-    home: null, work: null, depot: null, cool: rand(S.rng) * 0.5, dead: false, visit: null, born: S.t, dies: 0, skill: {},
+    home: null, work: null, depot: null, cool: rand(S.rng) * 0.5, dead: false, visit: null, born: S.t, dies: 0, skill: {}, schooled: false,
   };
   S.agents.push(a); S.amap.set(a.id, a);
   return a;

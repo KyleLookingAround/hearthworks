@@ -16,15 +16,18 @@
 * [Granary](granary.md) - A stone store for food: keeps grain, bread, fish and flax from spoiling.
 * [Graveyard](graveyard.md) - Where a village that buries its dead lays them to rest. It takes land, fills with the years, and is never built over.
 * [Cottage](house.md) - A small home for three villagers on a roomy plot, the first rung of the ladder of homes. Keeps a small stock of bread on the shelf.
+* [Library](library.md) - Holds the settlement's knowledge in the world, so nothing on its shelves is forgotten; its scribe copies records for the neighbours.
 * [Mason](mason.md) - Dresses two rough stones into one block of cut stone.
 * [Mine](mine.md) - Digs iron ore from an iron deposit within three tiles.
 * [Pyre](pyre.md) - Where a village that cremates its dead burns them. Every farewell burns logs, so a timber-poor village feels it.
 * [Quarry](quarry.md) - Cuts rough stone from a stone deposit within three tiles.
 * [Road](road.md) - Paved tiles. Villagers walk faster on roads.
 * [Sawmill](sawmill.md) - Cuts one log into one plank. Planks build everything.
+* [School](school.md) - Where children learn to read and to learn; those who went to school pick up a trade faster.
 * [Smithy](smithy.md) - Forges iron ore with logs into tools: a two-input recipe.
 * [Smokehouse](smokehouse.md) - Smokes fish over a log fire into food that keeps all winter.
 * [Storage Yard](storage.md) - Holds surplus goods. Carriers fetch from here when nothing nearer has what they need.
 * [Terrace](terrace.md) - A row of small homes for twelve villagers on a 4 by 2 plot, built facing a street; towns build them in rows.
+* [University](university.md) - Scholars pursue lines of inquiry, so a town comes up with new ideas faster under strain.
 * [Warehouse](warehouse.md) - A brick store with room for six hundred goods.
 * [Weaver](weaver.md) - Weaves two bundles of flax into a bolt of cloth.

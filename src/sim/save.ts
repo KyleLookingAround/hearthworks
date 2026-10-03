@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 
 type Json = Record<string, unknown>;
 
@@ -82,6 +82,12 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     st.births ??= 0; st.deaths ??= 0; st.honoured ??= 0; st.riteWaitMax ??= 0;
     for (const a of state.agents as Json[]) { a.born ??= 0; a.dies ??= 0; a.skill ??= {}; }
     for (const t of state.towns as Json[]) { t.custom ??= 'burial'; t.rites ??= []; t.graves ??= {}; }
+    return state;
+  },
+  // 10 to 11: learning: who went to school, and each library's copying clock
+  10: state => {
+    for (const a of state.agents as Json[]) a.schooled ??= false;
+    for (const t of state.towns as Json[]) t.copyT ??= 0;
     return state;
   },
 };

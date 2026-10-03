@@ -26,7 +26,7 @@ export function fnv1a(s: string): string {
 
 const isMap = (v: YamlValue | undefined): v is YamlMap => !!v && typeof v === 'object' && !Array.isArray(v);
 /** Pressures a village can struggle with, and so invent its way out of. */
-const NEEDS = ['hauling', 'crossing', 'detours'];
+const NEEDS = ['hauling', 'crossing', 'detours', 'forgetting', 'inquiry'];
 const slug = (path: string) => path.replace(/^.*\//, '').replace(/\.md$/, '');
 
 export function buildContent(files: SourceFile[]): Content {
@@ -109,6 +109,7 @@ export function buildContent(files: SourceFile[]): Content {
       seasonal: f.seasonal === true,
       rite: f.rite === 'burial' || f.rite === 'cremation' || f.rite === 'ship' ? f.rite : null,
       graves: typeof f.graves === 'number' ? f.graves : 0,
+      learning: f.learning === 'library' || f.learning === 'school' || f.learning === 'university' ? f.learning : null,
       form: f.form === 'town' ? 'town' : f.form === 'village' ? 'village' : 'hamlet',
       bridge: bridge ? { maxSpan: num(d, bridge.max_span, 'bridge.max_span') } : null,
       nuisance: nuisance ? { radius: num(d, nuisance.radius, 'nuisance.radius'), amount: num(d, nuisance.amount, 'nuisance.amount') } : null,
@@ -218,6 +219,7 @@ export function buildContent(files: SourceFile[]): Content {
     knowledge: {
       haulTarget: k('haul_target'), haulSmoothingSeconds: k('haul_smoothing_seconds'), struggleSeverity: k('struggle_severity'), encourageFactor: k('encourage_factor'), encourageThreshold: k('encourage_threshold'),
       verifySeconds: k('verify_seconds'), forgetAfterSeconds: k('forget_after_seconds'), visitEverySeconds: k('visit_every_seconds'), visitMinVillagers: k('visit_min_villagers'),
+      copyEverySeconds: k('copy_every_seconds'), universityFactor: k('university_factor'), schoolFactor: k('school_factor'), forgettingMemorySeconds: k('forgetting_memory_seconds'), learningWeight: k('learning_weight'), schoolChildren: k('school_children'),
     },
   };
   checkGoods(sd, tuning.start.storage, 'tuning.storage'); checkGoods(sd, tuning.start.houseStock, 'tuning.house_stock');
