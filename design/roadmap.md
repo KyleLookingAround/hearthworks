@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T13:05:47Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T13:41:22Z }
 ---
 
 # How to read this
@@ -79,7 +79,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Why now.** On the 56 by 40 island, two settlements first find no room at 15 to 18 minutes (one settlement at 24 to 30). Every later phase needs room, players want to choose the kind of world they build in, and both need a sim that scales.
 
-**Delivered early, at Kyle's request:** map types (Islands, Landmass with rivers, Coast with islets, and the Lone isle as the standard), sizes (small, medium, large), the new-game screen with a live preview, settlements placed by the seed, and boats: [docks](/blueprints/dock.md) discovered when neighbours are across water, rowing boats that land on any shore, and visitors who carry knowledge across the sea. Cargo boats, river transport networks and ships remain in Phases 16 and 18. Still to come in this phase: the standard moving to medium, the work budgets, a job board and pathfinding that scale, the culling renderer, string gate parameters and the map suite gate.
+**Delivered early, at Kyle's request:** map types (Islands, Landmass with rivers, Coast with islets, and the Lone isle as the standard), sizes (small, medium, large), the new-game screen with a live preview, settlements placed by the seed, and boats: [docks](/blueprints/dock.md) discovered when neighbours are across water, rowing boats that land on any shore, and visitors who carry knowledge across the sea. Cargo boats, river transport networks and ships remain in Phases 16 and 18. **Phase 7 is done:** the standard map is Island at medium size; gates name their world with word parameters; each settlement draws its own newcomers; the planner's search widens as a village spreads and skips what it has no room for; the job board scores only real pairs; and [Gate 7](/gates/07-worlds.md) (scale and map suite) passes with work budgets set. Path caching, region portals and a culling renderer were not needed at these sizes and move to when a budget calls for them.
 
 **Builds.**
 - **Map types as content.** Each type is an OKF concept in a new `design/maps/` folder whose frontmatter drives the generator: land shape and falloff, water level, noise scales, forest density, and where settlements may start. New types are written, not coded.
@@ -96,7 +96,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 - **A renderer that culls:** chunked drawing of only what is on screen, and a minimap. Move the sim to a Web Worker if the frame budget demands it.
 - **Gate parameters gain words.** Today a gate's parameters are numbers; map type and size become string parameters, so a receipt says which world it ran on.
 
-**Gate 7 (proposed).** Two parts.
+**Gate 7 (stable)**, as proposed except that the scale run counts `town_mood_min` (each settlement's own mood) and the map suite skips sizes a map type does not offer. Two parts.
 - **Scale:** Island at large size, four settlements, 60 game minutes, no build calls: `min_peak_villagers: 600`, departures under 1% of peak, `min_mood_min: 0.6`, and every work counter per game minute within its budget. Budgets are set from the measured run plus headroom, then tightened as the code improves.
 - **Map suite:** every map type at every size on three seeds. Each run must find a starting site for every settlement and, with the planner on for 15 game minutes, end with every settlement fed and no departures. (`suite_failures = 0`.)
 

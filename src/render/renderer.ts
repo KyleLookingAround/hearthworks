@@ -90,6 +90,8 @@ export class Renderer {
       if (!t) continue;
       const h = hash01(i), cx = x * TS + TS / 2 + (h - 0.5) * 5, cy = y * TS + TS / 2 + (hash01(i + 9) - 0.5) * 5;
       const r = t === 2 ? TS * (0.38 + h * 0.08) : TS * (0.12 + (0.22 * w.grow[i]) / grow);
+      // far out, a tree is one dark square: thousands of them stay cheap to draw
+      if (cam.z < 0.4) { c.fillStyle = t === 2 ? '#2f5a36' : '#5e8d4a'; c.fillRect(cx - r, cy - r, r * 2, r * 2); continue; }
       c.fillStyle = 'rgba(16,30,18,.28)'; c.beginPath(); c.ellipse(cx + 2, cy + r * 0.7, r, r * 0.45, 0, 0, 7); c.fill();
       c.fillStyle = t === 2 ? (h < 0.5 ? '#2f5a36' : '#355f37') : '#5e8d4a'; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.fill();
       c.fillStyle = t === 2 ? '#43774a' : '#7aa960'; c.beginPath(); c.arc(cx - r * 0.3, cy - r * 0.3, r * 0.45, 0, 7); c.fill();

@@ -16,7 +16,7 @@ import { createHash } from 'node:crypto';
 
 export interface Receipt {
   gate: string;
-  params: Record<string, number>;
+  params: Record<string, number | string>;
   ticks: number;
   scenario_sha256: string;
   content_hash: string;

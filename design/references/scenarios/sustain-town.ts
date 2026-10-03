@@ -5,13 +5,14 @@
  * and sawmill once the town passes ten. Passes when the town grows and stays
  * fed for the whole run.
  */
-import { build, centre, runTracked, standardMetrics, start, storeOf, type Scenario } from '../../../src/gates/kit.ts';
+import { build, centre, runTracked, standardMetrics, start, worldOf, storeOf, type Scenario } from '../../../src/gates/kit.ts';
 import { bp, countBuilt, villagers, type State } from '../../../src/sim/index.ts';
 
 const queued = (S: State, type: string) => S.buildings.filter(b => b.type === type).length;
 
-export const run: Scenario = (content, { seed, seconds, max_houses = 8 }) => {
-  const S = start(content, seed);
+export const run: Scenario = (content, params) => {
+  const { seed, seconds } = params, maxHouses = Number(params.max_houses ?? 8);
+  const S = start(content, seed, worldOf(params));
   const c = centre(S);
   build(S, 'forester', c);
   build(S, 'sawmill', { x: c.x, y: c.y + 4 });
@@ -32,7 +33,7 @@ export const run: Scenario = (content, { seed, seconds, max_houses = 8 }) => {
       build(s, 'bakery', { x: c.x - 5, y: c.y + 7 });
       return;
     }
-    if (beds === 0 && queued(s, 'house') < max_houses && planks >= 6) build(s, 'house', { x: c.x, y: c.y - 5 });
+    if (beds === 0 && queued(s, 'house') < maxHouses && planks >= 6) build(s, 'house', { x: c.x, y: c.y - 5 });
   };
   const { minMood } = runTracked(S, seconds, 300, plan);
   return { state: S, metrics: standardMetrics(S, { mood_min: minMood, houses: countBuilt(S, 'house'), bakeries: countBuilt(S, 'bakery') }) };

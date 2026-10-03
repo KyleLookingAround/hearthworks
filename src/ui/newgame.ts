@@ -74,6 +74,10 @@ export class NewGameDialog {
   /** Reflect the choice in the controls, and redraw the preview shortly after the last change. */
   private sync(updateSeedField = true) {
     const c = this.choice;
+    // some map types are only offered at some sizes
+    const offered = this.content.maps[c.map]?.sizes ?? Object.keys(this.content.tuning.map.sizes);
+    if (!offered.includes(c.size)) { c.size = offered[0]; c.settlements = this.content.tuning.map.sizes[c.size].settlements; }
+    document.querySelectorAll<HTMLButtonElement>('#ngSizes [data-size]').forEach(b => { b.disabled = !offered.includes(b.dataset.size!); });
     document.querySelectorAll<HTMLButtonElement>('#ngMaps [data-map]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.map === c.map)));
     document.querySelectorAll<HTMLButtonElement>('#ngSizes [data-size]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.size === c.size)));
     document.querySelectorAll<HTMLButtonElement>('#ngTowns [data-towns]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.towns) === c.settlements)));

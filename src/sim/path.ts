@@ -115,3 +115,21 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   w.work.pathFails++;
   return null;
 }
+
+/** Every tile reachable on foot from (sx, sy): open land, roads and building doors, 4-connected (corners are never cut). */
+export function reachable(w: World, sx: number, sy: number): Uint8Array {
+  const W = w.w, N = W * w.h, seen = new Uint8Array(N), q = new Int32Array(N);
+  const open = (i: number) => w.ground[i] > 0 && (w.bgrid[i] === -1 || w.door[i] === 1);
+  const s = sy * W + sx;
+  if (sx < 0 || sy < 0 || sx >= W || sy >= w.h) return seen;
+  let head = 0, tail = 0;
+  seen[s] = 1; q[tail++] = s;
+  while (head < tail) {
+    const i = q[head++], x = i % W;
+    for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i - W, i + W]) {
+      if (j < 0 || j >= N || seen[j] || !open(j)) continue;
+      seen[j] = 1; q[tail++] = j;
+    }
+  }
+  return seen;
+}

@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 type Json = Record<string, unknown>;
 
@@ -23,7 +23,10 @@ export interface SaveFile {
 }
 
 /** One step per version: MIGRATIONS[v] turns a version v save into version v + 1. */
-const MIGRATIONS: Record<number, (state: Json) => Json> = {};
+const MIGRATIONS: Record<number, (state: Json) => Json> = {
+  // 1 to 2: planners remember what they found no room for
+  1: state => { for (const t of state.towns as { planner: Json }[]) t.planner.noRoom ??= {}; return state; },
+};
 
 /** Run-length encoding for tile grids: [value, count, value, count, ...]. */
 function rle(a: ArrayLike<number>): number[] {

@@ -4,14 +4,16 @@ title: "Gate 4: the village plans its own town"
 description: With no build order at all, the village planner grows the town to 20 villagers and keeps it fed over 30 game minutes, matching Gate 2's scripted result.
 tags: [gate, roadmap, planner, ai]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T10:30:27Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T13:40:50Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/village-plans.ts
 parameters:
   - { name: seed, type: integer, required: true }
   - { name: seconds, type: integer, required: true }
-defaults: { seed: 1847, seconds: 1800 }
-pass_when: { min_peak_villagers: 20, min_villagers: 18, max_departures: 2, min_mood_min: 0.6 }
+  - { name: map, type: string, required: true }
+  - { name: size, type: string, required: true }
+defaults: { seed: 1847, seconds: 1800, map: island, size: medium }
+pass_when: { min_peak_villagers: 60, min_villagers: 54, max_departures: 2, min_mood_min: 0.6 }
 executor:
   resource: ../references/skills/run-gate.md
   receipt: [gate, params, ticks, scenario_sha256, content_hash, metrics]
@@ -34,3 +36,7 @@ The Courier Depot is no longer known at the founding, so in this gate the villag
 # Metrics
 
 Besides the standard metrics the receipt records `planned` (sites the planner placed) and the count of each finished building type, so a regression shows what the village stopped building.
+
+# Revisions
+
+- 2026-10-03: moved to the standard map, Island at medium size, named by the new `map` and `size` parameters (roadmap Phase 7). `min_peak_villagers` rises from 20 to 60 and `min_villagers` from 18 to 54, what the planner reliably reaches there less a margin (70 to 90 on the six swept seeds), as Phase 6 planned. Tightened, not loosened.

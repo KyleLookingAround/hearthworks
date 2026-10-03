@@ -148,9 +148,17 @@ export class App {
     root.setProperty('--buildH', ($('#buildwrap').offsetHeight || 0) + 'px');
     root.setProperty('--hudH', ($('.topstack').offsetHeight || 0) + 'px');
   }
+  /** Zoom out until the whole world fits on screen, with a little sea around it. */
+  private minZoom() {
+    const w = this.S.world;
+    return Math.min(0.5, 0.9 * Math.min(this.r.cw / (w.w * TS), this.r.ch / (w.h * TS)));
+  }
   private clampCam() {
     const c = this.view.cam, w = this.S.world;
-    c.x = Math.max(0, Math.min(w.w * TS, c.x)); c.y = Math.max(0, Math.min(w.h * TS, c.y)); c.z = Math.max(0.5, Math.min(3, c.z));
+    c.x = Math.max(0, Math.min(w.w * TS, c.x)); c.y = Math.max(0, Math.min(w.h * TS, c.y)); c.z = Math.max(this.minZoom(), Math.min(3, c.z));
+    // a world smaller than the screen sits in the middle of it
+    if (w.w * TS * c.z <= this.r.cw) c.x = w.w * TS / 2;
+    if (w.h * TS * c.z <= this.r.ch) c.y = w.h * TS / 2;
   }
 
   // ---------- build bar and controls ----------
@@ -286,7 +294,7 @@ export class App {
       if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
       if (pinch && ptrs.size >= 2) {
         const [p, q] = [...ptrs.values()], d = Math.hypot(p.x - q.x, p.y - q.y), mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
-        cam.z = Math.max(0.5, Math.min(3, (pinch.z * d) / pinch.d));
+        cam.z = Math.max(this.minZoom(), Math.min(3, (pinch.z * d) / pinch.d));
         cam.x = pinch.w.x - (mx - this.r.cw / 2) / cam.z; cam.y = pinch.w.y - (my - this.r.ch / 2) / cam.z;
         this.clampCam(); return;
       }
@@ -310,7 +318,7 @@ export class App {
     cv.addEventListener('wheel', e => {
       e.preventDefault();
       const w = this.r.toWorld(cam, e.offsetX, e.offsetY);
-      cam.z = Math.max(0.5, Math.min(3, cam.z * Math.exp(-e.deltaY * 0.0015)));
+      cam.z = Math.max(this.minZoom(), Math.min(3, cam.z * Math.exp(-e.deltaY * 0.0015)));
       cam.x = w.x - (e.offsetX - this.r.cw / 2) / cam.z; cam.y = w.y - (e.offsetY - this.r.ch / 2) / cam.z;
       this.clampCam();
     }, { passive: false });

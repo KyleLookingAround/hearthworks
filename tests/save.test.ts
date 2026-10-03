@@ -9,7 +9,7 @@ const content = loadContent();
 const text = (S: Parameters<typeof saveGame>[0]) => JSON.stringify(saveGame(S));
 
 test('a saved and loaded game plays on exactly as if it had never stopped', () => {
-  const A = createState(content, 7, { planner: true, settlements: 2, map: 'islands', size: 'small' });
+  const A = createState(content, 7, { planner: true, settlements: 2, map: 'islands', size: 'medium' });
   runFor(A, 300);
   const B = loadGame(content, text(A));
   assert.equal(text(B), text(A), 'saving the loaded game gives the same file');
@@ -51,4 +51,11 @@ test('the version 1 fixture still loads and plays', () => {
   runFor(S, 60);
   assert.ok(S.t > before);
   assert.ok(S.towns.length >= 1 && S.agents.length > 0);
+});
+
+test('a version 1 save is upgraded: planners gain their memory of where there was no room', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v1.json', import.meta.url), 'utf8')) as SaveFile;
+  const up = migrate(file);
+  assert.equal(up.version, SAVE_VERSION);
+  for (const t of (up.state.towns as { planner: { noRoom: unknown } }[])) assert.deepEqual(t.planner.noRoom, {});
 });

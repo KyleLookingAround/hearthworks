@@ -6,11 +6,12 @@
  * The depot waits because construction sites have no priority yet: placed
  * together, the depot's 20 planks starved the Sawmill (see /log.md).
  */
-import { build, centre, runTracked, standardMetrics, start, type Scenario } from '../../../src/gates/kit.ts';
+import { build, centre, runTracked, standardMetrics, start, worldOf, type Scenario } from '../../../src/gates/kit.ts';
 import { hasBuilt, runFor } from '../../../src/sim/index.ts';
 
-export const run: Scenario = (content, { seed, seconds }) => {
-  const S = start(content, seed);
+export const run: Scenario = (content, params) => {
+  const { seed, seconds } = params;
+  const S = start(content, seed, worldOf(params));
   const c = centre(S);
   build(S, 'forester', c);
   build(S, 'sawmill', { x: c.x, y: c.y + 4 });

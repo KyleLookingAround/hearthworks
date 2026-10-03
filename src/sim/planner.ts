@@ -7,14 +7,14 @@
  * its recipe, homes and harvest fields, so new blueprints in design/ join in.
  * Deterministic: no randomness at all, ties break by scan order.
  */
-import { findPath } from './path.ts';
+import { findPath, reachable } from './path.ts';
 import { supplyOf } from './logistics.ts';
 import { fits } from './place.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
 import { bp, ctr, door, emit, placeBuilding, villagers } from './world.ts';
 import type { BlueprintDef, Building, ItemId, PlannerState, State, Stock, Town } from './types.ts';
 
-export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0 });
+export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {} });
 
 interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string }
@@ -172,7 +172,9 @@ function follow(S: State, L: Look, c: Choice, depth: number): Choice {
     const spare = (L.supply[i] || 0) - (L.demand[i] || 0);
     if (spare >= (c.B.input[i] / c.B.seconds) * T(S).inputCover) continue;
     const maker = known(S, L.town).find(B => B.seconds && B.output[i]);
-    if (!maker || maker === c.B) continue;
+    // a maker it has just found no room for doesn't hold this one back: build with the stock there is
+    const noRoom = L.town.planner.noRoom[maker?.id ?? ''];
+    if (!maker || maker === c.B || (noRoom !== undefined && S.t - noRoom < T(S).noRoomRetrySeconds)) continue;
     const users = c.B.name.toLowerCase();
     return follow(S, L, { B: maker, sev: c.sev, why: `${c.why}, and a new ${users} would need ${goodName(S, i)}` }, depth + 1);
   }
@@ -196,10 +198,15 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
   const mean = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((s, b) => s + Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y), 0) / bs.length;
 
   const scored: { x: number; y: number; s: number }[] = [];
-  const R = P.searchRadius, ox = Math.round(home.x - B.w / 2), oy = Math.round(home.y - B.h / 2);
+  // only spots whose door can be walked to from storage: across a river is no use
+  const from = door(store), reach = reachable(W, from.x, from.y);
+  // the search reaches `search_radius` beyond the village's farthest building, so a growing village keeps finding room
+  const extent = mine.reduce((m, b) => Math.max(m, Math.hypot(ctr(b).x - home.x, ctr(b).y - home.y)), 0);
+  const R = Math.min(P.searchRadiusMax, Math.ceil(P.searchRadius + extent)), ox = Math.round(home.x - B.w / 2), oy = Math.round(home.y - B.h / 2);
   for (let y = oy - R; y <= oy + R; y++) for (let x = ox - R; x <= ox + R; x++) {
     W.work.plannerSpots++;
     if (!fits(S, type, x, y, P.gap)) continue;
+    if (!reach[(y + B.h - 1) * W.w + x + Math.floor(B.w / 2)] && !reach[(y + B.h) * W.w + x + Math.floor(B.w / 2)]) continue;
     if (facing) { const d = door({ x, y, w: B.w, h: B.h }); if (!facing.has(facing.label[(d.y + 1) * W.w + d.x])) continue; }
     const p = { x: x + B.w / 2, y: y + B.h / 2 };
     let s = P.storeWeight * Math.hypot(p.x - home.x, p.y - home.y);
@@ -224,7 +231,6 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
     scored.push({ x, y, s });
   }
   scored.sort((a, b) => a.s - b.s);
-  const from = door(store);
   for (const c of scored.slice(0, 8)) {
     const d = { x: c.x + Math.floor(B.w / 2), y: c.y + B.h - 1 };
     if (findPath(W, from.x, from.y, d.x, d.y)) return { x: c.x, y: c.y };
@@ -307,11 +313,16 @@ function planTown(S: State, town: Town, dt: number) {
   const L = look(S, town), worst = L.shortages[0];
   Q.want = null;
   if (!worst || worst.sev < T(S).minSeverity) { Q.streak = { type: '', n: 0 }; Q.status = 'The village has what it needs'; return; }
-  let c: Choice | null = null;
+  // something it recently found no room for waits `no_room_retry_seconds`; the next need goes ahead
+  const roomless = (id: string) => id in Q.noRoom && S.t - Q.noRoom[id] < T(S).noRoomRetrySeconds;
+  let c: Choice | null = null, blocked: Choice | null = null;
   for (const sh of L.shortages) {
     if (sh.sev < T(S).minSeverity) break;
-    if ((c = propose(S, L, sh))) break;
+    c = propose(S, L, sh);
+    if (c && roomless(c.B.id)) { blocked ??= c; c = null; continue; }
+    if (c) break;
   }
+  if (!c && blocked) { Q.status = `No room for ${article(blocked.B.name)} ${blocked.B.name}: ${blocked.why}`; return; }
   if (!c) { Q.status = `Nothing the village knows would help: ${worst.why}`; return; }
   if (c.wait) { Q.streak = { type: '', n: 0 }; Q.status = c.wait; return; }
 
@@ -334,7 +345,8 @@ function planTown(S: State, town: Town, dt: number) {
   if (Q.streak.n < T(S).confirmCycles) { Q.status = `Thinking about ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
 
   const spot = chooseSpot(S, c.B.id, town);
-  if (!spot) { Q.status = `No room for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
+  if (!spot) { Q.noRoom[c.B.id] = S.t; Q.streak = { type: '', n: 0 }; Q.status = `No room for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
+  delete Q.noRoom[c.B.id];
   const b = placeBuilding(S, c.B.id, spot.x, spot.y, false)!;
   b.town = town.id;
   b.priority = 1 + Math.round(c.sev * T(S).urgencyPriority);

@@ -4,14 +4,16 @@ title: "Gate 5: a practice spreads between two settlements"
 description: Two self-planning settlements start without the Courier Depot; one invents it under strain, a visitor carries it to the other, and the other proves it in use, within 40 game minutes.
 tags: [gate, roadmap, knowledge, settlement]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T10:22:42Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T13:41:22Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/knowledge-spreads.ts
 parameters:
   - { name: seed, type: integer, required: true }
   - { name: seconds, type: integer, required: true }
-defaults: { seed: 1847, seconds: 2400 }
-pass_when: { min_settlements: 2, min_invented: 1, min_practice_spread: 1, min_peak_villagers: 20, max_departures: 2, min_mood_min: 0.6 }
+  - { name: map, type: string, required: true }
+  - { name: size, type: string, required: true }
+defaults: { seed: 1847, seconds: 2400, map: island, size: medium }
+pass_when: { min_settlements: 2, min_invented: 1, min_practice_spread: 1, min_peak_villagers: 150, max_departures: 2, min_mood_min: 0.6 }
 executor:
   resource: ../references/skills/run-gate.md
   receipt: [gate, params, ticks, scenario_sha256, content_hash, metrics]
@@ -21,7 +23,7 @@ attester:
 
 # Computation
 
-The sanctioned scenario is [knowledge-spreads.ts](/references/scenarios/knowledge-spreads.ts). It creates the island with two settlements, Hearth at the centre and a neighbour founded as far off as the land allows, each with its own [planner](/systems/planner.md) on. Neither knows the [Courier Depot](/blueprints/depot.md): its `discovery` block makes it something a village has to come up with. The scenario makes no build calls. `mood_min` is tracked after a five-minute warm-up.
+The sanctioned scenario is [knowledge-spreads.ts](/references/scenarios/knowledge-spreads.ts). It creates the standard map with two settlements, each placed by the seed ([settlement](/systems/settlement.md)), each with its own [planner](/systems/planner.md) on. Neither knows the [Courier Depot](/blueprints/depot.md): its `discovery` block makes it something a village has to come up with. The scenario makes no build calls. `mood_min` is tracked after a five-minute warm-up.
 
 # Proves
 
@@ -30,3 +32,7 @@ Phase 5 of the [roadmap](/roadmap.md): [knowledge](/systems/knowledge.md) is a t
 - `invented`: a village came up with something under strain.
 - `practice_spread`: a village learned it from a visitor (`from` is set, not invented there) **and** has since verified it in use itself. Hearing of an idea is not enough; the practice has to take hold.
 - The growth and welfare thresholds are Gate 2's and Gate 4's, so knowledge must not cost the villages their bread.
+
+# Revisions
+
+- 2026-10-03: moved to the standard map, Island at medium size, named by the new `map` and `size` parameters (roadmap Phase 7). `min_peak_villagers` rises from 20 to 150 (168 to 232 on the six swept seeds). Tightened, not loosened.

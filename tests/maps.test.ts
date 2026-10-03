@@ -18,12 +18,12 @@ test('the standard world is the island at the standard size', () => {
 
 test('every map type and size founds its settlements where they can be reached', () => {
   for (const map of types) for (const size of sizes) for (const seed of [1847, 7]) {
+    if (content.maps[map].sizes && !content.maps[map].sizes!.includes(size)) continue;
     const n = 4;
     const S = createState(content, seed, { map, size, settlements: n });
     const where = `${map}/${size}/${seed}`;
     assert.equal(S.world.w, T.sizes[size].width, where);
-    // a small archipelago may only have room for one village
-    assert.ok(S.towns.length >= (map === 'islands' && size === 'small' ? 1 : 2), `${where}: only ${S.towns.length} settlements`);
+    assert.ok(S.towns.length >= 2, `${where}: only ${S.towns.length} settlements`);
     const home = door(S.bmap.get(S.towns[0].store)!);
     // on foot where the map type says so; otherwise at least by boat
     const byBoat = content.maps[map].neighbours === 'anywhere';
@@ -51,6 +51,7 @@ test('map types have their own shapes', () => {
 test('unknown map types and sizes are refused', () => {
   assert.throws(() => createState(content, 1, { map: 'moon' }), /unknown map type/);
   assert.throws(() => createState(content, 1, { size: 'vast' }), /unknown map size/);
+  assert.throws(() => createState(content, 1, { map: 'islands', size: 'small' }), /not offered/);
 });
 
 test('two planning settlements on a medium landmass both grow and stay fed', () => {

@@ -4,7 +4,11 @@ import { createState, type WorldOptions, ctr, findSpot, placeBuilding, runFor, t
 export { findSpot, treeSpot };
 
 export type Metrics = Record<string, number>;
-export interface GateParams { seed: number; seconds: number; [k: string]: number }
+/** Gate parameters: numbers, or words such as the map type and size a gate runs on. */
+export interface GateParams { seed: number; seconds: number; [k: string]: number | string }
+
+/** The world a gate's `map` and `size` parameters name; the standard map when they are absent. */
+export const worldOf = (p: GateParams) => ({ map: typeof p.map === 'string' ? p.map : undefined, size: typeof p.size === 'string' ? p.size : undefined });
 export interface ScenarioResult { state: State; metrics: Metrics }
 export type Scenario = (content: Content, params: GateParams) => ScenarioResult;
 

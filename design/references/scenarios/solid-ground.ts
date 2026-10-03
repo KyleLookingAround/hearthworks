@@ -4,7 +4,7 @@
  * No build calls. Passes when both finish identical, nobody is ever inside a building's walls,
  * and the villages thrive as in Gates 4 and 5.
  */
-import { runTracked, standardMetrics, start, type Scenario } from '../../../src/gates/kit.ts';
+import { runTracked, standardMetrics, start, worldOf, type Scenario } from '../../../src/gates/kit.ts';
 import { loadGame, runFor, saveGame, type State } from '../../../src/sim/index.ts';
 
 /** Agents standing on a building tile that is not its door. */
@@ -13,8 +13,9 @@ const insideWalls = (S: State) => S.agents.filter(a => {
   return w.bgrid[i] !== -1 && !w.door[i];
 }).length;
 
-export const run: Scenario = (content, { seed, seconds }) => {
-  const opts = { planner: true, settlements: 2 };
+export const run: Scenario = (content, params) => {
+  const { seed, seconds } = params;
+  const opts = { planner: true, settlements: 2, ...worldOf(params) };
   const half = Math.floor(seconds / 2);
   let worst = 0;
   const watch = (s: State) => { worst = Math.max(worst, insideWalls(s)); };

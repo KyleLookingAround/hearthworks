@@ -182,3 +182,4 @@ body.ui-hidden .ui{display:none!important}
   .ng-grid{grid-template-columns:1fr}
   .ng-preview{order:-1}
 }
+.btn:disabled{opacity:.4;cursor:not-allowed}

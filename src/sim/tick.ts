@@ -25,22 +25,22 @@ export function computeMood(S: State) {
   S.stats.peakVillagers = Math.max(S.stats.peakVillagers, villagers(S).length);
 }
 
-/** A newcomer settles where the room is: of the settlements happy enough to draw people, the one with the most free beds. */
+/**
+ * Every settlement happy enough to draw people, with a free bed, gets a newcomer: villages grow
+ * side by side, so a world with more settlements grows faster.
+ */
 function migrate(S: State) {
   const freeBeds = (b: (typeof S.buildings)[number]) => { const B = bp(S, b); return B.homes && !b.site ? B.homes - b.residents.length : 0; };
-  let house: (typeof S.buildings)[number] | undefined, most = 0;
   for (const t of S.towns) {
     if (t.mood < S.content.tuning.needs.migrateMinMood) continue;
-    const homes = S.buildings.filter(b => b.town === t.id && freeBeds(b) > 0);
-    const beds = homes.reduce((n, b) => n + freeBeds(b), 0);
-    if (beds > most) { most = beds; house = homes[0]; }
+    const house = S.buildings.find(b => b.town === t.id && freeBeds(b) > 0);
+    if (!house) continue;
+    const from = nearestStore(S, house) ?? house, d = door(from);
+    const a = makeAgent(S, 'villager', d.x + 0.5, d.y + 0.5);
+    a.home = house; house.residents.push(a.id);
+    S.stats.arrivals++;
+    emit(S, 'good', `A newcomer moved to ${t.name}`, true);
   }
-  if (!house) return;
-  const from = nearestStore(S, house) ?? house, d = door(from);
-  const a = makeAgent(S, 'villager', d.x + 0.5, d.y + 0.5);
-  a.home = house; house.residents.push(a.id);
-  S.stats.arrivals++;
-  emit(S, 'good', 'A newcomer moved in', true);
 }
 
 /** Advance the simulation by dt game seconds. Deterministic for a given seed and command sequence. */

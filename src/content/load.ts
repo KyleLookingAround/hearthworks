@@ -127,6 +127,7 @@ export function buildContent(files: SourceFile[]): Content {
       islets: num(d, f.islets, 'islets', 0),
       rivers: { count: num(d, riv.count, 'rivers.count', 0), width: num(d, riv.width, 'rivers.width', 2) },
       neighbours: f.neighbours === 'anywhere' ? 'anywhere' : 'reachable',
+      sizes: Array.isArray(f.sizes) ? f.sizes.map(String) : null,
       terrain: { largeCell: num(d, t.large_cell, 'terrain.large_cell'), smallCell: num(d, t.small_cell, 'terrain.small_cell'), large: num(d, t.large, 'terrain.large'), small: num(d, t.small, 'terrain.small'), base: num(d, t.base, 'terrain.base'), falloff: num(d, t.falloff, 'terrain.falloff') },
       shores: { grass: num(d, sh.grass, 'shores.grass'), sand: num(d, sh.sand, 'shores.sand'), seaBorder: sh.sea_border === true },
       start: { landRadius: num(d, st.land_radius, 'start.land_radius'), clearRadius: num(d, st.clear_radius, 'start.clear_radius') },
@@ -155,7 +156,7 @@ export function buildContent(files: SourceFile[]): Content {
     start: {
       villagers: num(sd, st.villagers, 'tuning.villagers'), storage: stock(sd, st.storage, 'tuning.storage'), houseStock: stock(sd, st.house_stock, 'tuning.house_stock'),
       names: Array.isArray(st.names) && st.names.length ? st.names.map(String) : (problems.push(`${sd.path}: "tuning.names" must be a list of settlement names`), ['']),
-      neighbourMinDistance: num(sd, st.neighbour_min_distance, 'tuning.neighbour_min_distance'), neighbourSpacing: num(sd, st.neighbour_spacing, 'tuning.neighbour_spacing'), neighbourMinRoom: num(sd, st.neighbour_min_room, 'tuning.neighbour_min_room'), startRoomShare: num(sd, st.start_room_share, 'tuning.start_room_share'), startWoodWeight: num(sd, st.start_wood_weight, 'tuning.start_wood_weight'),
+      neighbourMinDistance: num(sd, st.neighbour_min_distance, 'tuning.neighbour_min_distance'), neighbourSpacing: num(sd, st.neighbour_spacing, 'tuning.neighbour_spacing'), neighbourMinRoom: num(sd, st.neighbour_min_room, 'tuning.neighbour_min_room'), neighbourSpreadShare: num(sd, st.neighbour_spread_share, 'tuning.neighbour_spread_share'), startRoomShare: num(sd, st.start_room_share, 'tuning.start_room_share'), startWoodWeight: num(sd, st.start_wood_weight, 'tuning.start_wood_weight'),
     },
     logistics: {
       villagerCarry: num(ld, lt.villager_carry, 'tuning.villager_carry'), botCarry: num(ld, lt.bot_carry, 'tuning.bot_carry'),
@@ -175,8 +176,8 @@ export function buildContent(files: SourceFile[]): Content {
     planner: {
       intervalSeconds: q('interval_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'),
       foodHeadroom: q('food_headroom'), growthBeds: q('growth_beds'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
-      costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), crossingWeight: q('crossing_weight'), savePatienceSeconds: q('save_patience_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
-      searchRadius: q('search_radius'), gap: q('gap'), minTrees: q('min_trees'),
+      costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), crossingWeight: q('crossing_weight'), savePatienceSeconds: q('save_patience_seconds'), noRoomRetrySeconds: q('no_room_retry_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
+      searchRadius: q('search_radius'), searchRadiusMax: q('search_radius_max'), gap: q('gap'), minTrees: q('min_trees'),
       treeWeight: q('tree_weight'), sharedTreeWeight: q('shared_tree_weight'), linkWeight: q('link_weight'), storeWeight: q('store_weight'), forestPenalty: q('forest_penalty'),
     },
     knowledge: {

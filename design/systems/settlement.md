@@ -4,7 +4,7 @@ title: Starting settlement
 description: What a new game begins with, per settlement — a storage yard, two houses, a road and five villagers.
 tags: [world, balance]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T12:35:18Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T13:41:22Z }
 tuning:
   villagers: 5
   storage: { planks: 30, bread: 12, logs: 4 }
@@ -13,6 +13,7 @@ tuning:
   neighbour_min_distance: 12
   neighbour_spacing: 30
   neighbour_min_room: 160
+  neighbour_spread_share: 0.75
   start_room_share: 0.85
   start_wood_weight: 2
 ---
@@ -23,7 +24,7 @@ A [Storage Yard](/blueprints/storage.md), a [House](/blueprints/house.md) either
 
 # Neighbours
 
-A game founds as many settlements as the player picks (the [map](/systems/map.md) size sets the default, two), named from `names` in order. The **first** is placed by the seed: every spot where the starting layout fits on open grass scores its room to grow (grass within 8 tiles) plus `start_wood_weight` per grown tree within 10, and the seed picks one of the spots scoring at least `start_room_share` of the best, so a village starts near wood. Each further one goes with the same layout on open grass at least `neighbour_min_distance` tiles from every other, with at least `neighbour_min_room` tiles of grass to grow into, and reachable on foot unless the map allows neighbours across water (`neighbours: anywhere`). Among those spots it takes the farthest from its nearest neighbour, up to `neighbour_spacing` tiles, then the one with the most land around it; on large maps that keeps villages apart without pushing them into corners. A map with no such spot founds fewer settlements, and the new-game screen says so. Gates found one unless their scenario asks for more. Each settlement has its own [knowledge](/systems/knowledge.md) and [planner](/systems/planner.md).
+A game founds as many settlements as the player picks (the [map](/systems/map.md) size sets the default, two), named from `names` in order. The **first** is placed by the seed: every spot where the starting layout fits on open grass scores its room to grow (grass within 8 tiles) plus `start_wood_weight` per grown tree within 10, and the seed picks one of the spots scoring at least `start_room_share` of the best, so a village starts near wood. Each further one goes with the same layout on open grass at least `neighbour_min_distance` tiles from every other, with at least `neighbour_min_room` tiles of grass to grow into, and reachable on foot unless the map allows neighbours across water (`neighbours: anywhere`). Spots count as far enough apart when their distance to the nearest settlement (capped at `neighbour_spacing`) is at least `neighbour_spread_share` of the farthest; of those, the seed picks one scoring at least `start_room_share` of the best on room and wood, as for the first. (Until Kyle saw it, the first spot in reading order won every tie, so villages on open land lined up along the top of the map.) A map with no such spot founds fewer settlements, and the new-game screen says so. Gates found one unless their scenario asks for more. Each settlement has its own [knowledge](/systems/knowledge.md) and [planner](/systems/planner.md).
 
 On the small island the neighbour lands 13 to 17 tiles from the centre on the swept seeds.
 

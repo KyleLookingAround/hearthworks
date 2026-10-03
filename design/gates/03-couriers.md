@@ -4,13 +4,15 @@ title: "Gate 3: bots carry a real share"
 description: With a Courier Depot beside storage, bots make at least 30% of deliveries in 15 game minutes and nobody leaves.
 tags: [gate, roadmap, automation]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T08:15:00Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T13:40:50Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/couriers.ts
 parameters:
   - { name: seed, type: integer, required: true }
   - { name: seconds, type: integer, required: true }
-defaults: { seed: 1847, seconds: 900 }
+  - { name: map, type: string, required: true }
+  - { name: size, type: string, required: true }
+defaults: { seed: 1847, seconds: 900, map: island, size: small }
 pass_when: { min_depot_built: 1, min_bot_share: 0.3, max_departures: 0 }
 executor:
   resource: ../references/skills/run-gate.md
@@ -26,3 +28,7 @@ The sanctioned scenario is [couriers.ts](/references/scenarios/couriers.ts): woo
 # Proves
 
 Phase 3 of the [roadmap](/roadmap.md): automation takes real work off villagers. The same [job board](/systems/logistics.md) serves both kinds of carrier.
+
+# Revisions
+
+- 2026-10-03: stays on the small Lone isle, the world its scripted layout was written for, now named by the `map` and `size` parameters since the standard map moved to medium (roadmap Phase 7). Its receipts are unchanged.

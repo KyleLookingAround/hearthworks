@@ -158,6 +158,7 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   const M = content.maps[mapId], size = mt.sizes[sizeId];
   if (!M) throw new Error(`unknown map type "${mapId}"`);
   if (!size) throw new Error(`unknown map size "${sizeId}"`);
+  if (M.sizes && !M.sizes.includes(sizeId)) throw new Error(`${M.name} is not offered at size "${sizeId}"`);
   S.setup = { map: mapId, size: sizeId, settlements: opts.settlements ?? 1 };
   S.world = generateWorld(M, size.width, size.height, S);
   const L = content.tuning.logistics;
@@ -198,30 +199,38 @@ function foundTown(S: State, cx: number, cy: number, planner: boolean): Town {
 }
 
 /**
- * Where a neighbour can settle: the whole starting layout on open grass with a one-tile margin,
- * at least `neighbour_min_distance` from every settlement and reachable on foot. Of those, the
- * farthest from its nearest settlement, then the most land around it to grow into.
- * Deterministic scan; null if the island has no room.
+ * Where a neighbour can settle, chosen by the seed: the whole starting layout on open grass,
+ * at least `neighbour_min_distance` from every settlement, with `neighbour_min_room` to grow,
+ * and reachable on foot unless the map allows neighbours across water. Spots count as far enough
+ * apart when their distance to the nearest settlement (capped at `neighbour_spacing`) is at least
+ * `neighbour_spread_share` of the best; of those, the seed picks one scoring at least
+ * `start_room_share` of the best on room and wood, as for the first settlement.
+ * Null if the land has no room.
  */
 function neighbourSite(S: State): { x: number; y: number } | null {
   const w = S.world, t = S.content.tuning.start;
   const centres = S.towns.map(tn => ctr(S.bmap.get(tn.store)!));
   const home = door(S.bmap.get(S.towns[0].store)!);
-  let best: { x: number; y: number } | null = null, bestD = -1, bestRoom = -1;
+  const spots: { x: number; y: number; spread: number; score: number }[] = [];
   for (let cy = 3; cy < w.h - 4; cy++) for (let cx = 7; cx < w.w - 6; cx++) {
     const d = Math.min(...centres.map(c => Math.hypot(cx - c.x, cy - c.y)));
-    // as far as possible up to `neighbour_spacing`; past that, room to grow decides
-    const spread = Math.floor(Math.min(d, t.neighbourSpacing));
-    if (d < t.neighbourMinDistance || spread < bestD) continue;
-    if (!layoutFits(w, cx, cy)) continue;
+    if (d < t.neighbourMinDistance || !layoutFits(w, cx, cy)) continue;
     const room = roomAround(w, cx, cy);
     // never found a village where it has no room to live
     if (room < t.neighbourMinRoom) continue;
-    if (spread === bestD && room <= bestRoom) continue;
-    if (S.content.maps[S.setup.map].neighbours === 'reachable' && !findPath(w, home.x, home.y, cx, cy + 1)) continue;
-    bestD = spread; bestRoom = room; best = { x: cx, y: cy };
+    spots.push({ x: cx, y: cy, spread: Math.min(d, t.neighbourSpacing), score: room + t.startWoodWeight * woodAround(w, cx, cy) });
   }
-  return best;
+  const far = Math.max(0, ...spots.map(p => p.spread)) * t.neighbourSpreadShare;
+  const apart = spots.filter(p => p.spread >= far);
+  const top = Math.max(0, ...apart.map(p => p.score)) * t.startRoomShare;
+  const good = apart.filter(p => p.score >= top);
+  const onFoot = S.content.maps[S.setup.map].neighbours === 'reachable';
+  while (good.length) {
+    const k = Math.floor(rand(S.rng) * good.length), p = good[k];
+    if (!onFoot || findPath(w, home.x, home.y, p.x, p.y + 1)) return { x: p.x, y: p.y };
+    good.splice(k, 1);
+  }
+  return null;
 }
 
 /** The settlement whose first storage yard is nearest to a point. */

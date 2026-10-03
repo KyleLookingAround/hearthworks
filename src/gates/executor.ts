@@ -14,7 +14,7 @@ import type { GateParams, Scenario } from './kit.ts';
 
 export interface Receipt {
   gate: string;
-  params: Record<string, number>;
+  params: Record<string, number | string>;
   ticks: number;
   scenario_sha256: string;
   content_hash: string;
@@ -50,7 +50,7 @@ export async function runGate(path: string, overrides: Partial<GateParams> = {})
   const attester = (f.attester as YamlMap | null)?.resource;
   if (typeof attester !== 'string') throw new Error(`${id}: needs attester.resource`);
 
-  const params = { ...(f.defaults as Record<string, number> ?? {}), ...overrides } as GateParams;
+  const params = { ...(f.defaults as Record<string, number | string> ?? {}), ...overrides } as GateParams;
   for (const p of (f.parameters as YamlMap[] ?? [])) {
     if (p.required && !(String(p.name) in params)) throw new Error(`${id}: parameter ${String(p.name)} is required`);
   }

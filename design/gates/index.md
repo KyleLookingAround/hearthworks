@@ -8,3 +8,4 @@
 * [Gate 4: the village plans its own town](04-village-plans.md) - With no build order at all, the village planner grows the town to 20 villagers and keeps it fed over 30 game minutes, matching Gate 2's scripted result.
 * [Gate 5: a practice spreads between two settlements](05-knowledge-spreads.md) - Two self-planning settlements start without the Courier Depot; one invents it under strain, a visitor carries it to the other, and the other proves it in use, within 40 game minutes.
 * [Gate 6: solid ground](06-solid-ground.md) - Two self-planning settlements for 30 game minutes; a game saved halfway and loaded finishes identical to one that never stopped, nobody is ever inside a building's walls, and both villages thrive.
+* [Gate 7: worlds](07-worlds.md) - Four self-planning settlements on a large island grow past 600 villagers in an hour within the work budgets, and every map type at every size founds its settlements and feeds them.

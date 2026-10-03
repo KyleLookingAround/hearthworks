@@ -3,5 +3,5 @@
 # Sections
 
 * [attesters](attesters/) - thresholds.ts
-* [scenarios](scenarios/) - couriers.ts, first-plank.ts, knowledge-spreads.ts, solid-ground.ts, 2 more
+* [scenarios](scenarios/) - couriers.ts, first-plank.ts, knowledge-spreads.ts, solid-ground.ts, 3 more
 * [skills](skills/) - Run a gate

@@ -91,13 +91,18 @@ export function findTask(S: State, a: Agent): boolean {
   };
   let best: { src: Building; dst: Building; item: ItemId; n: number } | null = null, bestScore = Infinity;
 
-  for (const r of collectRequests(S)) {
-    if (!inRange(r.dst)) continue;
-    for (const s of S.buildings) {
+  // offers indexed by good, in building order, so only real source/request pairs are scored
+  const reqs = collectRequests(S).filter(r => inRange(r.dst));
+  const offers = new Map<ItemId, { b: Building; av: number }[]>();
+  for (const r of reqs) if (!offers.has(r.item)) offers.set(r.item, []);
+  for (const s of S.buildings) {
+    if (!inRange(s)) continue;
+    for (const [item, list] of offers) { const av = available(S, s, item); if (av > 0) list.push({ b: s, av }); }
+  }
+  for (const r of reqs) {
+    for (const { b: s, av } of offers.get(r.item)!) {
       if (s === r.dst) continue;
       S.world.work.jobPairs++;
-      const av = available(S, s, r.item);
-      if (av <= 0 || !inRange(s)) continue;
       const score = distAB(a, s) + distBB(s, r.dst) + r.pri + (bp(S, s).storage ? 2 : 0);
       if (score < bestScore) { bestScore = score; best = { src: s, dst: r.dst, item: r.item, n: Math.min(cap, r.need, av) }; }
     }

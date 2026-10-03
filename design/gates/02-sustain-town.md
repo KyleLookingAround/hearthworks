@@ -4,14 +4,16 @@ title: "Gate 2: the town grows and stays fed"
 description: With a scripted build order, the town reaches 20 villagers and nobody leaves hungry over 30 game minutes.
 tags: [gate, roadmap, needs, balance]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T08:15:00Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T13:40:50Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/sustain-town.ts
 parameters:
   - { name: seed, type: integer, required: true }
   - { name: seconds, type: integer, required: true }
+  - { name: map, type: string, required: true }
+  - { name: size, type: string, required: true }
   - { name: max_houses, type: integer, required: false }
-defaults: { seed: 1847, seconds: 1800, max_houses: 8 }
+defaults: { seed: 1847, seconds: 1800, max_houses: 8, map: island, size: small }
 pass_when: { min_peak_villagers: 20, min_villagers: 18, max_departures: 2, min_mood_min: 0.6 }
 executor:
   resource: ../references/skills/run-gate.md
@@ -27,3 +29,7 @@ The sanctioned scenario is [sustain-town.ts](/references/scenarios/sustain-town.
 # Proves
 
 Phase 2 of the [roadmap](/roadmap.md): the [needs](/systems/needs.md) and production numbers support a growing town. If a tuning change in [needs](/systems/needs.md) or a [blueprint](/blueprints/) breaks this, CI fails before the change merges.
+
+# Revisions
+
+- 2026-10-03: stays on the small Lone isle, the world its scripted layout was written for, now named by the `map` and `size` parameters since the standard map moved to medium (roadmap Phase 7). Its receipts are unchanged.

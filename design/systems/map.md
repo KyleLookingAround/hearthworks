@@ -4,10 +4,10 @@ title: Map
 description: Map types and sizes, seeded generation, the standard map, trees and regrowth.
 tags: [world]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T12:27:37Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T13:41:22Z }
 tuning:
   standard_type: island
-  standard_size: small
+  standard_size: medium
   game_size: medium
   sizes: { small: { width: 56, height: 40, settlements: 2 }, medium: { width: 112, height: 80, settlements: 2 }, large: { width: 192, height: 144, settlements: 2 } }
   tree_grow_seconds: 40
@@ -21,11 +21,11 @@ The same seed and type always give the same world; the [gates](/gates/) depend o
 
 # Sizes
 
-`sizes` lists the sizes a player can pick (a new game starts at `game_size`), each with its width, height and the settlements a new game starts with (two on every size, so the player can watch two villages grow apart and trade).
+A map type may list the `sizes` it is offered at (Islands: medium and large); the new-game screen greys out the rest. `sizes` in tuning lists the sizes a player can pick (a new game starts at `game_size`), each with its width, height and the settlements a new game starts with (two on every size, so the player can watch two villages grow apart and trade).
 
 # Standard map
 
-`standard_type` at `standard_size` (Lone isle, small: the original island's land, reproduced exactly) is the standard map: every gate runs on it unless its scenario names another. [Roadmap](/roadmap.md) Phase 7 plans to move the standard to Island at medium size once the sim scales.
+`standard_type` at `standard_size` (Lone isle, medium) is the standard map, and every gate names the world it runs on with `map` and `size` parameters. Gates 1 and 4 to 7 run on the standard map; Gates 2 and 3 keep the small Lone isle their scripted layouts were written for. [Gate 7](/gates/07-worlds.md) runs every type at every size it offers.
 
 # New-game screen
 

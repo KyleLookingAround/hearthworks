@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T12:27:37Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T13:41:22Z }
 tuning:
   interval_seconds: 3
   settle_seconds: 6
@@ -20,9 +20,11 @@ tuning:
   urgency_priority: 10
   crossing_weight: 1
   save_patience_seconds: 180
+  no_room_retry_seconds: 120
   haul_weight: 3
   cover_weight: 0.5
   search_radius: 15
+  search_radius_max: 40
   gap: 1
   min_trees: 8
   tree_weight: 0.5
@@ -56,13 +58,14 @@ Every `interval_seconds` the planner:
    - if it needs a worker and fewer than one villager is spare after keeping `carrier_share` of the town hauling, wait for newcomers when beds are free, otherwise plan a House. A carrier share of 0.4 is what the job board needs: at 0.2, small villages ran out of hands to haul and stalled (see the [log](/log.md)).
 4. **Confirms**: the same blueprint must top `confirm_cycles` looks in a row.
 5. **Checks the cost** against its own settlement's free supply, after its open sites' outstanding needs. If short, and nothing makes the missing good or the settlement has been short of it for more than `save_patience_seconds` (whatever it was saving for), it plans that good's maker instead; otherwise it says what it is saving for. What it is thinking about or saving for counts as use, so the settlement does not [forget](/systems/knowledge.md) it meanwhile.
-6. **Places** it by scoring every spot within `search_radius` of the storage yard that leaves a `gap`-tile ring of open land (buildings never wall each other in) and can be walked to from storage. Lower is better:
+6. **Places** it by scoring every spot within `search_radius` beyond the settlement's farthest building from the storage yard (at most `search_radius_max` from it) that leaves a `gap`-tile ring of open land (buildings never wall each other in) and can be walked to from storage. Lower is better:
    - `store_weight` × distance to storage, to keep the town compact;
    - harvesters: minus `tree_weight` × grown trees in range, trees already in another harvester's range at `shared_tree_weight`; spots under `min_trees` are skipped;
    - everything else: +1 per grown tree it would clear and `forest_penalty` inside a forester's ground;
    - `link_weight` × distance to the nearest maker of each input and the mean distance to the users of each output. A Bakery lands between its Farm and the houses; a Sawmill beside its Forester;
    - homes: `link_weight` × distance to the nearest house;
    - courier buildings: minus `cover_weight` per building of its settlement its bots would newly reach; a spot that reaches none is skipped.
+   If no spot qualifies, it remembers that it found no room for that blueprint and, for `no_room_retry_seconds`, plans for its next shortage instead, so one building it cannot place (a dock with no suitable shore) never holds up the bread.
 7. **Commits** a construction site through the [job board](/systems/logistics.md) with priority `1 + severity × urgency_priority` (see [site priority](/systems/production.md)) and records why on the building.
 
 # Not thrashing
@@ -80,7 +83,7 @@ The **Village plans** toggle in the HUD is on by default. Off, the planner stops
 
 - It plans the goods economy, housing and, once known, [Courier Depots](/blueprints/depot.md). [Storage](/blueprints/storage.md) and [roads](/blueprints/road.md) relieve nothing it measures yet, so they stay with the player.
 - Planks are counted island-wide when checking cost, so two settlements saving for a depot wait on the same pile.
-- It never stops growing while land and food allow. Towns reach 20 villagers at 6 to 7.5 minutes; on five of the six swept seeds the buildable land within `search_radius` runs out between 24 and 30 minutes, at 82 to 100 villagers.
+- It never stops growing while land and food allow. The search widens as the village spreads, up to `search_radius_max`; past that a village needs a second centre, which is [roadmap](/roadmap.md) Phase 9.
 
 # Knowledge
 

@@ -43,6 +43,8 @@ export interface MapSize { width: number; height: number; settlements: number }
 export interface MapDef {
   id: string; name: string; description: string; order: number;
   shape: 'island' | 'islands' | 'landmass' | 'coast';
+  /** The map sizes this type can be played at; null for every size. */
+  sizes: string[] | null;
   /** Islands only: how many, and their radii as a share of half the map's shorter side. */
   islands: { countMin: number; countMax: number; radiusMin: number; radiusMax: number; minTiles: number } | null;
   /** Small islands scattered in open sea (coast). */
@@ -66,7 +68,7 @@ export interface Setup { map: string; size: string; settlements: number }
 export interface Tuning {
   /** `width`/`height` are the standard size's; gates run on the standard map. */
   map: { width: number; height: number; treeGrowSeconds: number; standardType: string; standardSize: string; gameSize: string; sizes: Record<string, MapSize> };
-  start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; startRoomShare: number; startWoodWeight: number };
+  start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; neighbourSpreadShare: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
     roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; dumpAt: number; requestAging: number;
@@ -83,8 +85,8 @@ export interface Tuning {
 export interface PlannerTuning {
   intervalSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
   foodHeadroom: number; growthBeds: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
-  costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; haulWeight: number; coverWeight: number;
-  searchRadius: number; gap: number; minTrees: number;
+  costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; noRoomRetrySeconds: number; haulWeight: number; coverWeight: number;
+  searchRadius: number; searchRadiusMax: number; gap: number; minTrees: number;
   treeWeight: number; sharedTreeWeight: number; linkWeight: number; storeWeight: number; forestPenalty: number;
 }
 
@@ -106,6 +108,8 @@ export interface PlannerState {
   /** One line for the player: what the planner is doing and why. */
   status: string;
   placed: number;
+  /** Blueprints it last found no room for, and when: it plans something else for `no_room_retry_seconds`. */
+  noRoom: Record<string, number>;
 }
 
 export interface Content {

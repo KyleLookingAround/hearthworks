@@ -4,14 +4,16 @@ title: "Gate 6: solid ground"
 description: Two self-planning settlements for 30 game minutes; a game saved halfway and loaded finishes identical to one that never stopped, nobody is ever inside a building's walls, and both villages thrive.
 tags: [gate, roadmap, saves, settlement]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T13:04:19Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T13:40:50Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/solid-ground.ts
 parameters:
   - { name: seed, type: integer, required: true }
   - { name: seconds, type: integer, required: true }
-defaults: { seed: 1847, seconds: 1800 }
-pass_when: { min_settlements: 2, min_save_roundtrip_match: 1, max_agents_inside_walls: 0, max_departures: 2, min_mood_min: 0.6, min_town_mood_min: 0.6 }
+  - { name: map, type: string, required: true }
+  - { name: size, type: string, required: true }
+defaults: { seed: 1847, seconds: 1800, map: island, size: medium }
+pass_when: { min_settlements: 2, min_peak_villagers: 120, min_save_roundtrip_match: 1, max_agents_inside_walls: 0, max_departures: 2, min_mood_min: 0.6, min_town_mood_min: 0.6 }
 executor:
   resource: ../references/skills/run-gate.md
   receipt: [gate, params, ticks, scenario_sha256, content_hash, metrics]
@@ -31,3 +33,7 @@ Phase 6 of the [roadmap](/roadmap.md): the ground is solid and the game can be p
 - `agents_inside_walls`: buildings are solid in both games, before and after loading.
 - The welfare thresholds are Gate 4's and Gate 5's, and `town_mood_min` holds each settlement to the mood bar on its own, so a thriving village cannot hide a starving one.
 - `save_bytes` and the work counters (`path_searches`, `path_fails`, `path_nodes`, `job_pairs`, `planner_spots`) are recorded as the baseline for Phase 7's budgets.
+
+# Revisions
+
+- 2026-10-03: moved to the standard map, Island at medium size, named by the new `map` and `size` parameters (roadmap Phase 7). Adds `min_peak_villagers: 120` (137 to 175 on the six swept seeds). Tightened, not loosened.
