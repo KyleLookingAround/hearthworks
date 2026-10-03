@@ -4,7 +4,7 @@ title: People
 description: Villagers as individuals; ages, births and deaths, skills that grow with practice and pass from master to apprentice, and each village's custom for its dead.
 tags: [people, customs, settlement]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T19:05:47Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T22:28:24Z }
 tuning:
   adult_seconds: 600
   elder_seconds: 6000
@@ -40,7 +40,7 @@ A home with two adults in it, fed (no hunger, food on the shelf), has a child on
 
 # Skills
 
-Each villager has a skill for each kind of workplace, from 0 to 1. Working one raises it towards 1 with time constant `practice_seconds`, `apprentice_factor` times as fast while an expert (skill `expert_at` or more) of that trade lives in the settlement: master to apprentice. Work goes to the most skilled villager free. A workplace runs at `1 - skill_speedup / 2 + skill_speedup * skill` of its pace, so a novice at three quarters and an expert at five quarters. A trade whose only expert dies is one death from being lost.
+Each villager has a skill for each kind of workplace, from 0 to 1. Working one raises it towards 1 with time constant `practice_seconds`, `apprentice_factor` times as fast while an expert (skill `expert_at` or more) of that trade lives in the settlement: master to apprentice. Work goes to the most skilled villager free; a carrier at least a quarter more skilled at it than anyone free, on the way to pick something up, is called back to it (so a workplace whose worker went carrying while its output stood full gets them back). A workplace runs at `1 - skill_speedup / 2 + skill_speedup * skill` of its pace, so a novice at three quarters and an expert at five quarters. A trade whose only expert dies is one death from being lost.
 
 # School
 

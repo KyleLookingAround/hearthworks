@@ -144,6 +144,14 @@ export function assignWorkers(S: State) {
       const spare = S.agents.find(a => a.role === 'worker' && a.work && a.home?.town === b.town && !Object.keys(bp(S, a.work).output).some(g => essential.has(g)));
       if (spare) { spare.work!.worker = null; spare.work = null; spare.role = 'carrier'; spare.state = 'idle'; spare.path = []; idle.push(spare); }
     }
+    // with people on, a carrier much more skilled at this work than anyone idle is called back from an errand
+    // (only on the way to pick up, so nothing carried is lost)
+    if (S.people) {
+      const best = Math.max(0, ...idle.map(a => a.skill[b.type] || 0));
+      const skilled = carriers.filter(a => a.task && a.state === 'toSrc' && !(S.t - a.born >= S.content.tuning.people.elderSeconds) && (a.skill[b.type] || 0) >= best + 0.25)
+        .sort((p, q) => (q.skill[b.type] || 0) - (p.skill[b.type] || 0))[0];
+      if (skilled) { cancelTask(skilled); idle.unshift(skilled); }
+    }
     if (!idle.length) continue;
     // the nearest, or with people on the most skilled at this work (then the nearest)
     let pick = idle[0], pd = Infinity;

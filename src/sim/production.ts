@@ -88,8 +88,9 @@ export function foodChainOf(S: State): Set<string> {
 }
 
 /**
- * Enough in store: a self-planning settlement's workplace whose every output lies outside the food chain, with
- * its stores holding at least `surplus_seconds` of what the planner uses of each (and `surplus_min`), rests:
+ * Enough in store: a self-planning settlement's workplace whose every output lies outside the food chain, while
+ * its yards are nearly full (`store_full_share`) and hold at least `surplus_seconds` of what the planner uses of
+ * each of its goods (and `surplus_min`), rests:
  * its worker goes carrying rather than pile up goods that fill the yards. Food is never enough.
  */
 export function enoughInStore(S: State, b: Building): boolean {
@@ -97,6 +98,10 @@ export function enoughInStore(S: State, b: Building): boolean {
   if (!town?.planner.on) return false;
   const outs = Object.keys(B.output), chain = foodChainOf(S), P = S.content.tuning.production;
   if (!outs.length || outs.some(g => chain.has(g))) return false;
+  // only while the yards are nearly full (`store_full_share`), so the harvest has somewhere to go
+  let held = 0, room = 0;
+  for (const o of S.buildings) { const O = bp(S, o); if (o.town !== town.id || o.site || !O.storage || !O.capacity || O.keeps) continue; room += O.capacity; for (const k in o.inv) held += o.inv[k]; }
+  if (!room || held < room * S.content.tuning.planner.storeFullShare) return false;
   for (const g of outs) {
     let n = 0;
     for (const o of S.buildings) if (o.town === town.id && !o.site && bp(S, o).storage) n += o.inv[g] || 0;
