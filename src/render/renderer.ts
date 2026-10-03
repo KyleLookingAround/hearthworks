@@ -158,7 +158,16 @@ export class Renderer {
       const wr = w.wear[y * w.w + x];
       // trodden ground: where feet have worn a path that is not paved yet
       if (wr > 6 && !w.road[y * w.w + x] && !far) { c.fillStyle = `rgba(150,118,74,${Math.min(0.4, wr / 80)})`; c.fillRect(x * TS + 4, y * TS + 4, TS - 8, TS - 8); }
-      if (!w.road[y * w.w + x]) continue;
+      const rd = w.road[y * w.w + x];
+      if (!rd) continue;
+      if (rd === 2) {
+        // a road: dressed stone the width of the tile, kerbs along it
+        c.fillStyle = '#7d776c'; c.fillRect(x * TS, y * TS, TS, TS);
+        c.fillStyle = '#a49d90'; c.fillRect(x * TS + 2, y * TS + 2, TS - 4, TS - 4);
+        if (!far) { c.fillStyle = 'rgba(70,64,56,.35)'; c.fillRect(x * TS + TS / 2 - 1, y * TS + 4, 2, TS - 8); c.fillRect(x * TS + 4, y * TS + TS / 2 - 1, TS - 8, 2); }
+        continue;
+      }
+      // a path: packed earth
       c.fillStyle = '#a58b5f'; c.fillRect(x * TS, y * TS, TS, TS);
       c.fillStyle = '#c2a877'; c.fillRect(x * TS + 3, y * TS + 3, TS - 6, TS - 6);
     }

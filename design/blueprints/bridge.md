@@ -1,10 +1,10 @@
 ---
 type: Blueprint
 title: Bridge
-description: A plank span across a river or channel, up to six tiles of water with land at both ends. Walked like a road; boats pass under.
+description: A plank span across a river or channel, up to six tiles of water with land at both ends. Walked like a path; boats pass under.
 tags: [logistics, water]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T14:48:56Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T21:35:39Z }
 color: "#9a7448"
 order: 29
 size: [1, 1]
@@ -15,7 +15,7 @@ discovery: { need: detours, mean_seconds: 240 }
 
 # Role
 
-A bridge spans a straight run of water, at most `bridge.max_span` tiles, from one bank to the other. Its planks are delivered to the near bank, which is its door. Once built, its tiles are walked like a [road](/blueprints/road.md) and boats row underneath.
+A bridge spans a straight run of water, at most `bridge.max_span` tiles, from one bank to the other. Its planks are delivered to the near bank, which is its door. Once built, its tiles are walked like a [path](/blueprints/path.md) and boats row underneath.
 
 # Discovery
 

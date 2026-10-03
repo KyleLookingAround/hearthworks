@@ -4,19 +4,21 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T19:35:38Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T21:35:39Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
   villager_speed: 3
   bot_speed: 4.9
-  road_speed: 1.7
+  path_speed: 1.7
+  road_speed: 2.4
   forest_speed: 0.65
   boat_speed: 4
   output_cap: 6
   release_after_seconds: 20
   cart_carry: 6
-  cart_road_speed: 1.3
+  cart_path_speed: 1.3
+  cart_road_speed: 1.6
   cart_rough_speed: 0.9
   cart_min_tiles: 20
   cart_reach: 30
@@ -41,7 +43,7 @@ tuning:
 
 # Carts
 
-With carts on (every new game, off in older scenarios), a [Cart Shed](/blueprints/cart_shed.md) lends handcarts. A villager taking a job of at least `cart_min_tiles` within `cart_reach` of a shed with a cart free takes one: `cart_carry` goods instead of `villager_carry`, `cart_road_speed` times as fast on roads and bridges and `cart_rough_speed` times elsewhere. The cart goes back when the load is delivered. Ox carts, river boats between jetties and multi-leg deliveries through hubs come later.
+With carts on (every new game, off in older scenarios), a [Cart Shed](/blueprints/cart_shed.md) lends handcarts. A villager taking a job of at least `cart_min_tiles` within `cart_reach` of a shed with a cart free takes one: `cart_carry` goods instead of `villager_carry`, `cart_road_speed` times as fast on [roads](/blueprints/road.md), `cart_path_speed` on paths and bridges and `cart_rough_speed` elsewhere. The cart goes back when the load is delivered. Ox carts, river boats between jetties and multi-leg deliveries through hubs come later.
 
 # Walls and doors
 
@@ -53,7 +55,7 @@ Water is crossed by rowing boat. Boats are launched from a [dock](/blueprints/do
 
 # Terrain, roads and bridges
 
-Route finding and walking speed agree: a road or [bridge](/blueprints/bridge.md) tile costs `1 / road_speed`, a tile under grown trees `1 / forest_speed`, rock `rock_cost`, and every step up or down costs `slope_cost` per unit of height more (both read from this tuning; before, two of them were copies in code). Feet wear the tiles they cross; the wear fades with a half-life of the [planner](/systems/planner.md)'s `wear_half_life_seconds`, and planners pave the most worn tiles into roads. Every delivery records its time from claim to drop-off and its straight-line length (carrier to source to destination), so receipts can report `mean_delivery_seconds` and the pace per tile.
+Route finding and walking speed agree: a [path](/blueprints/path.md) or [bridge](/blueprints/bridge.md) tile costs `1 / path_speed`, a [road](/blueprints/road.md) tile `1 / road_speed`, a tile under grown trees `1 / forest_speed`, rock `rock_cost`, and every step up or down costs `slope_cost` per unit of height more (both read from this tuning; before, two of them were copies in code). Feet wear the tiles they cross; the wear fades with a half-life of the [planner](/systems/planner.md)'s `wear_half_life_seconds`, and planners pave the most worn tiles into paths. Deliveries also count the tiles they step on roads and on paths, so receipts can compare the pace of those mostly along roads with those mostly along paths. Every delivery records its time from claim to drop-off and its straight-line length (carrier to source to destination), so receipts can report `mean_delivery_seconds` and the pace per tile.
 
 # Storage and spoiling
 

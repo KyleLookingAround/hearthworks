@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T21:28:49Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T21:50:12Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -52,6 +52,8 @@ Three buildings keep and grow knowledge (Phase 15):
 The planner wants a library while it holds knowledge beyond its founders', a school once there are `school_children` children, and a university in a town that knows of one, each at `learning_weight`.
 
 With [hardship](/systems/hardship.md) on, the needs `fire`, `flood`, `sickness` and `raids` are full for `memory_seconds` after the hazard last struck the settlement, and lead to its counters: the [Well](/blueprints/well.md), [Levee](/blueprints/levee.md), [Healer's House](/blueprints/healer.md), [Watchtower](/blueprints/watchtower.md) and [Palisade](/blueprints/palisade.md).
+
+With planned [roads](/systems/roads.md) on, the need `traffic` of a village or town grows from 0 when its deliveries average `traffic_from` tiles to 1 at `traffic_span` more, and leads to the [Road](/blueprints/road.md).
 
 The need `distance` (with carts on) grows from 0 when a settlement's deliveries average `distance_from` tiles to 1 at `distance_span` more, the average smoothed over about `reach_smoothing` deliveries.
 

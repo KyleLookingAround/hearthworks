@@ -1,7 +1,7 @@
 /** The new-game screen: pick the world (map type, size, settlements, seed) with a live preview, then start. */
 import { createState, ctr, type Content } from '../sim/index.ts';
 
-export interface GameChoice { map: string; size: string; settlements: number; seed: number; plans: boolean; seasons: boolean; trade: boolean; people: boolean; carts: boolean; settlers: boolean; hardship: boolean }
+export interface GameChoice { map: string; size: string; settlements: number; seed: number; plans: boolean; seasons: boolean; trade: boolean; people: boolean; carts: boolean; settlers: boolean; hardship: boolean; roads: boolean }
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -24,7 +24,7 @@ export class NewGameDialog {
     // players start on the first map type in order (Islands); the gates keep the standard map
     const first = Object.values(content.maps).sort((a, b) => a.order - b.order)[0]?.id ?? T.standardType;
     const size = T.sizes[T.gameSize] ? T.gameSize : T.standardSize;
-    this.choice = { map: first, size, settlements: T.sizes[size].settlements, seed, plans: true, seasons: true, trade: true, people: true, carts: true, settlers: true, hardship: true };
+    this.choice = { map: first, size, settlements: T.sizes[size].settlements, seed, plans: true, seasons: true, trade: true, people: true, carts: true, settlers: true, hardship: true, roads: true };
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<GameChoice> | null;
       if (saved && content.maps[saved.map ?? ''] && T.sizes[saved.size ?? '']?.offered) this.choice = { ...this.choice, ...saved };
@@ -63,6 +63,8 @@ export class NewGameDialog {
     seasons.addEventListener('change', () => { this.choice.seasons = seasons.checked; });
     const settlers = $<HTMLInputElement>('#ngSettlers');
     settlers.addEventListener('change', () => { this.choice.settlers = settlers.checked; });
+    const roads = $<HTMLInputElement>('#ngRoads');
+    roads.addEventListener('change', () => { this.choice.roads = roads.checked; });
     const hardship = $<HTMLInputElement>('#ngHardship');
     hardship.addEventListener('change', () => { this.choice.hardship = hardship.checked; });
     const carts = $<HTMLInputElement>('#ngCarts');
@@ -101,6 +103,7 @@ export class NewGameDialog {
     $<HTMLInputElement>('#ngCarts').checked = c.carts !== false;
     $<HTMLInputElement>('#ngSettlers').checked = c.settlers !== false;
     $<HTMLInputElement>('#ngHardship').checked = c.hardship !== false;
+    $<HTMLInputElement>('#ngRoads').checked = c.roads !== false;
     clearTimeout(this.previewTimer);
     this.previewTimer = window.setTimeout(() => this.preview(), 120);
   }

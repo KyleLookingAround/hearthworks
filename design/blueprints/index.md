@@ -4,7 +4,7 @@
 
 * [Bakery](bakery.md) - Bakes one wheat into one loaf. Houses run on bread.
 * [Brickworks](brickworks.md) - Fires clay with logs into bricks: a two-input recipe.
-* [Bridge](bridge.md) - A plank span across a river or channel, up to six tiles of water with land at both ends. Walked like a road; boats pass under.
+* [Bridge](bridge.md) - A plank span across a river or channel, up to six tiles of water with land at both ends. Walked like a path; boats pass under.
 * [Cart Shed](cart_shed.md) - Keeps handcarts for long hauls. A carter takes one for a long job and brings it back after; six goods a trip, quicker on roads, slower off them.
 * [Clay Pit](clay_pit.md) - Digs clay from a bank within three tiles.
 * [Courier Depot](depot.md) - Winds up three courier bots that haul goods within twelve tiles. They never eat, so villagers are free to work.
@@ -23,9 +23,10 @@
 * [Mason](mason.md) - Dresses two rough stones into one block of cut stone.
 * [Mine](mine.md) - Digs iron ore from an iron deposit within three tiles.
 * [Palisade](palisade.md) (draft) - A stake wall and gate that guards the stores against raiders.
+* [Path](path.md) - Paved footpath. Villagers walk faster on paths; planners pave the ones their people wear.
 * [Pyre](pyre.md) - Where a village that cremates its dead burns them. Every farewell burns logs, so a timber-poor village feels it.
 * [Quarry](quarry.md) - Cuts rough stone from a stone deposit within three tiles.
-* [Road](road.md) - Paved tiles. Villagers walk faster on roads.
+* [Road](road.md) - A planned road, laid as a long straight strip through a settlement; faster than paths, most of all for carts.
 * [Sawmill](sawmill.md) - Cuts one log into one plank. Planks build everything.
 * [School](school.md) - Where children learn to read and to learn; those who went to school pick up a trade faster.
 * [Smithy](smithy.md) - Forges iron ore with logs into tools: a two-input recipe.

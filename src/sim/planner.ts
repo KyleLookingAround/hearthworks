@@ -15,6 +15,7 @@ import { NEED_TEXT, pressure } from './knowledge.ts';
 import { bp, chronicle, ctr, demolish, door, emit, nearestTown, placeBridge, placeBuilding, seasonOf, villagers } from './world.ts';
 import { hasPlace } from './people.ts';
 import { atRisk, guarded, struckLately, unguarded } from './hardship.ts';
+import { planRoads } from './roads.ts';
 import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
@@ -468,6 +469,12 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
       const d = door({ x, y, w: B.w, h: B.h });
       if (W.road[(d.y + 1) * W.w + d.x]) s -= P.streetWeight;
     }
+    // built along the roads: a door onto one (its front tile on a road, or beside one), or looking straight down a short run to one
+    if (W.roads > 0) {
+      const d = door({ x, y, w: B.w, h: B.h }), Rd = S.content.tuning.roads, f = (d.y + 1) * W.w + d.x;
+      if (W.road[f] === 2 || (d.x > 0 && W.road[f - 1] === 2) || (d.x + 1 < W.w && W.road[f + 1] === 2)) s -= Rd.frontWeight;
+      else for (let k = 2; k <= Rd.nearTiles + 1 && d.y + k < W.h; k++) { const i = (d.y + k) * W.w + d.x; if (W.road[i] === 2) { s -= Rd.nearWeight; break; } if (W.bgrid[i] !== -1) break; }
+    }
     if (B.couriers) {
       // a depot only helps where its bots reach buildings nobody's bots reach yet
       const reach = unreached.filter(b => Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y) <= B.couriers!.radius).length;
@@ -758,7 +765,8 @@ function layStreets(S: State, town: Town) {
       const row = ((y - d.y - 1) % P.streetEveryRows + P.streetEveryRows) % P.streetEveryRows === 0;
       const col = ((x - d.x) % P.streetEveryCols + P.streetEveryCols) % P.streetEveryCols === 0;
       const i = y * W.w + x;
-      if ((row || col) && (W.ground[i] === 1 || W.ground[i] === 2) && W.bgrid[i] === -1 && W.tree[i] !== 2 && W.zone[i] !== NOBUILD) W.road[i] = 1;
+      // streets are paths; a road already there stays a road
+      if ((row || col) && (W.ground[i] === 1 || W.ground[i] === 2) && W.bgrid[i] === -1 && W.tree[i] !== 2 && W.zone[i] !== NOBUILD && W.road[i] !== 2) W.road[i] = 1;
     }
     emit(S, 'info', `${town.name} laid out streets: it has grown into a town`, true);
   }
@@ -794,6 +802,8 @@ function planTown(S: State, town: Town, dt: number) {
   Q.t += T(S).intervalSeconds / town.levers.pace;
   if (Q.roads) pave(S, town);
   if (formOf(S, town) === 'town') layStreets(S, town);
+  // a village or town that knows the road lays one now and then
+  if (planRoads(S, town, T(S).intervalSeconds / town.levers.pace)) return;
 
   const mine = Q.site !== null ? S.bmap.get(Q.site) : undefined;
   // a site waits its turn, unless it has waited `site_patience_seconds` for a good nobody has: then plan around it

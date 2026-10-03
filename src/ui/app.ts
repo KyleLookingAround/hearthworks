@@ -56,7 +56,7 @@ export class App {
   }
 
   newGame(c: GameChoice) {
-    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, trade: c.trade !== false, people: c.people !== false, carts: c.carts !== false, settlers: c.settlers !== false, hardship: c.hardship !== false, settlements: c.settlements, map: c.map, size: c.size }));
+    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, trade: c.trade !== false, people: c.people !== false, carts: c.carts !== false, settlers: c.settlers !== false, hardship: c.hardship !== false, plannedRoads: c.roads !== false, settlements: c.settlements, map: c.map, size: c.size }));
     this.save();
   }
 
@@ -172,7 +172,8 @@ export class App {
     for (const B of bps.filter(B => !B.bridge)) {
       const btn = document.createElement('button');
       btn.className = 'tool'; btn.dataset.type = B.id; btn.id = 'tool-' + B.id; btn.setAttribute('aria-pressed', 'false');
-      const cost = Object.entries(B.cost).map(([k, n]) => `${n} ${this.content.goods[k].name.toLowerCase()}`).join(', ') || 'free';
+      // paving by hand is free; planners pay for the roads they lay
+      const cost = B.paves ? 'free' : Object.entries(B.cost).map(([k, n]) => `${n} ${this.content.goods[k].name.toLowerCase()}`).join(', ') || 'free';
       btn.innerHTML = `<span class="sw" style="background:${B.color}"></span><span class="nm">${esc(B.name)}</span><span class="cs">${esc(cost)}</span>`;
       btn.title = B.description;
       btn.addEventListener('click', () => this.setTool(this.view.tool === B.id ? null : B.id));
@@ -287,7 +288,7 @@ export class App {
     }
     const B = this.content.blueprints[t];
     const cost = Object.entries(B.cost).map(([k, n]) => `${n} ${this.content.goods[k].name.toLowerCase()}`).join(' and ');
-    hint.textContent = B.paves ? 'Drag across the map to lay road. Esc or the Road button to stop.' : `Tap open land to place a ${B.name}. Carriers will bring ${cost} to build it.`;
+    hint.textContent = B.paves ? `Drag across the map to lay ${B.name.toLowerCase()}. Esc or the ${B.name} button to stop.` : `Tap open land to place a ${B.name}. Carriers will bring ${cost} to build it.`;
     hint.hidden = false;
     this.select(null);
   }
@@ -428,7 +429,7 @@ export class App {
     // hardship: the defence at its first yard against raiders, and camps in reach
     const D = S.hardship ? defence(S, t) : null, near = S.hardship ? S.camps.filter(c => { const y = S.bmap.get(t.store); return !!y && Math.hypot(c.x - y.x, c.y - y.y) <= this.content.tuning.hardship.raidReach; }).length : 0;
     const guard = D ? [Math.round(D.total), D.warned, near] : null;
-    const key = JSON.stringify([t.id, t.levers, t.laws, guard, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.rites.length, t.age]);
+    const key = JSON.stringify([t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.rites.length, t.age]);
     if (!force && key === this.stewardKey) return;
     this.stewardKey = key;
     const needs: [string, string][] = [
@@ -447,6 +448,7 @@ export class App {
     html += `<div class="steward-grid"><span>Rationing</span><select data-law="rationing"><option value="0"${t.laws.rationing ? '' : ' selected'}>Eat as usual</option><option value="1"${t.laws.rationing ? ' selected' : ''}>Ration food</option></select>`;
     html += `<span>Working hours</span><select data-law="hours">${(['short', 'normal', 'long'] as const).map(h => `<option value="${h}"${t.laws.hours === h ? ' selected' : ''}>${{ short: 'Short', normal: 'Normal', long: 'Long' }[h]}</option>`).join('')}</select>`;
     html += `<span>The hungry</span><select data-law="leave"><option value="1"${t.laws.leave ? ' selected' : ''}>May leave</option><option value="0"${t.laws.leave ? '' : ' selected'}>Must stay</option></select></div>`;
+    if (S.plannedRoads) html += `<div class="steward-grid"><span>Roads</span><span>${t.roads.length ? `${t.roads.length} laid` : 'road' in t.knows ? 'none laid yet' : 'not thought of yet'}</span></div>`;
     if (guard) html += `<div class="steward-grid"><span>Defence</span><span>${guard[0]}${guard[1] ? ', a lookout on watch' : ', no lookout'}</span><span>Camps in reach</span><span>${guard[2] || 'none'}</span></div>`;
     html += `<div class="steward-grid"><span>Age</span><span>${esc(this.content.eras[t.age]?.name ?? '')}</span></div>`;
     if (S.people) {

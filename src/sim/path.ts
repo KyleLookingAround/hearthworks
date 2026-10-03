@@ -1,5 +1,5 @@
 /**
- * A* on the tile grid: 8 directions, roads cheap, grown trees slow, buildings blocked, water only by boat.
+ * A* on the tile grid: 8 directions, roads and paths cheap, grown trees slow, buildings blocked, water only by boat.
  * A building is entered only by its door; someone standing inside one (caught by a new
  * footprint) may walk out through that building.
  */
@@ -11,11 +11,11 @@ const buffers = new WeakMap<World, Buffers>();
 const DIRS: [number, number, number][] = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
 
 function cost(w: World, i: number, inside: number): number {
-  if (!w.ground[i]) return w.bridge[i] ? w.roadCost : Infinity;
+  if (!w.ground[i]) return w.bridge[i] ? w.pathCost : Infinity;
   if (w.ground[i] === 3) return w.rockCost;
   const b = w.bgrid[i];
   if (b !== -1 && !w.door[i] && b !== inside) return Infinity;
-  if (w.road[i]) return w.roadCost;
+  if (w.road[i]) return w.road[i] === 2 ? w.roadCost : w.pathCost;
   if (w.tree[i] === 2) return w.forestCost;
   return 1;
 }
@@ -41,7 +41,8 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   if (!b || b.g.length < 2 * N) { const n = 2 * N; b = { g: new Float32Array(n), came: new Int32Array(n), seen: new Uint32Array(n), closed: new Uint32Array(n), gen: 0 }; buffers.set(w, b); }
   // only someone trapped on a wall tile (not standing in a doorway) may cross that building to get out
   const gen = ++b.gen, { g, came, seen, closed } = b, inside = w.door[s] ? -1 : w.bgrid[s];
-  const unit = rowing ? Math.min(w.roadCost, water) : w.roadCost;
+  // the cheapest tile there is, so the estimate never overshoots: a road once any is laid, else a path
+  const best = w.roads > 0 ? Math.min(w.roadCost, w.pathCost) : w.pathCost, unit = rowing ? Math.min(best, water) : best;
   const h = (n: number) => { const i = n % N, dx = Math.abs(i % W - gx), dy = Math.abs(((i / W) | 0) - gy); return unit * (Math.max(dx, dy) + 0.414 * Math.min(dx, dy)); };
   const hi: number[] = [], hf: number[] = [];
   const swap = (a: number, c: number) => { [hi[a], hi[c]] = [hi[c], hi[a]]; [hf[a], hf[c]] = [hf[c], hf[a]]; };

@@ -57,6 +57,8 @@ export interface BlueprintDef {
   /** Works `speedup` times as fast while it holds tools, and wears one out every `wearCycles` cycles. */
   tools: { speedup: number; wearCycles: number } | null;
   paves: boolean;
+  /** Paves a planned road rather than a path; planners lay it in long straight strips at `cost` a tile. */
+  road: boolean;
   /** Built on the shore: its door opens onto water, and boats are launched from it. */
   shore: boolean;
   /** A crop: works from spring to autumn and rests in winter, when seasons are on. */
@@ -139,7 +141,7 @@ export interface Tuning {
   start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; neighbourSpreadShare: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
-    roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
+    pathSpeed: number; roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartPathSpeed: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
   settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; storesShare: number; maxSettlements: number };
@@ -162,6 +164,7 @@ export interface Tuning {
     memorySeconds: number; guardWeight: number;
     rationFactor: number; rationMood: number; longPace: number; longMood: number; shortPace: number; shortMood: number; stayMood: number; starveFactor: number;
   };
+  roads: { trafficFrom: number; trafficSpan: number; villagersPerRoad: number; lookEverySeconds: number; minTraffic: number; margin: number; minLength: number; demolishWeight: number; homeWeight: number; spacing: number; frontWeight: number; nearWeight: number; nearTiles: number };
   knowledge: {
     haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number; encourageFactor: number; encourageThreshold: number;
     verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number; visitMinVillagers: number;
@@ -275,7 +278,7 @@ export interface Building {
 export type AgentState = 'idle' | 'wander' | 'toSrc' | 'toDst' | 'toWork' | 'working' | 'visit';
 
 /** A delivery: `at` is the game time it was claimed, for delivery times. */
-export interface Task { src: Building; dst: Building; item: ItemId; n: number; at: number; /** straight-line tiles: carrier to source to destination */ tiles: number }
+export interface Task { src: Building; dst: Building; item: ItemId; n: number; at: number; /** straight-line tiles: carrier to source to destination */ tiles: number; /** tiles stepped on the way, and of those on a road and on a path */ steps: number; road: number; path: number }
 
 export interface Agent {
   id: number;
@@ -375,6 +378,9 @@ export interface Town {
   /** The steward's laws, and when each hardship last struck it (game time). */
   laws: Laws;
   struck: Record<string, number>;
+  /** Seconds since its planner last looked for a road to lay, and the roads it laid: [x0, y0, x1, y1, when]. */
+  roadT: number;
+  roads: number[][];
   sentAt: number;
   settleT: number;
 }
@@ -390,6 +396,7 @@ export interface World {
   /** 0 none, 1 sapling, 2 grown */
   tree: Uint8Array;
   grow: Float32Array;
+  /** 0 none, 1 a path (worn by feet and paved, laid by hand, or a town's streets), 2 a planned road */
   road: Uint8Array;
   /** building id per tile, -1 when empty */
   bgrid: Int32Array;
@@ -407,8 +414,11 @@ export interface World {
   slopeCost: number;
   /** cost of a tile of rock relative to open land */
   rockCost: number;
-  /** cost of a road (or bridge) tile, and of a tile under grown trees, relative to open land: the inverse of their speeds */
+  /** cost of a path (or bridge) tile, of a road tile, and of a tile under grown trees, relative to open land: the inverse of their speeds */
+  pathCost: number;
   roadCost: number;
+  /** how many road tiles are laid */
+  roads: number;
   forestCost: number;
   /** footsteps on each tile, fading over time: where people actually walk */
   wear: Float32Array;
@@ -467,6 +477,9 @@ export interface Stats {
   taught: number;
   forgotten: number;
   /** Hardship: each kind struck, buildings burnt out, raids beaten off, goods raiders took, and people lost to sickness and hunger with leaving forbidden. */
+  /** Roads: strips laid and their tiles, buildings they cut through and people moved for them; deliveries mostly along roads and mostly along paths (time and straight-line tiles). */
+  roadsLaid: number; roadTiles: number; roadCut: number; roadMoved: number;
+  roadDeliveries: number; roadDeliverySeconds: number; roadDeliveryTiles: number; pathDeliveries: number; pathDeliverySeconds: number; pathDeliveryTiles: number;
   fires: number; burnt: number; floods: number; outbreaks: number; raids: number; repelled: number; looted: number; sickDeaths: number; starved: number; camps: number;
 }
 
@@ -506,6 +519,8 @@ export interface State {
   newcomers: boolean;
   /** Separate stream for births, lifespans and the like, so people never shift the rest of the world. */
   prng: Rng;
+  /** Planned roads on: settlements think of roads and lay them as long straight strips. */
+  plannedRoads: boolean;
   /** Hardship on: fire, flood, sickness and barbarians strike, and the laws can be set. */
   hardship: boolean;
   /** Separate stream for hardship, so hazards never shift the rest of the world. */

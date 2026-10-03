@@ -26,7 +26,7 @@ export function fnv1a(s: string): string {
 
 const isMap = (v: YamlValue | undefined): v is YamlMap => !!v && typeof v === 'object' && !Array.isArray(v);
 /** Pressures a village can struggle with, and so invent its way out of. */
-const NEEDS = ['hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'fire', 'flood', 'sickness', 'raids'];
+const NEEDS = ['hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'traffic', 'fire', 'flood', 'sickness', 'raids'];
 const HAZARDS = ['fire', 'flood', 'sickness', 'raids'];
 const slug = (path: string) => path.replace(/^.*\//, '').replace(/\.md$/, '');
 
@@ -106,6 +106,7 @@ export function buildContent(files: SourceFile[]): Content {
       deposit: isMap(f.deposit) ? { kind: str(d, f.deposit.kind, 'deposit.kind'), radius: num(d, f.deposit.radius, 'deposit.radius') } : null,
       tools: isMap(f.tools) ? { speedup: num(d, f.tools.speedup, 'tools.speedup'), wearCycles: num(d, f.tools.wear_cycles, 'tools.wear_cycles') } : null,
       paves: f.paves === true,
+      road: f.road === true,
       shore: f.shore === true,
       zone: f.zone === 'farms' || f.zone === 'workshops' || f.zone === 'homes' ? f.zone : (num(d, f.homes, 'homes', 0) > 0 ? 'homes' : null),
       seasonal: f.seasonal === true,
@@ -171,7 +172,7 @@ export function buildContent(files: SourceFile[]): Content {
     if (!isMap(d.data.tuning)) { problems.push(`${d.path}: needs a "tuning:" block`); return [d, {}]; }
     return [d, d.data.tuning];
   };
-  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people'), [ld2, lt2] = sys('settling'), [hd, ht] = sys('hardship');
+  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people'), [ld2, lt2] = sys('settling'), [hd, ht] = sys('hardship'), [rd, rt] = sys('roads');
   const sizes: Record<string, MapSize> = {};
   for (const [id, v] of Object.entries(isMap(mt.sizes) ? mt.sizes : {})) {
     const m = isMap(v) ? v : {};
@@ -190,8 +191,8 @@ export function buildContent(files: SourceFile[]): Content {
     logistics: {
       villagerCarry: num(ld, lt.villager_carry, 'tuning.villager_carry'), botCarry: num(ld, lt.bot_carry, 'tuning.bot_carry'),
       villagerSpeed: num(ld, lt.villager_speed, 'tuning.villager_speed'), botSpeed: num(ld, lt.bot_speed, 'tuning.bot_speed'),
-      roadSpeed: num(ld, lt.road_speed, 'tuning.road_speed'), boatSpeed: num(ld, lt.boat_speed, 'tuning.boat_speed'), forestSpeed: num(ld, lt.forest_speed, 'tuning.forest_speed'),
-      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), releaseAfterSeconds: num(ld, lt.release_after_seconds, 'tuning.release_after_seconds'), cartCarry: num(ld, lt.cart_carry, 'tuning.cart_carry'), cartRoadSpeed: num(ld, lt.cart_road_speed, 'tuning.cart_road_speed'), cartRoughSpeed: num(ld, lt.cart_rough_speed, 'tuning.cart_rough_speed'), cartMinTiles: num(ld, lt.cart_min_tiles, 'tuning.cart_min_tiles'), cartReach: num(ld, lt.cart_reach, 'tuning.cart_reach'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'), noWayRetrySeconds: num(ld, lt.no_way_retry_seconds, 'tuning.no_way_retry_seconds'), slopeCost: num(ld, lt.slope_cost, 'tuning.slope_cost'), rockCost: num(ld, lt.rock_cost, 'tuning.rock_cost'),
+      pathSpeed: num(ld, lt.path_speed, 'tuning.path_speed'), roadSpeed: num(ld, lt.road_speed, 'tuning.road_speed'), boatSpeed: num(ld, lt.boat_speed, 'tuning.boat_speed'), forestSpeed: num(ld, lt.forest_speed, 'tuning.forest_speed'),
+      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), releaseAfterSeconds: num(ld, lt.release_after_seconds, 'tuning.release_after_seconds'), cartCarry: num(ld, lt.cart_carry, 'tuning.cart_carry'), cartPathSpeed: num(ld, lt.cart_path_speed, 'tuning.cart_path_speed'), cartRoadSpeed: num(ld, lt.cart_road_speed, 'tuning.cart_road_speed'), cartRoughSpeed: num(ld, lt.cart_rough_speed, 'tuning.cart_rough_speed'), cartMinTiles: num(ld, lt.cart_min_tiles, 'tuning.cart_min_tiles'), cartReach: num(ld, lt.cart_reach, 'tuning.cart_reach'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'), noWayRetrySeconds: num(ld, lt.no_way_retry_seconds, 'tuning.no_way_retry_seconds'), slopeCost: num(ld, lt.slope_cost, 'tuning.slope_cost'), rockCost: num(ld, lt.rock_cost, 'tuning.rock_cost'),
     },
     needs: {
       eatEverySeconds: num(nd, nt.eat_every_seconds, 'tuning.eat_every_seconds'), leaveAfterHungrySeconds: num(nd, nt.leave_after_hungry_seconds, 'tuning.leave_after_hungry_seconds'),
@@ -238,6 +239,7 @@ export function buildContent(files: SourceFile[]): Content {
       militiaShare: g('militia_share'), surprisedShare: g('surprised_share'), memorySeconds: g('memory_seconds'), guardWeight: g('guard_weight'),
       rationFactor: g('ration_factor'), rationMood: g('ration_mood'), longPace: g('long_pace'), longMood: g('long_mood'), shortPace: g('short_pace'), shortMood: g('short_mood'), stayMood: g('stay_mood'), starveFactor: g('starve_factor'),
     }; })(),
+    roads: (() => { const g = (k: string) => num(rd, rt[k], `tuning.${k}`); return { trafficFrom: g('traffic_from'), trafficSpan: g('traffic_span'), villagersPerRoad: g('villagers_per_road'), lookEverySeconds: g('look_every_seconds'), minTraffic: g('min_traffic'), margin: g('margin'), minLength: g('min_length'), demolishWeight: g('demolish_weight'), homeWeight: g('home_weight'), spacing: g('spacing'), frontWeight: g('front_weight'), nearWeight: g('near_weight'), nearTiles: g('near_tiles') }; })(),
     knowledge: {
       haulTarget: k('haul_target'), haulSmoothingSeconds: k('haul_smoothing_seconds'), struggleSeverity: k('struggle_severity'), encourageFactor: k('encourage_factor'), encourageThreshold: k('encourage_threshold'),
       verifySeconds: k('verify_seconds'), forgetAfterSeconds: k('forget_after_seconds'), visitEverySeconds: k('visit_every_seconds'), visitMinVillagers: k('visit_min_villagers'),

@@ -154,7 +154,7 @@ export function findTask(S: State, a: Agent): boolean {
   if (!best) return false;
   add(best.src.reserved, best.item, best.n);
   add(best.dst.incoming, best.item, best.n);
-  a.task = { ...best, at: S.t, tiles: distAB(a, best.src) + distBB(best.src, best.dst) }; a.state = 'toSrc';
+  a.task = { ...best, at: S.t, tiles: distAB(a, best.src) + distBB(best.src, best.dst), steps: 0, road: 0, path: 0 }; a.state = 'toSrc';
   // only a load bigger than two hands can carry is worth the cart
   if (shed && a.task.tiles >= L.cartMinTiles && best.n > cap) a.cart = shed.id;
   if (!goToBuilding(S, a, best.src)) {
@@ -205,6 +205,9 @@ export function drop(S: State, a: Agent) {
       S.stats.longDeliveries++; S.stats.longGoods += t.n;
       if (a.cart !== null) { S.stats.longByCart++; S.stats.longGoodsByCart += t.n; S.stats.longCartSeconds += S.t - t.at; } else S.stats.longFootSeconds += S.t - t.at;
     }
+    // deliveries mostly along roads, and mostly along paths: their time and straight-line tiles
+    if (t.steps && t.road * 2 >= t.steps) { S.stats.roadDeliveries++; S.stats.roadDeliverySeconds += S.t - t.at; S.stats.roadDeliveryTiles += t.tiles; }
+    else if (t.steps && t.path * 2 >= t.steps) { S.stats.pathDeliveries++; S.stats.pathDeliverySeconds += S.t - t.at; S.stats.pathDeliveryTiles += t.tiles; }
     // how far the settlement's deliveries go, smoothed: the strain of distance
     const town = S.towns[t.dst.town];
     if (town && a.kind === 'villager') town.reach += (t.tiles - town.reach) / S.content.tuning.knowledge.reachSmoothing;

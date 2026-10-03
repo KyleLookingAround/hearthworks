@@ -22,3 +22,4 @@
 * [Gate 18: the sea](18-the-sea.md) - On an islands map a settlement founds a colony on another island unscripted; the colony lasts thirty minutes and trades back with its mother town.
 * [Gate 19: ages](19-ages.md) - An age turns across at least half the settlements unscripted, and an isolated settlement without a library falls back an age when it stops practising its crafts.
 * [Gate 20: hardship](20-hardship.md) - A planned town weathers fire, flood, sickness and barbarian raids through three winters losing at most a tenth of its people, and rationing brings a town through a lean winter that costs more people without it.
+* [Gate 21: paths and roads](21-paths-and-roads.md) - A town on the standard map lays straight roads through its centre unscripted, nobody is left homeless by them, and deliveries along them are faster than along paths.

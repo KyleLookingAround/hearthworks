@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T21:28:49Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T21:50:12Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -140,6 +140,10 @@ When a settlement's stores (those that take anything) hold `store_full_share` of
 # People
 
 With [people](/systems/people.md) on, the dead waiting with no place for the settlement's custom make it plan one (a graveyard, another when that is full, a pyre, a dock), and a settlement short of what a workplace makes moves a worker onto it, as a hungry one does for its food chain.
+
+# Roads
+
+With planned [roads](/systems/roads.md) on, a village or town that knows the [Road](/blueprints/road.md) lays one now and then as a long straight strip where its people walk most, cutting through what stands (people moved first, salvaged as replanning is); desire paths keep being paved as [paths](/blueprints/path.md). Once roads are laid, a spot whose door opens onto one scores `front_weight` better, and one looking down a short run to one `near_weight`.
 
 # Hardship
 

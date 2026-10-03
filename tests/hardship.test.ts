@@ -162,3 +162,17 @@ test('a game with hardship saves and loads mid-raid and plays on the same', () =
   runFor(S, 120); runFor(L, 120);
   assert.equal(JSON.stringify(saveGame(L)), JSON.stringify(saveGame(S)));
 });
+
+test('a gutted depot loses its bots and winds up new ones when rebuilt, never twice as many', () => {
+  const S = createState(quiet, 1847, { hardship: true });
+  const depot = at(S, 'depot'), n = content.blueprints.depot.couriers!.count;
+  assert.equal(depot.bots.length, n);
+  ignite(S, depot, true);
+  runFor(S, H.burnSeconds + 2);
+  assert.equal(depot.site, true); assert.equal(depot.bots.length, 0);
+  assert.equal(S.agents.filter(a => a.kind === 'bot').length, 0);
+  for (const k in content.blueprints.depot.cost) depot.inv[k] = content.blueprints.depot.cost[k];
+  runFor(S, content.tuning.production.buildSeconds + 2);
+  assert.equal(depot.site, false);
+  assert.equal(S.agents.filter(a => a.kind === 'bot').length, n);
+});

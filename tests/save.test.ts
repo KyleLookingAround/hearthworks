@@ -120,3 +120,19 @@ test('a version 15 save is upgraded to version 16: hardship off, no camps, laws 
   assert.equal(S.stats.fires + S.stats.raids, 0);
   assert.equal(text(loadGame(content, text(S))), text(S));
 });
+
+test('a version 16 save is upgraded to version 17: its road cost becomes the path cost, planned roads off, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v16.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 16);
+  const old = (file.state.world as { roadCost: number }).roadCost;
+  const S = loadGame(content, file);
+  assert.equal(S.world.pathCost, old, 'what was walked as road is walked as path');
+  assert.equal(S.world.roadCost, 1 / content.tuning.logistics.roadSpeed);
+  assert.equal(S.world.roads, 0);
+  assert.equal(S.plannedRoads, false);
+  assert.deepEqual(S.towns[0].roads, []);
+  assert.ok(S.agents.every(a => !a.task || (a.task.steps === 0 && a.task.road === 0 && a.task.path === 0)));
+  runFor(S, 60);
+  assert.equal(S.stats.roadsLaid, 0);
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});

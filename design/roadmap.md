@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T21:29:04Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T21:50:12Z }
 ---
 
 # How to read this
@@ -37,7 +37,7 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 18 | The sea | The archipelago map type, ports, ships, exploration, colonies | 13, 17 | [Gate 18](/gates/18-the-sea.md) | Done |
 | 19 | Ages | Eras of technology, machine tiers, crafts lost | 15, 18 | [Gate 19](/gates/19-ages.md) | Done |
 | 20 | Hardship | Fire, flood, sickness, barbarians and their counters; hard laws | 12, 17, 19 | [Gate 20](/gates/20-hardship.md) | Done |
-| 21 | Paths and roads | Worn paths become paths; roads are planned as long straight strips, cut through what stands, and the town is planned around them | 9, 16 | A town's main roads run straight through it, and travel along them beats the paths | Next |
+| 21 | Paths and roads | Worn paths become paths; roads are planned as long straight strips, cut through what stands, and the town is planned around them | 9, 16 | [Gate 21](/gates/21-paths-and-roads.md) | Done |
 
 Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to 10), **depth of life** (11 to 15: goods, seasons, trade, people and learning), **many peoples** (16 to 18), **ages and trials** (19 and 20), and **the shape of roads** (21).
 
@@ -340,13 +340,17 @@ Kyle's idea. **Why.** Today's "roads" are desire paths: worn where people walk, 
 - **Cutting through.** A planned road may demolish what stands in its line (moving people first, salvaging as replanning does), as long as the strip stays straight.
 - **Planned around.** Once a road is laid, the planner sites buildings along it, doors facing it, instead of letting paths wind around buildings.
 
+**Delivered.** [Roads](/systems/roads.md), on in new games and off in older scenarios (\`plannedRoads\`). What wear lays down is now a [path](/blueprints/path.md) (\`path_speed\` 1.7, as before); the [Road](/blueprints/road.md) is thought of under \`traffic\` (a village's or town's deliveries averaging 8 tiles or more), walked at \`road_speed\` 2.4 and rolled by handcarts at \`cart_road_speed\` 1.6. A settlement lays its main roads (one, and another per 40 people) as straight strips where its people walk most, the first by its first storage yard's door, at a plank a tile, cutting through workshops and homes in the line (people moved to free beds first, salvaged as replanning is; never storage, bridges or docks). The planner then favours spots with a door onto a road. Saves go to version 17. **Phase 21 is done**; districts that grow along their roads, roads on to the neighbours and roads of stone wait for the second pass.
+
+**Gate 21 (stable)**, as proposed: the standard map, an hour: at least one straight road through the centre, nobody homeless, deliveries mostly along roads at least 5% faster per tile than those mostly along paths; with \`fed_min\` 0.6 added.
+
 **Gate 21 (proposed).** A town on the standard map lays at least one straight road through its centre unscripted, nobody is left homeless by it, and deliveries along it are faster than along paths.
 
 # The second pass
 
 Kyle's call: once Phases 20 and 21 are built, the roadmap is walked again from Phase 1, giving each phase depth and polish rather than new systems. In particular:
 
-- **What was delivered in part:** ox carts, river boats and multi-leg deliveries (16); shipyards, crewed ships, reefs and explorers (18); eras that unlock blueprints, conveyors and rail (19); planners as people and traditions beyond the dead (14); reading from libraries and discoveries that need a university (15); sanitation, and trading with or settling barbarians (20).
+- **What was delivered in part:** ox carts, river boats and multi-leg deliveries (16); shipyards, crewed ships, reefs and explorers (18); eras that unlock blueprints, conveyors and rail (19); planners as people and traditions beyond the dead (14); reading from libraries and discoveries that need a university (15); sanitation, and trading with or settling barbarians (20); districts that grow along their roads, roads to the neighbours, roads of stone (21).
 - **Gates held below their proposals:** trade that beats isolation and real specialisation (13), half of long deliveries by cart against Gate 8's baseline (16); and the seeds logged as findings (Gate 12 seeds 42 and 2026, Gate 14 seed 2026, Gate 18 seeds 7 and 99).
 - **Polish:** how each system reads and feels in the game (inspector lines, overlays, chronicle wording, the advisor), the new-game screen's growing list of options, and performance on the largest maps with every system on.
 
