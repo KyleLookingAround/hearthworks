@@ -2,9 +2,10 @@
 
 # Systems
 
+* [Knowledge](knowledge.md) - Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 * [Logistics](logistics.md) - The job board — requests, offers, reservations, carriers and courier bots.
 * [Map](map.md) - Seeded island generation, terrain, trees and regrowth.
 * [Needs and population](needs.md) - Eating, mood, newcomers arriving and villagers leaving.
-* [Village planner](planner.md) - Villagers sense shortages, choose what to build and where, and queue one site at a time, so the town grows on its own.
+* [Village planner](planner.md) - Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 * [Production and construction](production.md) - Construction sites and their priority queue, worker assignment and recipe cycles.
-* [Starting settlement](settlement.md) - What a new game begins with — a storage yard, two houses, a road and five villagers.
+* [Starting settlement](settlement.md) - What a new game begins with, per settlement — a storage yard, two houses, a road and five villagers.

@@ -1,6 +1,7 @@
 import { assignWorkers, makeAgent, nearestStore, updateAgent } from './agents.ts';
 import { updateBuilding } from './production.ts';
 import { plan } from './planner.ts';
+import { updateKnowledge } from './knowledge.ts';
 import { bp, door, emit, villagers } from './world.ts';
 import type { State } from './types.ts';
 
@@ -38,7 +39,7 @@ export function tick(S: State, dt: number) {
   for (const b of [...S.buildings]) if (!b.dead) updateBuilding(S, b, dt);
   for (const a of [...S.agents]) if (!a.dead) updateAgent(S, a, dt);
   S.secT += dt;
-  if (S.secT >= 1) { S.secT -= 1; assignWorkers(S); computeMood(S); }
+  if (S.secT >= 1) { S.secT -= 1; assignWorkers(S); computeMood(S); updateKnowledge(S, 1); }
   plan(S, dt);
   S.migT += dt;
   if (S.migT >= S.content.tuning.needs.migrantEverySeconds) { S.migT = 0; migrate(S); }

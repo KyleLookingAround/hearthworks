@@ -1,5 +1,5 @@
 /** Browser shell: HUD, goals, build bar, inspector, toasts, pointer input and the frame loop. */
-import { canPlace, countBuilt, createState, demolish, placeBuilding, STEP, tick, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { canPlace, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { GOALS } from '../game/goals.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 
@@ -17,6 +17,7 @@ export class App {
   plans = true;
   goals: boolean[];
   private seenEvents = 0;
+  private knowKey = '';
   private confirmDel = false;
 
   constructor(content: Content, seed: number) {
@@ -35,7 +36,8 @@ export class App {
   }
 
   newGame(seed: number) {
-    this.S = createState(this.content, seed, { planner: this.plans });
+    this.S = createState(this.content, seed, { planner: this.plans, settlements: this.content.tuning.start.gameSettlements });
+    this.knowKey = '';
     this.seenEvents = 0;
     this.goals = GOALS.map(() => false);
     const cx = Math.floor(this.S.world.w / 2), cy = Math.floor(this.S.world.h / 2);
@@ -107,8 +109,7 @@ export class App {
 
   setPlans(on: boolean) {
     this.plans = on;
-    this.S.planner.on = on;
-    this.S.planner.t = 0;
+    for (const t of this.S.towns) { t.planner.on = on; t.planner.t = 0; }
     $('#plans').setAttribute('aria-pressed', String(on));
     this.toast(on ? 'The villagers will plan what to build' : 'Village plans off: you place the buildings');
     this.updateHud();
@@ -210,11 +211,43 @@ export class App {
     const vs = villagers(S), cap = countBuilt(S, 'house') * this.content.blueprints.house.homes, bots = S.agents.length - vs.length;
     const carriers = vs.filter(a => a.role === 'carrier').length, m = Math.round(S.mood * 100);
     const mc = m >= 80 ? 'mood-good' : m >= 50 ? 'mood-warn' : 'mood-bad';
-    const plan = S.planner, line = $('#planLine');
-    line.classList.toggle('off', !plan.on);
-    $('#planText').textContent = plan.on ? plan.status : 'Plans are off: you place the buildings';
+    const line = $('#planLine'), on = S.planner.on, multi = S.towns.length > 1;
+    line.classList.toggle('off', !on);
+    $('#planText').innerHTML = on
+      ? S.towns.map(t => (multi ? `<b class="tn">${esc(t.name)}</b> ` : '') + esc(t.planner.status)).join('<br>')
+      : 'Plans are off: you place the buildings';
+    this.renderKnowledge();
     $('#meta').innerHTML = `<span class="chip">Villagers <b>${vs.length}/${cap}</b></span><span class="chip" id="chipCarriers">Carriers <b>${carriers}</b></span><span class="chip ${mc}">Mood <b>${m}%</b></span>` + (bots ? `<span class="chip">Bots <b>${bots}</b></span>` : '');
     this.updateInspector();
+  }
+
+  /** Per settlement: what it has learned beyond its founding, how, and whether it has proven it; and what is still undiscovered. */
+  private renderKnowledge() {
+    const S = this.S, bps = Object.values(this.content.blueprints).sort((a, b) => a.order - b.order);
+    const discoverable = bps.filter(B => B.discovery);
+    const key = S.towns.map(t => villagers(S).filter(a => a.home?.town === t.id).length + ':' + Object.entries(t.knows).map(([id, k]) => id + k.verified.length).join()).join('|');
+    if (key === this.knowKey) return;
+    this.knowKey = key;
+    let html = '', learned = 0;
+    for (const t of S.towns) {
+      const pop = villagers(S).filter(a => a.home?.town === t.id).length;
+      html += `<h3>${esc(t.name)}<small>${pop} villagers</small></h3><ul>`;
+      for (const B of bps) {
+        const k = t.knows[B.id];
+        if (!k || k.by === 'founders') continue;
+        learned++;
+        const proven = verifiedHere(t, k) ? ' · <span class="ok">proven here</span>' : ' · not yet tried';
+        html += `<li><b>${esc(B.name)}</b>: ${esc(originText(t, k))}${proven}</li>`;
+      }
+      for (const B of discoverable) if (!t.knows[B.id]) {
+        html += `<li class="unknown"><b>${esc(B.name)}</b>: not yet thought of. It comes when ${esc(NEED_TEXT[B.discovery!.need] ?? B.discovery!.need)}.</li>`;
+      }
+      html += '</ul>';
+    }
+    const founding = bps.filter(B => !B.discovery && !B.paves).map(B => B.name).join(', ');
+    html += `<p class="founding">Every settlement starts out knowing: ${esc(founding)}.</p>`;
+    $('#knowList').innerHTML = html;
+    $('#knowCount').textContent = `${learned} learned`;
   }
 
   private renderGoals() {

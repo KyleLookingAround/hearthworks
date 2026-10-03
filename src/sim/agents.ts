@@ -2,12 +2,13 @@ import { rand } from './rng.ts';
 import { findPath } from './path.ts';
 import { bp, distAB, door, inB } from './world.ts';
 import { cancelTask, drop, findTask, pickup } from './logistics.ts';
+import { arrive } from './knowledge.ts';
 import type { Agent, Building, State } from './types.ts';
 
 export function makeAgent(S: State, kind: Agent['kind'], x: number, y: number): Agent {
   const a: Agent = {
     id: S.nextId++, kind, x, y, path: [], state: 'idle', role: kind === 'bot' ? 'bot' : 'carrier', task: null, carry: null,
-    home: null, work: null, depot: null, cool: rand(S.rng) * 0.5, dead: false,
+    home: null, work: null, depot: null, cool: rand(S.rng) * 0.5, dead: false, visit: null,
   };
   S.agents.push(a); S.amap.set(a.id, a);
   return a;
@@ -67,6 +68,7 @@ export function updateAgent(S: State, a: Agent, dt: number) {
     else if (a.state === 'toDst') drop(S, a);
     else if (a.state === 'toWork') a.state = 'working';
     else if (a.state === 'wander') a.state = 'idle';
+    else if (a.state === 'visit') arrive(S, a);
   }
 }
 
@@ -75,9 +77,9 @@ export function assignWorkers(S: State) {
   const anyBots = S.agents.some(a => a.kind === 'bot');
   for (const b of S.buildings) {
     if (!bp(S, b).workers || b.site || b.worker) continue;
-    const carriers = S.agents.filter(a => a.kind === 'villager' && a.role === 'carrier');
+    const carriers = S.agents.filter(a => a.kind === 'villager' && a.role === 'carrier' && a.state !== 'visit');
     if (carriers.length <= (anyBots ? 0 : 1)) return;
-    const idle = carriers.filter(a => !a.task);
+    const idle = carriers.filter(a => !a.task && a.state !== 'visit');
     if (!idle.length) return;
     let pick = idle[0], pd = Infinity;
     for (const a of idle) { const d = distAB(a, b); if (d < pd) { pd = d; pick = a; } }

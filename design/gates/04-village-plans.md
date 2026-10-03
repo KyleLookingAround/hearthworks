@@ -4,7 +4,7 @@ title: "Gate 4: the village plans its own town"
 description: With no build order at all, the village planner grows the town to 20 villagers and keeps it fed over 30 game minutes, matching Gate 2's scripted result.
 tags: [gate, roadmap, planner, ai]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T08:55:13Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T10:30:27Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/village-plans.ts
 parameters:
@@ -26,6 +26,10 @@ The sanctioned scenario is [village-plans.ts](/references/scenarios/village-plan
 # Proves
 
 Phase 4 of the [roadmap](/roadmap.md): the planner can stand in for [Gate 2's scripted build order](/gates/02-sustain-town.md). The thresholds are Gate 2's, so the planner has to match the script on growth, departures and mood, not merely survive.
+
+# Since Phase 5
+
+The Courier Depot is no longer known at the founding, so in this gate the village has to come up with it under hauling strain before it builds one. The scenario is unchanged.
 
 # Metrics
 

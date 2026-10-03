@@ -10,21 +10,26 @@
 import { findPath } from './path.ts';
 import { supplyOf } from './logistics.ts';
 import { fits } from './place.ts';
+import { NEED_TEXT, pressure } from './knowledge.ts';
 import { bp, ctr, door, emit, placeBuilding, villagers } from './world.ts';
-import type { BlueprintDef, Building, ItemId, PlannerState, State, Stock } from './types.ts';
+import type { BlueprintDef, Building, ItemId, PlannerState, State, Stock, Town } from './types.ts';
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0 });
 
-interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean }
+interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string }
-interface Look { pop: number; freeBeds: number; spareHands: number; supply: Stock; demand: Stock; shortages: Shortage[] }
+interface Look { town: Town; pop: number; freeBeds: number; spareHands: number; uncovered: number; supply: Stock; demand: Stock; shortages: Shortage[] }
 
 const goodName = (S: State, g: ItemId) => S.content.goods[g]?.name.toLowerCase() ?? g;
 const runningLow = (S: State, g: ItemId) => { const n = goodName(S, g); return `${n} ${n.endsWith('s') ? 'are' : 'is'} running low`; };
 const article = (name: string) => (/^[aeiou]/i.test(name) ? 'an' : 'a');
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const T = (S: State) => S.content.tuning.planner;
-const known = (S: State) => Object.values(S.content.blueprints).sort((a, b) => a.order - b.order);
+/** The blueprints this settlement knows, in build-bar order. */
+const known = (S: State, town: Town) => Object.values(S.content.blueprints).filter(B => B.id in town.knows).sort((a, b) => a.order - b.order);
+const mineOf = (S: State, town: Town) => S.buildings.filter(b => b.town === town.id);
+/** Is a point within reach of a courier building's bots? */
+const covered = (S: State, p: { x: number; y: number }) => S.buildings.some(d => { const C = bp(S, d).couriers; return !!C && Math.hypot(p.x - ctr(d).x, p.y - ctr(d).y) <= C.radius; });
 
 /** Grown trees within `r` of a point, those already in another harvester's range counted at `shared` weight. */
 function treeScore(S: State, cx: number, cy: number, r: number, others: Building[], shared: number): number {
@@ -54,11 +59,12 @@ function ownEffect(S: State, b: Building): number {
   return 1;
 }
 
-/** Sense: production and consumption rates per good, beds, and every shortage scored 0 to 1. */
-export function look(S: State): Look {
+/** Sense: one settlement's production and consumption rates per good, beds, hands and hauling, each shortage scored 0 to 1. */
+export function look(S: State, town: Town = S.towns[0]): Look {
   const P = T(S), needs = S.content.tuning.needs;
   const supply: Stock = {}, demand: Stock = {};
-  const producers = S.buildings.filter(b => { const B = bp(S, b); return B.seconds > 0 && Object.keys(B.output).length > 0; });
+  const mine = mineOf(S, town);
+  const producers = mine.filter(b => { const B = bp(S, b); return B.seconds > 0 && Object.keys(B.output).length > 0; });
   const own = new Map(producers.map(b => [b, ownEffect(S, b)]));
   for (const b of producers) { const B = bp(S, b); for (const i in B.input) demand[i] = (demand[i] || 0) + B.input[i] / B.seconds; }
   // chain pass: a producer short of inputs delivers only the share its inputs allow
@@ -76,9 +82,9 @@ export function look(S: State): Look {
     eff = next;
   }
 
-  const pop = villagers(S).length;
+  const people = villagers(S).filter(a => a.home?.town === town.id), pop = people.length;
   let freeBeds = 0, food: ItemId | null = null;
-  for (const b of S.buildings) {
+  for (const b of mine) {
     const B = bp(S, b);
     if (!B.homes) continue;
     freeBeds += B.homes - b.residents.length;
@@ -99,20 +105,25 @@ export function look(S: State): Look {
     if (d <= 0) continue;
     shortages.push({ key: g.id, good: g.id, sev: clamp01(1 - (supply[g.id] || 0) / d), why: runningLow(S, g.id) });
   }
+  // hauling: carriers run off their feet; machines that haul relieve it where they reach.
+  // Listed before beds so that, at full strain, it wins a tie with growth.
+  const stops = mine.filter(b => !b.site);
+  const uncovered = stops.length ? stops.filter(b => !covered(S, ctr(b))).length / stops.length : 0;
+  shortages.push({ key: 'hauling', hauling: true, sev: clamp01(pressure(S, town, 'hauling') * P.haulWeight), why: NEED_TEXT.hauling });
   // labour: villagers free to take a new job, keeping a share of the town hauling
-  const vs = villagers(S), carriers = vs.filter(a => a.role === 'carrier').length;
-  const openJobs = S.buildings.filter(b => bp(S, b).workers && b.worker === null).length;
+  const carriers = people.filter(a => a.role === 'carrier' && a.state !== 'visit').length;
+  const openJobs = mine.filter(b => bp(S, b).workers && b.worker === null).length;
   const spareHands = carriers - Math.max(1, Math.ceil(pop * P.carrierShare)) - openJobs;
-  const idleJobs = S.buildings.filter(b => !b.site && bp(S, b).workers && b.worker === null).length;
+  const idleJobs = mine.filter(b => !b.site && bp(S, b).workers && b.worker === null).length;
   if (idleJobs > freeBeds) shortages.push({ key: 'beds', homes: true, sev: 1, why: idleJobs > 1 ? `${idleJobs} workplaces have nobody to staff them` : 'a workplace has nobody to staff it' });
   else {
     // don't invite newcomers the village can't feed yet
     const fed = (shortages.find(s => s.good === food)?.sev ?? 0) < P.minSeverity ? 1 : 0;
     const growing = S.mood >= needs.migrateMinMood ? 1 : 0.5;
-    shortages.push({ key: 'beds', homes: true, sev: clamp01((P.growthBeds - freeBeds) / P.growthBeds) * growing * fed, why: 'no free beds for newcomers' });
+    shortages.push({ key: 'beds', homes: true, sev: clamp01((P.growthBeds - freeBeds) / P.growthBeds) * growing * fed * P.growthWeight, why: 'no free beds for newcomers' });
   }
   shortages.sort((a, b) => b.sev - a.sev);
-  return { pop, freeBeds, spareHands, supply, demand, shortages };
+  return { town, pop, freeBeds, spareHands, uncovered, supply, demand, shortages };
 }
 
 /** Goods that construction costs are paid in. */
@@ -127,12 +138,13 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
   const P = T(S);
   const relief = (B: BlueprintDef): number => {
     if (sh.homes) return B.homes ? clamp01(B.homes / Math.max(1, P.growthBeds - L.freeBeds)) : 0;
+    if (sh.hauling) return B.couriers && L.uncovered >= P.minSeverity ? L.uncovered : 0;
     const add = B.seconds && B.output[sh.good!] ? B.output[sh.good!] / B.seconds : 0;
     const gap = Math.max(1e-6, (L.demand[sh.good!] || 0) - (L.supply[sh.good!] || 0));
     return clamp01(add / gap);
   };
   let best: BlueprintDef | null = null, bs = -Infinity;
-  for (const B of known(S)) {
+  for (const B of known(S, L.town)) {
     const r = relief(B);
     if (r <= 0) continue;
     const cost = Object.values(B.cost).reduce((s, n) => s + n, 0);
@@ -149,13 +161,13 @@ function follow(S: State, L: Look, c: Choice, depth: number): Choice {
   if (c.B.workers && L.spareHands < c.B.workers) {
     // nobody free to work it: newcomers will come if there are beds, otherwise build homes
     if (L.freeBeds > 0) return { ...c, wait: `Waiting for newcomers to work ${article(c.B.name)} ${c.B.name}: ${c.why}` };
-    const home = known(S).filter(B => B.homes).sort((a, b) => b.homes - a.homes)[0];
+    const home = known(S, L.town).filter(B => B.homes).sort((a, b) => b.homes - a.homes)[0];
     if (home) return { B: home, sev: c.sev, why: `${c.why}, and a new ${c.B.name.toLowerCase()} would need a worker` };
   }
   for (const i in c.B.input) {
     const spare = (L.supply[i] || 0) - (L.demand[i] || 0);
     if (spare >= (c.B.input[i] / c.B.seconds) * T(S).inputCover) continue;
-    const maker = known(S).find(B => B.seconds && B.output[i]);
+    const maker = known(S, L.town).find(B => B.seconds && B.output[i]);
     if (!maker || maker === c.B) continue;
     const users = c.B.name.toLowerCase();
     return follow(S, L, { B: maker, sev: c.sev, why: `${c.why}, and a new ${users} would need ${goodName(S, i)}` }, depth + 1);
@@ -164,15 +176,16 @@ function follow(S: State, L: Look, c: Choice, depth: number): Choice {
 }
 
 /** Place: score every free spot near the town for this blueprint; lower is better. */
-export function chooseSpot(S: State, type: string): { x: number; y: number } | null {
+export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x: number; y: number } | null {
   const P = T(S), B = S.content.blueprints[type], W = S.world;
-  const stores = S.buildings.filter(b => bp(S, b).storage);
-  if (!stores.length) return null;
-  const home = ctr(stores[0]);
+  const store = S.bmap.get(town.store);
+  if (!store) return null;
+  const home = ctr(store), mine = mineOf(S, town);
   const harvesters = S.buildings.filter(b => bp(S, b).harvest);
-  const producersOf = (g: ItemId) => S.buildings.filter(b => bp(S, b).output[g]);
-  const usersOf = (g: ItemId) => S.buildings.filter(b => { const O = bp(S, b); return O.input[g] || O.keepStocked[g]; });
-  const houses = S.buildings.filter(b => bp(S, b).homes);
+  const producersOf = (g: ItemId) => mine.filter(b => bp(S, b).output[g]);
+  const usersOf = (g: ItemId) => mine.filter(b => { const O = bp(S, b); return O.input[g] || O.keepStocked[g]; });
+  const houses = mine.filter(b => bp(S, b).homes);
+  const unreached = B.couriers ? mine.filter(b => !b.site && !covered(S, ctr(b))) : [];
   const near = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((m, b) => Math.min(m, Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y)), Infinity);
   const mean = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((s, b) => s + Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y), 0) / bs.length;
 
@@ -194,10 +207,16 @@ export function chooseSpot(S: State, type: string): { x: number; y: number } | n
     for (const i in B.input) { const from = producersOf(i); if (from.length) s += P.linkWeight * near(p, from); }
     for (const o in B.output) { const to = usersOf(o); if (to.length) s += P.linkWeight * mean(p, to); }
     if (B.homes && houses.length) s += P.linkWeight * near(p, houses);
+    if (B.couriers) {
+      // a depot only helps where its bots reach buildings nobody's bots reach yet
+      const reach = unreached.filter(b => Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y) <= B.couriers!.radius).length;
+      if (!reach) continue;
+      s -= P.coverWeight * reach;
+    }
     scored.push({ x, y, s });
   }
   scored.sort((a, b) => a.s - b.s);
-  const from = door(stores[0]);
+  const from = door(store);
   for (const c of scored.slice(0, 8)) {
     const d = { x: c.x + Math.floor(B.w / 2), y: c.y + B.h - 1 };
     if (findPath(W, from.x, from.y, d.x, d.y)) return { x: c.x, y: c.y };
@@ -215,9 +234,13 @@ function affordable(S: State, B: BlueprintDef): ItemId | null {
   return null;
 }
 
-/** Advance the planner by dt. Called from tick(). */
+/** Advance every settlement's planner by dt. Called from tick(). */
 export function plan(S: State, dt: number) {
-  const Q = S.planner;
+  for (const town of S.towns) planTown(S, town, dt);
+}
+
+function planTown(S: State, town: Town, dt: number) {
+  const Q = town.planner;
   if (!Q.on) return;
   Q.t -= dt;
   if (Q.t > 0) return;
@@ -228,16 +251,21 @@ export function plan(S: State, dt: number) {
   if (Q.site !== null) { Q.site = null; Q.settle = T(S).settleSeconds; }
   if (Q.settle > 0) { Q.settle -= T(S).intervalSeconds; return; }
 
-  const L = look(S), worst = L.shortages[0];
+  // the worst shortage something known can relieve
+  const L = look(S, town), worst = L.shortages[0];
   if (!worst || worst.sev < T(S).minSeverity) { Q.streak = { type: '', n: 0 }; Q.status = 'The village has what it needs'; return; }
-  let c = propose(S, L, worst);
+  let c: Choice | null = null;
+  for (const sh of L.shortages) {
+    if (sh.sev < T(S).minSeverity) break;
+    if ((c = propose(S, L, sh))) break;
+  }
   if (!c) { Q.status = `Nothing the village knows would help: ${worst.why}`; return; }
   if (c.wait) { Q.streak = { type: '', n: 0 }; Q.status = c.wait; return; }
 
   // can't pay for it: if nothing makes the missing good, build that first
   const short = affordable(S, c.B);
   if (short) {
-    const maker = (L.supply[short] || 0) <= 0 ? known(S).find(B => B.seconds && B.output[short]) : undefined;
+    const maker = (L.supply[short] || 0) <= 0 ? known(S, town).find(B => B.seconds && B.output[short]) : undefined;
     if (maker && !affordable(S, maker)) c = follow(S, L, { B: maker, sev: c.sev, why: runningLow(S, short) }, 0);
     else { Q.status = `Saving ${goodName(S, short)} for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
   }
@@ -245,12 +273,13 @@ export function plan(S: State, dt: number) {
   Q.streak = Q.streak.type === c.B.id ? { type: c.B.id, n: Q.streak.n + 1 } : { type: c.B.id, n: 1 };
   if (Q.streak.n < T(S).confirmCycles) { Q.status = `Thinking about ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
 
-  const spot = chooseSpot(S, c.B.id);
+  const spot = chooseSpot(S, c.B.id, town);
   if (!spot) { Q.status = `No room for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
   const b = placeBuilding(S, c.B.id, spot.x, spot.y, false)!;
+  b.town = town.id;
   b.priority = 1 + Math.round(c.sev * T(S).urgencyPriority);
   b.reason = c.why;
   Q.site = b.id; Q.placed++; Q.streak = { type: '', n: 0 };
   Q.status = `Planning ${article(c.B.name)} ${c.B.name}: ${c.why}`;
-  emit(S, 'info', Q.status);
+  emit(S, 'info', S.towns.length > 1 ? `${town.name}: ${Q.status}` : Q.status);
 }

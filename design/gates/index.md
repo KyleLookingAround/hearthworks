@@ -6,3 +6,4 @@
 * [Gate 2: the town grows and stays fed](02-sustain-town.md) - With a scripted build order, the town reaches 20 villagers and nobody leaves hungry over 30 game minutes.
 * [Gate 3: bots carry a real share](03-couriers.md) - With a Courier Depot beside storage, bots make at least 30% of deliveries in 15 game minutes and nobody leaves.
 * [Gate 4: the village plans its own town](04-village-plans.md) - With no build order at all, the village planner grows the town to 20 villagers and keeps it fed over 30 game minutes, matching Gate 2's scripted result.
+* [Gate 5: a practice spreads between two settlements](05-knowledge-spreads.md) - Two self-planning settlements start without the Courier Depot; one invents it under strain, a visitor carries it to the other, and the other proves it in use, within 40 game minutes.

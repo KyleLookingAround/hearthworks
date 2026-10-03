@@ -115,6 +115,7 @@ export class Renderer {
       c.setLineDash([]);
     }
     for (const a of S.agents) this.agent(S, a);
+    if (S.towns.length > 1) this.townLabels(S);
     if (v.tool && v.hover) {
       const B = S.content.blueprints[v.tool], o = B.paves ? v.hover : ghostOrigin(S, v.tool, v.hover), ok = canPlace(S, v.tool, o.x, o.y);
       c.fillStyle = ok ? 'rgba(127,194,138,.35)' : 'rgba(226,115,94,.4)';
@@ -254,6 +255,19 @@ export class Renderer {
     }
   }
 
+  /** Each settlement's name above its storage yard. */
+  private townLabels(S: State) {
+    const c = this.ctx;
+    c.font = '700 13px "Alegreya Sans SC", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'bottom';
+    for (const t of S.towns) {
+      const b = S.bmap.get(t.store);
+      if (!b) continue;
+      const x = (b.x + b.w / 2) * TS, y = b.y * TS - 4;
+      c.lineWidth = 3; c.strokeStyle = 'rgba(27,35,38,.85)'; c.strokeText(t.name, x, y);
+      c.fillStyle = '#f0c27a'; c.fillText(t.name, x, y);
+    }
+  }
+
   private agent(S: State, a: Agent) {
     if (a.state === 'working') return;
     const c = this.ctx, x = a.x * TS, y = a.y * TS;
@@ -264,7 +278,7 @@ export class Renderer {
       c.fillStyle = '#2b3a3f'; c.fillRect(x - 2.5, by - 2, 5, 2);
       c.beginPath(); c.moveTo(x, by - 4.5); c.lineTo(x, by - 7.5); c.stroke();
     } else {
-      c.fillStyle = a.role === 'worker' ? '#6f9a4d' : '#4f86a8';
+      c.fillStyle = a.state === 'visit' ? '#b07cc6' : a.role === 'worker' ? '#6f9a4d' : '#4f86a8';
       c.beginPath(); c.arc(x, y, 3.8, 0, 7); c.fill();
       c.fillStyle = '#f1d3b0'; c.beginPath(); c.arc(x, y - 4.5, 2.4, 0, 7); c.fill();
     }

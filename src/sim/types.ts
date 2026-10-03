@@ -31,12 +31,14 @@ export interface BlueprintDef {
   couriers: { count: number; radius: number } | null;
   storage: boolean;
   paves: boolean;
+  /** Not known at the start: a village invents it while it struggles with `need`. Null for founding knowledge. */
+  discovery: { need: string; meanSeconds: number } | null;
 }
 
 /** Balance numbers. Loaded from the `tuning` block of design/systems/*.md. */
 export interface Tuning {
   map: { width: number; height: number; treeGrowSeconds: number };
-  start: { villagers: number; storage: Stock; houseStock: Stock };
+  start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; gameSettlements: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
     roadSpeed: number; forestSpeed: number; outputCap: number; dumpAt: number;
@@ -44,12 +46,16 @@ export interface Tuning {
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
   planner: PlannerTuning;
+  knowledge: {
+    haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number;
+    verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number;
+  };
 }
 
 export interface PlannerTuning {
   intervalSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
-  foodHeadroom: number; growthBeds: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
-  costWeight: number; urgencyPriority: number;
+  foodHeadroom: number; growthBeds: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
+  costWeight: number; urgencyPriority: number; haulWeight: number; coverWeight: number;
   searchRadius: number; gap: number; minTrees: number;
   treeWeight: number; sharedTreeWeight: number; linkWeight: number; storeWeight: number; forestPenalty: number;
 }
@@ -103,9 +109,13 @@ export interface Building {
   priority: number;
   /** Why the village planned this building; empty when placed by hand. */
   reason: string;
+  /** The settlement it belongs to (index into State.towns). */
+  town: number;
+  /** Seconds it has spent running well; verifies its blueprint in use. */
+  used: number;
 }
 
-export type AgentState = 'idle' | 'wander' | 'toSrc' | 'toDst' | 'toWork' | 'working';
+export type AgentState = 'idle' | 'wander' | 'toSrc' | 'toDst' | 'toWork' | 'working' | 'visit';
 
 export interface Task { src: Building; dst: Building; item: ItemId; n: number }
 
@@ -123,6 +133,39 @@ export interface Agent {
   depot: Building | null;
   cool: number;
   dead: boolean;
+  /** A villager walking to a neighbouring settlement and back, carrying what their home has verified. */
+  visit: Visit | null;
+}
+
+export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge> }
+
+/**
+ * What one settlement knows about one blueprint. The fields mirror an OKF concept's
+ * frontmatter: `by`/`at` are `generated`, `verified` lists the settlements that proved it
+ * in use, and `used` is what `stale_after` counts from before it is forgotten.
+ */
+export interface Knowledge {
+  /** 'founders', the inventing settlement's name, or 'hand' when the player built it first. */
+  by: string;
+  at: number;
+  verified: { by: string; at: number }[];
+  /** Settlement a visitor brought it from, or null if it was known, invented or built here. */
+  from: string | null;
+  learned: number;
+  used: number;
+}
+
+/** A settlement: its storage yard, what it knows, its planner and its pressures. */
+export interface Town {
+  id: number;
+  name: string;
+  /** Building id of its first storage yard: the centre the planner builds around. */
+  store: number;
+  knows: Record<string, Knowledge>;
+  planner: PlannerState;
+  /** Smoothed share of its carriers busy hauling. */
+  haul: number;
+  visitT: number;
 }
 
 export interface World {
@@ -145,6 +188,9 @@ export interface Stats {
   arrivals: number;
   departures: number;
   peakVillagers: number;
+  invented: number;
+  taught: number;
+  forgotten: number;
 }
 
 export interface State {
@@ -163,5 +209,9 @@ export interface State {
   secT: number;
   stats: Stats;
   events: GameEvent[];
+  towns: Town[];
+  /** The first settlement's planner (the player's village). Every settlement has its own in `towns`. */
   planner: PlannerState;
+  /** Separate stream for discovery, so knowledge never shifts the main simulation's random numbers. */
+  krng: Rng;
 }

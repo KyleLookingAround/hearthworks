@@ -28,7 +28,12 @@
         <button class="btn" id="newIsland">New island</button>
       </div>
     </header>
-    <p class="planline panel" id="planLine" aria-live="polite"><span class="lbl">Village</span> <span id="planText"></span></p>
+    <p class="planline panel" id="planLine" aria-live="polite"><span class="lbl">Plans</span> <span id="planText"></span></p>
+    <details class="goals panel knowledge" id="knowledge">
+      <summary><span>Knowledge</span><span class="count" id="knowCount"></span></summary>
+      <div id="knowList"></div>
+      <p class="hint">What each settlement knows how to build. New ideas come from hardship, visitors carry them between settlements, and what nobody builds is forgotten.</p>
+    </details>
     <details class="goals panel" id="goals" open>
       <summary><span>Goals</span><span class="count" id="goalCount">0/6</span></summary>
       <ol id="goalList"></ol>

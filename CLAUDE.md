@@ -24,7 +24,7 @@ Node 22.18 or newer runs `.ts` files directly; TypeScript is the only dependency
 
 ## Workflow
 
-Kyle has given standing permission to develop, test and push to `main` without checking in. Before every push: `npm run ci` must be green, and the rules below still apply. Report what changed afterwards. Gate thresholds and `verified` entries remain Kyle's decisions: report a gate that looks too loose or too strict rather than changing it quietly.
+Kyle has given standing permission to develop, test and push to `main` without checking in. Before every push: `npm run ci` must be green, and the rules below still apply. A push to `main` publishes the game to GitHub Pages (https://kylelookingaround.github.io/hearthworks/): after pushing, check that the CI run and its Pages deploy succeed and that the live site loads. Report what changed afterwards. Gate thresholds and `verified` entries remain Kyle's decisions: report a gate that looks too loose or too strict rather than changing it quietly.
 
 ## Rules when changing the design
 
@@ -39,4 +39,4 @@ Kyle has given standing permission to develop, test and push to `main` without c
 
 ## Current focus
 
-Phase 4 of `design/roadmap.md` is done: the village planner (`design/systems/planner.md`, `src/sim/planner.ts`) passes Gate 4 with no build calls. It is off by default in `createState` so scripted gates stay scripted; pass `{ planner: true }` to turn it on. Phase 5 (knowledge) is next.
+Phases 4 and 5 of `design/roadmap.md` are done. The village planner (`src/sim/planner.ts`) and knowledge (`src/sim/knowledge.ts`) are off by default in `createState`, so scripted gates stay scripted: pass `{ planner: true }` and `{ settlements: n }` to turn them on (the game uses tuning `game_settlements`). Knowledge draws randomness from `S.krng`, never `S.rng`. Phase 6 (civilisation: settlements split off, trade) is next.

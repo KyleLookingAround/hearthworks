@@ -16,10 +16,10 @@ okf_version: "0.2"
 
 * [blueprints](blueprints/) - Bakery, Courier Depot, Farm, Forester, 4 more
 * [decisions](decisions/) - 0001: Keep design knowledge as an OKF bundle, 0002: Deterministic, DOM-free simulation core, 0003: Plain TypeScript, no bundler yet
-* [gates](gates/) - Gate 1: a plank with no player clicks, Gate 2: the town grows and stays fed, Gate 3: bots carry a real share, Gate 4: the village plans its own town
+* [gates](gates/) - Gate 1: a plank with no player clicks, Gate 2: the town grows and stays fed, Gate 3: bots carry a real share, Gate 4: the village plans its own town, 1 more
 * [goods](goods/) - Bread, Logs, Planks, Wheat
 * [references](references/) - attesters/, scenarios/, skills/
-* [systems](systems/) - Logistics, Map, Needs and population, Village planner, 2 more
+* [systems](systems/) - Knowledge, Logistics, Map, Needs and population, 3 more
 
 # History
 

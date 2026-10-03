@@ -25,6 +25,8 @@ export function fnv1a(s: string): string {
 }
 
 const isMap = (v: YamlValue | undefined): v is YamlMap => !!v && typeof v === 'object' && !Array.isArray(v);
+/** Pressures a village can struggle with, and so invent its way out of. */
+const NEEDS = ['hauling'];
 const slug = (path: string) => path.replace(/^.*\//, '').replace(/\.md$/, '');
 
 export function buildContent(files: SourceFile[]): Content {
@@ -77,6 +79,7 @@ export function buildContent(files: SourceFile[]): Content {
     const recipe = isMap(f.recipe) ? f.recipe : {};
     const harvest = isMap(f.harvest) ? f.harvest : null;
     const couriers = isMap(f.couriers) ? f.couriers : null;
+    const discovery = isMap(f.discovery) ? f.discovery : null;
     const bp: BlueprintDef = {
       id,
       name: str(d, f.title, 'title'),
@@ -95,7 +98,9 @@ export function buildContent(files: SourceFile[]): Content {
       couriers: couriers ? { count: num(d, couriers.count, 'couriers.count'), radius: num(d, couriers.radius, 'couriers.radius') } : null,
       storage: f.storage === true,
       paves: f.paves === true,
+      discovery: discovery ? { need: str(d, discovery.need, 'discovery.need'), meanSeconds: num(d, discovery.mean_seconds, 'discovery.mean_seconds') } : null,
     };
+    if (bp.discovery && !NEEDS.includes(bp.discovery.need)) problems.push(`${d.path}: discovery.need "${bp.discovery.need}" is not one of ${NEEDS.join(', ')}`);
     if (bp.workers > 1) problems.push(`${d.path}: workers above 1 are not supported yet`);
     if (Object.keys(bp.output).length && bp.seconds <= 0) problems.push(`${d.path}: recipe.seconds must be above 0 when there is an output`);
     if (Object.keys(bp.output).length && !bp.workers) problems.push(`${d.path}: a recipe needs workers: 1`);
@@ -111,11 +116,15 @@ export function buildContent(files: SourceFile[]): Content {
     if (!isMap(d.data.tuning)) { problems.push(`${d.path}: needs a "tuning:" block`); return [d, {}]; }
     return [d, d.data.tuning];
   };
-  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner');
-  const q = (k: string) => num(qd, qt[k], `tuning.${k}`);
+  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge');
+  const q = (k: string) => num(qd, qt[k], `tuning.${k}`), k = (key: string) => num(kd, kt[key], `tuning.${key}`);
   const tuning: Tuning = {
     map: { width: num(md, mt.width, 'tuning.width'), height: num(md, mt.height, 'tuning.height'), treeGrowSeconds: num(md, mt.tree_grow_seconds, 'tuning.tree_grow_seconds') },
-    start: { villagers: num(sd, st.villagers, 'tuning.villagers'), storage: stock(sd, st.storage, 'tuning.storage'), houseStock: stock(sd, st.house_stock, 'tuning.house_stock') },
+    start: {
+      villagers: num(sd, st.villagers, 'tuning.villagers'), storage: stock(sd, st.storage, 'tuning.storage'), houseStock: stock(sd, st.house_stock, 'tuning.house_stock'),
+      names: Array.isArray(st.names) && st.names.length ? st.names.map(String) : (problems.push(`${sd.path}: "tuning.names" must be a list of settlement names`), ['']),
+      neighbourMinDistance: num(sd, st.neighbour_min_distance, 'tuning.neighbour_min_distance'), gameSettlements: num(sd, st.game_settlements, 'tuning.game_settlements'),
+    },
     logistics: {
       villagerCarry: num(ld, lt.villager_carry, 'tuning.villager_carry'), botCarry: num(ld, lt.bot_carry, 'tuning.bot_carry'),
       villagerSpeed: num(ld, lt.villager_speed, 'tuning.villager_speed'), botSpeed: num(ld, lt.bot_speed, 'tuning.bot_speed'),
@@ -133,10 +142,14 @@ export function buildContent(files: SourceFile[]): Content {
     },
     planner: {
       intervalSeconds: q('interval_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'),
-      foodHeadroom: q('food_headroom'), growthBeds: q('growth_beds'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
-      costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'),
+      foodHeadroom: q('food_headroom'), growthBeds: q('growth_beds'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
+      costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
       searchRadius: q('search_radius'), gap: q('gap'), minTrees: q('min_trees'),
       treeWeight: q('tree_weight'), sharedTreeWeight: q('shared_tree_weight'), linkWeight: q('link_weight'), storeWeight: q('store_weight'), forestPenalty: q('forest_penalty'),
+    },
+    knowledge: {
+      haulTarget: k('haul_target'), haulSmoothingSeconds: k('haul_smoothing_seconds'), struggleSeverity: k('struggle_severity'),
+      verifySeconds: k('verify_seconds'), forgetAfterSeconds: k('forget_after_seconds'), visitEverySeconds: k('visit_every_seconds'),
     },
   };
   checkGoods(sd, tuning.start.storage, 'tuning.storage'); checkGoods(sd, tuning.start.houseStock, 'tuning.house_stock');

@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T08:55:28Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T10:30:27Z }
 ---
 
 # Phases
@@ -17,8 +17,8 @@ Each phase closes when its gate passes in CI. Gates are [Attested Computations](
 | 2. Living town | Houses, needs, bread chain, newcomers and departures | [Gate 2](/gates/02-sustain-town.md) | Done |
 | 3. First automation | Courier bots on the same job board | [Gate 3](/gates/03-couriers.md) | Done |
 | 4. The village plans | [Planner](/systems/planner.md) chooses and places buildings | [Gate 4](/gates/04-village-plans.md) | Done |
-| 5. Knowledge | Blueprints discovered, verified by use, forgotten | Gate 5: a practice spreads between two settlements | Next |
-| 6. Civilisation | Settlements split off, trade, eras of technology | To define | Later |
+| 5. Knowledge | Blueprints discovered, verified by use, shared, forgotten ([knowledge](/systems/knowledge.md)) | [Gate 5](/gates/05-knowledge-spreads.md) | Done |
+| 6. Civilisation | Settlements split off, trade, eras of technology | To define | Next |
 
 # Rule
 
