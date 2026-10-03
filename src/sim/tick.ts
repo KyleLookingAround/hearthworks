@@ -5,24 +5,36 @@ import { updateKnowledge } from './knowledge.ts';
 import { bp, door, emit, villagers } from './world.ts';
 import type { State } from './types.ts';
 
-/** Share of villagers living in a house with food on the shelf (hungry houses count 0, empty shelves 0.6). */
+/**
+ * Mood per settlement: the share of its villagers living in a house with food on the shelf
+ * (hungry houses count 0, empty shelves 0.6). S.mood is the same over the whole world.
+ */
 export function computeMood(S: State) {
-  let pop = 0, fed = 0;
+  const pop = S.towns.map(() => 0), fed = S.towns.map(() => 0);
   for (const b of S.buildings) {
     const B = bp(S, b);
     if (!B.homes || b.site) continue;
     const r = b.residents.length, food = Object.keys(B.keepStocked)[0];
-    pop += r;
+    pop[b.town] += r;
     if (b.hunger > 0) continue;
-    fed += (b.inv[food] || 0) > 0 ? r : r * 0.6;
+    fed[b.town] += (b.inv[food] || 0) > 0 ? r : r * 0.6;
   }
-  S.mood = pop ? fed / pop : 1;
+  S.towns.forEach((t, i) => { t.mood = pop[i] ? fed[i] / pop[i] : 1; });
+  const P = pop.reduce((s, n) => s + n, 0), F = fed.reduce((s, n) => s + n, 0);
+  S.mood = P ? F / P : 1;
   S.stats.peakVillagers = Math.max(S.stats.peakVillagers, villagers(S).length);
 }
 
+/** A newcomer settles where the room is: of the settlements happy enough to draw people, the one with the most free beds. */
 function migrate(S: State) {
-  if (S.mood < S.content.tuning.needs.migrateMinMood) return;
-  const house = S.buildings.find(b => { const B = bp(S, b); return B.homes && !b.site && b.residents.length < B.homes; });
+  const freeBeds = (b: (typeof S.buildings)[number]) => { const B = bp(S, b); return B.homes && !b.site ? B.homes - b.residents.length : 0; };
+  let house: (typeof S.buildings)[number] | undefined, most = 0;
+  for (const t of S.towns) {
+    if (t.mood < S.content.tuning.needs.migrateMinMood) continue;
+    const homes = S.buildings.filter(b => b.town === t.id && freeBeds(b) > 0);
+    const beds = homes.reduce((n, b) => n + freeBeds(b), 0);
+    if (beds > most) { most = beds; house = homes[0]; }
+  }
   if (!house) return;
   const from = nearestStore(S, house) ?? house, d = door(from);
   const a = makeAgent(S, 'villager', d.x + 0.5, d.y + 0.5);

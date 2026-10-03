@@ -3,7 +3,7 @@ import { makeAgent, removeAgent } from './agents.ts';
 import { plannerOn } from './planner.ts';
 import { foundersKnowledge } from './knowledge.ts';
 import { findPath } from './path.ts';
-import type { Agent, Building, Content, GameEvent, State, Town, World } from './types.ts';
+import type { Agent, Building, Content, GameEvent, MapDef, State, Town, World } from './types.ts';
 
 export const inB = (w: World, x: number, y: number) => x >= 0 && y >= 0 && x < w.w && y < w.h;
 export const door = (b: Building) => ({ x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 });
@@ -21,27 +21,34 @@ export function emit(S: State, kind: GameEvent['kind'], text: string) {
   if (S.events.length > 200) S.events.splice(0, S.events.length - 200);
 }
 
-function generateWorld(content: Content, S: State): World {
-  const { width: W, height: H } = content.tuning.map;
-  const r = S.rng, N = W * H;
+/**
+ * Generate a world of the given type and size. Island at the standard size reproduces the
+ * original island exactly (same numbers, same random draws in the same order).
+ */
+function generateWorld(M: MapDef, W: number, H: number, S: State): World {
+  const r = S.rng, N = W * H, T = M.terrain, F = M.forest;
   const w: World = { w: W, h: H, ground: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1) };
-  const n1 = valueNoise(r, 9, W, H), n2 = valueNoise(r, 4, W, H), n3 = valueNoise(r, 6, W, H);
+  const n1 = valueNoise(r, T.largeCell, W, H), n2 = valueNoise(r, T.smallCell, W, H), n3 = valueNoise(r, F.cell, W, H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const i = y * W + x, dx = (x + 0.5 - W / 2) / (W / 2), dy = (y + 0.5 - H / 2) / (H / 2), d = dx * dx + dy * dy;
-    let h = 0.5 * n1(x, y) + 0.3 * n2(x, y) + 0.45 - 0.78 * d;
-    if (d < 0.06) h = Math.max(h, 0.7);
-    w.ground[i] = (x === 0 || y === 0 || x === W - 1 || y === H - 1) ? 0 : h > 0.5 ? 2 : h > 0.45 ? 1 : 0;
+    const i = y * W + x, dx = (x + 0.5 - W / 2) / (W / 2), dy = (y + 0.5 - H / 2) / (H / 2), radial = dx * dx + dy * dy;
+    let d = radial;
+    if (M.shape === 'landmass') d = 0;
+    else if (M.shape === 'coast') { const s = Math.max(0, (x + 0.5) / W - M.coastline) / (1 - M.coastline); d = s * s * 4; }
+    let h = T.large * n1(x, y) + T.small * n2(x, y) + T.base - T.falloff * d;
+    if (radial < M.start.landRadius) h = Math.max(h, 0.7);
+    const border = x === 0 || y === 0 || x === W - 1 || y === H - 1;
+    w.ground[i] = (border && M.shores.seaBorder) ? 0 : h > M.shores.grass ? 2 : h > M.shores.sand ? 1 : 0;
   }
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x;
-    if (w.ground[i] === 2 && ((n3(x, y) > 0.56 && rand(r) < 0.8) || rand(r) < 0.03)) w.tree[i] = 2;
+    if (w.ground[i] === 2 && ((n3(x, y) > F.threshold && rand(r) < F.density) || rand(r) < F.scatter)) w.tree[i] = 2;
   }
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
   for (let y = cy - 8; y <= cy - 3; y++) for (let x = cx - 12; x <= cx - 6; x++) {
     const i = y * W + x;
-    if (inB(w, x, y) && w.ground[i] === 2 && rand(r) < 0.7) w.tree[i] = 2;
+    if (inB(w, x, y) && w.ground[i] === 2 && rand(r) < F.groveDensity) w.tree[i] = 2;
   }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (Math.hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < 5.5) w.tree[y * W + x] = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (Math.hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
   return w;
 }
 
@@ -50,13 +57,21 @@ function generateWorld(content: Content, S: State): World {
  * `settlements` above 1 founds neighbours the same way, as far apart as the land allows.
  * The village planner is off unless `planner` is set, so scripted scenarios stay scripted.
  */
-export function createState(content: Content, seed: number, opts: { planner?: boolean; settlements?: number } = {}): State {
+export interface WorldOptions { planner?: boolean; settlements?: number; map?: string; size?: string }
+
+export function createState(content: Content, seed: number, opts: WorldOptions = {}): State {
   const S = {
     content, seed, rng: makeRng(seed), krng: makeRng(seed ^ 0x6b6e6f77), t: 0, buildings: [], agents: [], bmap: new Map(), amap: new Map(), nextId: 1,
     mood: 1, migT: 0, secT: 0, events: [], towns: [],
     stats: { made: {}, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0 },
   } as unknown as State;
-  S.world = generateWorld(content, S);
+  const mt = content.tuning.map;
+  const mapId = opts.map ?? mt.standardType, sizeId = opts.size ?? mt.standardSize;
+  const M = content.maps[mapId], size = mt.sizes[sizeId];
+  if (!M) throw new Error(`unknown map type "${mapId}"`);
+  if (!size) throw new Error(`unknown map size "${sizeId}"`);
+  S.setup = { map: mapId, size: sizeId, settlements: opts.settlements ?? 1 };
+  S.world = generateWorld(M, size.width, size.height, S);
   const { w: W, h: H } = S.world;
   foundTown(S, Math.floor(W / 2), Math.floor(H / 2), opts.planner ?? false);
   for (let k = 1; k < (opts.settlements ?? 1); k++) {
@@ -75,7 +90,7 @@ function foundTown(S: State, cx: number, cy: number, planner: boolean): Town {
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: plannerOn(planner), haul: 0, visitT: 0 };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: plannerOn(planner), haul: 0, mood: 1, visitT: 0 };
   S.towns.push(town);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;
   for (const b of [store, h1, h2]) b.town = id;
@@ -103,7 +118,9 @@ function neighbourSite(S: State): { x: number; y: number } | null {
   let best: { x: number; y: number } | null = null, bestD = -1, bestRoom = -1;
   for (let cy = 3; cy < w.h - 4; cy++) for (let cx = 7; cx < w.w - 6; cx++) {
     const d = Math.min(...centres.map(c => Math.hypot(cx - c.x, cy - c.y)));
-    if (d < t.neighbourMinDistance || Math.floor(d) < bestD) continue;
+    // as far as possible up to `neighbour_spacing`; past that, room to grow decides
+    const spread = Math.floor(Math.min(d, t.neighbourSpacing));
+    if (d < t.neighbourMinDistance || spread < bestD) continue;
     let ok = true;
     for (let y = cy - 2; y <= cy + 3 && ok; y++) for (let x = cx - 6; x <= cx + 5; x++) {
       const i = y * w.w + x;
@@ -112,9 +129,9 @@ function neighbourSite(S: State): { x: number; y: number } | null {
     if (!ok) continue;
     let room = 0;
     for (let y = cy - 8; y <= cy + 8; y++) for (let x = cx - 8; x <= cx + 8; x++) if (inB(w, x, y) && w.ground[y * w.w + x] === 2) room++;
-    if (Math.floor(d) === bestD && room <= bestRoom) continue;
+    if (spread === bestD && room <= bestRoom) continue;
     if (!findPath(w, home.x, home.y, cx, cy + 1)) continue;
-    bestD = Math.floor(d); bestRoom = room; best = { x: cx, y: cy };
+    bestD = spread; bestRoom = room; best = { x: cx, y: cy };
   }
   return best;
 }
@@ -152,7 +169,7 @@ export function placeBuilding(S: State, type: string, x: number, y: number, comp
   if (B.paves) { const i = y * w.w + x; w.road[i] = 1; w.tree[i] = 0; return null; }
   const b: Building = {
     id: S.nextId++, type, x, y, w: B.w, h: B.h, site: !complete, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0,
+    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0, waiting: {},
   };
   for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; w.road[i] = 0; }
   S.buildings.push(b); S.bmap.set(b.id, b);
@@ -161,7 +178,7 @@ export function placeBuilding(S: State, type: string, x: number, y: number, comp
 }
 
 export function completeSite(S: State, b: Building, announce: boolean) {
-  b.site = false; b.build = 0; b.inv = {}; b.incoming = {}; b.reserved = {};
+  b.site = false; b.build = 0; b.inv = {}; b.incoming = {}; b.reserved = {}; b.waiting = {};
   const B = bp(S, b);
   if (B.couriers) {
     const d = door(b);

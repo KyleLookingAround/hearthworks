@@ -36,7 +36,7 @@ export class App {
   }
 
   newGame(seed: number) {
-    this.S = createState(this.content, seed, { planner: this.plans, settlements: this.content.tuning.start.gameSettlements });
+    this.S = createState(this.content, seed, { planner: this.plans, settlements: this.content.tuning.map.sizes[this.content.tuning.map.standardSize].settlements });
     this.knowKey = '';
     this.seenEvents = 0;
     this.goals = GOALS.map(() => false);

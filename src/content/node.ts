@@ -21,7 +21,7 @@ export function walkMarkdown(dir: string): string[] {
 export function readDesignFiles(dir = DESIGN_DIR): SourceFile[] {
   return walkMarkdown(dir)
     .map(p => ({ path: relative(dir, p).split(sep).join('/'), raw: readFileSync(p, 'utf8') }))
-    .filter(f => /^(blueprints|goods|systems)\//.test(f.path));
+    .filter(f => /^(blueprints|goods|maps|systems)\//.test(f.path));
 }
 
 export const loadContent = (dir = DESIGN_DIR): Content => buildContent(readDesignFiles(dir));

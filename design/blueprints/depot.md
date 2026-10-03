@@ -10,7 +10,7 @@ order: 7
 size: [2, 2]
 cost: { planks: 20 }
 couriers: { count: 3, radius: 12 }
-discovery: { need: hauling, mean_seconds: 900 }
+discovery: { need: hauling, mean_seconds: 450 }
 ---
 
 # Role

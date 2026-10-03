@@ -14,7 +14,7 @@ import { NEED_TEXT, pressure } from './knowledge.ts';
 import { bp, ctr, door, emit, placeBuilding, villagers } from './world.ts';
 import type { BlueprintDef, Building, ItemId, PlannerState, State, Stock, Town } from './types.ts';
 
-export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0 });
+export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0 });
 
 interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string }
@@ -119,7 +119,7 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   else {
     // don't invite newcomers the village can't feed yet
     const fed = (shortages.find(s => s.good === food)?.sev ?? 0) < P.minSeverity ? 1 : 0;
-    const growing = S.mood >= needs.migrateMinMood ? 1 : 0.5;
+    const growing = town.mood >= needs.migrateMinMood ? 1 : 0.5;
     shortages.push({ key: 'beds', homes: true, sev: clamp01((P.growthBeds - freeBeds) / P.growthBeds) * growing * fed * P.growthWeight, why: 'no free beds for newcomers' });
   }
   shortages.sort((a, b) => b.sev - a.sev);
@@ -158,7 +158,9 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
 /** If the chosen producer would starve for an input, plan that input's producer first. */
 function follow(S: State, L: Look, c: Choice, depth: number): Choice {
   if (depth > 3) return c;
-  if (c.B.workers && L.spareHands < c.B.workers) {
+  // carriers already run off their feet can't spare one for a new workplace
+  const strained = pressure(S, L.town, 'hauling') >= S.content.tuning.knowledge.struggleSeverity;
+  if (c.B.workers && (L.spareHands < c.B.workers || strained)) {
     // nobody free to work it: newcomers will come if there are beds, otherwise build homes
     if (L.freeBeds > 0) return { ...c, wait: `Waiting for newcomers to work ${article(c.B.name)} ${c.B.name}: ${c.why}` };
     const home = known(S, L.town).filter(B => B.homes).sort((a, b) => b.homes - a.homes)[0];
@@ -224,12 +226,13 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
   return null;
 }
 
-/** Free supply of the goods this blueprint costs, after every open site's outstanding need. */
-function affordable(S: State, B: BlueprintDef): ItemId | null {
+/** The first good this blueprint costs that the settlement cannot pay for yet, and how much it is short. */
+function affordable(S: State, B: BlueprintDef, town: Town): { good: ItemId; short: number } | null {
   for (const k in B.cost) {
     let owed = 0;
-    for (const b of S.buildings) if (b.site) owed += Math.max(0, (bp(S, b).cost[k] || 0) - (b.inv[k] || 0) - (b.incoming[k] || 0));
-    if (supplyOf(S, k) - owed < B.cost[k]) return k;
+    for (const b of S.buildings) if (b.site && b.town === town.id) owed += Math.max(0, (bp(S, b).cost[k] || 0) - (b.inv[k] || 0) - (b.incoming[k] || 0));
+    const free = supplyOf(S, k, town.id) - owed;
+    if (free < B.cost[k]) return { good: k, short: B.cost[k] - free };
   }
   return null;
 }
@@ -253,6 +256,7 @@ function planTown(S: State, town: Town, dt: number) {
 
   // the worst shortage something known can relieve
   const L = look(S, town), worst = L.shortages[0];
+  Q.want = null;
   if (!worst || worst.sev < T(S).minSeverity) { Q.streak = { type: '', n: 0 }; Q.status = 'The village has what it needs'; return; }
   let c: Choice | null = null;
   for (const sh of L.shortages) {
@@ -262,12 +266,16 @@ function planTown(S: State, town: Town, dt: number) {
   if (!c) { Q.status = `Nothing the village knows would help: ${worst.why}`; return; }
   if (c.wait) { Q.streak = { type: '', n: 0 }; Q.status = c.wait; return; }
 
-  // can't pay for it: if nothing makes the missing good, build that first
-  const short = affordable(S, c.B);
-  if (short) {
-    const maker = (L.supply[short] || 0) <= 0 ? known(S, town).find(B => B.seconds && B.output[short]) : undefined;
-    if (maker && !affordable(S, maker)) c = follow(S, L, { B: maker, sev: c.sev, why: runningLow(S, short) }, 0);
-    else { Q.status = `Saving ${goodName(S, short)} for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
+  // what the village is working towards counts as use: it is not forgotten while saved for
+  Q.want = c.B.id;
+  // can't pay for it: if saving up would take longer than `save_patience_seconds` at the current
+  // rate (or forever), make more of the missing good first, if that is affordable
+  const owe = affordable(S, c.B, town);
+  if (owe) {
+    const rate = L.supply[owe.good] || 0, wait = rate > 0 ? owe.short / rate : Infinity;
+    const maker = wait > T(S).savePatienceSeconds ? known(S, town).find(B => B.seconds && B.output[owe.good]) : undefined;
+    if (maker && !affordable(S, maker, town)) c = follow(S, L, { B: maker, sev: c.sev, why: `${runningLow(S, owe.good)} to build ${article(c.B.name)} ${c.B.name}` }, 0);
+    else { Q.status = `Saving ${goodName(S, owe.good)} for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
   }
 
   Q.streak = Q.streak.type === c.B.id ? { type: c.B.id, n: Q.streak.n + 1 } : { type: c.B.id, n: 1 };

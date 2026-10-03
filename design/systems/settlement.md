@@ -11,7 +11,7 @@ tuning:
   house_stock: { bread: 3 }
   names: [Hearth, Brook, Ashby, Fenwick]
   neighbour_min_distance: 12
-  game_settlements: 2
+  neighbour_spacing: 30
 ---
 
 # Layout

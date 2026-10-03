@@ -1,13 +1,14 @@
 ---
 type: System
 title: Map
-description: Seeded island generation, terrain, trees and regrowth.
+description: Map types and sizes, seeded generation, the standard map, trees and regrowth.
 tags: [world]
 status: stable
 generated: { by: claude/opus-5.5, at: 2026-10-03T10:55:11Z }
 tuning:
-  width: 56
-  height: 40
+  standard_type: island
+  standard_size: small
+  sizes: { small: { width: 56, height: 40, settlements: 2 }, medium: { width: 112, height: 80, settlements: 3 }, large: { width: 192, height: 144, settlements: 4 } }
   tree_grow_seconds: 40
 ---
 

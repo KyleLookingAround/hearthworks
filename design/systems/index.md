@@ -4,7 +4,7 @@
 
 * [Knowledge](knowledge.md) - Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 * [Logistics](logistics.md) - The job board — requests, offers, reservations, carriers and courier bots.
-* [Map](map.md) - Seeded island generation, terrain, trees and regrowth.
+* [Map](map.md) - Map types and sizes, seeded generation, the standard map, trees and regrowth.
 * [Needs and population](needs.md) - Eating, mood, newcomers arriving and villagers leaving.
 * [Village planner](planner.md) - Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 * [Production and construction](production.md) - Construction sites and their priority queue, worker assignment and recipe cycles.

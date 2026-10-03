@@ -1,5 +1,5 @@
 /** Helpers for gate scenarios: scripted building, tracked runs and the standard metrics. Pure; no Node APIs. */
-import { createState, ctr, findSpot, placeBuilding, runFor, treeSpot, villagers, bp, type Building, type Content, type State } from '../sim/index.ts';
+import { createState, type WorldOptions, ctr, findSpot, placeBuilding, runFor, treeSpot, villagers, bp, type Building, type Content, type State } from '../sim/index.ts';
 
 export { findSpot, treeSpot };
 
@@ -8,7 +8,7 @@ export interface GateParams { seed: number; seconds: number; [k: string]: number
 export interface ScenarioResult { state: State; metrics: Metrics }
 export type Scenario = (content: Content, params: GateParams) => ScenarioResult;
 
-export const start = (content: Content, seed: number, opts: { planner?: boolean; settlements?: number } = {}) => createState(content, seed, opts);
+export const start = (content: Content, seed: number, opts: WorldOptions = {}) => createState(content, seed, opts);
 export const storeOf = (S: State) => S.buildings.find(b => bp(S, b).storage)!;
 export const centre = (S: State) => ctr(storeOf(S));
 

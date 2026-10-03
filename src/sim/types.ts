@@ -35,27 +35,45 @@ export interface BlueprintDef {
   discovery: { need: string; meanSeconds: number } | null;
 }
 
+export interface MapSize { width: number; height: number; settlements: number }
+
+/** A kind of world the player can pick. Loaded from design/maps/*.md. */
+export interface MapDef {
+  id: string; name: string; description: string; order: number;
+  shape: 'island' | 'landmass' | 'coast';
+  /** Coast only: share of the width where the sea begins. */
+  coastline: number;
+  terrain: { largeCell: number; smallCell: number; large: number; small: number; base: number; falloff: number };
+  shores: { grass: number; sand: number; seaBorder: boolean };
+  start: { landRadius: number; clearRadius: number };
+  forest: { cell: number; threshold: number; density: number; scatter: number; groveDensity: number };
+}
+
+/** The world a game was made with. */
+export interface Setup { map: string; size: string; settlements: number }
+
 /** Balance numbers. Loaded from the `tuning` block of design/systems/*.md. */
 export interface Tuning {
-  map: { width: number; height: number; treeGrowSeconds: number };
-  start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; gameSettlements: number };
+  /** `width`/`height` are the standard size's; gates run on the standard map. */
+  map: { width: number; height: number; treeGrowSeconds: number; standardType: string; standardSize: string; sizes: Record<string, MapSize> };
+  start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
-    roadSpeed: number; forestSpeed: number; outputCap: number; dumpAt: number;
+    roadSpeed: number; forestSpeed: number; outputCap: number; dumpAt: number; requestAging: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
   planner: PlannerTuning;
   knowledge: {
     haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number;
-    verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number;
+    verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number; visitMinVillagers: number;
   };
 }
 
 export interface PlannerTuning {
   intervalSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
   foodHeadroom: number; growthBeds: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
-  costWeight: number; urgencyPriority: number; haulWeight: number; coverWeight: number;
+  costWeight: number; urgencyPriority: number; savePatienceSeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; gap: number; minTrees: number;
   treeWeight: number; sharedTreeWeight: number; linkWeight: number; storeWeight: number; forestPenalty: number;
 }
@@ -71,6 +89,8 @@ export interface PlannerState {
   streak: { type: string; n: number };
   /** The planner's own open site, if any. */
   site: number | null;
+  /** The blueprint it is currently working towards (thinking about or saving for), if any. */
+  want: string | null;
   /** One line for the player: what the planner is doing and why. */
   status: string;
   placed: number;
@@ -79,6 +99,7 @@ export interface PlannerState {
 export interface Content {
   goods: Record<ItemId, GoodDef>;
   blueprints: Record<string, BlueprintDef>;
+  maps: Record<string, MapDef>;
   tuning: Tuning;
   /** Short hash of the design files the content was built from. */
   hash: string;
@@ -113,6 +134,8 @@ export interface Building {
   town: number;
   /** Seconds it has spent running well; verifies its blueprint in use. */
   used: number;
+  /** When each of its requests started waiting for a carrier (game time), for request aging. */
+  waiting: Record<string, number>;
 }
 
 export type AgentState = 'idle' | 'wander' | 'toSrc' | 'toDst' | 'toWork' | 'working' | 'visit';
@@ -165,6 +188,8 @@ export interface Town {
   planner: PlannerState;
   /** Smoothed share of its carriers busy hauling. */
   haul: number;
+  /** Share of its villagers fed and settled, 0 to 1. */
+  mood: number;
   visitT: number;
 }
 
@@ -210,6 +235,7 @@ export interface State {
   stats: Stats;
   events: GameEvent[];
   towns: Town[];
+  setup: Setup;
   /** The first settlement's planner (the player's village). Every settlement has its own in `towns`. */
   planner: PlannerState;
   /** Separate stream for discovery, so knowledge never shifts the main simulation's random numbers. */

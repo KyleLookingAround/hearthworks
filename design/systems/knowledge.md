@@ -12,6 +12,7 @@ tuning:
   verify_seconds: 30
   forget_after_seconds: 600
   visit_every_seconds: 45
+  visit_min_villagers: 8
 ---
 
 # Idea

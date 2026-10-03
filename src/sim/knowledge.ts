@@ -104,6 +104,7 @@ export function updateKnowledge(S: State, dt: number) {
       emit(S, 'good', `${town.name} came up with the ${B.name}: ${NEED_TEXT[B.discovery.need] ?? B.discovery.need}`);
     }
 
+    if (town.planner.want && town.knows[town.planner.want]) town.knows[town.planner.want].used = S.t;
     for (const id of Object.keys(town.knows)) {
       const k = town.knows[id];
       if (k.by === 'founders' || S.t - k.used <= P.forgetAfterSeconds) continue;
@@ -133,7 +134,10 @@ function sendVisitor(S: State, town: Town): boolean {
     if (d < hd) { hd = d; host = o; }
   }
   if (!host) return false;
-  const carriers = villagers(S).filter(a => a.home?.town === town.id && a.role === 'carrier' && a.state !== 'visit');
+  // small or already-visiting settlements keep their people at home
+  const people = villagers(S).filter(a => a.home?.town === town.id);
+  if (people.length < K(S).visitMinVillagers || people.some(a => a.visit?.from === town.id)) return false;
+  const carriers = people.filter(a => a.role === 'carrier' && a.state !== 'visit');
   if (carriers.length < 2) return false;
   const a = carriers.find(c => !c.carry && (c.state === 'idle' || c.state === 'wander' || c.state === 'toSrc'));
   if (!a) return false;

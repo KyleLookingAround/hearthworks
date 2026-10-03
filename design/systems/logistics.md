@@ -14,6 +14,7 @@ tuning:
   forest_speed: 0.65
   output_cap: 6
   dump_at: 3
+  request_aging: 0.5
 ---
 
 # Rules

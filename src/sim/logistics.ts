@@ -17,10 +17,10 @@ export function available(S: State, b: Building, item: ItemId): number {
   return 0;
 }
 
-/** Goods on offer anywhere, not yet claimed by a carrier. */
-export function supplyOf(S: State, item: ItemId): number {
+/** Goods on offer, not yet claimed by a carrier: in one settlement, or anywhere if none is given. */
+export function supplyOf(S: State, item: ItemId, town?: number): number {
   let n = 0;
-  for (const b of S.buildings) n += Math.max(0, available(S, b, item));
+  for (const b of S.buildings) if (town === undefined || b.town === town) n += Math.max(0, available(S, b, item));
   return n;
 }
 
@@ -31,6 +31,16 @@ export function supplyOf(S: State, item: ItemId): number {
  * cannot soak up the planks a more urgent one is waiting for. Carriers also treat
  * a site as `site_priority_tiles` nearer per priority level.
  */
+/**
+ * How long a request has gone unserved. Carriers treat a waiting request as `request_aging`
+ * tiles nearer per second, so a far request is never starved forever by short surplus runs.
+ */
+function aged(S: State, b: Building, item: ItemId, need: number): number {
+  if (need <= 0 || (b.incoming[item] || 0) > 0) { delete b.waiting[item]; return 0; }
+  if (!(item in b.waiting)) b.waiting[item] = S.t;
+  return (S.t - b.waiting[item]) * S.content.tuning.logistics.requestAging;
+}
+
 function siteRequests(S: State, reqs: Request[]) {
   const per = S.content.tuning.production.sitePriorityTiles;
   const sites = S.buildings.filter(b => b.site).sort((a, b) => b.priority - a.priority || a.id - b.id);
@@ -39,11 +49,14 @@ function siteRequests(S: State, reqs: Request[]) {
     const B = bp(S, b);
     for (const item in B.cost) {
       const need = B.cost[item] - (b.inv[item] || 0) - (b.incoming[item] || 0);
+      const age = aged(S, b, item, need);
       if (need <= 0) continue;
-      if (!(item in left)) left[item] = supplyOf(S, item);
-      const n = Math.min(need, left[item]);
-      left[item] -= need;
-      if (n > 0) reqs.push({ dst: b, item, need: n, pri: -b.priority * per });
+      // each settlement promises its own supply: villagers only haul within their settlement
+      const key = `${b.town}:${item}`;
+      if (!(key in left)) left[key] = supplyOf(S, item, b.town);
+      const n = Math.min(need, left[key]);
+      left[key] -= need;
+      if (n > 0) reqs.push({ dst: b, item, need: n, pri: -b.priority * per - age });
     }
   }
 }
@@ -57,7 +70,8 @@ export function collectRequests(S: State): Request[] {
     if (b.paused) continue;
     for (const item in B.keepStocked) {
       const need = B.keepStocked[item] - (b.inv[item] || 0) - (b.incoming[item] || 0);
-      if (need > 0) reqs.push({ dst: b, item, need, pri: B.homes ? -4 : 0 });
+      const age = aged(S, b, item, need);
+      if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? -4 : 0) - age });
     }
   }
   return reqs;
@@ -67,7 +81,10 @@ export function findTask(S: State, a: Agent): boolean {
   const L = S.content.tuning.logistics;
   const cap = a.kind === 'bot' ? L.botCarry : L.villagerCarry;
   const dep = a.depot, depR = dep ? bp(S, dep).couriers!.radius : 0;
+  // villagers work for their own settlement; trade between settlements is a later phase
+  const town = a.kind === 'villager' ? a.home?.town ?? null : null;
   const inRange = (b: Building) => {
+    if (town !== null && b.town !== town) return false;
     if (!dep) return true;
     const p = ctr(dep), q = ctr(b);
     return (p.x - q.x) ** 2 + (p.y - q.y) ** 2 <= depR * depR;

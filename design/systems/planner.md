@@ -18,6 +18,7 @@ tuning:
   input_cover: 0.6
   cost_weight: 0.01
   urgency_priority: 10
+  save_patience_seconds: 180
   haul_weight: 3
   cover_weight: 0.5
   search_radius: 15

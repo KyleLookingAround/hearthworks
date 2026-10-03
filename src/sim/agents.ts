@@ -72,15 +72,15 @@ export function updateAgent(S: State, a: Agent, dt: number) {
   }
 }
 
-/** Give each staffed building a worker, keeping at least one carrier until bots arrive. */
+/** Give each staffed building a worker from its own settlement, keeping one carrier there until it has bots. */
 export function assignWorkers(S: State) {
-  const anyBots = S.agents.some(a => a.kind === 'bot');
   for (const b of S.buildings) {
     if (!bp(S, b).workers || b.site || b.worker) continue;
-    const carriers = S.agents.filter(a => a.kind === 'villager' && a.role === 'carrier' && a.state !== 'visit');
-    if (carriers.length <= (anyBots ? 0 : 1)) return;
-    const idle = carriers.filter(a => !a.task && a.state !== 'visit');
-    if (!idle.length) return;
+    const anyBots = S.agents.some(a => a.kind === 'bot' && a.depot?.town === b.town);
+    const carriers = S.agents.filter(a => a.kind === 'villager' && a.role === 'carrier' && a.state !== 'visit' && a.home?.town === b.town);
+    if (carriers.length <= (anyBots ? 0 : 1)) continue;
+    const idle = carriers.filter(a => !a.task);
+    if (!idle.length) continue;
     let pick = idle[0], pd = Infinity;
     for (const a of idle) { const d = distAB(a, b); if (d < pd) { pd = d; pick = a; } }
     pick.path = []; pick.role = 'worker'; pick.work = b; b.worker = pick.id; pick.state = 'toWork';

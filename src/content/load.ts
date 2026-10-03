@@ -5,7 +5,7 @@
  */
 import { parseDoc, type Doc } from './frontmatter.ts';
 import type { YamlMap, YamlValue } from './yaml.ts';
-import type { BlueprintDef, Content, GoodDef, Stock, Tuning } from '../sim/types.ts';
+import type { BlueprintDef, Content, GoodDef, MapDef, MapSize, Stock, Tuning } from '../sim/types.ts';
 
 export interface SourceFile { path: string; raw: string }
 
@@ -109,6 +109,25 @@ export function buildContent(files: SourceFile[]): Content {
   }
   for (const need of ['storage', 'house']) if (!blueprints[need]) problems.push(`blueprints/${need}.md is required: the starting settlement uses it`);
 
+  // map types
+  const maps: Record<string, MapDef> = {};
+  for (const d of docs.filter(d => d.path.startsWith('maps/'))) {
+    if (d.data.type !== 'Map Type') continue;
+    const id = slug(d.path), f = d.data;
+    const part = (key: string): YamlMap => (isMap(f[key]) ? f[key] as YamlMap : (problems.push(`${d.path}: "${key}" must be a mapping`), {}));
+    const t = part('terrain'), sh = part('shores'), st = part('start'), fo = part('forest');
+    const shape = str(d, f.shape, 'shape');
+    if (!['island', 'landmass', 'coast'].includes(shape)) problems.push(`${d.path}: shape "${shape}" is not island, landmass or coast`);
+    maps[id] = {
+      id, name: str(d, f.title, 'title'), description: str(d, f.description, 'description', ''), order: num(d, f.order, 'order', 99),
+      shape: shape as MapDef['shape'], coastline: num(d, f.coastline, 'coastline', 0.6),
+      terrain: { largeCell: num(d, t.large_cell, 'terrain.large_cell'), smallCell: num(d, t.small_cell, 'terrain.small_cell'), large: num(d, t.large, 'terrain.large'), small: num(d, t.small, 'terrain.small'), base: num(d, t.base, 'terrain.base'), falloff: num(d, t.falloff, 'terrain.falloff') },
+      shores: { grass: num(d, sh.grass, 'shores.grass'), sand: num(d, sh.sand, 'shores.sand'), seaBorder: sh.sea_border === true },
+      start: { landRadius: num(d, st.land_radius, 'start.land_radius'), clearRadius: num(d, st.clear_radius, 'start.clear_radius') },
+      forest: { cell: num(d, fo.cell, 'forest.cell'), threshold: num(d, fo.threshold, 'forest.threshold'), density: num(d, fo.density, 'forest.density'), scatter: num(d, fo.scatter, 'forest.scatter'), groveDensity: num(d, fo.grove_density, 'forest.grove_density') },
+    };
+  }
+
   // tuning, one block per system doc
   const sys = (name: string): [Doc, YamlMap] => {
     const d = docs.find(x => x.path === `systems/${name}.md`);
@@ -117,19 +136,26 @@ export function buildContent(files: SourceFile[]): Content {
     return [d, d.data.tuning];
   };
   const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge');
+  const sizes: Record<string, MapSize> = {};
+  for (const [id, v] of Object.entries(isMap(mt.sizes) ? mt.sizes : {})) {
+    const m = isMap(v) ? v : {};
+    sizes[id] = { width: num(md, m.width, `tuning.sizes.${id}.width`), height: num(md, m.height, `tuning.sizes.${id}.height`), settlements: num(md, m.settlements, `tuning.sizes.${id}.settlements`) };
+  }
+  const std = sizes[String(mt.standard_size)] ?? (problems.push(`${md.path}: tuning.standard_size must name one of tuning.sizes`), { width: 0, height: 0, settlements: 1 });
+  if (!maps[String(mt.standard_type)]) problems.push(`${md.path}: tuning.standard_type must name a map type in maps/`);
   const q = (k: string) => num(qd, qt[k], `tuning.${k}`), k = (key: string) => num(kd, kt[key], `tuning.${key}`);
   const tuning: Tuning = {
-    map: { width: num(md, mt.width, 'tuning.width'), height: num(md, mt.height, 'tuning.height'), treeGrowSeconds: num(md, mt.tree_grow_seconds, 'tuning.tree_grow_seconds') },
+    map: { width: std.width, height: std.height, treeGrowSeconds: num(md, mt.tree_grow_seconds, 'tuning.tree_grow_seconds'), standardType: str(md, mt.standard_type, 'tuning.standard_type'), standardSize: str(md, mt.standard_size, 'tuning.standard_size'), sizes },
     start: {
       villagers: num(sd, st.villagers, 'tuning.villagers'), storage: stock(sd, st.storage, 'tuning.storage'), houseStock: stock(sd, st.house_stock, 'tuning.house_stock'),
       names: Array.isArray(st.names) && st.names.length ? st.names.map(String) : (problems.push(`${sd.path}: "tuning.names" must be a list of settlement names`), ['']),
-      neighbourMinDistance: num(sd, st.neighbour_min_distance, 'tuning.neighbour_min_distance'), gameSettlements: num(sd, st.game_settlements, 'tuning.game_settlements'),
+      neighbourMinDistance: num(sd, st.neighbour_min_distance, 'tuning.neighbour_min_distance'), neighbourSpacing: num(sd, st.neighbour_spacing, 'tuning.neighbour_spacing'),
     },
     logistics: {
       villagerCarry: num(ld, lt.villager_carry, 'tuning.villager_carry'), botCarry: num(ld, lt.bot_carry, 'tuning.bot_carry'),
       villagerSpeed: num(ld, lt.villager_speed, 'tuning.villager_speed'), botSpeed: num(ld, lt.bot_speed, 'tuning.bot_speed'),
       roadSpeed: num(ld, lt.road_speed, 'tuning.road_speed'), forestSpeed: num(ld, lt.forest_speed, 'tuning.forest_speed'),
-      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'),
+      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'),
     },
     needs: {
       eatEverySeconds: num(nd, nt.eat_every_seconds, 'tuning.eat_every_seconds'), leaveAfterHungrySeconds: num(nd, nt.leave_after_hungry_seconds, 'tuning.leave_after_hungry_seconds'),
@@ -143,17 +169,17 @@ export function buildContent(files: SourceFile[]): Content {
     planner: {
       intervalSeconds: q('interval_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'),
       foodHeadroom: q('food_headroom'), growthBeds: q('growth_beds'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
-      costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
+      costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), savePatienceSeconds: q('save_patience_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
       searchRadius: q('search_radius'), gap: q('gap'), minTrees: q('min_trees'),
       treeWeight: q('tree_weight'), sharedTreeWeight: q('shared_tree_weight'), linkWeight: q('link_weight'), storeWeight: q('store_weight'), forestPenalty: q('forest_penalty'),
     },
     knowledge: {
       haulTarget: k('haul_target'), haulSmoothingSeconds: k('haul_smoothing_seconds'), struggleSeverity: k('struggle_severity'),
-      verifySeconds: k('verify_seconds'), forgetAfterSeconds: k('forget_after_seconds'), visitEverySeconds: k('visit_every_seconds'),
+      verifySeconds: k('verify_seconds'), forgetAfterSeconds: k('forget_after_seconds'), visitEverySeconds: k('visit_every_seconds'), visitMinVillagers: k('visit_min_villagers'),
     },
   };
   checkGoods(sd, tuning.start.storage, 'tuning.storage'); checkGoods(sd, tuning.start.houseStock, 'tuning.house_stock');
 
   if (problems.length) throw new ContentError(problems);
-  return { goods, blueprints, tuning, hash };
+  return { goods, blueprints, maps, tuning, hash };
 }
