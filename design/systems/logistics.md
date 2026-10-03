@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T13:41:22Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T14:06:55Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -16,6 +16,7 @@ tuning:
   output_cap: 6
   dump_at: 3
   request_aging: 0.5
+  no_way_retry_seconds: 30
 ---
 
 # Rules
@@ -24,6 +25,7 @@ tuning:
 2. Buildings post **requests**: construction sites want their `cost`, workplaces and houses want their `keep_stocked` goods.
 3. Buildings post **offers**: a producer offers its outputs, a storage yard offers everything it holds.
 4. An idle carrier scores every request against every building offering that good (offers are indexed by good, so pairs that could never match are not scored) by walking distance (houses get a priority bonus; storage a small penalty) and claims the cheapest. A villager only takes jobs within their own settlement.
+6. **No way in.** When a carrier finds no way to a building's door, and its own settlement's storage cannot reach that door either, the building shows "No way in" and nobody is sent there for `no_way_retry_seconds`, so one cut-off building cannot keep every carrier searching. If storage can reach it, the carrier is the one cut off and waits out the same time. A worker who cannot walk to a workplace no longer works it from afar. Route searches may look at every tile of the map once on foot (twice when rowing), so long trips on big maps are found.
 5. **Waiting requests come closer.** A request nobody has started serving counts as `request_aging` tiles nearer for every second it waits, so a far forester's logs are fetched in the end even while short surplus runs keep coming up.
 6. Claiming **reserves** the goods at the source and marks them **incoming** at the destination, so no two carriers chase the same stack.
 7. A producer holding at least `dump_at` of an output nobody asked for sends it to the nearest [storage yard](/blueprints/storage.md).

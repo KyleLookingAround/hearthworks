@@ -12,7 +12,7 @@ parameters:
   - { name: seconds, type: integer, required: true }
   - { name: map, type: string, required: true }
   - { name: size, type: string, required: true }
-defaults: { seed: 1847, seconds: 180, map: island, size: medium }
+defaults: { seed: 1847, seconds: 180, map: island, size: standard }
 pass_when: { min_planks_made: 3, max_sites_unfinished: 0 }
 executor:
   resource: ../references/skills/run-gate.md
@@ -31,4 +31,5 @@ Phase 1 of the [roadmap](/roadmap.md): the [job board](/systems/logistics.md) de
 
 # Revisions
 
-- 2026-10-03: moved to the standard map, Island at medium size, named by the new `map` and `size` parameters (roadmap Phase 7).
+- 2026-10-03: moved to the standard map, Island at the standard size (112 by 80), named by the new `map` and `size` parameters (roadmap Phase 7).
+- 2026-10-03: its world's size is renamed (`isle` for the 56 by 40 Lone isle, `standard` for 112 by 80), since player sizes are now S to XL. Same world, same receipts.

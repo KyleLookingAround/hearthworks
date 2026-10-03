@@ -1,7 +1,7 @@
 import { rand } from './rng.ts';
 import { findPath, type PathOptions } from './path.ts';
 import { bp, distAB, door, inB } from './world.ts';
-import { cancelTask, drop, findTask, pickup } from './logistics.ts';
+import { blame, cancelTask, drop, findTask, pickup } from './logistics.ts';
 import { arrive } from './knowledge.ts';
 import type { Agent, Building, State } from './types.ts';
 
@@ -77,14 +77,22 @@ export function updateAgent(S: State, a: Agent, dt: number) {
 export function assignWorkers(S: State) {
   for (const b of S.buildings) {
     if (!bp(S, b).workers || b.site || b.worker) continue;
+    if (b.noWay !== null && S.t - b.noWay < S.content.tuning.logistics.noWayRetrySeconds) continue;
     const anyBots = S.agents.some(a => a.kind === 'bot' && a.depot?.town === b.town);
     const carriers = S.agents.filter(a => a.kind === 'villager' && a.role === 'carrier' && a.state !== 'visit' && a.home?.town === b.town);
     if (carriers.length <= (anyBots ? 0 : 1)) continue;
-    const idle = carriers.filter(a => !a.task);
+    // someone who has just found they cannot get anywhere waits out that long cool-down (idle carriers
+    // otherwise only pause under a second between looks for work)
+    const idle = carriers.filter(a => !a.task && a.cool <= 1);
     if (!idle.length) continue;
     let pick = idle[0], pd = Infinity;
     for (const a of idle) { const d = distAB(a, b); if (d < pd) { pd = d; pick = a; } }
     pick.path = []; pick.role = 'worker'; pick.work = b; b.worker = pick.id; pick.state = 'toWork';
-    if (!goToBuilding(S, pick, b)) pick.state = 'working';
+    // already at the door, or nobody could walk there: they don't work it from afar
+    if (!goToBuilding(S, pick, b)) {
+      const d = door(b);
+      if (Math.floor(pick.x) === d.x && Math.floor(pick.y) === d.y) pick.state = 'working';
+      else { b.worker = null; pick.work = null; pick.role = 'carrier'; pick.state = 'idle'; blame(S, pick, b); }
+    }
   }
 }

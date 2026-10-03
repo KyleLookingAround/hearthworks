@@ -12,7 +12,7 @@ parameters:
   - { name: seconds, type: integer, required: true }
   - { name: map, type: string, required: true }
   - { name: size, type: string, required: true }
-defaults: { seed: 1847, seconds: 1800, map: island, size: medium }
+defaults: { seed: 1847, seconds: 1800, map: island, size: standard }
 pass_when: { min_settlements: 2, min_peak_villagers: 120, min_save_roundtrip_match: 1, max_agents_inside_walls: 0, max_departures: 2, min_mood_min: 0.6, min_town_mood_min: 0.6 }
 executor:
   resource: ../references/skills/run-gate.md
@@ -36,4 +36,5 @@ Phase 6 of the [roadmap](/roadmap.md): the ground is solid and the game can be p
 
 # Revisions
 
-- 2026-10-03: moved to the standard map, Island at medium size, named by the new `map` and `size` parameters (roadmap Phase 7). Adds `min_peak_villagers: 120` (137 to 175 on the six swept seeds). Tightened, not loosened.
+- 2026-10-03: moved to the standard map, Island at the standard size (112 by 80), named by the new `map` and `size` parameters (roadmap Phase 7). Adds `min_peak_villagers: 120` (137 to 175 on the six swept seeds). Tightened, not loosened.
+- 2026-10-03: its world's size is renamed (`isle` for the 56 by 40 Lone isle, `standard` for 112 by 80), since player sizes are now S to XL. Same world, same receipts.

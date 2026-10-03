@@ -4,7 +4,7 @@
  * Scale: the standard map type at `size`, `settlements` self-planning settlements, `seconds` of play.
  * Work counters are reported per game minute so they can carry budgets.
  *
- * Map suite: every map type at every size it offers on `suite_seeds` seeds (the first is `seed`), each with the
+ * Map suite: every map type at every size a player can pick that the type offers on `suite_seeds` seeds (the first is `seed`), each with the
  * size's starting settlements planning for `suite_seconds`. A run fails if a settlement could not be
  * founded, if anyone left, or if any settlement ends hungry (mood under `migrate_min_mood`'s bar, 0.6).
  */
@@ -15,7 +15,7 @@ const perMinute = (n: number, S: State) => Math.round(n / (S.t / 60));
 
 export const run: Scenario = (content, params) => {
   const { seed, seconds } = params;
-  const size = String(params.size ?? 'large'), towns = Number(params.settlements ?? 4);
+  const size = String(params.size ?? 's'), towns = Number(params.settlements ?? 4);
   const suiteSeconds = Number(params.suite_seconds ?? 900), suiteSeeds = Number(params.suite_seeds ?? 3);
 
   const S = start(content, seed, { planner: true, settlements: towns, size });
@@ -25,7 +25,7 @@ export const run: Scenario = (content, params) => {
   let runs = 0, failures = 0, worst = 1;
   const seeds = [seed, 7, 42, 99, 2026, 31337].slice(0, suiteSeeds);
   for (const map of Object.keys(content.maps).sort()) for (const [sz, z] of Object.entries(content.tuning.map.sizes)) for (const sd of seeds) {
-    if (content.maps[map].sizes && !content.maps[map].sizes!.includes(sz)) continue;
+    if (!z.offered || (content.maps[map].sizes && !content.maps[map].sizes!.includes(sz))) continue;
     runs++;
     const T = start(content, sd, { planner: true, settlements: z.settlements, map, size: sz });
     runFor(T, suiteSeconds);

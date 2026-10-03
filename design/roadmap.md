@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T13:41:22Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T14:06:55Z }
 ---
 
 # How to read this
@@ -44,7 +44,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 - **Earlier gates keep their intent.** A new system is off by default where it would change a scripted scenario (as the [planner](/systems/planner.md) and [knowledge](/systems/knowledge.md) are), or the affected gates are reworked under [decision 0004](/decisions/0004-reworking-gates.md) and the change is logged.
 - **Deterministic and headless.** One seed and the same commands always give the same world. Each new source of chance gets its own seeded stream, as knowledge did with `S.krng`.
-- **One standard map for tests.** Gates run on the standard map: today's small island until Phase 7, then Island at medium size. Other map types and sizes are covered by the map suite (Phase 7), so every world the player can pick is known to play.
+- **One standard map for tests.** Gates run on the standard map: today's small island until Phase 7, then Island at the `standard` size (112 by 80). Other map types and sizes are covered by the map suite (Phase 7), so every world the player can pick is known to play.
 - **Unscripted is the bar.** A system is ready when a gate shows it doing on its own what a script or the player used to do.
 - **Machines earn their place.** Every new tier is discovered under a strain the player can see (hauling, distance, cold, crowding), never unlocked on a timer.
 - **Everything moves, and nothing is named in code.** Goods, buildings, vehicles, hazards and ages are OKF concepts in `design/`; the planner and job board read their fields.
@@ -79,7 +79,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Why now.** On the 56 by 40 island, two settlements first find no room at 15 to 18 minutes (one settlement at 24 to 30). Every later phase needs room, players want to choose the kind of world they build in, and both need a sim that scales.
 
-**Delivered early, at Kyle's request:** map types (Islands, Landmass with rivers, Coast with islets, and the Lone isle as the standard), sizes (small, medium, large), the new-game screen with a live preview, settlements placed by the seed, and boats: [docks](/blueprints/dock.md) discovered when neighbours are across water, rowing boats that land on any shore, and visitors who carry knowledge across the sea. Cargo boats, river transport networks and ships remain in Phases 16 and 18. **Phase 7 is done:** the standard map is Island at medium size; gates name their world with word parameters; each settlement draws its own newcomers; the planner's search widens as a village spreads and skips what it has no room for; the job board scores only real pairs; and [Gate 7](/gates/07-worlds.md) (scale and map suite) passes with work budgets set. Path caching, region portals and a culling renderer were not needed at these sizes and move to when a budget calls for them.
+**Delivered early, at Kyle's request:** map types (Islands, Landmass with rivers, Coast with islets, and the Lone isle as the standard), sizes (small, medium, large), the new-game screen with a live preview, settlements placed by the seed, and boats: [docks](/blueprints/dock.md) discovered when neighbours are across water, rowing boats that land on any shore, and visitors who carry knowledge across the sea. Cargo boats, river transport networks and ships remain in Phases 16 and 18. **Phase 7 is done:** the standard map is Island at 112 by 80; gates name their world with word parameters; each settlement draws its own newcomers; the planner's search widens as a village spreads and skips what it has no room for; the job board scores only real pairs; and [Gate 7](/gates/07-worlds.md) (scale and map suite) passes with work budgets set. Map sizes were then enlarged at Kyle's request to S, M, L and XL (192 by 144 up to 512 by 384), with the ground drawn in pieces and a far overview, zoom out to the whole world, sapling growth and site choice that do not scan every tile, and route searches sized to the map. Path caching and region portals were not needed and move to when a budget calls for them.
 
 **Builds.**
 - **Map types as content.** Each type is an OKF concept in a new `design/maps/` folder whose frontmatter drives the generator: land shape and falloff, water level, noise scales, forest density, and where settlements may start. New types are written, not coded.
@@ -88,7 +88,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
   - **Coast:** land on one side, open sea on the other, with bays and headlands, ready for fishing (11) and ports (18).
   - **Archipelago** arrives with ships in Phase 18; offered earlier, its islands would be unreachable.
 - **Map sizes** in [map](/systems/map.md) tuning: small (56 by 40, today's), medium (about 112 by 80), large (about 192 by 144), and huge once the work budgets allow it. A new game starts with two settlements on any size, so the player can watch them grow apart, trade knowledge and later goods (13); the new-game screen offers one to four.
-- **The standard map:** Island at medium size, seeded like today. It is the default world in the new-game screen and the world every gate runs on.
+- **The standard map:** Island at 112 by 80 (size `standard`), seeded like today: the world the gates run on. Players start on M.
 - **A new-game screen:** pick map type, size, seed (or random) and starting settlements, with a preview of the generated land before starting. Saves (6) record the choice. "New island" becomes "New world".
 - **A generator per type,** each with starting sites chosen for room, wood and water, deterministic per seed.
 - **A job board that scales:** a spatial index, so a carrier scores nearby requests and offers instead of every pair.
@@ -159,7 +159,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
   - **pace:** how much the planner builds at once.
   - Hand placement stays.
 - **Overlays:** mood, nuisance, districts, traffic and coverage.
-- **A chronicle:** each settlement's history as it happens (founded, invented, taught, forgotten, replanned), readable in game and exportable as an OKF log. The tutorial goals give way to an advisor that points at what the chronicle shows.
+- **A chronicle:** each settlement's history as it happens (founded, invented, taught, forgotten, replanned), readable in game and exportable as an OKF log. An advisor points at what the chronicle shows (the tutorial goals were removed at Kyle's request).
 
 **Gate 10 (proposed).** A paired scenario per lever. Zoning keeps at least 90% of farms in the farm zone; raising a priority moves that need's first relief earlier; encouragement brings a discovery earlier on at least five of six internal seeds. Also: every invention, teaching and forgetting appears in the chronicle.
 
@@ -257,7 +257,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Builds.** The archipelago map type (a concept in `design/maps/`, like the others), with shallows, reefs and open sea. Docks, shipyards, ships with crews, and sea routes. Explorers chart islands the settlements have not seen. Settlers, goods and knowledge cross water only by ship, and colonies are founded overseas.
 
-**Gate 18 (proposed).** Archipelago map at medium size: a colony is founded on a second island unscripted, survives 30 game minutes, and trades back to its mother town.
+**Gate 18 (proposed).** Islands map at size M: a colony is founded on a second island unscripted, survives 30 game minutes, and trades back to its mother town.
 
 # 19. Ages
 

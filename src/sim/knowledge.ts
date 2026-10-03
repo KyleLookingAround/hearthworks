@@ -14,7 +14,7 @@
 import { rand } from './rng.ts';
 import { goToBuilding } from './agents.ts';
 import { cancelTask } from './logistics.ts';
-import { emit, villagers } from './world.ts';
+import { door, emit, villagers } from './world.ts';
 import type { Agent, Content, Knowledge, State, Town } from './types.ts';
 
 const K = (S: State) => S.content.tuning.knowledge;
@@ -166,8 +166,26 @@ export function arrive(S: State, a: Agent) {
     // whoever rowed over rows home from the shore they landed on
     const home = S.bmap.get(from.store);
     if (home && goToBuilding(S, a, home, { launchAnywhere: v.boat })) return;
+    strand(S, a, from, to);
   } else teach(S, from, v.carry, to.name);
   a.visit = null; a.state = 'idle';
+}
+
+/**
+ * A visitor who finds no way home (the way they came has been built over, or the water they crossed
+ * has no dock on this side) settles with the hosts if there is a free bed. Otherwise they make their
+ * own way back: they are moved home, so nobody is left stranded working for a village they cannot reach.
+ */
+function strand(S: State, a: Agent, from: Town, to: Town) {
+  const bed = S.buildings.find(b => b.town === to.id && !b.site && (S.content.blueprints[b.type].homes ?? 0) > b.residents.length);
+  if (bed) {
+    if (a.home) a.home.residents = a.home.residents.filter(id => id !== a.id);
+    a.home = bed; bed.residents.push(a.id);
+    emit(S, 'info', `A visitor from ${from.name} found no way home and settled in ${to.name}`, true);
+    return;
+  }
+  const d = door(S.bmap.get(from.store)!);
+  a.x = d.x + 0.5; a.y = d.y + 0.5; a.path = [];
 }
 
 /** Short provenance line for the player, e.g. "came up with here", "learned from Hearth". */

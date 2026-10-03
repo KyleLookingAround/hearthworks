@@ -1,6 +1,6 @@
 import { rand } from './rng.ts';
 import { removeAgent } from './agents.ts';
-import { add, bp, completeSite, ctr, emit, inB } from './world.ts';
+import { add, bp, completeSite, ctr, emit, inB, plant } from './world.ts';
 import type { Building, Level, State } from './types.ts';
 
 const setStatus = (b: Building, t: string, l: Level) => { b.status.t = t; b.status.l = l; };
@@ -29,13 +29,18 @@ function replant(S: State, b: Building, r: number) {
   }
   if (trees < S.content.tuning.production.maxTreesNearForester && spots.length) {
     const i = spots[Math.floor(rand(S.rng) * spots.length)];
-    w.tree[i] = 1; w.grow[i] = 0;
+    plant(w, i);
   }
 }
 
 const itemsText = (S: State, items: string[]) => items.map(k => S.content.goods[k]?.name.toLowerCase() ?? k).join(' and ');
 
 export function updateBuilding(S: State, b: Building, dt: number) {
+  run(S, b, dt);
+  if (b.noWay !== null && S.t - b.noWay < S.content.tuning.logistics.noWayRetrySeconds) setStatus(b, 'No way in: nobody can walk to its door', 'bad');
+}
+
+function run(S: State, b: Building, dt: number) {
   const B = bp(S, b), T = S.content.tuning;
 
   if (b.site) {
@@ -97,7 +102,7 @@ export function updateBuilding(S: State, b: Building, dt: number) {
   if (b.timer >= B.seconds) {
     b.timer = 0;
     for (const k in B.input) add(b.inv, k, -B.input[k]);
-    if (tree >= 0) { S.world.tree[tree] = 1; S.world.grow[tree] = 0; }
+    if (tree >= 0) plant(S.world, tree);
     for (const k in B.output) { add(b.inv, k, B.output[k]); add(S.stats.made, k, B.output[k]); }
   }
 }

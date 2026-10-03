@@ -12,7 +12,7 @@ import { supplyOf } from './logistics.ts';
 import { fits } from './place.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
 import { bp, ctr, door, emit, placeBuilding, villagers } from './world.ts';
-import type { BlueprintDef, Building, ItemId, PlannerState, State, Stock, Town } from './types.ts';
+import type { BlueprintDef, Building, ItemId, PlannerState, State, Stock, Town, World } from './types.ts';
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {} });
 
@@ -231,11 +231,27 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
     scored.push({ x, y, s });
   }
   scored.sort((a, b) => a.s - b.s);
+  // doors that can be reached now must stay reachable: a new building never seals off another's way in
+  const doors = mine.filter(b => !b.dead).map(b => { const d = door(b); return d.y * W.w + d.x; }).filter(i => reach[i]);
   for (const c of scored.slice(0, 8)) {
     const d = { x: c.x + Math.floor(B.w / 2), y: c.y + B.h - 1 };
-    if (findPath(W, from.x, from.y, d.x, d.y)) return { x: c.x, y: c.y };
+    if (!findPath(W, from.x, from.y, d.x, d.y)) continue;
+    // the open tile in front of its door: below it, or beside it for a building on the shore
+    const front = B.shore ? d.y * W.w + d.x + 1 : (d.y + 1) * W.w + d.x;
+    if (sealsOff(W, c.x, c.y, B.w, B.h, from, doors, front)) continue;
+    return { x: c.x, y: c.y };
   }
   return null;
+}
+
+/** Would a footprint at (x, y) cut storage off from any of `doors`, or from the tile in front of its own door? */
+function sealsOff(W: World, x: number, y: number, w: number, h: number, from: { x: number; y: number }, doors: number[], front: number): boolean {
+  const saved: number[] = [];
+  for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) { const i = j * W.w + k; saved.push(W.bgrid[i]); W.bgrid[i] = -2; }
+  const reach = reachable(W, from.x, from.y);
+  let n = 0;
+  for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) W.bgrid[j * W.w + k] = saved[n++];
+  return !reach[front] || doors.some(i => !reach[i]);
 }
 
 /**

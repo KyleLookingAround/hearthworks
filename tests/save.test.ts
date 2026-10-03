@@ -9,7 +9,7 @@ const content = loadContent();
 const text = (S: Parameters<typeof saveGame>[0]) => JSON.stringify(saveGame(S));
 
 test('a saved and loaded game plays on exactly as if it had never stopped', () => {
-  const A = createState(content, 7, { planner: true, settlements: 2, map: 'islands', size: 'medium' });
+  const A = createState(content, 7, { planner: true, settlements: 2, map: 'islands', size: 'standard' });
   runFor(A, 300);
   const B = loadGame(content, text(A));
   assert.equal(text(B), text(A), 'saving the loaded game gives the same file');

@@ -2,6 +2,9 @@
 import { canPlace, ctr, hash01, type Agent, type Building, type State } from '../sim/index.ts';
 
 export const TS = 24;
+const CHUNK = 32, MAX_CHUNKS = 48, OVERVIEW = 4;
+/** Below this zoom the world is drawn from the overview, not tile by tile. */
+const FAR = 0.3;
 
 export interface Camera { x: number; y: number; z: number }
 export interface View {
@@ -22,7 +25,6 @@ export function ghostOrigin(S: State, type: string, t: { x: number; y: number })
 export class Renderer {
   readonly canvas: HTMLCanvasElement;
   private ctx: Ctx;
-  private ground: HTMLCanvasElement | null = null;
   private groundOf: State | null = null;
   cw = 0; ch = 0; dpr = 1;
 
@@ -43,10 +45,23 @@ export class Renderer {
     return { x: (sx - this.cw / 2) / cam.z + cam.x, y: (sy - this.ch / 2) / cam.z + cam.y };
   }
 
-  private buildGround(S: State) {
-    const w = S.world, cv = document.createElement('canvas');
-    cv.width = w.w * TS; cv.height = w.h * TS;
+  /** Ground pieces of CHUNK by CHUNK tiles, drawn when first seen; the least recently used are dropped past MAX_CHUNKS. */
+  private chunks = new Map<number, HTMLCanvasElement>();
+  /** Far out: the whole world at OVERVIEW pixels a tile, ground once and trees refreshed every couple of seconds. */
+  private overview: { ground: HTMLCanvasElement; trees: HTMLCanvasElement; at: number } | null = null;
+
+  private resetGround(S: State) {
+    this.chunks.clear(); this.overview = null; this.groundOf = S;
+  }
+
+  private chunk(S: State, cx: number, cy: number): HTMLCanvasElement {
+    const w = S.world, key = cy * 4096 + cx;
+    let cv = this.chunks.get(key);
+    if (cv) { this.chunks.delete(key); this.chunks.set(key, cv); return cv; }
+    cv = document.createElement('canvas');
+    cv.width = CHUNK * TS; cv.height = CHUNK * TS;
     const g = cv.getContext('2d')!;
+    g.translate(-cx * CHUNK * TS, -cy * CHUNK * TS);
     const near = (x: number, y: number) => {
       for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) {
         const xx = x + k, yy = y + j;
@@ -54,7 +69,7 @@ export class Renderer {
       }
       return false;
     };
-    for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) {
+    for (let y = cy * CHUNK; y < Math.min(w.h, (cy + 1) * CHUNK); y++) for (let x = cx * CHUNK; x < Math.min(w.w, (cx + 1) * CHUNK); x++) {
       const i = y * w.w + x, v = hash01(i), gr = w.ground[i];
       g.fillStyle = !gr ? (near(x, y) ? '#2a6670' : '#1f5562') : gr === 1 ? (v < 0.5 ? '#d6c08a' : '#dcc794') : v < 0.33 ? '#6c9850' : v < 0.66 ? '#719d54' : '#77a258';
       g.fillRect(x * TS, y * TS, TS, TS);
@@ -64,20 +79,59 @@ export class Renderer {
       }
       if (!gr && near(x, y)) { g.fillStyle = 'rgba(236,240,226,.12)'; g.fillRect(x * TS + v * 12, y * TS + 6 + hash01(i + 3) * 10, 8, 1.5); }
     }
-    this.ground = cv; this.groundOf = S;
+    this.chunks.set(key, cv);
+    if (this.chunks.size > MAX_CHUNKS) this.chunks.delete(this.chunks.keys().next().value!);
+    return cv;
+  }
+
+  private overviewOf(S: State, now: number) {
+    const w = S.world, O = OVERVIEW;
+    if (!this.overview) {
+      const ground = document.createElement('canvas'), trees = document.createElement('canvas');
+      ground.width = trees.width = w.w * O; ground.height = trees.height = w.h * O;
+      const g = ground.getContext('2d')!;
+      for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) {
+        const i = y * w.w + x, gr = w.ground[i];
+        g.fillStyle = !gr ? '#1f5562' : gr === 1 ? '#d8c38e' : '#719d54';
+        g.fillRect(x * O, y * O, O, O);
+      }
+      this.overview = { ground, trees, at: -Infinity };
+    }
+    if (now - this.overview.at > 2000) {
+      const t = this.overview.trees, g = t.getContext('2d')!;
+      g.clearRect(0, 0, t.width, t.height);
+      for (let i = 0; i < w.tree.length; i++) {
+        if (!w.tree[i]) continue;
+        g.fillStyle = w.tree[i] === 2 ? '#2f5a36' : '#5e8d4a';
+        g.fillRect((i % w.w) * O, Math.floor(i / w.w) * O, O, O);
+      }
+      this.overview.at = now;
+    }
+    return this.overview;
   }
 
   draw(S: State, v: View) {
-    if (this.groundOf !== S) this.buildGround(S);
+    if (this.groundOf !== S) this.resetGround(S);
     const c = this.ctx, { cam } = v, w = S.world, dpr = this.dpr;
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     c.fillStyle = '#1d4b57'; c.fillRect(0, 0, this.cw, this.ch);
     c.setTransform(dpr * cam.z, 0, 0, dpr * cam.z, dpr * (this.cw / 2 - cam.x * cam.z), dpr * (this.ch / 2 - cam.y * cam.z));
-    c.drawImage(this.ground!, 0, 0);
     const a0 = this.toWorld(cam, 0, 0), a1 = this.toWorld(cam, this.cw, this.ch);
     const cl = (n: number, hi: number) => Math.max(0, Math.min(hi, n));
     const x0 = cl(Math.floor(a0.x / TS) - 1, w.w - 1), x1 = cl(Math.ceil(a1.x / TS) + 1, w.w - 1);
     const y0 = cl(Math.floor(a0.y / TS) - 1, w.h - 1), y1 = cl(Math.ceil(a1.y / TS) + 1, w.h - 1);
+    const far = cam.z < FAR;
+    if (far) {
+      const o = this.overviewOf(S, performance.now());
+      c.imageSmoothingEnabled = false;
+      c.drawImage(o.ground, 0, 0, w.w * TS, w.h * TS);
+      c.drawImage(o.trees, 0, 0, w.w * TS, w.h * TS);
+      c.imageSmoothingEnabled = true;
+    } else {
+      for (let cy = Math.floor(y0 / CHUNK); cy <= Math.floor(y1 / CHUNK); cy++) for (let cx = Math.floor(x0 / CHUNK); cx <= Math.floor(x1 / CHUNK); cx++) {
+        c.drawImage(this.chunk(S, cx, cy), cx * CHUNK * TS, cy * CHUNK * TS);
+      }
+    }
 
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       if (!w.road[y * w.w + x]) continue;
@@ -85,7 +139,7 @@ export class Renderer {
       c.fillStyle = '#c2a877'; c.fillRect(x * TS + 3, y * TS + 3, TS - 6, TS - 6);
     }
     const grow = S.content.tuning.map.treeGrowSeconds;
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    if (!far) for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const i = y * w.w + x, t = w.tree[i];
       if (!t) continue;
       const h = hash01(i), cx = x * TS + TS / 2 + (h - 0.5) * 5, cy = y * TS + TS / 2 + (hash01(i + 9) - 0.5) * 5;
@@ -117,7 +171,7 @@ export class Renderer {
       c.setLineDash([]);
     }
     for (const a of S.agents) this.agent(S, a);
-    if (S.towns.length > 1) this.townLabels(S);
+    if (S.towns.length > 1 || cam.z < 0.6) this.townLabels(S, cam.z);
     if (v.tool && v.hover) {
       const B = S.content.blueprints[v.tool], o = B.paves ? v.hover : ghostOrigin(S, v.tool, v.hover), ok = canPlace(S, v.tool, o.x, o.y);
       c.fillStyle = ok ? 'rgba(127,194,138,.35)' : 'rgba(226,115,94,.4)';
@@ -267,14 +321,20 @@ export class Renderer {
   }
 
   /** Each settlement's name above its storage yard. */
-  private townLabels(S: State) {
+  private townLabels(S: State, z: number) {
     const c = this.ctx;
-    c.font = '700 13px "Alegreya Sans SC", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'bottom';
+    // names keep the same size on screen however far out the camera is, so villages can be found on a big map
+    const k = Math.max(1, 1 / z);
+    c.font = `700 ${13 * k}px "Alegreya Sans SC", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'bottom';
     for (const t of S.towns) {
       const b = S.bmap.get(t.store);
       if (!b) continue;
-      const x = (b.x + b.w / 2) * TS, y = b.y * TS - 4;
-      c.lineWidth = 3; c.strokeStyle = 'rgba(27,35,38,.85)'; c.strokeText(t.name, x, y);
+      const x = (b.x + b.w / 2) * TS, y = b.y * TS - 4 * k;
+      if (z < 0.6) {
+        c.fillStyle = '#f0c27a'; c.strokeStyle = '#1b2326'; c.lineWidth = 2 * k;
+        c.beginPath(); c.arc(x, (b.y + b.h / 2) * TS, 5 * k, 0, 7); c.fill(); c.stroke();
+      }
+      c.lineWidth = 3 * k; c.strokeStyle = 'rgba(27,35,38,.85)'; c.strokeText(t.name, x, y);
       c.fillStyle = '#f0c27a'; c.fillText(t.name, x, y);
     }
   }

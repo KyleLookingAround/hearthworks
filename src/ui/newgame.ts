@@ -27,7 +27,7 @@ export class NewGameDialog {
     this.choice = { map: first, size, settlements: T.sizes[size].settlements, seed, plans: true };
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<GameChoice> | null;
-      if (saved && content.maps[saved.map ?? ''] && T.sizes[saved.size ?? '']) this.choice = { ...this.choice, ...saved };
+      if (saved && content.maps[saved.map ?? ''] && T.sizes[saved.size ?? '']?.offered) this.choice = { ...this.choice, ...saved };
     } catch { /* storage unavailable: use the defaults */ }
     this.build();
   }
@@ -49,8 +49,8 @@ export class NewGameDialog {
   private build() {
     const maps = Object.values(this.content.maps).sort((a, b) => a.order - b.order);
     $('#ngMaps').innerHTML = maps.map(M => `<button type="button" class="ng-card" data-map="${esc(M.id)}" aria-pressed="false"><b>${esc(M.name)}</b><span>${esc(M.description)}</span></button>`).join('');
-    const sizes = Object.entries(this.content.tuning.map.sizes);
-    $('#ngSizes').innerHTML = sizes.map(([id, z]) => `<button type="button" class="btn" data-size="${esc(id)}" aria-pressed="false">${esc(id[0].toUpperCase() + id.slice(1))}<small>${z.width} × ${z.height}</small></button>`).join('');
+    const sizes = Object.entries(this.content.tuning.map.sizes).filter(([, z]) => z.offered);
+    $('#ngSizes').innerHTML = sizes.map(([id, z]) => `<button type="button" class="btn" data-size="${esc(id)}" aria-pressed="false">${esc(z.label)}<small>${z.width} × ${z.height}</small></button>`).join('');
     $('#ngTowns').innerHTML = Array.from({ length: MAX_SETTLEMENTS }, (_, i) => `<button type="button" class="btn" data-towns="${i + 1}" aria-pressed="false">${i + 1}</button>`).join('');
 
     document.querySelectorAll<HTMLButtonElement>('#ngMaps [data-map]').forEach(b => b.addEventListener('click', () => { this.choice.map = b.dataset.map!; this.sync(); }));
@@ -75,7 +75,7 @@ export class NewGameDialog {
   private sync(updateSeedField = true) {
     const c = this.choice;
     // some map types are only offered at some sizes
-    const offered = this.content.maps[c.map]?.sizes ?? Object.keys(this.content.tuning.map.sizes);
+    const offered = Object.entries(this.content.tuning.map.sizes).filter(([id, z]) => z.offered && (this.content.maps[c.map]?.sizes ?? [id]).includes(id)).map(([id]) => id);
     if (!offered.includes(c.size)) { c.size = offered[0]; c.settlements = this.content.tuning.map.sizes[c.size].settlements; }
     document.querySelectorAll<HTMLButtonElement>('#ngSizes [data-size]').forEach(b => { b.disabled = !offered.includes(b.dataset.size!); });
     document.querySelectorAll<HTMLButtonElement>('#ngMaps [data-map]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.map === c.map)));
@@ -91,15 +91,22 @@ export class NewGameDialog {
   private preview() {
     const c = this.choice, cv = $<HTMLCanvasElement>('#ngPreview'), ctx = cv.getContext('2d')!;
     const S = createState(this.content, c.seed, { map: c.map, size: c.size, settlements: c.settlements });
-    const w = S.world, px = Math.max(1, Math.floor(Math.min(cv.width / w.w, cv.height / w.h)));
-    const ox = Math.floor((cv.width - w.w * px) / 2), oy = Math.floor((cv.height - w.h * px) / 2);
-    ctx.fillStyle = '#1d4b57'; ctx.fillRect(0, 0, cv.width, cv.height);
-    const colour = ['#1d4b57', '#d6c38f', '#7aa960'];
-    for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) {
-      const i = y * w.w + x;
-      ctx.fillStyle = w.tree[i] === 2 ? '#2f5a36' : colour[w.ground[i]];
-      ctx.fillRect(ox + x * px, oy + y * px, px, px);
+    // one pixel a tile, scaled to fit the preview whatever the map's size
+    const w = S.world, img = new ImageData(w.w, w.h);
+    const rgb = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const colour = [rgb('#1d4b57'), rgb('#d6c38f'), rgb('#7aa960')], wood = rgb('#2f5a36');
+    for (let i = 0; i < w.ground.length; i++) {
+      const [r, g, b] = w.tree[i] === 2 ? wood : colour[w.ground[i]];
+      img.data[i * 4] = r; img.data[i * 4 + 1] = g; img.data[i * 4 + 2] = b; img.data[i * 4 + 3] = 255;
     }
+    const tiles = document.createElement('canvas');
+    tiles.width = w.w; tiles.height = w.h;
+    tiles.getContext('2d')!.putImageData(img, 0, 0);
+    const px = Math.min(cv.width / w.w, cv.height / w.h);
+    const ox = (cv.width - w.w * px) / 2, oy = (cv.height - w.h * px) / 2;
+    ctx.fillStyle = '#1d4b57'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tiles, ox, oy, w.w * px, w.h * px);
     for (const t of S.towns) {
       const s = S.bmap.get(t.store);
       if (!s) continue;

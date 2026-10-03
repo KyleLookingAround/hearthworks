@@ -34,9 +34,12 @@ function generateWorld(M: MapDef, W: number, H: number, S: State): World {
   // so the lone isle draws exactly the random numbers it always did
   const half = Math.min(W, H) / 2, blobs: { x: number; y: number; r: number }[] = [];
   if (M.shape === 'islands' && M.islands) {
-    const I = M.islands, n = I.countMin + Math.floor(rand(r) * (I.countMax - I.countMin + 1));
-    for (let k = 0, tries = 0; k < n && tries < 400; tries++) {
-      const rad = Math.min(half - 3, Math.max(I.minTiles, half * (I.radiusMin + rand(r) * (I.radiusMax - I.radiusMin))));
+    const I = M.islands;
+    // islands keep their size on bigger maps; there are more of them, in proportion to the area
+    const scale = Math.min(half, I.scaleTiles), more = Math.min(I.countCap, Math.max(1, (W * H) / (4 * scale * scale * 1.4)));
+    const n = Math.round((I.countMin + Math.floor(rand(r) * (I.countMax - I.countMin + 1))) * (half > I.scaleTiles ? more : 1));
+    for (let k = 0, tries = 0; k < n && tries < 400 * Math.max(1, n / I.countMax); tries++) {
+      const rad = Math.min(half - 3, Math.max(I.minTiles, scale * (I.radiusMin + rand(r) * (I.radiusMax - I.radiusMin))));
       const bx = rad + 2 + rand(r) * (W - 2 * rad - 4), by = rad + 2 + rand(r) * (H - 2 * rad - 4);
       // keep a channel of sea between islands
       if (blobs.some(o => Math.hypot(o.x - bx, o.y - by) < (o.r + rad) * 1.05)) continue;
@@ -98,27 +101,30 @@ function prepareSite(S: State, M: MapDef, cx: number, cy: number) {
   }
 }
 
-/** Does the starting layout (storage, a house each side, a road) fit around (cx, cy) on open grass with a margin? */
-function layoutFits(w: World, cx: number, cy: number): boolean {
-  for (let y = cy - 2; y <= cy + 3; y++) for (let x = cx - 6; x <= cx + 5; x++) {
-    const i = y * w.w + x;
-    if (!inB(w, x, y) || w.ground[i] !== 2 || w.bgrid[i] !== -1 || w.road[i]) return false;
-  }
-  return true;
+/** Running sums of a tile test over the map, so any rectangle's count is four lookups. Out-of-map tiles count 0. */
+function sums(w: World, test: (i: number) => boolean) {
+  const W = w.w + 1, t = new Int32Array(W * (w.h + 1));
+  for (let y = 0; y < w.h; y++) for (let x = 0, row = 0; x < w.w; x++) { row += test(y * w.w + x) ? 1 : 0; t[(y + 1) * W + x + 1] = t[y * W + x + 1] + row; }
+  return (x0: number, y0: number, x1: number, y1: number) => {
+    x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(w.w - 1, x1); y1 = Math.min(w.h - 1, y1);
+    if (x0 > x1 || y0 > y1) return 0;
+    return t[(y1 + 1) * W + x1 + 1] - t[y0 * W + x1 + 1] - t[(y1 + 1) * W + x0] + t[y0 * W + x0];
+  };
 }
 
-/** Grass tiles within 8 of a point: room to grow. */
-function roomAround(w: World, cx: number, cy: number): number {
-  let room = 0;
-  for (let y = cy - 8; y <= cy + 8; y++) for (let x = cx - 8; x <= cx + 8; x++) if (inB(w, x, y) && w.ground[y * w.w + x] === 2) room++;
-  return room;
-}
-
-/** Grown trees within 10 of a point: wood close enough to start a wood chain. */
-function woodAround(w: World, cx: number, cy: number): number {
-  let n = 0;
-  for (let y = cy - 10; y <= cy + 10; y++) for (let x = cx - 10; x <= cx + 10; x++) if (inB(w, x, y) && w.tree[y * w.w + x] === 2) n++;
-  return n;
+/**
+ * Site tests over the land as it is now: does the starting layout (storage, a house each side, a road) fit
+ * around (cx, cy) on open grass with a margin; grass within 8 (room to grow); grown trees within 10 (wood
+ * close enough to start a wood chain).
+ */
+function siteTests(w: World) {
+  const open = sums(w, i => w.ground[i] === 2 && w.bgrid[i] === -1 && !w.road[i]);
+  const grass = sums(w, i => w.ground[i] === 2), trees = sums(w, i => w.tree[i] === 2);
+  return {
+    layoutFits: (cx: number, cy: number) => cx - 6 >= 0 && cy - 2 >= 0 && cx + 5 < w.w && cy + 3 < w.h && open(cx - 6, cy - 2, cx + 5, cy + 3) === 72,
+    roomAround: (cx: number, cy: number) => grass(cx - 8, cy - 8, cx + 8, cy + 8),
+    woodAround: (cx: number, cy: number) => trees(cx - 10, cy - 10, cx + 10, cy + 10),
+  };
 }
 
 /**
@@ -128,11 +134,12 @@ function woodAround(w: World, cx: number, cy: number): number {
  */
 function firstSite(S: State): { x: number; y: number } {
   const w = S.world, T = S.content.tuning.start, share = T.startRoomShare;
+  const { layoutFits, roomAround, woodAround } = siteTests(w);
   const spots: { x: number; y: number; room: number }[] = [];
   let best = 0;
   for (let cy = 4; cy < w.h - 5; cy++) for (let cx = 8; cx < w.w - 7; cx++) {
-    if (!layoutFits(w, cx, cy)) continue;
-    const room = roomAround(w, cx, cy) + T.startWoodWeight * woodAround(w, cx, cy);
+    if (!layoutFits(cx, cy)) continue;
+    const room = roomAround(cx, cy) + T.startWoodWeight * woodAround(cx, cy);
     spots.push({ x: cx, y: cy, room }); best = Math.max(best, room);
   }
   const good = spots.filter(s => s.room >= best * share);
@@ -211,18 +218,19 @@ function neighbourSite(S: State): { x: number; y: number } | null {
   const w = S.world, t = S.content.tuning.start;
   const centres = S.towns.map(tn => ctr(S.bmap.get(tn.store)!));
   const home = door(S.bmap.get(S.towns[0].store)!);
+  const { layoutFits, roomAround, woodAround } = siteTests(w);
   const spots: { x: number; y: number; spread: number; score: number }[] = [];
   for (let cy = 3; cy < w.h - 4; cy++) for (let cx = 7; cx < w.w - 6; cx++) {
     const d = Math.min(...centres.map(c => Math.hypot(cx - c.x, cy - c.y)));
-    if (d < t.neighbourMinDistance || !layoutFits(w, cx, cy)) continue;
-    const room = roomAround(w, cx, cy);
+    if (d < t.neighbourMinDistance || !layoutFits(cx, cy)) continue;
+    const room = roomAround(cx, cy);
     // never found a village where it has no room to live
     if (room < t.neighbourMinRoom) continue;
-    spots.push({ x: cx, y: cy, spread: Math.min(d, t.neighbourSpacing), score: room + t.startWoodWeight * woodAround(w, cx, cy) });
+    spots.push({ x: cx, y: cy, spread: Math.min(d, t.neighbourSpacing), score: room + t.startWoodWeight * woodAround(cx, cy) });
   }
-  const far = Math.max(0, ...spots.map(p => p.spread)) * t.neighbourSpreadShare;
+  const far = spots.reduce((m, p) => Math.max(m, p.spread), 0) * t.neighbourSpreadShare;
   const apart = spots.filter(p => p.spread >= far);
-  const top = Math.max(0, ...apart.map(p => p.score)) * t.startRoomShare;
+  const top = apart.reduce((m, p) => Math.max(m, p.score), 0) * t.startRoomShare;
   const good = apart.filter(p => p.score >= top);
   const onFoot = S.content.maps[S.setup.map].neighbours === 'reachable';
   while (good.length) {
@@ -309,7 +317,7 @@ export function placeBuilding(S: State, type: string, x: number, y: number, comp
   if (B.paves) { const i = y * w.w + x; w.road[i] = 1; w.tree[i] = 0; return null; }
   const b: Building = {
     id: S.nextId++, type, x, y, w: B.w, h: B.h, site: !complete, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0, waiting: {},
+    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0, waiting: {}, noWay: null,
   };
   for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; w.road[i] = 0; }
   setDoor(S, b, true);
@@ -344,3 +352,16 @@ export function demolish(S: State, b: Building) {
   for (const id of b.bots) { const a = S.amap.get(id); if (a) removeAgent(S, a); }
   if (gone) emit(S, 'bad', `${gone} villager${gone > 1 ? 's' : ''} left: their home was demolished`);
 }
+
+/**
+ * Saplings to grow, kept beside the world so a tick does not scan every tile. Derived, never saved:
+ * rebuilt from the tree grid when missing (a new or loaded world). Each sapling grows on its own, so
+ * the order they are visited in never matters.
+ */
+const saplingSets = new WeakMap<World, Set<number>>();
+export function saplings(w: World): Set<number> {
+  let s = saplingSets.get(w);
+  if (!s) { s = new Set(); for (let i = 0; i < w.tree.length; i++) if (w.tree[i] === 1) s.add(i); saplingSets.set(w, s); }
+  return s;
+}
+export function plant(w: World, i: number) { w.tree[i] = 1; w.grow[i] = 0; saplings(w).add(i); }

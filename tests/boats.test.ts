@@ -22,13 +22,13 @@ function dockSpot(S: State) {
 }
 
 test('the islands map can put neighbours out of reach on foot', () => {
-  const S = createState(content, 7, { map: 'islands', size: 'medium', settlements: 2 });
+  const S = createState(content, 7, { map: 'islands', size: 'standard', settlements: 2 });
   const a = storeDoor(S, 0), b = storeDoor(S, 1);
   assert.equal(findPath(S.world, a.x, a.y, b.x, b.y), null);
 });
 
 test('a dock must open onto water with open land beside its door', () => {
-  const S = createState(content, 7, { map: 'islands', size: 'medium' }), w = S.world;
+  const S = createState(content, 7, { map: 'islands', size: 'standard' }), w = S.world;
   // somewhere inland, with land all around
   let inland: { x: number; y: number } | null = null;
   for (let y = 2; y < w.h - 4 && !inland; y++) for (let x = 2; x < w.w - 4; x++) {
@@ -42,7 +42,7 @@ test('a dock must open onto water with open land beside its door', () => {
 });
 
 test('with a dock, people row across and land on the far shore; without one nobody rows', () => {
-  const S = createState(content, 7, { map: 'islands', size: 'medium', settlements: 2 });
+  const S = createState(content, 7, { map: 'islands', size: 'standard', settlements: 2 });
   const a = storeDoor(S, 0), b = storeDoor(S, 1), w = S.world;
   assert.equal(findPath(w, a.x, a.y, b.x, b.y), null, 'no boats before a dock');
   const at = dockSpot(S);
@@ -56,7 +56,7 @@ test('with a dock, people row across and land on the far shore; without one nobo
 });
 
 test('neighbours across water invent the dock, build it, and their visitors cross', () => {
-  const S = createState(content, 7, { map: 'islands', size: 'medium', settlements: 2, planner: true });
+  const S = createState(content, 7, { map: 'islands', size: 'standard', settlements: 2, planner: true });
   let crossed = false;
   runFor(S, 900, s => { crossed ||= s.agents.some(a => a.visit && !s.world.ground[Math.floor(a.y) * s.world.w + Math.floor(a.x)]); });
   assert.ok(S.buildings.some(b => b.type === 'dock' && !b.site), 'a dock was built');

@@ -9,7 +9,7 @@ test('the design bundle builds into valid game content', () => {
   assert.ok(c.goods.planks && c.goods.bread);
   assert.equal(c.blueprints.sawmill.input.logs, 1);
   assert.equal(c.blueprints.house.homes, 3);
-  // the standard map is Island at medium size
+  // the standard map is Island at the standard size, 112 by 80
   assert.equal(c.tuning.map.width, 112);
 });
 

@@ -36,7 +36,7 @@ test('every map type and size founds its settlements where they can be reached',
 
 test('map types have their own shapes', () => {
   const share = (map: string, f: (x: number, y: number, g: number) => boolean) => {
-    const S = createState(content, 7, { map, size: 'medium' }), w = S.world;
+    const S = createState(content, 7, { map, size: 'standard' }), w = S.world;
     let n = 0, all = 0;
     for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) { all++; if (f(x / w.w, y / w.h, w.ground[y * w.w + x])) n++; }
     return n / all;
@@ -51,11 +51,11 @@ test('map types have their own shapes', () => {
 test('unknown map types and sizes are refused', () => {
   assert.throws(() => createState(content, 1, { map: 'moon' }), /unknown map type/);
   assert.throws(() => createState(content, 1, { size: 'vast' }), /unknown map size/);
-  assert.throws(() => createState(content, 1, { map: 'islands', size: 'small' }), /not offered/);
+  assert.throws(() => createState(content, 1, { map: 'islands', size: 'isle' }), /not offered/);
 });
 
-test('two planning settlements on a medium landmass both grow and stay fed', () => {
-  const S = createState(content, 42, { planner: true, settlements: 2, map: 'landmass', size: 'medium' });
+test('two planning settlements on a standard-size landmass both grow and stay fed', () => {
+  const S = createState(content, 42, { planner: true, settlements: 2, map: 'landmass', size: 'standard' });
   runFor(S, 600);
   for (const t of S.towns) assert.ok(villagers(S).filter(a => a.home?.town === t.id).length >= 8, `${t.name} grew`);
   assert.equal(S.stats.departures, 0);

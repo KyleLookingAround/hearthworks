@@ -2,7 +2,7 @@ import { assignWorkers, makeAgent, nearestStore, updateAgent } from './agents.ts
 import { updateBuilding } from './production.ts';
 import { plan } from './planner.ts';
 import { updateKnowledge } from './knowledge.ts';
-import { bp, door, emit, villagers } from './world.ts';
+import { bp, door, emit, saplings, villagers } from './world.ts';
 import type { State } from './types.ts';
 
 /**
@@ -47,7 +47,12 @@ function migrate(S: State) {
 export function tick(S: State, dt: number) {
   S.t += dt;
   const w = S.world, grow = S.content.tuning.map.treeGrowSeconds;
-  for (let i = 0; i < w.tree.length; i++) if (w.tree[i] === 1) { w.grow[i] += dt; if (w.grow[i] >= grow) w.tree[i] = 2; }
+  const young = saplings(w);
+  for (const i of young) {
+    if (w.tree[i] !== 1) { young.delete(i); continue; }
+    w.grow[i] += dt;
+    if (w.grow[i] >= grow) { w.tree[i] = 2; young.delete(i); }
+  }
   for (const b of [...S.buildings]) if (!b.dead) updateBuilding(S, b, dt);
   for (const a of [...S.agents]) if (!a.dead) updateAgent(S, a, dt);
   S.secT += dt;

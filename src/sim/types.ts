@@ -37,7 +37,8 @@ export interface BlueprintDef {
   discovery: { need: string; meanSeconds: number } | null;
 }
 
-export interface MapSize { width: number; height: number; settlements: number }
+/** A map size: `label` is what the player sees; sizes with `offered: false` exist for the gates only. */
+export interface MapSize { width: number; height: number; settlements: number; label: string; offered: boolean }
 
 /** A kind of world the player can pick. Loaded from design/maps/*.md. */
 export interface MapDef {
@@ -46,7 +47,7 @@ export interface MapDef {
   /** The map sizes this type can be played at; null for every size. */
   sizes: string[] | null;
   /** Islands only: how many, and their radii as a share of half the map's shorter side. */
-  islands: { countMin: number; countMax: number; radiusMin: number; radiusMax: number; minTiles: number } | null;
+  islands: { countMin: number; countMax: number; radiusMin: number; radiusMax: number; minTiles: number; /** radii are a share of half the shorter side, up to this many tiles; bigger maps get more islands instead */ scaleTiles: number; countCap: number } | null;
   /** Small islands scattered in open sea (coast). */
   islets: number;
   /** Meandering rivers cut across the land, `width` tiles wide. */
@@ -71,7 +72,7 @@ export interface Tuning {
   start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; neighbourSpreadShare: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
-    roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; dumpAt: number; requestAging: number;
+    roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number };
@@ -152,6 +153,8 @@ export interface Building {
   used: number;
   /** When each of its requests started waiting for a carrier (game time), for request aging. */
   waiting: Record<string, number>;
+  /** Game time a carrier last found no way to its door; it is left alone for `no_way_retry_seconds`. */
+  noWay: number | null;
 }
 
 export type AgentState = 'idle' | 'wander' | 'toSrc' | 'toDst' | 'toWork' | 'working' | 'visit';

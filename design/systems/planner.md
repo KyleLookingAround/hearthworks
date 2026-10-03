@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T13:41:22Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T14:06:55Z }
 tuning:
   interval_seconds: 3
   settle_seconds: 6
@@ -65,7 +65,7 @@ Every `interval_seconds` the planner:
    - `link_weight` × distance to the nearest maker of each input and the mean distance to the users of each output. A Bakery lands between its Farm and the houses; a Sawmill beside its Forester;
    - homes: `link_weight` × distance to the nearest house;
    - courier buildings: minus `cover_weight` per building of its settlement its bots would newly reach; a spot that reaches none is skipped.
-   If no spot qualifies, it remembers that it found no room for that blueprint and, for `no_room_retry_seconds`, plans for its next shortage instead, so one building it cannot place (a dock with no suitable shore) never holds up the bread.
+   A spot is refused if building there would cut storage off from the door of any of the settlement's buildings, or from the tile in front of its own door: on a big landmass a farm was once sealed onto a patch of sand by the next building down. If no spot qualifies, it remembers that it found no room for that blueprint and, for `no_room_retry_seconds`, plans for its next shortage instead, so one building it cannot place (a dock with no suitable shore) never holds up the bread.
 7. **Commits** a construction site through the [job board](/systems/logistics.md) with priority `1 + severity × urgency_priority` (see [site priority](/systems/production.md)) and records why on the building.
 
 # Not thrashing

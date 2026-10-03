@@ -4,7 +4,8 @@
  * An idle carrier claims the cheapest request/offer pair and reserves the
  * goods at both ends, so two carriers never fetch the same stack.
  */
-import { add, bp, ctr, distAB, distBB } from './world.ts';
+import { add, bp, ctr, distAB, distBB, door } from './world.ts';
+import { findPath } from './path.ts';
 import { goToBuilding } from './agents.ts';
 import type { Agent, Building, ItemId, State } from './types.ts';
 
@@ -85,6 +86,7 @@ export function findTask(S: State, a: Agent): boolean {
   const town = a.kind === 'villager' ? a.home?.town ?? null : null;
   const inRange = (b: Building) => {
     if (town !== null && b.town !== town) return false;
+    if (b.noWay !== null && S.t - b.noWay < L.noWayRetrySeconds) return false;
     if (!dep) return true;
     const p = ctr(dep), q = ctr(b);
     return (p.x - q.x) ** 2 + (p.y - q.y) ** 2 <= depR * depR;
@@ -125,11 +127,23 @@ export function findTask(S: State, a: Agent): boolean {
   add(best.dst.incoming, best.item, best.n);
   a.task = best; a.state = 'toSrc';
   if (!goToBuilding(S, a, best.src)) {
+    blame(S, a, best.src);
     add(best.src.reserved, best.item, -best.n); add(best.dst.incoming, best.item, -best.n);
     a.task = null; a.state = 'idle';
     return false;
   }
   return true;
+}
+
+/**
+ * Nobody found a way to `b`. If its own settlement's storage cannot reach its door either, the building has
+ * no way in and is left alone for a while; otherwise the carrier is the one cut off, and waits instead.
+ */
+export function blame(S: State, a: Agent, b: Building) {
+  const store = S.bmap.get(S.towns[b.town]?.store ?? -1), d = door(b);
+  const from = store ? door(store) : null;
+  if (!from || store === b || !findPath(S.world, from.x, from.y, d.x, d.y)) b.noWay = S.t;
+  else a.cool = S.content.tuning.logistics.noWayRetrySeconds;
 }
 
 export function pickup(S: State, a: Agent) {
@@ -143,7 +157,7 @@ export function pickup(S: State, a: Agent) {
   if (!take) { a.task = null; a.state = 'idle'; return; }
   a.carry = { item: t.item, n: take }; a.state = 'toDst';
   if (t.dst.dead || !goToBuilding(S, a, t.dst)) {
-    if (!t.dst.dead) add(t.dst.incoming, t.item, -t.n);
+    if (!t.dst.dead) { add(t.dst.incoming, t.item, -t.n); blame(S, a, t.dst); }
     a.task = null; a.carry = null; a.state = 'idle';
   }
 }

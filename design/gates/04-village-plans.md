@@ -12,7 +12,7 @@ parameters:
   - { name: seconds, type: integer, required: true }
   - { name: map, type: string, required: true }
   - { name: size, type: string, required: true }
-defaults: { seed: 1847, seconds: 1800, map: island, size: medium }
+defaults: { seed: 1847, seconds: 1800, map: island, size: standard }
 pass_when: { min_peak_villagers: 60, min_villagers: 54, max_departures: 2, min_mood_min: 0.6 }
 executor:
   resource: ../references/skills/run-gate.md
@@ -39,4 +39,5 @@ Besides the standard metrics the receipt records `planned` (sites the planner pl
 
 # Revisions
 
-- 2026-10-03: moved to the standard map, Island at medium size, named by the new `map` and `size` parameters (roadmap Phase 7). `min_peak_villagers` rises from 20 to 60 and `min_villagers` from 18 to 54, what the planner reliably reaches there less a margin (70 to 90 on the six swept seeds), as Phase 6 planned. Tightened, not loosened.
+- 2026-10-03: moved to the standard map, Island at the standard size (112 by 80), named by the new `map` and `size` parameters (roadmap Phase 7). `min_peak_villagers` rises from 20 to 60 and `min_villagers` from 18 to 54, what the planner reliably reaches there less a margin (70 to 90 on the six swept seeds), as Phase 6 planned. Tightened, not loosened.
+- 2026-10-03: its world's size is renamed (`isle` for the 56 by 40 Lone isle, `standard` for 112 by 80), since player sizes are now S to XL. Same world, same receipts.

@@ -1,6 +1,6 @@
 [hidden]{display:none!important}
 *,*::before,*::after{box-sizing:border-box}
-/* Layout: full-bleed island canvas; brass-trimmed slate panels float over it (HUD + goals top, inspector right, build bar bottom). Single dark game look by choice. */
+/* Layout: full-bleed island canvas; brass-trimmed slate panels float over it (HUD top, inspector right, build bar bottom). Single dark game look by choice. */
 :root{
   --sea:#1d4b57;
   --panel:#1b2326;
@@ -61,13 +61,6 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--brass-hi);out
 .goals summary{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.06em;color:var(--brass-hi);cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px}
 .goals summary::-webkit-details-marker{display:none}
 .goals summary .count{color:var(--ink-2);font-weight:500;font-variant-numeric:tabular-nums}
-.goals ol{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:5px}
-.goals li{display:grid;grid-template-columns:16px 1fr;gap:8px;align-items:start;font-size:14px;color:var(--ink-2)}
-.goals li::before{content:"";width:12px;height:12px;margin-top:3px;border:1.5px solid var(--line);border-radius:3px}
-.goals li.next{color:var(--ink)}
-.goals li.next::before{border-color:var(--brass)}
-.goals li.done{color:var(--ink-2);text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--ink-2) 60%,transparent)}
-.goals li.done::before{background:var(--good);border-color:var(--good)}
 .knowledge h3{margin:9px 0 4px;font-family:var(--display);font-size:14px;letter-spacing:.05em;color:var(--ink)}
 .knowledge h3 small{font-family:var(--body);font-weight:400;color:var(--ink-2);letter-spacing:0;margin-left:6px}
 .knowledge ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}

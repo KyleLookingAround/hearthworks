@@ -72,7 +72,8 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   // node = tile on foot, or tile + N afloat
   g[s] = 0; seen[s] = gen; came[s] = -1; push(s, h(s));
   let guard = 0;
-  const limit = rowing ? 80000 : 40000;
+  // long trips on big maps need room to search: at least the whole map once, on foot
+  const limit = Math.max(rowing ? 80000 : 40000, rowing ? 2 * N : N);
   while (hi.length && guard++ < limit) {
     const cur = pop();
     if (closed[cur] === gen) continue;

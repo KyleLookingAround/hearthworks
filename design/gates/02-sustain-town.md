@@ -13,7 +13,7 @@ parameters:
   - { name: map, type: string, required: true }
   - { name: size, type: string, required: true }
   - { name: max_houses, type: integer, required: false }
-defaults: { seed: 1847, seconds: 1800, max_houses: 8, map: island, size: small }
+defaults: { seed: 1847, seconds: 1800, max_houses: 8, map: island, size: isle }
 pass_when: { min_peak_villagers: 20, min_villagers: 18, max_departures: 2, min_mood_min: 0.6 }
 executor:
   resource: ../references/skills/run-gate.md
@@ -33,3 +33,4 @@ Phase 2 of the [roadmap](/roadmap.md): the [needs](/systems/needs.md) and produc
 # Revisions
 
 - 2026-10-03: stays on the small Lone isle, the world its scripted layout was written for, now named by the `map` and `size` parameters since the standard map moved to medium (roadmap Phase 7). Its receipts are unchanged.
+- 2026-10-03: its world's size is renamed (`isle` for the 56 by 40 Lone isle, `standard` for 112 by 80), since player sizes are now S to XL. Same world, same receipts.

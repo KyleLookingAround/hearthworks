@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T12:27:37Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T14:06:55Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -69,3 +69,5 @@ The **Knowledge** panel lists, per settlement, what it has learned beyond its fo
 - One discoverable blueprint (the depot) and one need (hauling). New goods and needs would give invention more to do.
 - The island is small: the neighbour sits 13 to 17 tiles away on the swept seeds, and the two settlements share the land: a planner first finds no room for something at 15 to 18 minutes.
 - Forgetting is exercised by tests, not by the gates: planned villages keep using what they learn.
+
+A visitor who finds no way home (the way they came has been built over, or the search could not find it) settles with the hosts if they have a free bed, and is otherwise moved home, so nobody is left working for a village they cannot reach.

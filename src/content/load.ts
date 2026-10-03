@@ -123,7 +123,7 @@ export function buildContent(files: SourceFile[]): Content {
     maps[id] = {
       id, name: str(d, f.title, 'title'), description: str(d, f.description, 'description', ''), order: num(d, f.order, 'order', 99),
       shape: shape as MapDef['shape'], coastline: num(d, f.coastline, 'coastline', 0.6),
-      islands: isl ? { countMin: num(d, isl.count_min, 'islands.count_min'), countMax: num(d, isl.count_max, 'islands.count_max'), radiusMin: num(d, isl.radius_min, 'islands.radius_min'), radiusMax: num(d, isl.radius_max, 'islands.radius_max'), minTiles: num(d, isl.min_tiles, 'islands.min_tiles', 0) } : null,
+      islands: isl ? { countMin: num(d, isl.count_min, 'islands.count_min'), countMax: num(d, isl.count_max, 'islands.count_max'), radiusMin: num(d, isl.radius_min, 'islands.radius_min'), radiusMax: num(d, isl.radius_max, 'islands.radius_max'), minTiles: num(d, isl.min_tiles, 'islands.min_tiles', 0), scaleTiles: num(d, isl.scale_tiles, 'islands.scale_tiles', 1e9), countCap: num(d, isl.count_cap, 'islands.count_cap', 1) } : null,
       islets: num(d, f.islets, 'islets', 0),
       rivers: { count: num(d, riv.count, 'rivers.count', 0), width: num(d, riv.width, 'rivers.width', 2) },
       neighbours: f.neighbours === 'anywhere' ? 'anywhere' : 'reachable',
@@ -146,9 +146,9 @@ export function buildContent(files: SourceFile[]): Content {
   const sizes: Record<string, MapSize> = {};
   for (const [id, v] of Object.entries(isMap(mt.sizes) ? mt.sizes : {})) {
     const m = isMap(v) ? v : {};
-    sizes[id] = { width: num(md, m.width, `tuning.sizes.${id}.width`), height: num(md, m.height, `tuning.sizes.${id}.height`), settlements: num(md, m.settlements, `tuning.sizes.${id}.settlements`) };
+    sizes[id] = { width: num(md, m.width, `tuning.sizes.${id}.width`), height: num(md, m.height, `tuning.sizes.${id}.height`), settlements: num(md, m.settlements, `tuning.sizes.${id}.settlements`), label: str(md, m.label, `tuning.sizes.${id}.label`, id), offered: m.offered !== false };
   }
-  const std = sizes[String(mt.standard_size)] ?? (problems.push(`${md.path}: tuning.standard_size must name one of tuning.sizes`), { width: 0, height: 0, settlements: 1 });
+  const std = sizes[String(mt.standard_size)] ?? (problems.push(`${md.path}: tuning.standard_size must name one of tuning.sizes`), { width: 0, height: 0, settlements: 1, label: '', offered: false });
   if (!maps[String(mt.standard_type)]) problems.push(`${md.path}: tuning.standard_type must name a map type in maps/`);
   const q = (k: string) => num(qd, qt[k], `tuning.${k}`), k = (key: string) => num(kd, kt[key], `tuning.${key}`);
   const tuning: Tuning = {
@@ -162,7 +162,7 @@ export function buildContent(files: SourceFile[]): Content {
       villagerCarry: num(ld, lt.villager_carry, 'tuning.villager_carry'), botCarry: num(ld, lt.bot_carry, 'tuning.bot_carry'),
       villagerSpeed: num(ld, lt.villager_speed, 'tuning.villager_speed'), botSpeed: num(ld, lt.bot_speed, 'tuning.bot_speed'),
       roadSpeed: num(ld, lt.road_speed, 'tuning.road_speed'), boatSpeed: num(ld, lt.boat_speed, 'tuning.boat_speed'), forestSpeed: num(ld, lt.forest_speed, 'tuning.forest_speed'),
-      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'),
+      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'), noWayRetrySeconds: num(ld, lt.no_way_retry_seconds, 'tuning.no_way_retry_seconds'),
     },
     needs: {
       eatEverySeconds: num(nd, nt.eat_every_seconds, 'tuning.eat_every_seconds'), leaveAfterHungrySeconds: num(nd, nt.leave_after_hungry_seconds, 'tuning.leave_after_hungry_seconds'),

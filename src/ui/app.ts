@@ -1,6 +1,5 @@
-/** Browser shell: HUD, goals, build bar, inspector, toasts, pointer input and the frame loop. */
+/** Browser shell: HUD, build bar, inspector, toasts, pointer input and the frame loop. */
 import { loadGame, saveGame, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
-import { GOALS } from '../game/goals.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
 
@@ -18,7 +17,6 @@ export class App {
   speed = 1;
   /** Village plans: the planner chooses and places buildings. On by default; the player can still place by hand. */
   plans = true;
-  goals: boolean[];
   private seenEvents = 0;
   /** Which notices pop up: important ones (default), everything, or none. */
   notices: 'important' | 'all' | 'off' = 'important';
@@ -36,7 +34,6 @@ export class App {
     this.S = createState(content, seed);
     this.dialog = new NewGameDialog(content, c => this.newGame(c), () => this.continueGame(), seed);
     this.view = { cam: { x: 0, y: 0, z: 1 }, hover: null, tool: null, sel: null, routes: false };
-    this.goals = GOALS.map(() => false);
     this.buildBar();
     this.wireControls();
     this.wireInput();
@@ -48,7 +45,6 @@ export class App {
     this.live = false;
     this.setSpeed(0);
     this.dialog.open(false, this.savedLabel());
-    if (window.innerWidth < 640) $<HTMLDetailsElement>('#goals').open = false;
   }
 
   newGame(c: GameChoice) {
@@ -65,22 +61,21 @@ export class App {
     $('#world').textContent = this.worldLabel();
     this.setSpeed(1);
     this.knowKey = '';
-    // a loaded game has already told its news and met its goals
+    // a loaded game has already told its news
     this.seenEvents = S.t > 0 ? S.events.length : 0;
-    this.goals = GOALS.map(g => S.t > 0 && g.check(S));
     // open on the player's first settlement, wherever the seed put it
     const home = this.S.bmap.get(this.S.towns[0].store), cx = home ? home.x + home.w / 2 : this.S.world.w / 2, cy = home ? home.y + home.h / 2 : this.S.world.h / 2;
     const cam = this.view.cam;
     cam.x = cx * TS; cam.y = cy * TS;
     cam.z = Math.max(0.7, Math.min(2.2, Math.min(this.r.cw / (26 * TS), this.r.ch / (17 * TS))));
     this.select(null); this.setTool(null);
-    this.renderGoals(); this.updateHud();
+    this.updateHud();
   }
 
   // ---------- saves ----------
   private worldLabel() {
     const st = this.S.setup, M = this.content.maps[st.map];
-    return `${M?.name ?? st.map}, ${st.size}, seed ${this.S.seed}`;
+    return `${M?.name ?? st.map}, ${this.content.tuning.map.sizes[st.size]?.label ?? st.size}, seed ${this.S.seed}`;
   }
 
   /** Autosave to this browser. Quietly does nothing where storage is unavailable or full. */
@@ -129,7 +124,7 @@ export class App {
       if (steps >= 40) acc = 0;
       this.r.draw(this.S, this.view);
       uiT -= dt;
-      if (uiT <= 0) { uiT = 0.25; this.updateHud(); this.checkGoals(); this.drainEvents(); }
+      if (uiT <= 0) { uiT = 0.25; this.updateHud(); this.drainEvents(); }
       this.saveT += dt;
       if (this.saveT >= AUTOSAVE_SECONDS && this.speed > 0) { this.saveT = 0; this.save(); }
       requestAnimationFrame(frame);
@@ -341,7 +336,7 @@ export class App {
     }
   }
 
-  // ---------- HUD, goals, toasts ----------
+  // ---------- HUD and toasts ----------
   private updateHud() {
     const S = this.S, totals: Record<string, number> = {};
     for (const b of S.buildings) if (this.content.blueprints[b.type].storage && !b.site) for (const k in b.inv) totals[k] = (totals[k] || 0) + b.inv[k];
@@ -389,23 +384,6 @@ export class App {
     $('#knowCount').textContent = `${learned} learned`;
   }
 
-  private renderGoals() {
-    const list = $('#goalList');
-    list.innerHTML = '';
-    const next = this.goals.indexOf(false);
-    GOALS.forEach((g, i) => {
-      const li = document.createElement('li');
-      li.textContent = g.text;
-      li.className = this.goals[i] ? 'done' : i === next ? 'next' : '';
-      list.appendChild(li);
-    });
-    $('#goalCount').textContent = `${this.goals.filter(Boolean).length}/${GOALS.length}`;
-  }
-  private checkGoals() {
-    let changed = false;
-    GOALS.forEach((g, i) => { if (!this.goals[i] && g.check(this.S)) { this.goals[i] = true; changed = true; this.toast(`Goal complete: ${g.text}`, 'good'); } });
-    if (changed) this.renderGoals();
-  }
   private drainEvents() {
     const ev = this.S.events;
     if (this.seenEvents > ev.length) this.seenEvents = 0;

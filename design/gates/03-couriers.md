@@ -12,7 +12,7 @@ parameters:
   - { name: seconds, type: integer, required: true }
   - { name: map, type: string, required: true }
   - { name: size, type: string, required: true }
-defaults: { seed: 1847, seconds: 900, map: island, size: small }
+defaults: { seed: 1847, seconds: 900, map: island, size: isle }
 pass_when: { min_depot_built: 1, min_bot_share: 0.3, max_departures: 0 }
 executor:
   resource: ../references/skills/run-gate.md
@@ -32,3 +32,4 @@ Phase 3 of the [roadmap](/roadmap.md): automation takes real work off villagers.
 # Revisions
 
 - 2026-10-03: stays on the small Lone isle, the world its scripted layout was written for, now named by the `map` and `size` parameters since the standard map moved to medium (roadmap Phase 7). Its receipts are unchanged.
+- 2026-10-03: its world's size is renamed (`isle` for the 56 by 40 Lone isle, `standard` for 112 by 80), since player sizes are now S to XL. Same world, same receipts.
