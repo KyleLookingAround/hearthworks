@@ -181,10 +181,15 @@ export interface PlannerState {
   use: Stock;
 }
 
+/** An era: a group of discoveries; a settlement knowing `share` of them (and every earlier era) is in its age. */
+export interface EraDef { id: string; name: string; order: number; discoveries: string[]; share: number }
+
 export interface Content {
   goods: Record<ItemId, GoodDef>;
   blueprints: Record<string, BlueprintDef>;
   maps: Record<string, MapDef>;
+  /** The ages, in order (design/eras/). */
+  eras: EraDef[];
   tuning: Tuning;
   /** Short hash of the design files the content was built from. */
   hash: string;
@@ -333,6 +338,8 @@ export interface Town {
   mother: number | null;
   /** Founded across water from its mother: a colony. */
   overseas: boolean;
+  /** Its age: the index of the latest era it has reached in content.eras. */
+  age: number;
   sentAt: number;
   settleT: number;
 }

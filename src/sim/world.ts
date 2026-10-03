@@ -292,7 +292,7 @@ export function foundTown(S: State, cx: number, cy: number, planner: boolean, ro
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', rites: [], graves: {}, copyT: 0, reach: 0, mother: null, overseas: false, sentAt: -1e9, settleT: 0 };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', rites: [], graves: {}, copyT: 0, reach: 0, mother: null, overseas: false, age: 0, sentAt: -1e9, settleT: 0 };
   S.towns.push(town);
   if (!party) chronicle(S, id, 'founded', `${town.name} was founded with ${t.villagers} villagers`);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;

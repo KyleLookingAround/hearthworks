@@ -54,6 +54,17 @@ export function pressure(S: State, town: Town, need: string): number {
 
 export const NEED_TEXT: Record<string, string> = { distance: 'its goods travel a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it strains at needs nothing it knows can meet', hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round' };
 
+/** A settlement's age: the latest era it has reached, knowing each era's `share` of its discoveries and every earlier era's. */
+export function ageOf(S: State, town: Town): number {
+  let age = 0;
+  S.content.eras.forEach((E, i) => {
+    if (age !== i - 1 && i > 0) return;
+    const known = E.discoveries.filter(id => id in town.knows).length;
+    if (!E.discoveries.length || known / E.discoveries.length >= E.share) age = i;
+  });
+  return age;
+}
+
 /** Has this settlement proven the blueprint in use itself? Founders' knowledge counts. */
 const provenHere = (town: Town, k: Knowledge) => k.verified.some(v => v.by === town.name || v.by === 'founders');
 
@@ -136,6 +147,15 @@ export function updateKnowledge(S: State, dt: number) {
       S.stats.forgotten++;
       chronicle(S, town.id, 'forgotten', `${town.name} forgot how to build the ${name(S, id)}`);
       emit(S, 'bad', `${town.name} forgot how to build the ${name(S, id)}: nobody had built one in a long while`);
+    }
+
+    // its age: the latest era it has reached with every one before it
+    const age = ageOf(S, town);
+    if (age !== town.age) {
+      const E = S.content.eras[age], up = age > town.age;
+      town.age = age;
+      chronicle(S, town.id, 'age', up ? `${town.name} entered the Age of ${E.name}` : `${town.name} fell back to the Age of ${E.name}`);
+      emit(S, up ? 'good' : 'bad', up ? `${town.name} entered the Age of ${E.name}` : `${town.name} fell back to the Age of ${E.name}: what it knew was forgotten`);
     }
 
     // every ten seconds: how much grass near home cannot be walked to, and how often trips go the long way round

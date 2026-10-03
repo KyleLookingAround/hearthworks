@@ -5,7 +5,7 @@
  */
 import { parseDoc, type Doc } from './frontmatter.ts';
 import type { YamlMap, YamlValue } from './yaml.ts';
-import type { BlueprintDef, Content, GoodDef, MapDef, MapSize, Stock, Tuning } from '../sim/types.ts';
+import type { BlueprintDef, Content, EraDef, GoodDef, MapDef, MapSize, Stock, Tuning } from '../sim/types.ts';
 
 export interface SourceFile { path: string; raw: string }
 
@@ -127,6 +127,14 @@ export function buildContent(files: SourceFile[]): Content {
 
   // map types
   const maps: Record<string, MapDef> = {};
+  // eras: discoveries grouped into ages
+  const eras: EraDef[] = [];
+  for (const d of docs.filter(d => d.path.startsWith('eras/'))) {
+    if (d.data.type !== 'Era') continue;
+    const f = d.data, list = Array.isArray(f.discoveries) ? f.discoveries.map(String) : [];
+    eras.push({ id: slug(d.path), name: String(f.title ?? slug(d.path)).replace(/^The Age of /, ''), order: num(d, f.order, 'order'), discoveries: list, share: num(d, f.share, 'share') });
+  }
+  eras.sort((a, b) => a.order - b.order);
   for (const d of docs.filter(d => d.path.startsWith('maps/'))) {
     if (d.data.type !== 'Map Type') continue;
     const id = slug(d.path), f = d.data;
@@ -227,5 +235,6 @@ export function buildContent(files: SourceFile[]): Content {
   checkGoods(sd, tuning.start.storage, 'tuning.storage'); checkGoods(sd, tuning.start.houseStock, 'tuning.house_stock');
 
   if (problems.length) throw new ContentError(problems);
-  return { goods, blueprints, maps, tuning, hash };
+  for (const e of eras) for (const id of e.discoveries) if (!blueprints[id]?.discovery) problems.push(`eras/${e.id}.md: discovery "${id}" is not a blueprint that must be thought of`);
+  return { goods, blueprints, maps, eras, tuning, hash };
 }

@@ -425,7 +425,7 @@ export class App {
     // trade so far: the three biggest of each way, in whole loads
     const top = (r: Record<string, number>) => Object.entries(r).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([g, n]) => `${n} ${(this.content.goods[g]?.name ?? g).toLowerCase()}`).join(', ');
     const trade = S.trade && S.towns.length > 1 ? [top(t.trade.exported) || 'nothing yet', top(t.trade.imported) || 'nothing yet'] : null;
-    const key = JSON.stringify([t.id, t.levers, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.rites.length]);
+    const key = JSON.stringify([t.id, t.levers, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.rites.length, t.age]);
     if (!force && key === this.stewardKey) return;
     this.stewardKey = key;
     const needs: [string, string][] = [
@@ -439,6 +439,7 @@ export class App {
     html += '<div class="steward-grid">' + needs.map(([k, label]) => `<span>${label}</span>${sel('p:' + k, t.levers.priority[k] ?? 1, levels)}`).join('');
     html += `<span>Encourage thinking about</span><select data-lever="encourage"><option value="">Nothing in particular</option>${unknown.map(B => `<option value="${B.id}"${t.levers.encourage === B.id ? ' selected' : ''}>${esc(B.name)}</option>`).join('')}</select>`;
     html += `<span>Pace</span>${sel('pace', t.levers.pace, [[0.5, 'Unhurried'], [1, 'Normal'], [2, 'Brisk']])}</div>`;
+    html += `<div class="steward-grid"><span>Age</span><span>${esc(this.content.eras[t.age]?.name ?? '')}</span></div>`;
     if (S.people) {
       const word = { burial: 'Burial', cremation: 'Cremation', ship: 'Ship burial' }[t.custom];
       html += `<div class="steward-grid"><span>Custom for the dead</span><span>${word}${t.rites.length ? `, ${t.rites.length} waiting` : ''}</span></div>`;

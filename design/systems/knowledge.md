@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T19:35:38Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T20:47:55Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60

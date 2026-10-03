@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T20:14:54Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T20:47:55Z }
 ---
 
 # How to read this
@@ -35,8 +35,9 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 16 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | [Gate 16](/gates/16-ways-to-move.md) | Done |
 | 17 | New settlements | Crowded towns send settlers off with goods, knowledge and customs | 16 | [Gate 17](/gates/17-new-settlements.md) | Done |
 | 18 | The sea | The archipelago map type, ports, ships, exploration, colonies | 13, 17 | [Gate 18](/gates/18-the-sea.md) | Done |
-| 19 | Ages | Eras of technology, machine tiers, crafts lost | 15, 18 | An age turns unscripted; an isolated town loses a craft | Later |
-| 20 | Hardship | Fire, flood, sickness and their counters; hard laws | 12, 19 | A town weathers each hazard and three winters | Later |
+| 19 | Ages | Eras of technology, machine tiers, crafts lost | 15, 18 | [Gate 19](/gates/19-ages.md) | Done |
+| 20 | Hardship | Fire, flood, sickness, barbarians and their counters; hard laws | 12, 17, 19 | A town weathers each hazard and three winters | Later |
+| 21 | Paths and roads | Worn paths become paths; roads are planned as long straight strips, cut through what stands, and the town is planned around them | 9, 16 | A town's main roads run straight through it, and travel along them beats the paths | Later |
 
 Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to 10), **depth of life** (11 to 15: goods, seasons, trade, people and learning), **many peoples** (16 to 18) and **ages and trials** (19 and 20).
 
@@ -300,6 +301,10 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 - **Machine tiers:** courier bots, then conveyors, then rail, each discovered when the tier below visibly struggles.
 - **Regression:** an isolated or shrinking settlement without a library can fall back an age.
 
+**Delivered, in part.** [Ages](/systems/ages.md): eras are concepts in `design/eras/` ([Hand Tools](/eras/hand_tools.md), [Wheel and Keel](/eras/wheel_and_keel.md), [Letters](/eras/letters.md), [Clockwork](/eras/clockwork.md)), each a set of discoveries and the share of them a settlement must know, after every earlier era. A settlement's age turns as it learns and falls back as it forgets, into the chronicle and the Steward panel. Saves go to version 15. **Phase 19 is done in part:** eras do not yet unlock blueprints of their own, and the machine tiers after courier bots (conveyors, rail) and the eras of iron, mills and steam wait.
+
+**Gate 19 (stable)**, as proposed: Landmass L, 90 minutes, every settlement past the first age on the default seed (at least half required); an isolated settlement without a library falls back an age, and with one it does not.
+
 **Gate 19 (proposed).** An age turns across at least half the settlements unscripted. In a second scenario, an isolated settlement without a library loses a craft it stopped practising.
 
 # 20. Hardship
@@ -310,13 +315,36 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 - **Hazards and their counters:**
   - fire spreads between close wooden buildings, answered by wells and fire crews;
   - rivers flood, answered by levees;
-  - sickness spreads in crowded towns, answered by healers and then sanitation.
+  - sickness spreads in crowded towns, answered by healers and then sanitation;
+  - barbarians (Kyle's idea): camps spawn in wild land far from any settlement, more where more land lies untouched, and raid the nearest settlement's stores; answered by palisades, watchtowers and a militia drawn from villagers, and in the end by settling (17): as civilisation spreads, the wild land where camps can appear shrinks. Whether barbarians can later be traded with or settle down is open.
   - Each counter is discovered under its strain.
 - **The remaining laws** for the steward: rationing, working hours, who may leave.
 
-**Gate 20 (proposed).** A planned town weathers one hazard of each kind and three winters, losing at most 10% of its people. In a paired scenario, rationing brings a town through a lean winter that kills or drives off more people without it.
+**Gate 20 (proposed).** A planned town weathers one hazard of each kind (barbarian raids among them) and three winters, losing at most 10% of its people. In a paired scenario, rationing brings a town through a lean winter that kills or drives off more people without it.
 
 **Kyle's call.** Can fire destroy buildings for good, or only damage them?
+
+# 21. Paths and roads
+
+Kyle's idea. **Why.** Today's "roads" are desire paths: worn where people walk, winding around whatever stands. Real towns lay their roads first and build along them.
+
+**Builds.**
+- **Paths.** What wear lays down today is renamed a path (still faster than open ground).
+- **Roads.** Discovered later (wheel and keel, or under hauling strain on long paths), roads are planned as long straight strips between districts and to neighbours, faster than paths, especially for carts.
+- **Cutting through.** A planned road may demolish what stands in its line (moving people first, salvaging as replanning does), as long as the strip stays straight.
+- **Planned around.** Once a road is laid, the planner sites buildings along it, doors facing it, instead of letting paths wind around buildings.
+
+**Gate 21 (proposed).** A town on the standard map lays at least one straight road through its centre unscripted, nobody is left homeless by it, and deliveries along it are faster than along paths.
+
+# The second pass
+
+Kyle's call: once Phases 20 and 21 are built, the roadmap is walked again from Phase 1, giving each phase depth and polish rather than new systems. In particular:
+
+- **What was delivered in part:** ox carts, river boats and multi-leg deliveries (16); shipyards, crewed ships, reefs and explorers (18); eras that unlock blueprints, conveyors and rail (19); planners as people and traditions beyond the dead (14); reading from libraries and discoveries that need a university (15).
+- **Gates held below their proposals:** trade that beats isolation and real specialisation (13), half of long deliveries by cart against Gate 8's baseline (16); and the seeds logged as findings (Gate 12 seeds 42 and 2026, Gate 14 seed 2026, Gate 18 seeds 7 and 99).
+- **Polish:** how each system reads and feels in the game (inspector lines, overlays, chronicle wording, the advisor), the new-game screen's growing list of options, and performance on the largest maps with every system on.
+
+Each phase's second pass is pushed and verified like any phase, with its gates rerun and any that can now be raised superseded (rule 6).
 
 # Beyond
 

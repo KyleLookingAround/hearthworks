@@ -20,3 +20,4 @@
 * [Gate 16: ways to move](16-ways-to-move.md) - On the largest landmass a settlement thinks of carts itself, and long hauls go largely by cart, each good in well under the time on foot.
 * [Gate 17: new settlements](17-new-settlements.md) - On the largest landmass one settlement becomes at least four, unscripted, each fed and growing.
 * [Gate 18: the sea](18-the-sea.md) - On an islands map a settlement founds a colony on another island unscripted; the colony lasts thirty minutes and trades back with its mother town.
+* [Gate 19: ages](19-ages.md) - An age turns across at least half the settlements unscripted, and an isolated settlement without a library falls back an age when it stops practising its crafts.
