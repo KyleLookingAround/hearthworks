@@ -4,7 +4,7 @@ title: Starting settlement
 description: What a new game begins with, per settlement — a storage yard, two houses, a road and five villagers.
 tags: [world, balance]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T11:46:25Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T12:15:45Z }
 tuning:
   villagers: 5
   storage: { planks: 30, bread: 12, logs: 4 }
@@ -12,15 +12,17 @@ tuning:
   names: [Hearth, Brook, Ashby, Fenwick]
   neighbour_min_distance: 12
   neighbour_spacing: 30
+  start_room_share: 0.85
+  start_wood_weight: 2
 ---
 
 # Layout
 
-A [Storage Yard](/blueprints/storage.md) at the island centre, a [House](/blueprints/house.md) either side and a road along the south edge.
+A [Storage Yard](/blueprints/storage.md), a [House](/blueprints/house.md) either side and a road along the south edge. Each settlement gets a grove planted north-west of it and its centre cleared of trees.
 
 # Neighbours
 
-A game founds as many settlements as the player picks (the [map](/systems/map.md) size sets the default, two), named from `names` in order: the first at the centre of the map, each further one with the same layout on open grass at least `neighbour_min_distance` tiles from every other and reachable on foot. Among those spots it takes the farthest from its nearest neighbour, up to `neighbour_spacing` tiles, then the one with the most land around it; on large maps that keeps villages apart without pushing them into corners. Gates found one unless their scenario asks for more. Each settlement has its own [knowledge](/systems/knowledge.md) and [planner](/systems/planner.md).
+A game founds as many settlements as the player picks (the [map](/systems/map.md) size sets the default, two), named from `names` in order. The **first** is placed by the seed: every spot where the starting layout fits on open grass scores its room to grow (grass within 8 tiles) plus `start_wood_weight` per grown tree within 10, and the seed picks one of the spots scoring at least `start_room_share` of the best, so a village starts near wood. Each further one goes with the same layout on open grass at least `neighbour_min_distance` tiles from every other and reachable on foot. Among those spots it takes the farthest from its nearest neighbour, up to `neighbour_spacing` tiles, then the one with the most land around it; on large maps that keeps villages apart without pushing them into corners. Gates found one unless their scenario asks for more. Each settlement has its own [knowledge](/systems/knowledge.md) and [planner](/systems/planner.md).
 
 On the small island the neighbour lands 13 to 17 tiles from the centre on the swept seeds.
 

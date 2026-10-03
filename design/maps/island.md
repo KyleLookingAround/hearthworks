@@ -4,7 +4,7 @@ title: Island
 description: One landmass ringed by sea, with a guaranteed grove near the first settlement. The standard map.
 tags: [map, standard]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T10:58:17Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T12:15:45Z }
 order: 1
 shape: island
 terrain: { large_cell: 9, small_cell: 4, large: 0.5, small: 0.3, base: 0.45, falloff: 0.78 }
@@ -17,10 +17,10 @@ forest: { cell: 6, threshold: 0.56, density: 0.8, scatter: 0.03, grove_density: 
 
 Height is two octaves of value noise plus `base`, minus `falloff` times the squared distance from the centre, so land gives way to sand and sea towards the edges. The middle (within `land_radius`) is always land, and the map border is always sea.
 
-# Forests and the first settlement
+# Forests and settlements
 
-Forest clusters follow a third noise layer above `threshold`, with `scatter` lone trees elsewhere. A grove is planted north-west of the first settlement, and trees are cleared within `clear_radius` of its storage yard.
+Forest clusters follow a third noise layer above `threshold`, with `scatter` lone trees elsewhere. Where settlements start is chosen by the seed ([settlement](/systems/settlement.md)); each gets a grove (`grove_density`) planted north-west of it, and trees cleared within `clear_radius` of its storage yard.
 
 # Standard
 
-Island at the standard size (see [map](/systems/map.md)) is the world every gate runs on. These numbers reproduce the original island exactly: changing them changes every gate's world.
+Island at the standard size (see [map](/systems/map.md)) is the world every gate runs on. The land is the original island's for every seed; since settlements are placed by the seed, the villages on it are not where they used to be. Changing these numbers changes every gate's world.

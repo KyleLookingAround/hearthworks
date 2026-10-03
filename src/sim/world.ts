@@ -44,13 +44,61 @@ function generateWorld(M: MapDef, W: number, H: number, S: State): World {
     const i = y * W + x;
     if (w.ground[i] === 2 && ((n3(x, y) > F.threshold && rand(r) < F.density) || rand(r) < F.scatter)) w.tree[i] = 2;
   }
-  const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
+  return w;
+}
+
+/** Ready a settlement's ground: a grove planted north-west of it so it can start a wood chain, and its centre cleared. */
+function prepareSite(S: State, M: MapDef, cx: number, cy: number) {
+  const w = S.world, W = w.w;
   for (let y = cy - 8; y <= cy - 3; y++) for (let x = cx - 12; x <= cx - 6; x++) {
     const i = y * W + x;
-    if (inB(w, x, y) && w.ground[i] === 2 && rand(r) < F.groveDensity) w.tree[i] = 2;
+    if (inB(w, x, y) && w.ground[i] === 2 && w.bgrid[i] === -1 && rand(S.rng) < M.forest.groveDensity) w.tree[i] = 2;
   }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (Math.hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
-  return w;
+  for (let y = Math.max(0, cy - 8); y <= Math.min(w.h - 1, cy + 8); y++) for (let x = Math.max(0, cx - 8); x <= Math.min(W - 1, cx + 8); x++) {
+    if (Math.hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
+  }
+}
+
+/** Does the starting layout (storage, a house each side, a road) fit around (cx, cy) on open grass with a margin? */
+function layoutFits(w: World, cx: number, cy: number): boolean {
+  for (let y = cy - 2; y <= cy + 3; y++) for (let x = cx - 6; x <= cx + 5; x++) {
+    const i = y * w.w + x;
+    if (!inB(w, x, y) || w.ground[i] !== 2 || w.bgrid[i] !== -1 || w.road[i]) return false;
+  }
+  return true;
+}
+
+/** Grass tiles within 8 of a point: room to grow. */
+function roomAround(w: World, cx: number, cy: number): number {
+  let room = 0;
+  for (let y = cy - 8; y <= cy + 8; y++) for (let x = cx - 8; x <= cx + 8; x++) if (inB(w, x, y) && w.ground[y * w.w + x] === 2) room++;
+  return room;
+}
+
+/** Grown trees within 10 of a point: wood close enough to start a wood chain. */
+function woodAround(w: World, cx: number, cy: number): number {
+  let n = 0;
+  for (let y = cy - 10; y <= cy + 10; y++) for (let x = cx - 10; x <= cx + 10; x++) if (inB(w, x, y) && w.tree[y * w.w + x] === 2) n++;
+  return n;
+}
+
+/**
+ * Where the first settlement starts, chosen by the seed. Each spot where the starting layout fits
+ * scores its room to grow plus `start_wood_weight` per tree nearby; of the spots scoring at least
+ * `start_room_share` of the best, the seed picks one.
+ */
+function firstSite(S: State): { x: number; y: number } {
+  const w = S.world, T = S.content.tuning.start, share = T.startRoomShare;
+  const spots: { x: number; y: number; room: number }[] = [];
+  let best = 0;
+  for (let cy = 4; cy < w.h - 5; cy++) for (let cx = 8; cx < w.w - 7; cx++) {
+    if (!layoutFits(w, cx, cy)) continue;
+    const room = roomAround(w, cx, cy) + T.startWoodWeight * woodAround(w, cx, cy);
+    spots.push({ x: cx, y: cy, room }); best = Math.max(best, room);
+  }
+  const good = spots.filter(s => s.room >= best * share);
+  if (!good.length) return { x: Math.floor(w.w / 2), y: Math.floor(w.h / 2) };
+  return good[Math.floor(rand(S.rng) * good.length)];
 }
 
 /**
@@ -73,11 +121,13 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   if (!size) throw new Error(`unknown map size "${sizeId}"`);
   S.setup = { map: mapId, size: sizeId, settlements: opts.settlements ?? 1 };
   S.world = generateWorld(M, size.width, size.height, S);
-  const { w: W, h: H } = S.world;
-  foundTown(S, Math.floor(W / 2), Math.floor(H / 2), opts.planner ?? false);
+  const first = firstSite(S);
+  prepareSite(S, M, first.x, first.y);
+  foundTown(S, first.x, first.y, opts.planner ?? false);
   for (let k = 1; k < (opts.settlements ?? 1); k++) {
     const at = neighbourSite(S);
     if (!at) break;
+    prepareSite(S, M, at.x, at.y);
     foundTown(S, at.x, at.y, opts.planner ?? false);
   }
   S.planner = S.towns[0].planner;
@@ -122,14 +172,8 @@ function neighbourSite(S: State): { x: number; y: number } | null {
     // as far as possible up to `neighbour_spacing`; past that, room to grow decides
     const spread = Math.floor(Math.min(d, t.neighbourSpacing));
     if (d < t.neighbourMinDistance || spread < bestD) continue;
-    let ok = true;
-    for (let y = cy - 2; y <= cy + 3 && ok; y++) for (let x = cx - 6; x <= cx + 5; x++) {
-      const i = y * w.w + x;
-      if (!inB(w, x, y) || w.ground[i] !== 2 || w.bgrid[i] !== -1 || w.road[i]) { ok = false; break; }
-    }
-    if (!ok) continue;
-    let room = 0;
-    for (let y = cy - 8; y <= cy + 8; y++) for (let x = cx - 8; x <= cx + 8; x++) if (inB(w, x, y) && w.ground[y * w.w + x] === 2) room++;
+    if (!layoutFits(w, cx, cy)) continue;
+    const room = roomAround(w, cx, cy);
     if (spread === bestD && room <= bestRoom) continue;
     if (!findPath(w, home.x, home.y, cx, cy + 1)) continue;
     bestD = spread; bestRoom = room; best = { x: cx, y: cy };

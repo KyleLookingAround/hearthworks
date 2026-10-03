@@ -149,7 +149,7 @@ export function buildContent(files: SourceFile[]): Content {
     start: {
       villagers: num(sd, st.villagers, 'tuning.villagers'), storage: stock(sd, st.storage, 'tuning.storage'), houseStock: stock(sd, st.house_stock, 'tuning.house_stock'),
       names: Array.isArray(st.names) && st.names.length ? st.names.map(String) : (problems.push(`${sd.path}: "tuning.names" must be a list of settlement names`), ['']),
-      neighbourMinDistance: num(sd, st.neighbour_min_distance, 'tuning.neighbour_min_distance'), neighbourSpacing: num(sd, st.neighbour_spacing, 'tuning.neighbour_spacing'),
+      neighbourMinDistance: num(sd, st.neighbour_min_distance, 'tuning.neighbour_min_distance'), neighbourSpacing: num(sd, st.neighbour_spacing, 'tuning.neighbour_spacing'), startRoomShare: num(sd, st.start_room_share, 'tuning.start_room_share'), startWoodWeight: num(sd, st.start_wood_weight, 'tuning.start_wood_weight'),
     },
     logistics: {
       villagerCarry: num(ld, lt.villager_carry, 'tuning.villager_carry'), botCarry: num(ld, lt.bot_carry, 'tuning.bot_carry'),

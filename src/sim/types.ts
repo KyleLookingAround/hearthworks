@@ -56,7 +56,7 @@ export interface Setup { map: string; size: string; settlements: number }
 export interface Tuning {
   /** `width`/`height` are the standard size's; gates run on the standard map. */
   map: { width: number; height: number; treeGrowSeconds: number; standardType: string; standardSize: string; sizes: Record<string, MapSize> };
-  start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number };
+  start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
     roadSpeed: number; forestSpeed: number; outputCap: number; dumpAt: number; requestAging: number;

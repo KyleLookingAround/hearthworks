@@ -55,7 +55,8 @@ export class App {
     this.knowKey = '';
     this.seenEvents = 0;
     this.goals = GOALS.map(() => false);
-    const cx = Math.floor(this.S.world.w / 2), cy = Math.floor(this.S.world.h / 2);
+    // open on the player's first settlement, wherever the seed put it
+    const home = this.S.bmap.get(this.S.towns[0].store), cx = home ? home.x + home.w / 2 : this.S.world.w / 2, cy = home ? home.y + home.h / 2 : this.S.world.h / 2;
     const cam = this.view.cam;
     cam.x = cx * TS; cam.y = cy * TS;
     cam.z = Math.max(0.7, Math.min(2.2, Math.min(this.r.cw / (26 * TS), this.r.ch / (17 * TS))));
