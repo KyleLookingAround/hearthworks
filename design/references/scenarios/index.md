@@ -9,4 +9,5 @@
 * [solid-ground.ts](solid-ground.ts)
 * [sustain-town.ts](sustain-town.ts)
 * [village-plans.ts](village-plans.ts)
+* [village-to-town.ts](village-to-town.ts)
 * [worlds.ts](worlds.ts)

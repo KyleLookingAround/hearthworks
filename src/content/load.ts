@@ -101,6 +101,7 @@ export function buildContent(files: SourceFile[]): Content {
       storage: f.storage === true,
       paves: f.paves === true,
       shore: f.shore === true,
+      form: f.form === 'town' ? 'town' : f.form === 'village' ? 'village' : 'hamlet',
       bridge: bridge ? { maxSpan: num(d, bridge.max_span, 'bridge.max_span') } : null,
       nuisance: nuisance ? { radius: num(d, nuisance.radius, 'nuisance.radius'), amount: num(d, nuisance.amount, 'nuisance.amount') } : null,
       discovery: discovery ? { need: str(d, discovery.need, 'discovery.need'), meanSeconds: num(d, discovery.mean_seconds, 'discovery.mean_seconds') } : null,
@@ -184,7 +185,7 @@ export function buildContent(files: SourceFile[]): Content {
       sitePriorityTiles: num(pd, pt.site_priority_tiles, 'tuning.site_priority_tiles'),
     },
     planner: {
-      intervalSeconds: q('interval_seconds'), detourRatio: q('detour_ratio'), detourWeight: q('detour_weight'), bridgeReachWeight: q('bridge_reach_weight'), bridgeMinGain: q('bridge_min_gain'), bridgeSpacing: q('bridge_spacing'), paveWear: q('pave_wear'), pavePerLook: q('pave_per_look'), wearHalfLifeSeconds: q('wear_half_life_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'),
+      intervalSeconds: q('interval_seconds'), replanMinAge: q('replan_min_age'), districtBuildings: q('district_buildings'), districtSpacing: q('district_spacing'), districtRoomWeight: q('district_room_weight'), replanEverySeconds: q('replan_every_seconds'), salvageShare: q('salvage_share'), villageAt: q('village_at'), townAt: q('town_at'), rowWeight: q('row_weight'), streetWeight: q('street_weight'), streetEveryRows: q('street_every_rows'), streetEveryCols: q('street_every_cols'), streetRadius: q('street_radius'), detourRatio: q('detour_ratio'), detourWeight: q('detour_weight'), bridgeReachWeight: q('bridge_reach_weight'), bridgeMinGain: q('bridge_min_gain'), bridgeSpacing: q('bridge_spacing'), paveWear: q('pave_wear'), pavePerLook: q('pave_per_look'), wearHalfLifeSeconds: q('wear_half_life_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'),
       foodHeadroom: q('food_headroom'), growthBeds: q('growth_beds'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
       costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), crossingWeight: q('crossing_weight'), savePatienceSeconds: q('save_patience_seconds'), noRoomRetrySeconds: q('no_room_retry_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
       searchRadius: q('search_radius'), searchRadiusMax: q('search_radius_max'), gap: q('gap'), minTrees: q('min_trees'),

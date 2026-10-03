@@ -245,10 +245,16 @@ export class Renderer {
         }
         return;
       }
-      case 'house': {
+      case 'house': case 'family_house': case 'terrace': {
         this.hut(px, py, pw, ph, '#dccaa2', B.color);
         c.fillStyle = b.residents.length && b.status.l !== 'bad' ? '#f0c27a' : '#5e5446';
-        c.fillRect(px + 9, py + ph * 0.58, 6, 6); c.fillRect(px + pw - 15, py + ph * 0.58, 6, 6);
+        // a window each side of every door-width of wall; terraces show a party wall between each home
+        const bays = Math.max(1, Math.round(b.w / 2));
+        for (let k = 0; k < bays; k++) {
+          const bx = px + (pw / bays) * k;
+          c.fillRect(bx + 9, py + ph * 0.58, 6, 6); c.fillRect(bx + pw / bays - 15, py + ph * 0.58, 6, 6);
+          if (k) { c.fillStyle = 'rgba(60,40,30,.5)'; c.fillRect(bx - 1, py + ph * 0.4, 2, ph * 0.55); c.fillStyle = b.residents.length && b.status.l !== 'bad' ? '#f0c27a' : '#5e5446'; }
+        }
         return;
       }
       case 'forester': {

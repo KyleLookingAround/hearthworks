@@ -10,3 +10,4 @@
 * [Gate 6: solid ground](06-solid-ground.md) - Two self-planning settlements for 30 game minutes; a game saved halfway and loaded finishes identical to one that never stopped, nobody is ever inside a building's walls, and both villages thrive.
 * [Gate 7: worlds](07-worlds.md) - Four self-planning settlements on an S-size island grow past 600 villagers in an hour within the work budgets, and every map type at every size a player can pick founds its settlements and feeds them.
 * [Gate 8: the lie of the land](08-lie-of-the-land.md) - A village on a landmass with rivers paves the paths its people wear (deliveries 15% faster per tile or more), comes up with a bridge and builds it, keeps homes away from noise, and stays fed.
+* [Gate 9: village to town](09-village-to-town.md) - One self-planning settlement grows from a roomy hamlet into a town in an hour, with denser homes, replanned blocks, three districts, nobody leaving for it and everyone fed.

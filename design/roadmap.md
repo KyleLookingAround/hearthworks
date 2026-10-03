@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T15:06:44Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T15:43:36Z }
 ---
 
 # How to read this
@@ -124,6 +124,8 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Why now.** It needs land with a shape (8), solid buildings (6) and a planning cost that is measured (6, 7).
 
+**Delivered.** Form by size (hamlet, village from 40 people, town from 90); the ladder of homes ([Cottage](/blueprints/house.md), [Family House](/blueprints/family_house.md), [Terrace](/blueprints/terrace.md)); homes wall to wall in rows; a street grid per district in a town; replanning of old blocks with everyone re-housed first and part of the cost salvaged; districts around storage yards, split as they fill, with placement searching only the newest; [Gate 9](/gates/09-village-to-town.md). **Phase 9 is done.** The town planner and its district planners are one planner per settlement working district by district; districts have no separate purposes or quotas yet, and tenements wait for fire (Phase 20) to give density its full price.
+
 **Builds.**
 - **Form by size.** Hamlets are roomy (today's ring of open land, with gardens as amenity); villages pair houses wall to wall; towns lay a street grid ahead of growth and fill blocks with terraced rows facing the street. Thresholds are tuning.
 - **A ladder of home sizes:** cottage, family house, terrace, and later tenement, each with more beds per tile. A cottage on a good plot is torn down for a terrace once the town outgrows it.
@@ -139,7 +141,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
   - Each district planner sees only its own blocks, so planning cost follows district size, not town size.
 - **Density has a price:** crowding lowers surroundings, and later fire runs along rows (Phase 20).
 
-**Gate 9 (proposed).** Standard map, one settlement, 60 game minutes:
+**Gate 9 (stable)**, as proposed, plus `town_form = 2`; `planner_spots` uses Gate 7's budget, and "homes per built tile" counts housing land (home footprints and the ring of land around them). Standard map, one settlement, 60 game minutes:
 - `min_blocks_replanned: 1`;
 - homes per built tile at the end at least 1.5 times the hamlet's;
 - `min_districts: 3`;

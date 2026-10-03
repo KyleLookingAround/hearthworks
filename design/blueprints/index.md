@@ -6,9 +6,11 @@
 * [Bridge](bridge.md) - A plank span across a river or channel, up to six tiles of water with land at both ends. Walked like a road; boats pass under.
 * [Courier Depot](depot.md) - Winds up three courier bots that haul goods within twelve tiles. They never eat, so villagers are free to work.
 * [Dock](dock.md) - A jetty on the shore where rowing boats are kept. Villagers launch from it and can land on any shore.
+* [Family House](family_house.md) - Home for six villagers on a 3 by 2 plot; villages build them wall to wall.
 * [Farm](farm.md) - Grows wheat for the bakery.
 * [Forester](forester.md) - Fells grown trees within five tiles and plants saplings so the woods come back.
-* [House](house.md) - Home for three villagers. Keeps a small stock of bread on the shelf.
+* [Cottage](house.md) - A small home for three villagers on a roomy plot, the first rung of the ladder of homes. Keeps a small stock of bread on the shelf.
 * [Road](road.md) - Paved tiles. Villagers walk faster on roads.
 * [Sawmill](sawmill.md) - Cuts one log into one plank. Planks build everything.
 * [Storage Yard](storage.md) - Holds surplus goods. Carriers fetch from here when nothing nearer has what they need.
+* [Terrace](terrace.md) - A row of small homes for twelve villagers on a 4 by 2 plot, built facing a street; towns build them in rows.

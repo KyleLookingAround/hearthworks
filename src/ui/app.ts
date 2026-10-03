@@ -1,5 +1,6 @@
 /** Browser shell: HUD, build bar, inspector, toasts, pointer input and the frame loop. */
 import { surroundings } from '../sim/surroundings.ts';
+import { formOf, hubs } from '../sim/planner.ts';
 import { loadGame, saveGame, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
@@ -344,13 +345,17 @@ export class App {
     for (const b of S.buildings) if (this.content.blueprints[b.type].storage && !b.site) for (const k in b.inv) totals[k] = (totals[k] || 0) + b.inv[k];
     $('#res').innerHTML = Object.values(this.content.goods).sort((a, b) => a.order - b.order).map(g =>
       `<span class="chip" title="${esc(g.name)} in storage"><span class="dot" style="background:${g.color}"></span><span class="lbl">${esc(g.name)}</span> <b>${n0(totals[g.id])}</b></span>`).join('');
-    const vs = villagers(S), cap = countBuilt(S, 'house') * this.content.blueprints.house.homes, bots = S.agents.length - vs.length;
+    const vs = villagers(S), cap = S.buildings.reduce((n, b) => n + (b.site ? 0 : this.content.blueprints[b.type].homes), 0), bots = S.agents.length - vs.length;
     const carriers = vs.filter(a => a.role === 'carrier').length, m = Math.round(S.mood * 100);
     const mc = m >= 80 ? 'mood-good' : m >= 50 ? 'mood-warn' : 'mood-bad';
     const line = $('#planLine'), on = S.planner.on, multi = S.towns.length > 1;
     line.classList.toggle('off', !on);
     $('#planText').innerHTML = on
-      ? S.towns.map(t => (multi ? `<b class="tn">${esc(t.name)}</b> ` : '') + esc(t.planner.status)).join(' <br>')
+      ? S.towns.map(t => {
+        // a settlement's form, and its districts once it has more than one
+        const d = hubs(S, t).length, form = formOf(S, t), tag = `${form}${d > 1 ? `, ${d} districts` : ''}`;
+        return `<b class="tn" title="${esc(tag)}">${esc(multi ? t.name : form[0].toUpperCase() + form.slice(1))}</b> ` + esc(t.planner.status);
+      }).join(' <br>')
       : 'Plans are off: you place the buildings';
     this.renderKnowledge();
     $('#meta').innerHTML = `<span class="chip" title="Villagers and beds"><span class="lbl">Villagers</span> 👤 <b>${vs.length}/${cap}</b></span><span class="chip" id="chipCarriers">Carriers <b>${carriers}</b></span><span class="chip ${mc}" title="Mood"><span class="lbl">Mood</span> ☺ <b>${m}%</b></span>` + (bots ? `<span class="chip" title="Bots"><span class="lbl">Bots</span> ⚙ <b>${bots}</b></span>` : '');

@@ -186,7 +186,7 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   const S = {
     content, seed, rng: makeRng(seed), krng: makeRng(seed ^ 0x6b6e6f77), t: 0, buildings: [], agents: [], bmap: new Map(), amap: new Map(), nextId: 1,
     mood: 1, fed: 1, migT: 0, secT: 0, events: [], towns: [],
-    stats: { made: {}, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0 },
+    stats: { made: {}, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0 },
   } as unknown as State;
   const mt = content.tuning.map;
   const mapId = opts.map ?? mt.standardType, sizeId = opts.size ?? mt.standardSize;
@@ -220,7 +220,7 @@ function foundTown(S: State, cx: number, cy: number, planner: boolean, roads: bo
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [] };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [] };
   S.towns.push(town);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;
   for (const b of [store, h1, h2]) b.town = id;
@@ -408,7 +408,7 @@ export function demolish(S: State, b: Building) {
   else setDoor(S, b, false);
   for (const a of S.agents) if (a.work === b) { a.work = null; a.role = 'carrier'; a.state = 'idle'; a.path = []; }
   const gone = b.residents.length;
-  for (const id of [...b.residents]) { const a = S.amap.get(id); if (a) { removeAgent(S, a); S.stats.departures++; } }
+  for (const id of [...b.residents]) { const a = S.amap.get(id); if (a) { removeAgent(S, a); S.stats.departures++; S.stats.demolitionDepartures++; } }
   for (const id of b.bots) { const a = S.amap.get(id); if (a) removeAgent(S, a); }
   if (gone) emit(S, 'bad', `${gone} villager${gone > 1 ? 's' : ''} left: their home was demolished`);
 }

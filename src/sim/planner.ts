@@ -12,10 +12,10 @@ import { supplyOf } from './logistics.ts';
 import { fits } from './place.ts';
 import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
-import { bp, ctr, door, emit, placeBridge, placeBuilding, villagers } from './world.ts';
-import type { BlueprintDef, Building, ItemId, PlannerState, State, Stock, Town, World } from './types.ts';
+import { bp, ctr, demolish, door, emit, placeBridge, placeBuilding, villagers } from './world.ts';
+import type { BlueprintDef, Building, Form, ItemId, PlannerState, State, Stock, Town, World } from './types.ts';
 
-export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true });
+export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0 });
 
 interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string }
@@ -132,6 +132,20 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   return { town, pop, freeBeds, spareHands, uncovered, hasDock, supply, demand, shortages };
 }
 
+const FORMS: Form[] = ['hamlet', 'village', 'town'];
+
+/** A settlement's form, by its people: a hamlet, a village from `village_at`, a town from `town_at`. */
+export function formOf(S: State, town: Town): Form {
+  const pop = villagers(S).filter(a => a.home?.town === town.id).length, P = T(S);
+  return pop >= P.townAt ? 'town' : pop >= P.villageAt ? 'village' : 'hamlet';
+}
+
+/** The densest home the settlement knows and its form allows: the rung of the ladder it builds now. */
+function homeFor(S: State, town: Town): BlueprintDef | undefined {
+  const f = FORMS.indexOf(formOf(S, town));
+  return known(S, town).filter(B => B.homes && FORMS.indexOf(B.form) <= f).sort((a, b) => b.homes / (b.w * b.h) - a.homes / (a.w * a.h) || b.homes - a.homes)[0];
+}
+
 /** Goods that construction costs are paid in. */
 function buildGoods(S: State): ItemId[] {
   const out = new Set<ItemId>();
@@ -143,7 +157,7 @@ function buildGoods(S: State): ItemId[] {
 function propose(S: State, L: Look, sh: Shortage): Choice | null {
   const P = T(S);
   const relief = (B: BlueprintDef): number => {
-    if (sh.homes) return B.homes ? clamp01(B.homes / Math.max(1, P.growthBeds - L.freeBeds)) : 0;
+    if (sh.homes) return B.homes && B === homeFor(S, L.town) ? clamp01(B.homes / Math.max(1, P.growthBeds - L.freeBeds)) : 0;
     if (sh.hauling) return B.couriers && L.uncovered >= P.minSeverity ? L.uncovered : 0;
     if (sh.crossing) return B.shore && !L.hasDock ? 1 : 0;
     if (sh.detours) return B.bridge ? 1 : 0;
@@ -169,7 +183,7 @@ function follow(S: State, L: Look, c: Choice, depth: number): Choice {
   if (c.B.workers && L.spareHands < c.B.workers) {
     // nobody free to work it: newcomers will come if there are beds, otherwise build homes
     if (L.freeBeds > 0) return { ...c, wait: `Waiting for newcomers to work ${article(c.B.name)} ${c.B.name}: ${c.why}` };
-    const home = known(S, L.town).filter(B => B.homes).sort((a, b) => b.homes - a.homes)[0];
+    const home = homeFor(S, L.town);
     if (home) return { B: home, sev: c.sev, why: `${c.why}, and a new ${c.B.name.toLowerCase()} would need a worker` };
   }
   for (const i in c.B.input) {
@@ -185,10 +199,65 @@ function follow(S: State, L: Look, c: Choice, depth: number): Choice {
   return c;
 }
 
+/** The storage yards at the heart of a settlement's districts, first district first. */
+export function hubs(S: State, town: Town): Building[] {
+  return town.districts.map(id => S.bmap.get(id)).filter((b): b is Building => !!b && !b.dead);
+}
+
+/** The buildings of one district: those nearer its centre than any other district's. */
+function members(S: State, town: Town, hub: Building): Building[] {
+  const hs = hubs(S, town), c = ctr(hub);
+  return mineOf(S, town).filter(b => { const p = ctr(b), d = Math.hypot(p.x - c.x, p.y - c.y); return hs.every(o => o === hub || Math.hypot(p.x - ctr(o).x, p.y - ctr(o).y) >= d); });
+}
+
+/** How far a district reaches from its centre: `search_radius` beyond its farthest building, at most `search_radius_max`. */
+function reachOf(S: State, town: Town, hub: Building): number {
+  const P = T(S), c = ctr(hub);
+  return Math.min(P.searchRadiusMax, Math.ceil(P.searchRadius + members(S, town, hub).reduce((m, b) => Math.max(m, Math.hypot(ctr(b).x - c.x, ctr(b).y - c.y)), 0)));
+}
+
+/**
+ * A district splits off once the newest one holds `district_buildings` buildings: a storage yard is planned
+ * as the new district's centre, on open land it can be walked to, about `district_spacing` from every other
+ * centre, where there is most grass around to grow into. The newest district is where a settlement grows,
+ * so each look only searches one district, and planning cost follows district size, not town size.
+ */
+function foundDistrict(S: State, town: Town): boolean {
+  const P = T(S), W = S.world, hs = hubs(S, town), newest = hs[hs.length - 1];
+  if (!newest || newest.site || members(S, town, newest).length < P.districtBuildings) return false;
+  const B = S.content.blueprints.storage, first = door(hs[0]), reach = reachable(W, first.x, first.y), c = ctr(newest);
+  const R = P.districtSpacing + 8;
+  const cands: { x: number; y: number; s: number }[] = [];
+  for (let y = Math.floor(c.y - R); y <= Math.ceil(c.y + R); y++) for (let x = Math.floor(c.x - R); x <= Math.ceil(c.x + R); x++) {
+    W.work.plannerSpots++;
+    const p = { x: x + B.w / 2, y: y + B.h / 2 };
+    const d = hs.reduce((m, h) => Math.min(m, Math.hypot(ctr(h).x - p.x, ctr(h).y - p.y)), Infinity);
+    if (d < P.districtSpacing * 0.8 || d > P.districtSpacing * 1.4) continue;
+    if (!fits(S, 'storage', x, y, P.gap)) continue;
+    const dr = door({ x, y, w: B.w, h: B.h });
+    if (!reach[(dr.y + 1) * W.w + dr.x]) continue;
+    let grass = 0;
+    for (let j = -8; j <= 8; j++) for (let k = -8; k <= 8; k++) { const xx = Math.round(p.x) + k, yy = Math.round(p.y) + j; if (xx >= 0 && yy >= 0 && xx < W.w && yy < W.h && W.ground[yy * W.w + xx] === 2 && W.bgrid[yy * W.w + xx] === -1) grass++; }
+    cands.push({ x, y, s: Math.abs(d - P.districtSpacing) - P.districtRoomWeight * grass });
+  }
+  cands.sort((a, b) => a.s - b.s);
+  const best = cands.slice(0, 8).find(p => !cutsOff(S, town, 'storage', p.x, p.y));
+  if (!best) return false;
+  const b = placeBuilding(S, 'storage', best.x, best.y, false)!;
+  b.town = town.id; b.priority = 1 + P.urgencyPriority; b.reason = `the heart of a new district: the old one has filled up`;
+  town.districts.push(b.id);
+  const Q = town.planner;
+  Q.site = b.id; Q.placed++; Q.streak = { type: '', n: 0 };
+  Q.status = `Founding district ${town.districts.length}: ${b.reason}`;
+  emit(S, 'info', `${town.name}: ${Q.status}`);
+  return true;
+}
+
 /** Place: score every free spot near the town for this blueprint; lower is better. */
 export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x: number; y: number } | null {
   const P = T(S), B = S.content.blueprints[type], W = S.world;
-  const store = S.bmap.get(town.store);
+  // a settlement grows in its newest district: search around that district's centre
+  const hs = hubs(S, town), store = hs[hs.length - 1] ?? S.bmap.get(town.store);
   if (!store) return null;
   const home = ctr(store), mine = mineOf(S, town);
   const harvesters = S.buildings.filter(b => bp(S, b).harvest);
@@ -202,14 +271,26 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
   const mean = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((s, b) => s + Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y), 0) / bs.length;
 
   const scored: { x: number; y: number; s: number }[] = [];
+  // villages and towns set homes wall to wall: no ring of open land between a home and its neighbours
+  const form = formOf(S, town), dense = !!B.homes && form !== 'hamlet', gap = dense ? 0 : P.gap;
+  const homeAt = (i: number) => { const id = W.bgrid[i]; if (id < 0) return false; const o = S.bmap.get(id); return !!o && !!bp(S, o).homes; };
+  const touchesNonHome = (x: number, y: number) => {
+    for (let j = y - P.gap; j < y + B.h + P.gap; j++) for (let k = x - P.gap; k < x + B.w + P.gap; k++) {
+      if (k < 0 || j < 0 || k >= W.w || j >= W.h) continue;
+      const i = j * W.w + k;
+      if (W.bgrid[i] >= 0 && !homeAt(i)) return true;
+    }
+    return false;
+  };
   // only spots whose door can be walked to from storage: across a river is no use
   const from = door(store), reach = reachable(W, from.x, from.y);
-  // the search reaches `search_radius` beyond the village's farthest building, so a growing village keeps finding room
-  const extent = mine.reduce((m, b) => Math.max(m, Math.hypot(ctr(b).x - home.x, ctr(b).y - home.y)), 0);
-  const R = Math.min(P.searchRadiusMax, Math.ceil(P.searchRadius + extent)), ox = Math.round(home.x - B.w / 2), oy = Math.round(home.y - B.h / 2);
+  // the search reaches `search_radius` beyond the district's farthest building, so a growing district keeps finding room
+  const R = reachOf(S, town, store), ox = Math.round(home.x - B.w / 2), oy = Math.round(home.y - B.h / 2);
   for (let y = oy - R; y <= oy + R; y++) for (let x = ox - R; x <= ox + R; x++) {
     W.work.plannerSpots++;
-    if (!fits(S, type, x, y, P.gap)) continue;
+    if (!fits(S, type, x, y, gap)) continue;
+    // homes share walls only with other homes: anything else keeps its ring of open land
+    if (dense && touchesNonHome(x, y)) continue;
     if (!reach[(y + B.h - 1) * W.w + x + Math.floor(B.w / 2)] && !reach[(y + B.h) * W.w + x + Math.floor(B.w / 2)]) continue;
     if (facing) { const d = door({ x, y, w: B.w, h: B.h }); if (!facing.has(facing.label[(d.y + 1) * W.w + d.x])) continue; }
     const p = { x: x + B.w / 2, y: y + B.h / 2 };
@@ -229,6 +310,14 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
     for (const i in B.input) { const from = producersOf(i); if (from.length) s += P.linkWeight * near(p, from); }
     for (const o in B.output) { const to = usersOf(o); if (to.length) s += P.linkWeight * mean(p, to); }
     if (B.homes && houses.length) s += P.linkWeight * near(p, houses);
+    if (dense) {
+      // rows: every tile of wall shared with another home, and a door onto a street
+      let shared = 0;
+      for (let j = y; j < y + B.h; j++) { if (x > 0 && homeAt(j * W.w + x - 1)) shared++; if (x + B.w < W.w && homeAt(j * W.w + x + B.w)) shared++; }
+      s -= P.rowWeight * shared;
+      const d = door({ x, y, w: B.w, h: B.h });
+      if (W.road[(d.y + 1) * W.w + d.x]) s -= P.streetWeight;
+    }
     if (B.couriers) {
       // a depot only helps where its bots reach buildings nobody's bots reach yet
       const reach = unreached.filter(b => Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y) <= B.couriers!.radius).length;
@@ -238,14 +327,17 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0]): { x
     scored.push({ x, y, s });
   }
   scored.sort((a, b) => a.s - b.s);
-  // doors that can be reached now must stay reachable: a new building never seals off another's way in
-  const doors = mine.filter(b => !b.dead).map(b => { const d = door(b); return d.y * W.w + d.x; }).filter(i => reach[i]);
+  // doors that can be reached now must stay reachable: a new building never seals off another's way in.
+  // Judged from the settlement's first storage yard, which every district centre can reach.
+  const main = S.bmap.get(town.store), root = main ? door(main) : from, rootReach = main ? reachable(W, root.x, root.y) : reach;
+  // every settlement's doors: neighbours that grow into each other must not wall each other in
+  const doors = S.buildings.filter(b => !b.dead && !bp(S, b).bridge).map(b => { const d = door(b); return d.y * W.w + d.x; }).filter(i => rootReach[i]);
   for (const c of scored.slice(0, 8)) {
     const d = { x: c.x + Math.floor(B.w / 2), y: c.y + B.h - 1 };
     if (!findPath(W, from.x, from.y, d.x, d.y)) continue;
     // the open tile in front of its door: below it, or beside it for a building on the shore
     const front = B.shore ? d.y * W.w + d.x + 1 : (d.y + 1) * W.w + d.x;
-    if (sealsOff(W, c.x, c.y, B.w, B.h, from, doors, front)) continue;
+    if (sealsOff(W, c.x, c.y, B.w, B.h, root, doors, rootReach[front] ? front : -1)) continue;
     return { x: c.x, y: c.y };
   }
   return null;
@@ -324,6 +416,16 @@ function opensUp(W: World, x: number, y: number, reach: Uint8Array, r: number): 
   return grass;
 }
 
+/** Would `type` at (x, y) cut the settlement's first storage yard off from a door it reaches now, or from its own? */
+function cutsOff(S: State, town: Town, type: string, x: number, y: number): boolean {
+  const W = S.world, B = S.content.blueprints[type], store = S.bmap.get(town.store);
+  if (!store) return false;
+  const from = door(store), reach = reachable(W, from.x, from.y);
+  const doors = S.buildings.filter(b => !b.dead && !bp(S, b).bridge).map(b => { const d = door(b); return d.y * W.w + d.x; }).filter(i => reach[i]);
+  const d = door({ x, y, w: B.w, h: B.h }), front = B.shore ? d.y * W.w + d.x + 1 : (d.y + 1) * W.w + d.x;
+  return sealsOff(W, x, y, B.w, B.h, from, doors, front);
+}
+
 /** Would a footprint at (x, y) cut storage off from any of `doors`, or from the tile in front of its own door? */
 function sealsOff(W: World, x: number, y: number, w: number, h: number, from: { x: number; y: number }, doors: number[], front: number): boolean {
   const saved: number[] = [];
@@ -331,7 +433,7 @@ function sealsOff(W: World, x: number, y: number, w: number, h: number, from: { 
   const reach = reachable(W, from.x, from.y);
   let n = 0;
   for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) W.bgrid[j * W.w + k] = saved[n++];
-  return !reach[front] || doors.some(i => !reach[i]);
+  return (front >= 0 && !reach[front]) || doors.some(i => !reach[i]);
 }
 
 /**
@@ -389,18 +491,130 @@ function affordable(S: State, B: BlueprintDef, town: Town): { good: ItemId; shor
 }
 
 /**
+ * Replanning: tear down old homes of a smaller rung where the new home would stand, as one block.
+ * Every home it covers must be finished, of a sparser kind than the new one and at least `replan_min_age`
+ * seconds in use; at least one of that kind must remain; the new home must add beds; and the settlement
+ * must have free beds elsewhere for everyone living there, who move before anything comes down.
+ * Demolition salvages `salvage_share` of the cost into the nearest storage yard. Picks the block that adds
+ * the most beds, nearest its district centre. Returns false when there is none.
+ */
+function replan(S: State, town: Town, c: Choice): boolean {
+  const P = T(S), B = c.B, W = S.world, store = S.bmap.get(town.store);
+  if (!store) return false;
+  const density = (X: BlueprintDef) => X.homes / (X.w * X.h);
+  const homes = S.buildings.filter(b => b.town === town.id && !b.site && bp(S, b).homes);
+  const old = (b: Building) => density(bp(S, b)) < density(B) && b.used >= P.replanMinAge;
+  const kinds: Record<string, number> = {};
+  for (const h of homes) kinds[h.type] = (kinds[h.type] || 0) + 1;
+  const spare = (except: Set<Building>) => homes.reduce((n, h) => n + (except.has(h) ? 0 : bp(S, h).homes - h.residents.length), 0);
+  const hub = ctr(store);
+  let best: { x: number; y: number; covers: Building[]; s: number } | null = null;
+  for (const h of homes) {
+    if (!old(h)) continue;
+    for (let y = h.y - (B.h - 1); y <= h.y + h.h - 1; y++) for (let x = h.x - (B.w - 1); x <= h.x + h.w - 1; x++) {
+      W.work.plannerSpots++;
+      // what the new home's footprint would cover
+      const covers = new Set<Building>();
+      let ok = true;
+      for (let j = y; j < y + B.h && ok; j++) for (let k = x; k < x + B.w && ok; k++) {
+        if (k < 0 || j < 0 || k >= W.w || j >= W.h) { ok = false; break; }
+        const id = W.bgrid[j * W.w + k];
+        if (id === -1) continue;
+        const o = S.bmap.get(id);
+        if (!o || o.town !== town.id || !bp(S, o).homes || o.site || !old(o)) ok = false; else covers.add(o);
+      }
+      if (!ok || !covers.size) continue;
+      const lost = [...covers].reduce((n, o) => n + bp(S, o).homes, 0);
+      if (B.homes <= lost) continue;
+      const counts: Record<string, number> = {};
+      for (const o of covers) counts[o.type] = (counts[o.type] || 0) + 1;
+      if (Object.entries(counts).some(([k, n]) => kinds[k] - n < 1)) continue;
+      const movers = [...covers].reduce((n, o) => n + o.residents.length, 0);
+      if (spare(covers) < movers) continue;
+      if (inNuisance(S, { x: x + B.w / 2, y: y + B.h / 2 })) continue;
+      if (!fitsWithout(S, B.id, x, y, covers, town)) continue;
+      const s = B.homes - lost - 0.05 * Math.hypot(x + B.w / 2 - hub.x, y + B.h / 2 - hub.y);
+      if (!best || s > best.s) best = { x, y, covers: [...covers], s };
+    }
+  }
+  if (!best) return false;
+  // everyone moves first, to the nearest free bed elsewhere
+  const gone = new Set(best.covers);
+  for (const o of best.covers) for (const id of [...o.residents]) {
+    const a = S.amap.get(id);
+    if (!a) continue;
+    const to = homes.filter(h => !gone.has(h) && bp(S, h).homes > h.residents.length).sort((p, q) => Math.hypot(ctr(p).x - a.x, ctr(p).y - a.y) - Math.hypot(ctr(q).x - a.x, ctr(q).y - a.y))[0];
+    if (!to) return false;
+    o.residents = o.residents.filter(r => r !== id);
+    a.home = to; to.residents.push(id);
+  }
+  for (const o of best.covers) {
+    const salvage = Object.entries(bp(S, o).cost);
+    demolish(S, o);
+    for (const [k, n] of salvage) store.inv[k] = (store.inv[k] || 0) + Math.floor(n * P.salvageShare);
+  }
+  const b = placeBuilding(S, B.id, best.x, best.y, false)!;
+  b.town = town.id;
+  b.priority = 1 + Math.round(c.sev * P.urgencyPriority);
+  b.reason = `replanned: ${best.covers.length} old home${best.covers.length > 1 ? 's' : ''} make way for ${B.homes} beds`;
+  const Q = town.planner;
+  Q.site = b.id; Q.placed++; Q.streak = { type: '', n: 0 };
+  Q.status = `Replanning a block for ${article(B.name)} ${B.name}: ${b.reason}`;
+  S.stats.replanned++;
+  emit(S, 'info', `${town.name}: ${Q.status}`);
+  return true;
+}
+
+/** Would `type` fit at (x, y) if the buildings in `without` were not there? Lifts them off the map to check. */
+function fitsWithout(S: State, type: string, x: number, y: number, without: Set<Building>, town: Town): boolean {
+  const W = S.world, saved: [number, number, number][] = [];
+  for (const o of without) {
+    for (let j = o.y; j < o.y + o.h; j++) for (let k = o.x; k < o.x + o.w; k++) { const i = j * W.w + k; saved.push([i, W.bgrid[i], W.door[i]]); W.bgrid[i] = -1; W.door[i] = 0; }
+    const d = door(o), f = (d.y + 1) * W.w + d.x;
+    W.front[f] = Math.max(0, W.front[f] - 1);
+  }
+  const ok = fits(S, type, x, y, 0) && !cutsOff(S, town, type, x, y);
+  for (const [i, b, dr] of saved) { W.bgrid[i] = b; W.door[i] = dr; }
+  for (const o of without) { const d = door(o); W.front[(d.y + 1) * W.w + d.x]++; }
+  return ok;
+}
+
+/**
+ * A town lays a street grid around each district centre that has none yet: rows every `street_every_rows`
+ * tiles (so a terrace two tiles deep fits between, its door on the street below) and cross streets every
+ * `street_every_cols`, within `street_radius`, on open land only: never through buildings, trees or rock.
+ */
+function layStreets(S: State, town: Town) {
+  const P = T(S), W = S.world;
+  for (const hub of town.districts) {
+    if (town.streets.includes(hub)) continue;
+    const b = S.bmap.get(hub);
+    if (!b) continue;
+    town.streets.push(hub);
+    const d = door(b), R = P.streetRadius;
+    for (let y = d.y + 1 - R; y <= d.y + 1 + R; y++) for (let x = d.x - R; x <= d.x + R; x++) {
+      if (x < 0 || y < 0 || x >= W.w || y >= W.h) continue;
+      const row = ((y - d.y - 1) % P.streetEveryRows + P.streetEveryRows) % P.streetEveryRows === 0;
+      const col = ((x - d.x) % P.streetEveryCols + P.streetEveryCols) % P.streetEveryCols === 0;
+      const i = y * W.w + x;
+      if ((row || col) && (W.ground[i] === 1 || W.ground[i] === 2) && W.bgrid[i] === -1 && W.tree[i] !== 2) W.road[i] = 1;
+    }
+    emit(S, 'info', `${town.name} laid out streets: it has grown into a town`, true);
+  }
+}
+
+/**
  * Desire paths: the most worn tiles around the settlement, worn past `pave_wear` footsteps, become road,
  * up to `pave_per_look` at a time. Roads follow where people really walk.
  */
 function pave(S: State, town: Town) {
-  const P = T(S), W = S.world, store = S.bmap.get(town.store);
-  if (!store) return;
-  const home = ctr(store), mine = mineOf(S, town);
-  const R = Math.min(P.searchRadiusMax, Math.ceil(P.searchRadius + mine.reduce((m, b) => Math.max(m, Math.hypot(ctr(b).x - home.x, ctr(b).y - home.y)), 0)));
-  const worn: number[] = [];
+  const P = T(S), W = S.world, seen = new Set<number>(), worn: number[] = [];
+  for (const hub of hubs(S, town)) {
+  const home = ctr(hub), R = reachOf(S, town, hub);
   for (let y = Math.max(0, Math.floor(home.y - R)); y <= Math.min(W.h - 1, Math.ceil(home.y + R)); y++) for (let x = Math.max(0, Math.floor(home.x - R)); x <= Math.min(W.w - 1, Math.ceil(home.x + R)); x++) {
     const i = y * W.w + x;
-    if (W.wear[i] >= P.paveWear && !W.road[i] && W.bgrid[i] === -1 && (W.ground[i] === 1 || W.ground[i] === 2)) worn.push(i);
+    if (W.wear[i] >= P.paveWear && !W.road[i] && W.bgrid[i] === -1 && (W.ground[i] === 1 || W.ground[i] === 2) && !seen.has(i)) { seen.add(i); worn.push(i); }
+  }
   }
   worn.sort((a, b) => W.wear[b] - W.wear[a] || a - b);
   for (const i of worn.slice(0, P.pavePerLook)) { W.road[i] = 1; W.tree[i] = 0; }
@@ -418,6 +632,7 @@ function planTown(S: State, town: Town, dt: number) {
   if (Q.t > 0) return;
   Q.t += T(S).intervalSeconds;
   if (Q.roads) pave(S, town);
+  if (formOf(S, town) === 'town') layStreets(S, town);
 
   const mine = Q.site !== null ? S.bmap.get(Q.site) : undefined;
   if (mine?.site) { Q.status = `Building ${article(bp(S, mine).name)} ${bp(S, mine).name}: ${mine.reason}`; return; }
@@ -426,8 +641,14 @@ function planTown(S: State, town: Town, dt: number) {
 
   // the worst shortage something known can relieve
   const L = look(S, town), worst = L.shortages[0];
+  // a crowded newest district splits off a new one
+  if (formOf(S, town) !== 'hamlet' && foundDistrict(S, town)) return;
+  // a town with beds to spare renews an old block now and then: sparse homes make way for its densest
+  const dense = homeFor(S, town);
+  if (dense && formOf(S, town) === 'town' && S.t - Q.replanAt >= T(S).replanEverySeconds && L.freeBeds > 0
+    && replan(S, town, { B: dense, sev: T(S).minSeverity, why: 'the town is renewing its old streets' })) { Q.replanAt = S.t; return; }
   Q.want = null;
-  if (!worst || worst.sev < T(S).minSeverity) { Q.streak = { type: '', n: 0 }; Q.status = 'The village has what it needs'; return; }
+  if (!worst || worst.sev < T(S).minSeverity) { Q.streak = { type: '', n: 0 }; Q.status = `The ${formOf(S, town)} has what it needs`; return; }
   // something it recently found no room for waits `no_room_retry_seconds`; the next need goes ahead
   const roomless = (id: string) => id in Q.noRoom && S.t - Q.noRoom[id] < T(S).noRoomRetrySeconds;
   let c: Choice | null = null, blocked: Choice | null = null;
@@ -438,7 +659,7 @@ function planTown(S: State, town: Town, dt: number) {
     if (c) break;
   }
   if (!c && blocked) { Q.status = `No room for ${article(blocked.B.name)} ${blocked.B.name}: ${blocked.why}`; return; }
-  if (!c) { Q.status = `Nothing the village knows would help: ${worst.why}`; return; }
+  if (!c) { Q.status = `Nothing the ${formOf(S, town)} knows would help: ${worst.why}`; return; }
   if (c.wait) { Q.streak = { type: '', n: 0 }; Q.status = c.wait; return; }
 
   // what the village is working towards counts as use: it is not forgotten while saved for

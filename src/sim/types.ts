@@ -12,6 +12,9 @@ export interface GoodDef {
 }
 
 /** A building the village knows how to make. Loaded from design/blueprints/*.md. */
+/** How a settlement builds, by size: a roomy hamlet, a village of homes wall to wall, a town of streets and rows. */
+export type Form = 'hamlet' | 'village' | 'town';
+
 export interface BlueprintDef {
   id: string;
   name: string;
@@ -33,6 +36,8 @@ export interface BlueprintDef {
   paves: boolean;
   /** Built on the shore: its door opens onto water, and boats are launched from it. */
   shore: boolean;
+  /** The settlement form it takes before a planner builds it: homes climb a ladder as a hamlet becomes a village and a town. */
+  form: Form;
   /** A bridge: spans up to `maxSpan` tiles of water in a straight line, land at both ends. */
   bridge: { maxSpan: number } | null;
   /** Bothers homes within `radius`: their surroundings lose `amount`. */
@@ -93,7 +98,7 @@ export interface Tuning {
 }
 
 export interface PlannerTuning {
-  intervalSeconds: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
+  intervalSeconds: number; replanMinAge: number; districtBuildings: number; districtSpacing: number; districtRoomWeight: number; replanEverySeconds: number; salvageShare: number; villageAt: number; townAt: number; rowWeight: number; streetWeight: number; streetEveryRows: number; streetEveryCols: number; streetRadius: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
   foodHeadroom: number; growthBeds: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
   costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; noRoomRetrySeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; searchRadiusMax: number; gap: number; minTrees: number;
@@ -120,6 +125,8 @@ export interface PlannerState {
   placed: number;
   /** Does it pave the paths its people wear? */
   roads: boolean;
+  /** When it last replanned a block. */
+  replanAt: number;
   /** Blueprints it last found no room for, and when: it plans something else for `no_room_retry_seconds`. */
   noRoom: Record<string, number>;
 }
@@ -230,6 +237,10 @@ export interface Town {
   visitT: number;
   /** Smoothed pressure to bridge water: trips going the long way round, land nearby that cannot be walked to. */
   detour: number;
+  /** Storage yards at the heart of each district, the first one first. */
+  districts: number[];
+  /** District centres that have had their street grid laid. */
+  streets: number[];
   /** Recent trips that went the long way round: [from x, from y, to x, to y, tiles walked, when]. */
   detours: number[][];
 }
@@ -285,6 +296,9 @@ export interface Stats {
   delivered: number;
   /** Straight-line tiles of those deliveries (carrier to source to destination), for their pace. */
   deliveryTiles: number;
+  /** Blocks replanned, and people who left because their home came down. */
+  replanned: number;
+  demolitionDepartures: number;
   deliveries: { villager: number; bot: number };
   arrivals: number;
   departures: number;

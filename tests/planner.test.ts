@@ -58,12 +58,13 @@ test('the planner keeps one site open at a time, says why, and starts with food'
   for (const b of ps) assert.ok(b.priority > 0);
 });
 
-test('planned buildings never touch another building', () => {
+test('planned buildings never touch another building, except homes set wall to wall in rows', () => {
   const S = createState(content, 99, { planner: true });
   runFor(S, 900);
   const touch = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
     a.x - 1 < b.x + b.w && b.x < a.x + a.w + 1 && a.y - 1 < b.y + b.h && b.y < a.y + a.h + 1;
-  for (const p of planned(S)) for (const o of S.buildings) if (o !== p) assert.ok(!touch(p, o), `${p.type}@${p.x},${p.y} touches ${o.type}@${o.x},${o.y}`);
+  const home = (b: { type: string }) => S.content.blueprints[b.type].homes > 0;
+  for (const p of planned(S)) for (const o of S.buildings) if (o !== p && !(home(p) && home(o))) assert.ok(!touch(p, o), `${p.type}@${p.x},${p.y} touches ${o.type}@${o.x},${o.y}`);
 });
 
 test('switching the planner off stops new plans and leaves hand placement alone', () => {
