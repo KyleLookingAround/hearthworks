@@ -14,6 +14,7 @@ import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
 import { bp, chronicle, ctr, demolish, door, emit, nearestTown, placeBridge, placeBuilding, seasonOf, villagers } from './world.ts';
 import { hasPlace } from './people.ts';
+import { foodChainOf } from './production.ts';
 import { atRisk, guarded, struckLately, unguarded } from './hardship.ts';
 import { planRoads } from './roads.ts';
 import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
@@ -281,7 +282,13 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
 /** If the chosen producer would starve for an input, plan that input's producer first. */
 function follow(S: State, L: Look, c: Choice, depth: number): Choice {
   if (depth > 3) return c;
-  if (c.B.workers && L.spareHands < c.B.workers) {
+  // food does not wait on newcomers who are not coming while the settlement goes hungry or winter nears (newcomers
+  // do not come then): it is built, and a worker moves to it from a workplace outside the food chain, as a hungry settlement's do
+  const chain = foodChainOf(S), s = seasonOf(S);
+  const coming = S.newcomers && L.town.mood >= S.content.tuning.needs.migrateMinMood && s !== 'autumn' && s !== 'winter';
+  const movable = () => mineOf(S, L.town).some(b => b.worker !== null && !Object.keys(bp(S, b).output).some(g => chain.has(g)));
+  const urgent = Object.keys(c.B.output).some(g => chain.has(g)) && !coming && (L.town.fed < 1 || s === 'autumn' || s === 'winter') && movable();
+  if (c.B.workers && L.spareHands < c.B.workers && !urgent) {
     // nobody free to work it: newcomers will come if there are beds, otherwise build homes
     if (L.freeBeds > 0) return { ...c, wait: `Waiting for newcomers to work ${article(c.B.name)} ${c.B.name}: ${c.why}` };
     const home = homeFor(S, L.town, true);

@@ -2,6 +2,7 @@
 
 ## 2026-10-03
 
+* **Update**: second pass: the [planner](/systems/planner.md) no longer waits for newcomers who are not coming to work a workplace in the food chain while it is hungry or in autumn and winter: it builds it, and a worker moves there from outside the food chain as a hungry settlement's always did. With seasons and people on (every new game), a town on the standard island stalled at 10 to 12 people through its whole first year: novices work at three quarters pace, bread ran short in summer, newcomers stopped, and the planner waited for them to work a bakery through autumn and winter. It now has 18 by autumn and 53 in its third year (42 before; 60 with people off).
 * **Update**: second pass, polish: the advisor warns when raiders camped within reach outnumber a settlement's defence, when its winter store has fallen behind and it does not ration, and when the hungry may not leave; the chronicle's OKF export labels hazards as Findings and roads as Creations.
 * **Update**: second pass, polish: the new-game screen's eight system checkboxes fold into one "Systems" line that says how many are on, so the screen ends at the seed.
 * **Finding**: performance with every system on, Landmass XL with four settlements (seed 1847): 0.7 milliseconds a tick at 55 villagers, 1.8 at 195 after half an hour (Node, one core); the game runs 10 ticks a second at normal speed and 30 at the fastest.

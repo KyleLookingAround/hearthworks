@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T21:50:12Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T22:13:45Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -82,7 +82,7 @@ Every `interval_seconds` the planner:
    - *Hands*: a finished workplace with no worker and no free bed to bring one is a beds shortage at full severity.
 3. **Proposes** for the worst shortage that something it knows can relieve (going down the list) the blueprint with the best `severity × relief − cost_weight × cost`, where relief is the share of the gap it closes. Two follow-ups make chains work:
    - if the choice would idle for lack of an input (spare supply below `input_cover` of what it uses), plan that input's maker first: bread short and no wheat spare means a Farm before the Bakery;
-   - if it needs a worker and fewer than one villager is spare after keeping `carrier_share` of the town hauling, wait for newcomers when beds are free, otherwise plan a House. A carrier share of 0.4 is what the job board needs: at 0.2, small villages ran out of hands to haul and stalled (see the [log](/log.md)).
+   - if it needs a worker and fewer than one villager is spare after keeping `carrier_share` of the town hauling, wait for newcomers when beds are free, otherwise plan a House; but a workplace in the food chain does not wait for newcomers who are not coming while the settlement is hungry or it is autumn or winter, as long as someone works outside the food chain: it is built, and that worker moves to it. A carrier share of 0.4 is what the job board needs: at 0.2, small villages ran out of hands to haul and stalled (see the [log](/log.md)).
 4. **Confirms**: the same blueprint must top `confirm_cycles` looks in a row.
 5. **Checks the cost** against its own settlement's free supply, after its open sites' outstanding needs. If short, and nothing makes the missing good or the settlement has been short of it for more than `save_patience_seconds` (whatever it was saving for), it plans that good's maker instead; otherwise it says what it is saving for. What it is thinking about or saving for counts as use, so the settlement does not [forget](/systems/knowledge.md) it meanwhile.
 6. **Places** it by scoring every spot within `search_radius` beyond the settlement's farthest building from the storage yard (at most `search_radius_max` from it) that leaves a `gap`-tile ring of open land (buildings never wall each other in) and can be walked to from storage. Lower is better:

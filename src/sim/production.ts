@@ -75,7 +75,7 @@ export function wants(S: State, b: Building, form: string): Stock {
 
 /** What homes eat and everything that goes into making it, once per content. */
 const chains = new WeakMap<object, Set<string>>();
-function foodChainOf(S: State): Set<string> {
+export function foodChainOf(S: State): Set<string> {
   let out = chains.get(S.content);
   if (out) return out;
   out = new Set(Object.values(S.content.blueprints).filter(B => B.homes).flatMap(B => Object.keys(B.keepStocked)));
