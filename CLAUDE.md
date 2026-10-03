@@ -22,6 +22,10 @@ A 2D web town builder where villagers will plan and build their own civilisation
 
 Node 22.18 or newer runs `.ts` files directly; TypeScript is the only dependency.
 
+## Workflow
+
+Kyle has given standing permission to develop, test and push to `main` without checking in. Before every push: `npm run ci` must be green, and the rules below still apply. Report what changed afterwards. Gate thresholds and `verified` entries remain Kyle's decisions: report a gate that looks too loose or too strict rather than changing it quietly.
+
 ## Rules when changing the design
 
 1. **Change the concept, not a copy.** Balance numbers live once, in the concept's frontmatter. Never hard-code a number in `src/` that belongs in `design/`.
