@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T17:39:15Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T19:35:38Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -15,6 +15,11 @@ tuning:
   boat_speed: 4
   output_cap: 6
   release_after_seconds: 20
+  cart_carry: 6
+  cart_road_speed: 1.3
+  cart_rough_speed: 0.9
+  cart_min_tiles: 20
+  cart_reach: 30
   dump_at: 3
   request_aging: 0.5
   no_way_retry_seconds: 30
@@ -33,6 +38,10 @@ tuning:
 6. Claiming **reserves** the goods at the source and marks them **incoming** at the destination, so no two carriers chase the same stack.
 7. A producer holding at least `dump_at` of an output nobody asked for sends it to the nearest [storage yard](/blueprints/storage.md).
 8. A producer whose output reaches `output_cap` stalls. Once it has stood full for `release_after_seconds`, its worker leaves to carry, and the job is filled again by the next idle carrier.
+
+# Carts
+
+With carts on (every new game, off in older scenarios), a [Cart Shed](/blueprints/cart_shed.md) lends handcarts. A villager taking a job of at least `cart_min_tiles` within `cart_reach` of a shed with a cart free takes one: `cart_carry` goods instead of `villager_carry`, `cart_road_speed` times as fast on roads and bridges and `cart_rough_speed` times elsewhere. The cart goes back when the load is delivered. Ox carts, river boats between jetties and multi-leg deliveries through hubs come later.
 
 # Walls and doors
 

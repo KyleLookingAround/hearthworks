@@ -42,6 +42,7 @@ export function pressure(S: State, town: Town, need: string): number {
   if (need === 'detours') return town.detour;
   // learning (with people on): a loss still fresh in memory, and the strain of needs nothing known meets
   if (need === 'forgetting') return S.people && S.chronicle.some(c => c.town === town.id && c.kind === 'forgotten' && S.t - c.t <= K(S).forgettingMemorySeconds) ? 1 : 0;
+  if (need === 'distance') return S.carts ? clamp01((town.reach - K(S).distanceFrom) / K(S).distanceSpan) : 0;
   if (need === 'inquiry') {
     if (!S.people) return 0;
     let p = 0;
@@ -51,7 +52,7 @@ export function pressure(S: State, town: Town, need: string): number {
   return 0;
 }
 
-export const NEED_TEXT: Record<string, string> = { forgetting: 'it had lost knowledge it needed', inquiry: 'it strains at needs nothing it knows can meet', hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round' };
+export const NEED_TEXT: Record<string, string> = { distance: 'its goods travel a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it strains at needs nothing it knows can meet', hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round' };
 
 /** Has this settlement proven the blueprint in use itself? Founders' knowledge counts. */
 const provenHere = (town: Town, k: Knowledge) => k.verified.some(v => v.by === town.name || v.by === 'founders');

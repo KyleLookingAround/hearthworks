@@ -5,6 +5,7 @@
 * [Bakery](bakery.md) - Bakes one wheat into one loaf. Houses run on bread.
 * [Brickworks](brickworks.md) - Fires clay with logs into bricks: a two-input recipe.
 * [Bridge](bridge.md) - A plank span across a river or channel, up to six tiles of water with land at both ends. Walked like a road; boats pass under.
+* [Cart Shed](cart_shed.md) - Keeps handcarts for long hauls. A carter takes one for a long job and brings it back after; six goods a trip, quicker on roads, slower off them.
 * [Clay Pit](clay_pit.md) - Digs clay from a bank within three tiles.
 * [Courier Depot](depot.md) - Winds up three courier bots that haul goods within twelve tiles. They never eat, so villagers are free to work.
 * [Dock](dock.md) - A jetty on the shore where rowing boats are kept. Villagers launch from it and can land on any shore.

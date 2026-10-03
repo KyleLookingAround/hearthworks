@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T19:05:47Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T19:35:38Z }
 ---
 
 # How to read this
@@ -32,7 +32,7 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 13 | Neighbours trade | Settlements swap surplus for want, on foot at first; specialisation | 11 | [Gate 13](/gates/13-trade.md) | Done |
 | 14 | People and traditions | Individuals: families, births, ageing, skills, apprenticeships; death and each village's own customs for it | 12 | [Gate 14](/gates/14-people.md) | Done |
 | 15 | Learning | Libraries, schools, universities; knowledge kept, taught and pursued | 14 | [Gate 15](/gates/15-learning.md) | Done |
-| 16 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | Carts carry most long hauls and cut delivery time | Later |
+| 16 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | [Gate 16](/gates/16-ways-to-move.md) | Done |
 | 17 | New settlements | Crowded towns send settlers off with goods, knowledge and customs | 16 | One settlement becomes four, unscripted | Later |
 | 18 | The sea | The archipelago map type, ports, ships, exploration, colonies | 13, 17 | A colony on a second island trades back | Later |
 | 19 | Ages | Eras of technology, machine tiers, crafts lost | 15, 18 | An age turns unscripted; an isolated town loses a craft | Later |
@@ -260,6 +260,10 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 **Why now.** Distances are real (7, 8), trade (13) makes long hauls routine, and they are visibly slow.
 
 **Builds.** Vehicles as blueprints, each with a capacity, a speed and the surfaces it can use: handcarts, ox carts, and river boats between jetties. The job board plans multi-leg deliveries through hubs and warehouses. Carts are discovered under distance strain and boats under river strain, and spread by the existing knowledge rules.
+
+**Delivered.** Handcarts: the [Cart Shed](/blueprints/cart_shed.md), thought of under the new need `distance` (how far a settlement's deliveries go on average), keeps four carts. A carrier taking a job of 20 tiles or more, with a bigger load than two hands carry, takes a cart from a shed within 30 tiles: six goods, 1.3 times as fast on roads and bridges, 0.9 times elsewhere, back when delivered. The planner wants a shed for every 12 villagers once deliveries run long. Carts are on in new games and off in older scenarios; carters are drawn with their cart. Saves go to version 12. **Phase 16 is done in part:** ox carts, river boats between jetties and multi-leg deliveries through hubs wait for a later phase.
+
+**Gate 16 (stable), below the proposal.** Landmass at size L, an hour: carts thought of unscripted, at least 40% of the goods on long hauls by cart, and a good by cart in at most 60% of the time on foot (see the gate for why it measures within one run).
 
 **Gate 16 (proposed).** Landmass at large size, where distances are longest: carts discovered unscripted; at least 50% of deliveries over a set distance go by cart; `mean_delivery_seconds` below the Gate 8 baseline.
 

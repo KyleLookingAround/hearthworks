@@ -85,6 +85,22 @@ export function collectRequests(S: State): Request[] {
   return reqs;
 }
 
+/** The nearest cart shed of the carrier's settlement within `cart_reach` with a cart not already out. */
+function freeCart(S: State, a: Agent, town: number | null): Building | null {
+  const L = S.content.tuning.logistics;
+  let best: Building | null = null, bd = Infinity;
+  for (const b of S.buildings) {
+    const B = bp(S, b);
+    if (!B.carts || b.site || b.town !== town) continue;
+    const d = distAB(a, b);
+    if (d > L.cartReach || d >= bd) continue;
+    let out = 0;
+    for (const o of S.agents) if (o.cart === b.id) out++;
+    if (out < B.carts) { best = b; bd = d; }
+  }
+  return best;
+}
+
 export function findTask(S: State, a: Agent): boolean {
   const L = S.content.tuning.logistics;
   const cap = a.kind === 'bot' ? L.botCarry : L.villagerCarry;
@@ -99,6 +115,9 @@ export function findTask(S: State, a: Agent): boolean {
     return (p.x - q.x) ** 2 + (p.y - q.y) ** 2 <= depR * depR;
   };
   let best: { src: Building; dst: Building; item: ItemId; n: number } | null = null, bestScore = Infinity;
+  // a cart shed near the carrier with a cart free: long jobs take a cart and a bigger load
+  const shed = a.kind === 'villager' && S.carts ? freeCart(S, a, town) : null;
+  const capFor = (tiles: number) => (shed && tiles >= L.cartMinTiles ? L.cartCarry : cap);
 
   // offers indexed by good, in building order, so only real source/request pairs are scored
   const reqs = collectRequests(S).filter(r => inRange(r.dst));
@@ -112,8 +131,8 @@ export function findTask(S: State, a: Agent): boolean {
     for (const { b: s, av } of offers.get(r.item)!) {
       if (s === r.dst) continue;
       S.world.work.jobPairs++;
-      const score = distAB(a, s) + distBB(s, r.dst) + r.pri + (bp(S, s).storage ? 2 : 0);
-      if (score < bestScore) { bestScore = score; best = { src: s, dst: r.dst, item: r.item, n: Math.min(cap, r.need, av) }; }
+      const tiles = distAB(a, s) + distBB(s, r.dst), score = tiles + r.pri + (bp(S, s).storage ? 2 : 0);
+      if (score < bestScore) { bestScore = score; best = { src: s, dst: r.dst, item: r.item, n: Math.min(capFor(tiles), r.need, av) }; }
     }
   }
   // surplus goes to the nearest storage yard so producers don't stall
@@ -129,17 +148,19 @@ export function findTask(S: State, a: Agent): boolean {
       for (const d of stores) { if (d === s || !room(d, item)) continue; const dd = distBB(s, d); if (dd < sd) { sd = dd; st = d; } }
       if (!st) continue;
       const score = distAB(a, s) + sd + 12;
-      if (score < bestScore) { bestScore = score; best = { src: s, dst: st, item, n: Math.min(cap, av) }; }
+      if (score < bestScore) { bestScore = score; best = { src: s, dst: st, item, n: Math.min(capFor(distAB(a, s) + sd), av) }; }
     }
   }
   if (!best) return false;
   add(best.src.reserved, best.item, best.n);
   add(best.dst.incoming, best.item, best.n);
   a.task = { ...best, at: S.t, tiles: distAB(a, best.src) + distBB(best.src, best.dst) }; a.state = 'toSrc';
+  // only a load bigger than two hands can carry is worth the cart
+  if (shed && a.task.tiles >= L.cartMinTiles && best.n > cap) a.cart = shed.id;
   if (!goToBuilding(S, a, best.src)) {
     blame(S, a, best.src);
     add(best.src.reserved, best.item, -best.n); add(best.dst.incoming, best.item, -best.n);
-    a.task = null; a.state = 'idle';
+    a.task = null; a.state = 'idle'; a.cart = null;
     return false;
   }
   return true;
@@ -164,11 +185,11 @@ export function pickup(S: State, a: Agent) {
   t.src.inv[t.item] = have - take;
   add(t.src.reserved, t.item, -t.n);
   if (take < t.n) { if (!t.dst.dead) add(t.dst.incoming, t.item, -(t.n - take)); t.n = take; }
-  if (!take) { a.task = null; a.state = 'idle'; return; }
+  if (!take) { a.task = null; a.state = 'idle'; a.cart = null; return; }
   a.carry = { item: t.item, n: take }; a.state = 'toDst';
   if (t.dst.dead || !goToBuilding(S, a, t.dst)) {
     if (!t.dst.dead) { add(t.dst.incoming, t.item, -t.n); blame(S, a, t.dst); }
-    a.task = null; a.carry = null; a.state = 'idle';
+    a.task = null; a.carry = null; a.state = 'idle'; a.cart = null;
   }
 }
 
@@ -178,8 +199,17 @@ export function drop(S: State, a: Agent) {
     add(t.dst.inv, t.item, t.n); add(t.dst.incoming, t.item, -t.n);
     S.stats.deliveries[a.kind]++;
     S.stats.deliverySeconds += S.t - t.at; S.stats.delivered++; S.stats.deliveryTiles += t.tiles;
+    S.stats.goodsDelivered += t.n;
+    if (a.cart !== null) S.stats.cartDeliveries++;
+    if (t.tiles >= S.content.tuning.logistics.cartMinTiles && a.kind === 'villager') {
+      S.stats.longDeliveries++; S.stats.longGoods += t.n;
+      if (a.cart !== null) { S.stats.longByCart++; S.stats.longGoodsByCart += t.n; S.stats.longCartSeconds += S.t - t.at; } else S.stats.longFootSeconds += S.t - t.at;
+    }
+    // how far the settlement's deliveries go, smoothed: the strain of distance
+    const town = S.towns[t.dst.town];
+    if (town && a.kind === 'villager') town.reach += (t.tiles - town.reach) / S.content.tuning.knowledge.reachSmoothing;
   }
-  a.task = null; a.carry = null; a.state = 'idle'; a.cool = 0;
+  a.task = null; a.carry = null; a.state = 'idle'; a.cool = 0; a.cart = null;
 }
 
 /** Drop the current job and release its reservations. Carried goods are lost. */
@@ -189,6 +219,6 @@ export function cancelTask(a: Agent) {
     if (a.state === 'toSrc' && !t.src.dead) add(t.src.reserved, t.item, -t.n);
     if (!t.dst.dead) add(t.dst.incoming, t.item, -t.n);
   }
-  a.task = null; a.carry = null; a.path = [];
+  a.task = null; a.carry = null; a.path = []; a.cart = null;
   if (a.role !== 'worker') a.state = 'idle';
 }

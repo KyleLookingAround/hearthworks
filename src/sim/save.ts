@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 11;
+export const SAVE_VERSION = 12;
 
 type Json = Record<string, unknown>;
 
@@ -90,6 +90,15 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     for (const t of state.towns as Json[]) t.copyT ??= 0;
     return state;
   },
+  // 11 to 12: carts (off for older games): who has a cart out, how far each settlement's deliveries go, long hauls counted
+  11: state => {
+    state.carts ??= false;
+    for (const a of state.agents as Json[]) a.cart ??= null;
+    for (const t of state.towns as Json[]) t.reach ??= 0;
+    const st = state.stats as Json;
+    for (const k of ['cartDeliveries', 'goodsDelivered', 'longDeliveries', 'longByCart', 'longGoods', 'longGoodsByCart', 'longFootSeconds', 'longCartSeconds']) st[k] ??= 0;
+    return state;
+  },
 };
 
 /** Run-length encoding for tile grids: [value, count, value, count, ...]. */
@@ -134,7 +143,7 @@ export function saveGame(S: State): SaveFile {
     state: {
       seed: S.seed, setup: copy(S.setup), rng: S.rng.s, krng: S.krng.s, prng: S.prng.s, t: S.t, nextId: S.nextId,
       mood: S.mood, fed: S.fed, migT: S.migT, secT: S.secT,
-      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns), chronicle: copy(S.chronicle), seasons: S.seasons, trade: S.trade, people: S.people, newcomers: S.newcomers,
+      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns), chronicle: copy(S.chronicle), seasons: S.seasons, trade: S.trade, people: S.people, newcomers: S.newcomers, carts: S.carts,
       world, buildings: copy(S.buildings), gone: copy([...gone.values()]), agents,
     },
   };
@@ -176,7 +185,7 @@ export function loadGame(content: Content, input: SaveFile | string): State {
 
   const S = {
     content, seed: d.seed, setup: d.setup, rng: { s: d.rng }, krng: { s: d.krng }, prng: { s: d.prng }, t: d.t, nextId: d.nextId,
-    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns, chronicle: d.chronicle, seasons: d.seasons, trade: d.trade, people: d.people, newcomers: d.newcomers,
+    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns, chronicle: d.chronicle, seasons: d.seasons, trade: d.trade, people: d.people, newcomers: d.newcomers, carts: d.carts,
     world, buildings, agents, bmap, amap: new Map(agents.map(a => [a.id, a])),
   } as State;
   S.planner = S.towns[0].planner;

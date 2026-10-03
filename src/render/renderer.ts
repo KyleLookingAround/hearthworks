@@ -464,6 +464,11 @@ export class Renderer {
       c.beginPath(); c.arc(x, y + (1 - s) * 3, 3.8 * s, 0, 7); c.fill();
       c.fillStyle = '#f1d3b0'; c.beginPath(); c.arc(x, y - 4.5 * s + (1 - s) * 3, 2.4 * s, 0, 7); c.fill();
     }
+    if (a.cart !== null) {
+      // a handcart: a small box on two wheels beside the carter
+      c.fillStyle = '#8a6a4a'; this.rr(x + 3, y - 2, 8, 5, 1); c.fill();
+      c.fillStyle = '#3a2a1a'; c.beginPath(); c.arc(x + 5, y + 4, 1.6, 0, 7); c.arc(x + 9, y + 4, 1.6, 0, 7); c.fill();
+    }
     if (a.carry) {
       c.fillStyle = S.content.goods[a.carry.item]?.color ?? '#fff';
       this.rr(x - 3.5, y - (a.kind === 'bot' ? 15 : 12), 7, 5, 1); c.fill();

@@ -8,7 +8,7 @@ import type { Agent, Building, State } from './types.ts';
 export function makeAgent(S: State, kind: Agent['kind'], x: number, y: number): Agent {
   const a: Agent = {
     id: S.nextId++, kind, x, y, path: [], state: 'idle', role: kind === 'bot' ? 'bot' : 'carrier', task: null, carry: null,
-    home: null, work: null, depot: null, cool: rand(S.rng) * 0.5, dead: false, visit: null, born: S.t, dies: 0, skill: {}, schooled: false,
+    home: null, work: null, depot: null, cool: rand(S.rng) * 0.5, dead: false, visit: null, born: S.t, dies: 0, skill: {}, schooled: false, cart: null,
   };
   S.agents.push(a); S.amap.set(a.id, a);
   return a;
@@ -81,6 +81,8 @@ export function updateAgent(S: State, a: Agent, dt: number) {
     else if (w.road[i]) sp *= L.roadSpeed;
     else if (w.ground[i] === 3) sp /= w.rockCost;
     else if (w.tree[i] === 2 && a.kind !== 'bot') sp *= L.forestSpeed;
+    // a handcart rolls well on roads and bridges and drags elsewhere
+    if (a.cart !== null && (w.ground[i] || w.bridge[i])) sp *= w.road[i] || w.bridge[i] ? L.cartRoadSpeed : L.cartRoughSpeed;
     // slopes slow walkers as much as they cost in route finding
     if (w.ground[i]) sp /= 1 + w.slopeCost * Math.abs(w.height[ty * w.w + tx] - w.height[i]);
     const dx = gx - a.x, dy = gy - a.y, d = Math.hypot(dx, dy), step = sp * dt;

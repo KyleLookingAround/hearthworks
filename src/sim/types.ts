@@ -65,6 +65,8 @@ export interface BlueprintDef {
   rite: Custom | null;
   /** A place of learning: a library keeps knowledge, a school schools children, a university speeds invention. */
   learning: 'library' | 'school' | 'university' | null;
+  /** Handcarts it keeps for long hauls (a cart shed). */
+  carts: number;
   /** How many of the dead it holds (a graveyard). */
   graves: number;
   /** The zone a planner keeps it in, when the player has painted one: homes (any home), farms or workshops. */
@@ -118,7 +120,7 @@ export interface Tuning {
   start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; neighbourSpreadShare: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
-    roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
+    roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
   people: {
@@ -134,13 +136,13 @@ export interface Tuning {
   knowledge: {
     haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number; encourageFactor: number; encourageThreshold: number;
     verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number; visitMinVillagers: number;
-    copyEverySeconds: number; universityFactor: number; schoolFactor: number; forgettingMemorySeconds: number; learningWeight: number; schoolChildren: number;
+    copyEverySeconds: number; universityFactor: number; schoolFactor: number; forgettingMemorySeconds: number; learningWeight: number; schoolChildren: number; distanceFrom: number; distanceSpan: number; reachSmoothing: number;
   };
 }
 
 export interface PlannerTuning {
   intervalSeconds: number; sitePatienceSeconds: number; buildGoods: ItemId[]; comfortWeight: number; depositWeight: number; replanMinAge: number; districtBuildings: number; districtSpacing: number; districtRoomWeight: number; replanEverySeconds: number; salvageShare: number; villageAt: number; townAt: number; rowWeight: number; streetWeight: number; streetEveryRows: number; streetEveryCols: number; streetRadius: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
-  foodHeadroom: number; growthBeds: number; storeFullShare: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
+  foodHeadroom: number; growthBeds: number; storeFullShare: number; villagersPerCartShed: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
   costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; noRoomRetrySeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; searchRadiusMax: number; gap: number; minTrees: number;
   treeWeight: number; sharedTreeWeight: number; linkWeight: number; storeWeight: number; forestPenalty: number;
@@ -260,6 +262,8 @@ export interface Agent {
   skill: Record<string, number>;
   /** Went to school as a child: learns trades faster. */
   schooled: boolean;
+  /** The cart shed whose cart they have out, if any. */
+  cart: number | null;
 }
 
 export type Custom = 'burial' | 'cremation' | 'ship';
@@ -322,6 +326,8 @@ export interface Town {
   graves: Record<number, number>;
   /** Seconds since its library's scribe last copied records for the neighbours. */
   copyT: number;
+  /** Smoothed tiles its deliveries go (walk to the goods plus the haul): the strain of distance. */
+  reach: number;
 }
 
 export interface World {
@@ -395,6 +401,18 @@ export interface Stats {
   honoured: number;
   /** Longest wait of a death for its farewell, in seconds. */
   riteWaitMax: number;
+  /** Deliveries made with a cart; deliveries of at least `cart_min_tiles`, and of those how many by cart. */
+  cartDeliveries: number;
+  /** Goods delivered, counted one by one (a cart's six count six). */
+  goodsDelivered: number;
+  /** Goods delivered over at least `cart_min_tiles`, and of those how many by cart. */
+  longGoods: number;
+  longGoodsByCart: number;
+  /** Seconds from claim to drop-off of those long deliveries, on foot and by cart. */
+  longFootSeconds: number;
+  longCartSeconds: number;
+  longDeliveries: number;
+  longByCart: number;
   peakVillagers: number;
   invented: number;
   taught: number;
@@ -429,6 +447,8 @@ export interface State {
   trade: boolean;
   /** People on: villagers age, are born and die, learn trades, and honour their dead. */
   people: boolean;
+  /** Carts on: cart sheds can be thought of, and lend handcarts for long hauls. */
+  carts: boolean;
   /** Newcomers arrive (off to grow by births alone). */
   newcomers: boolean;
   /** Separate stream for births, lifespans and the like, so people never shift the rest of the world. */

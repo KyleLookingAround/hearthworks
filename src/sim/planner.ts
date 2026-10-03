@@ -18,7 +18,7 @@ import { ZONES, type BlueprintDef, type Building, type Form, type ItemId, type P
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
 
-interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; learn?: 'library' | 'school' | 'university' }
+interface Shortage { key: string; sev: number; why: string; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; learn?: 'library' | 'school' | 'university' }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
 interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
@@ -203,6 +203,12 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     if (!has('school') && kids >= K.schoolChildren) shortages.push({ key: 'learning', learn: 'school', sev: K.learningWeight, why: `${kids} children have no school` });
     if ('university' in town.knows && !has('university') && formOf(S, town) === 'town') shortages.push({ key: 'learning', learn: 'university', sev: K.learningWeight, why: 'scholars would find new ways sooner' });
   }
+  // carts: a shed where its deliveries run long and it has none near the busiest district
+  if (S.carts && 'cart_shed' in town.knows) {
+    const sheds = mine.filter(b => bp(S, b).carts).length, want = Math.max(1, Math.floor(pop / P.villagersPerCartShed));
+    const p = pressure(S, town, 'distance');
+    if (p > 0 && sheds < want) shortages.push({ key: 'hauling', carts: true, sev: p * (1 - sheds / want), why: NEED_TEXT.distance });
+  }
   // the player's priorities weigh each need
   for (const sh of shortages) sh.sev = clamp01(sh.sev * (town.levers.priority[sh.key] ?? 1));
   shortages.sort((a, b) => b.sev - a.sev);
@@ -242,6 +248,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.hauling) return B.couriers && L.uncovered >= P.minSeverity ? L.uncovered : 0;
     if (sh.crossing) return B.shore && !L.hasDock ? 1 : 0;
     if (sh.detours) return B.bridge ? 1 : 0;
+    if (sh.carts) return B.carts ? 1 : 0;
     if (sh.rite) return B.rite === L.town.custom ? 1 : 0;
     if (sh.learn) return B.learning === sh.learn ? 1 : 0;
     if (sh.store) return B.storage && (!B.keeps || B.keeps.includes('wheat')) ? clamp01((B.capacity || 300) / Math.max(1, L.storeNeed - L.storeRoom)) : 0;
