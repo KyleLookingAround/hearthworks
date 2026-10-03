@@ -104,14 +104,16 @@
         <fieldset><legend>Size</legend><div class="ng-row" id="ngSizes"></div></fieldset>
         <fieldset><legend>Settlements</legend><div class="ng-row" id="ngTowns"></div></fieldset>
         <fieldset><legend>Seed</legend><div class="ng-row"><input id="ngSeed" type="number" min="0" step="1" inputmode="numeric" aria-label="Seed"><button type="button" class="btn" id="ngRandom">Random</button></div></fieldset>
-        <label class="ng-check"><input type="checkbox" id="ngPlans" checked> Village plans: the villagers decide what to build</label>
-        <label class="ng-check"><input type="checkbox" id="ngSeasons" checked> Seasons: crops rest in winter, and homes need firewood</label>
-        <label class="ng-check"><input type="checkbox" id="ngTrade" checked> Trade: neighbours send porters to swap what they can spare</label>
-        <label class="ng-check"><input type="checkbox" id="ngSettlers" checked> Settling: crowded towns send settlers to found new villages</label>
-        <label class="ng-check"><input type="checkbox" id="ngCarts" checked> Carts: villages can think of handcarts for long hauls</label>
-        <label class="ng-check"><input type="checkbox" id="ngHardship" checked> Hardship: fire, flood, sickness and barbarian raids, and laws for hard times</label>
-        <label class="ng-check"><input type="checkbox" id="ngRoads" checked> Roads: towns lay straight roads where their people walk, and build along them</label>
-        <label class="ng-check"><input type="checkbox" id="ngPeople" checked> People: villagers grow up, learn trades and grow old, and each village honours its dead its own way</label>
+        <details class="ng-systems" id="ngSystems"><summary>Systems <span id="ngSystemsNote"></span></summary>
+          <label class="ng-check"><input type="checkbox" id="ngPlans" checked> Village plans: the villagers decide what to build</label>
+          <label class="ng-check"><input type="checkbox" id="ngSeasons" checked> Seasons: crops rest in winter, and homes need firewood</label>
+          <label class="ng-check"><input type="checkbox" id="ngTrade" checked> Trade: neighbours send porters to swap what they can spare</label>
+          <label class="ng-check"><input type="checkbox" id="ngSettlers" checked> Settling: crowded towns send settlers to found new villages</label>
+          <label class="ng-check"><input type="checkbox" id="ngCarts" checked> Carts: villages can think of handcarts for long hauls</label>
+          <label class="ng-check"><input type="checkbox" id="ngHardship" checked> Hardship: fire, flood, sickness and barbarian raids, and laws for hard times</label>
+          <label class="ng-check"><input type="checkbox" id="ngRoads" checked> Roads: towns lay straight roads where their people walk, and build along them</label>
+          <label class="ng-check"><input type="checkbox" id="ngPeople" checked> People: villagers grow up, learn trades and grow old, and each village honours its dead its own way</label>
+        </details>
       </div>
       <figure class="ng-preview"><canvas id="ngPreview" width="320" height="240" aria-label="Preview of the generated land"></canvas><figcaption id="ngNote"></figcaption></figure>
     </div>

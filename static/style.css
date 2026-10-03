@@ -164,6 +164,9 @@ body.ui-hidden .ui{display:none!important}
 .ng-row .btn small{display:block;font-family:var(--body);font-size:11.5px;color:var(--ink-2);letter-spacing:0}
 .ng-row input{width:9em;padding:5px 8px;background:var(--panel-2);border:1px solid var(--line);border-radius:7px;color:var(--ink);font:inherit;font-variant-numeric:tabular-nums}
 .ng-check{display:flex;gap:8px;align-items:center;font-size:14px}
+.ng-systems summary{cursor:pointer;font-size:14px;padding:4px 0}
+.ng-systems summary span{opacity:.75}
+.ng-systems[open] summary{margin-bottom:6px}
 .ng-preview{margin:0;display:grid;gap:6px}
 .ng-preview canvas{width:100%;height:auto;border-radius:8px;border:1px solid var(--line);image-rendering:pixelated;background:#1d4b57}
 .ng-preview figcaption{font-size:13px;color:var(--ink-2)}

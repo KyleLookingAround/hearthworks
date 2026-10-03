@@ -46,6 +46,13 @@ export class NewGameDialog {
 
   close() { $('#newgame').hidden = true; }
 
+  /** The folded list of systems says how many are on, so it can stay closed. */
+  private noteSystems() {
+    const boxes = [...document.querySelectorAll<HTMLInputElement>('#ngSystems input[type=checkbox]')];
+    const on = boxes.filter(b => b.checked).length;
+    $('#ngSystemsNote').textContent = on === boxes.length ? `(all ${on} on)` : `(${on} of ${boxes.length} on)`;
+  }
+
   private build() {
     const maps = Object.values(this.content.maps).sort((a, b) => a.order - b.order);
     $('#ngMaps').innerHTML = maps.map(M => `<button type="button" class="ng-card" data-map="${esc(M.id)}" aria-pressed="false"><b>${esc(M.name)}</b><span>${esc(M.description)}</span></button>`).join('');
@@ -75,6 +82,7 @@ export class NewGameDialog {
     trade.addEventListener('change', () => { this.choice.trade = trade.checked; });
     const plans = $<HTMLInputElement>('#ngPlans');
     plans.addEventListener('change', () => { this.choice.plans = plans.checked; });
+    document.querySelectorAll<HTMLInputElement>('#ngSystems input[type=checkbox]').forEach(b => b.addEventListener('change', () => this.noteSystems()));
     $('#ngStart').addEventListener('click', () => {
       try { localStorage.setItem(KEY, JSON.stringify(this.choice)); } catch { /* not saved: fine */ }
       this.close();
@@ -104,6 +112,7 @@ export class NewGameDialog {
     $<HTMLInputElement>('#ngSettlers').checked = c.settlers !== false;
     $<HTMLInputElement>('#ngHardship').checked = c.hardship !== false;
     $<HTMLInputElement>('#ngRoads').checked = c.roads !== false;
+    this.noteSystems();
     clearTimeout(this.previewTimer);
     this.previewTimer = window.setTimeout(() => this.preview(), 120);
   }
