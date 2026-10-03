@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T10:54:58Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T11:27:08Z }
 ---
 
 # How to read this
@@ -29,15 +29,16 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 10 | The steward | Player levers through the town planner, overlays, a chronicle | 9 | Each lever measurably does what it promises | Later |
 | 11 | A deeper economy | Stone, clay, tools, fish, cloth; multi-input recipes; home tiers by goods; storage | 9 | A tier-three town stays supplied | Later |
 | 12 | Seasons | A year: growing seasons, winter, warmth, storing food | 11 | A town lives through three winters | Later |
-| 13 | People | Individuals: families, births, ageing, skills; planners as people | 12 | A town grows by births alone | Later |
-| 14 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | Carts carry most long hauls and cut delivery time | Later |
-| 15 | New settlements | Crowded towns send settlers off with goods and knowledge | 14 | One settlement becomes four, unscripted | Later |
-| 16 | Trade | Surplus and want, traders, specialisation, money as a discovery | 15 | Trading towns beat the same towns in isolation | Later |
-| 17 | The sea | The archipelago map type, ports, ships, exploration, colonies | 16 | A colony on a second island trades back | Later |
-| 18 | Ages | Eras of technology, machine tiers, crafts lost | 17 | An age turns unscripted; an isolated town loses a craft | Later |
-| 19 | Hardship | Fire, flood, sickness and their counters; hard laws | 12, 18 | A town weathers each hazard and three winters | Later |
+| 13 | Neighbours trade | Settlements swap surplus for want, on foot at first; specialisation | 11 | Two trading neighbours beat the same two in isolation | Later |
+| 14 | People and traditions | Individuals: families, births, ageing, skills, apprenticeships; death and each village's own customs for it | 12 | A town grows by births alone; neighbours keep different customs | Later |
+| 15 | Learning | Libraries, schools, universities; knowledge kept, taught and pursued | 14 | A library keeps a craft alive; a university speeds a discovery | Later |
+| 16 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | Carts carry most long hauls and cut delivery time | Later |
+| 17 | New settlements | Crowded towns send settlers off with goods, knowledge and customs | 16 | One settlement becomes four, unscripted | Later |
+| 18 | The sea | The archipelago map type, ports, ships, exploration, colonies | 13, 17 | A colony on a second island trades back | Later |
+| 19 | Ages | Eras of technology, machine tiers, crafts lost | 15, 18 | An age turns unscripted; an isolated town loses a craft | Later |
+| 20 | Hardship | Fire, flood, sickness and their counters; hard laws | 12, 19 | A town weathers each hazard and three winters | Later |
 
-Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to 10), **depth of life** (11 to 13), **many peoples** (14 to 17) and **ages and trials** (18 and 19).
+Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to 10), **depth of life** (11 to 15: goods, seasons, trade, people and learning), **many peoples** (16 to 18) and **ages and trials** (19 and 20).
 
 # Principles for every phase
 
@@ -80,9 +81,9 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 - **Map types as content.** Each type is an OKF concept in a new `design/maps/` folder whose frontmatter drives the generator: land shape and falloff, water level, noise scales, forest density, and where settlements may start. New types are written, not coded.
   - **Island** (today's): one landmass ringed by sea.
   - **Landmass:** land to the edges of the map, with inland lakes, forests and, from Phase 8, mountains and rivers. No sea to hem towns in.
-  - **Coast:** land on one side, open sea on the other, with bays and headlands, ready for fishing (11) and ports (17).
-  - **Archipelago** arrives with ships in Phase 17; offered earlier, its islands would be unreachable.
-- **Map sizes** in [map](/systems/map.md) tuning: small (56 by 40, today's), medium (about 112 by 80), large (about 192 by 144), and huge once the work budgets allow it. Starting settlements scale with size.
+  - **Coast:** land on one side, open sea on the other, with bays and headlands, ready for fishing (11) and ports (18).
+  - **Archipelago** arrives with ships in Phase 18; offered earlier, its islands would be unreachable.
+- **Map sizes** in [map](/systems/map.md) tuning: small (56 by 40, today's), medium (about 112 by 80), large (about 192 by 144), and huge once the work budgets allow it. A new game starts with two settlements on any size, so the player can watch them grow apart, trade knowledge and later goods (13); the new-game screen offers one to four.
 - **The standard map:** Island at medium size, seeded like today. It is the default world in the new-game screen and the world every gate runs on.
 - **A new-game screen:** pick map type, size, seed (or random) and starting settlements, with a preview of the generated land before starting. Saves (6) record the choice. "New island" becomes "New world".
 - **A generator per type,** each with starting sites chosen for room, wood and water, deterministic per seed.
@@ -130,7 +131,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
   - District planners run their own blocks and send up what they cannot solve.
   - Districts split as they grow.
   - Each district planner sees only its own blocks, so planning cost follows district size, not town size.
-- **Density has a price:** crowding lowers surroundings, and later fire runs along rows (Phase 19).
+- **Density has a price:** crowding lowers surroundings, and later fire runs along rows (Phase 20).
 
 **Gate 9 (proposed).** Standard map, one settlement, 60 game minutes:
 - `min_blocks_replanned: 1`;
@@ -183,68 +184,91 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Kyle's call.** Year length, and whether winter is harsh or gentle in tone.
 
-# 13. People
+# 13. Neighbours trade
 
-**Why now.** It needs a working economy and calendar (11, 12) so that families, ageing and skills have something to live in.
+**Why now.** A new game starts with two settlements, each planning for itself, and the deeper economy (11) gives them different things to be good at. Watching two villages find their own ways and swap what they have is worth having long before carts or daughter towns.
 
 **Builds.**
-- **Individuals.** Each villager has an age, a family, a home, and a skill per trade that grows with practice. Work goes to the most skilled villager free.
-- **Births and ageing.** Couples have children when fed and housed; the old retire and die.
-- **Planners are people.** The town planner and district planners are villagers with a planning skill, working from a town hall and district halls.
-- **Skills are knowledge.** A settlement whose last master of a craft dies may forget that craft.
+- **Surplus and want.** Each settlement knows what it has spare and what it lacks, from its own planner's shortages.
+- **Porters.** Villagers carry goods between settlements on foot, like visitors with full hands; carts (16) and boats later make it cheaper. Goods still move one load at a time; there is no global stockpile.
+- **Barter.** A load goes one way when a load of something wanted comes back, at a rate each side's need sets. Money waits for a discovery later on.
+- **Imports as relief.** The planner counts a reliable import as relief for a shortage, so a village near clay stops building farms it doesn't need and trades bricks for bread. Specialisation follows.
+- **Knowledge rides along.** Porters gossip like visitors, so trade partners share ideas faster.
 
-**Gate 13 (proposed).** Newcomers off, 60 game minutes: population up at least 50% by births; at least one expert in every trade; `fed_min` at Gate 2's level.
-
-**Kyle's call.** Tone of death and ageing in a cosy game: for example old age only, shown gently.
-
-# 14. Ways to move
-
-**Why now.** Distances are real (7, 8), labour is precious (13), and long hauls are visibly slow.
-
-**Builds.** Vehicles as blueprints, each with a capacity, a speed and the surfaces it can use: handcarts, ox carts, and river boats between jetties. The job board plans multi-leg deliveries through hubs and warehouses. Carts are discovered under distance strain and boats under river strain, and spread by the existing knowledge rules.
-
-**Gate 14 (proposed).** Landmass at large size, where distances are longest: carts discovered unscripted; at least 50% of deliveries over a set distance go by cart; `mean_delivery_seconds` below the Gate 8 baseline.
-
-# 15. New settlements
-
-**Why now.** Daughter towns need room (7), transport to stay in touch (14), and people to send (13).
-
-**Builds.** A crowded town, or one short of land or a deposit, sends a founding party with villagers, part of the stores, and its knowledge minus the crafts it never practised. The party scores sites for land, deposits, water and distance from rivals, then walks there. Daughter towns keep visiting their mother town.
-
-**Gate 15 (proposed).** Landmass at large size, one settlement at the start, 90 game minutes: at least four settlements, unscripted, each fed and growing.
-
-# 16. Trade
-
-**Why now.** It needs several settlements (15) and ways to carry goods between them (14).
-
-**Builds.** Each settlement knows its surplus and its wants. Traders carry goods along roads and rivers: barter first, with money as a later discovery. The planner counts imports as relief, so towns specialise.
-
-**Gate 16 (proposed).** Three settlements, run with trade on and off: with trade on, total population is higher, every town's mood is at least as good, and at least two towns export at least 40% of one good they make.
+**Gate 13 (proposed).** Two settlements on the standard map, run with trade on and off. With trade on: total population is higher, each settlement's `fed_min` is at least as good, and each settlement exports at least 30% of one good it makes.
 
 **Kyle's call.** Should money exist at all, or stay barter?
 
-# 17. The sea
+# 14. People and traditions
 
-**Why now.** It needs trade (16) and boats (14) to carry it.
+**Why now.** It needs a working economy and calendar (11, 12) so that families, ageing and customs have something to live in, and trading neighbours (13) to compare customs with.
+
+**Builds.**
+- **Individuals.** Each villager has an age, a family, a home, and a skill per trade that grows with practice. Work goes to the most skilled villager free.
+- **Births, ageing and death.** Couples have children when fed and housed; the old retire and, in time, die.
+- **Apprenticeships.** A master takes an apprentice; skill passes faster from master to apprentice than from practice alone, and a craft with no apprentice is one death from being lost.
+- **The dead are honoured, each village in its own way.** Every settlement settles on a custom, and customs are practices that spread, change and are kept like any other knowledge:
+  - **burial:** a graveyard that takes land and grows with the years, and is never built over;
+  - **cremation:** a pyre that burns wood, so a timber-poor village feels it;
+  - **ship burial:** a boat with the dead set out to sea, possible only by water and costly in planks.
+  A village that cannot follow its custom (no land for the graveyard, no wood for the pyre) is unhappy until it can; a village may change its custom under strain, and neighbours notice.
+- **Traditions beyond burial** follow the same rule later: feasts, harvest festivals, naming customs. Each is a practice with a cost and a mood effect, and each village's mix makes it feel like itself.
+- **Planners are people.** The town planner and district planners are villagers with a planning skill, working from a town hall and district halls.
+
+**Gate 14 (proposed).** Two parts.
+- **Growth:** newcomers off, 60 game minutes: population up at least 50% by births; at least one expert in every trade; `fed_min` at Gate 2's level.
+- **Customs:** two settlements whose land and wood differ end with different burial customs, and every death is honoured by its village's custom within a set time.
+
+**Kyle's call.** Tone of death and ageing in a cosy game (old age only, shown gently?), and which burial customs fit the game's feel.
+
+# 15. Learning
+
+**Why now.** People with skills (14) and knowledge that can be lost (5) make keeping and teaching knowledge worth building for.
+
+**Builds.**
+- **Libraries.** A library holds the settlement's knowledge in the world: what it holds is not forgotten while the library stands, and scribes copy its records for neighbours. The record format is the knowledge bundle from Phase 5, so a library's shelves can be browsed in game. A village thinks of the library after it loses knowledge it needed.
+- **Schools.** Children who go to school learn trades faster as apprentices, and read, so they can learn from a library without a visitor.
+- **Universities.** Scholars pursue a line of inquiry: invention under strain becomes likelier and faster, and some discoveries need a university at all. The steward's "encourage a line of inquiry" lever (10) acts through them.
+- **Gate 15 (proposed).** Two paired scenarios. With a library, a settlement keeps a craft through a long spell without using it that loses the craft without one. With a university, a discovery comes earlier on at least five of six internal seeds.
+
+# 16. Ways to move
+
+**Why now.** Distances are real (7, 8), trade (13) makes long hauls routine, and they are visibly slow.
+
+**Builds.** Vehicles as blueprints, each with a capacity, a speed and the surfaces it can use: handcarts, ox carts, and river boats between jetties. The job board plans multi-leg deliveries through hubs and warehouses. Carts are discovered under distance strain and boats under river strain, and spread by the existing knowledge rules.
+
+**Gate 16 (proposed).** Landmass at large size, where distances are longest: carts discovered unscripted; at least 50% of deliveries over a set distance go by cart; `mean_delivery_seconds` below the Gate 8 baseline.
+
+# 17. New settlements
+
+**Why now.** Daughter towns need room (7), transport to stay in touch (16), and people to send (14).
+
+**Builds.** A crowded town, or one short of land or a deposit, sends a founding party with villagers, part of the stores, its knowledge minus the crafts it never practised, and its customs. The party scores sites for land, deposits, water and distance from rivals, then walks there. Daughter towns keep visiting and trading with their mother town, and their customs drift.
+
+**Gate 17 (proposed).** Landmass at large size, one settlement at the start, 90 game minutes: at least four settlements, unscripted, each fed and growing.
+
+# 18. The sea
+
+**Why now.** It needs trade (13), new settlements (17) and boats (16) to grow from.
 
 **Builds.** The archipelago map type (a concept in `design/maps/`, like the others), with shallows, reefs and open sea. Docks, shipyards, ships with crews, and sea routes. Explorers chart islands the settlements have not seen. Settlers, goods and knowledge cross water only by ship, and colonies are founded overseas.
 
-**Gate 17 (proposed).** Archipelago map at medium size: a colony is founded on a second island unscripted, survives 30 game minutes, and trades back to its mother town.
+**Gate 18 (proposed).** Archipelago map at medium size: a colony is founded on a second island unscripted, survives 30 game minutes, and trades back to its mother town.
 
-# 18. Ages
+# 19. Ages
 
-**Why now.** By here the game has enough discoveries to group into eras, and enough distance for an age to spread unevenly.
+**Why now.** By here the game has enough discoveries to group into eras, universities to pursue them (15), and enough distance for an age to spread unevenly.
 
 **Builds.**
 - **Eras:** hand tools, stone and bronze, iron, wind and water mills, steam and rail. Each is a set of discoveries plus what they unlock, written as OKF concepts.
 - **Machine tiers:** courier bots, then conveyors, then rail, each discovered when the tier below visibly struggles.
-- **Regression:** an isolated or shrinking settlement can fall back an age.
+- **Regression:** an isolated or shrinking settlement without a library can fall back an age.
 
-**Gate 18 (proposed).** An age turns across at least half the settlements unscripted. In a second scenario, an isolated settlement loses a craft it stopped practising.
+**Gate 19 (proposed).** An age turns across at least half the settlements unscripted. In a second scenario, an isolated settlement without a library loses a craft it stopped practising.
 
-# 19. Hardship
+# 20. Hardship
 
-**Why now.** It needs seasons (12), density (9) and ages that offer remedies (18), so hardship meets a civilisation able to answer it.
+**Why now.** It needs seasons (12), density (9) and ages that offer remedies (19), so hardship meets a civilisation able to answer it.
 
 **Builds.**
 - **Hazards and their counters:**
@@ -254,7 +278,7 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
   - Each counter is discovered under its strain.
 - **The remaining laws** for the steward: rationing, working hours, who may leave.
 
-**Gate 19 (proposed).** A planned town weathers one hazard of each kind and three winters, losing at most 10% of its people. In a paired scenario, rationing brings a town through a lean winter that kills or drives off more people without it.
+**Gate 20 (proposed).** A planned town weathers one hazard of each kind and three winters, losing at most 10% of its people. In a paired scenario, rationing brings a town through a lean winter that kills or drives off more people without it.
 
 **Kyle's call.** Can fire destroy buildings for good, or only damage them?
 

@@ -88,5 +88,5 @@ The planner chooses only from what its settlement knows: see [knowledge](/system
 
 - What does the player still control: priorities, zoning, laws, or nudging discoveries?
 - When should a town stop growing, and what should the planner do with spare planks then?
-- How do new settlements split off, and what do they take with them? ([Phase 15](/roadmap.md))
+- How do new settlements split off, and what do they take with them? ([Phase 17](/roadmap.md))
 - Which shortages need new goods (stone, tools, cloth) before the planner has interesting choices?
