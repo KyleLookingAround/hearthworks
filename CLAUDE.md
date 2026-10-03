@@ -39,4 +39,4 @@ Kyle has given standing permission to develop, test and push to `main` without c
 
 ## Current focus
 
-Phases 4 and 5 of `design/roadmap.md` are done. The village planner (`src/sim/planner.ts`) and knowledge (`src/sim/knowledge.ts`) are off by default in `createState`, so scripted gates stay scripted: pass `{ planner: true }` and `{ settlements: n }` to turn them on (the game uses tuning `game_settlements`). Knowledge draws randomness from `S.krng`, never `S.rng`. Phase 6 (civilisation: settlements split off, trade) is next.
+Phases 4 and 5 of `design/roadmap.md` are done. The village planner (`src/sim/planner.ts`) and knowledge (`src/sim/knowledge.ts`) are off by default in `createState`, so scripted gates stay scripted: pass `{ planner: true }` and `{ settlements: n }` to turn them on (the game uses tuning `game_settlements`). Knowledge draws randomness from `S.krng`, never `S.rng`. Phase 6 (solid ground: solid buildings with doors, per-settlement mood and supply, versioned saves, work counters) is next; `design/roadmap.md` lists all phases to 19 with their dependencies and proposed gates.

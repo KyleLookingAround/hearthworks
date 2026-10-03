@@ -4,183 +4,255 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T10:39:50Z }
+generated: { by: claude/opus-5.5, at: 2026-10-03T10:46:33Z }
 ---
+
+# How to read this
+
+Each phase adds one coherent layer and closes when its gate passes in CI. Gates are [Attested Computations](/gates/): a sanctioned scenario runs headless, and deterministic code checks the receipt. For future phases, the gate, its metrics and its thresholds are **proposals**: they are fixed when the gate is written, and Kyle can overrule any of them. Gates can be reworked as the game grows, under [decision 0004](/decisions/0004-reworking-gates.md).
+
+Every phase section says why it comes when it does, what it builds, its gate, which existing gates it will disturb, and what is still Kyle's call.
 
 # Phases
 
-Each phase closes when its gate passes in CI. Gates are [Attested Computations](/gates/): a sanctioned scenario runs headless and deterministic code checks the receipt. Gates for future phases are proposals: their thresholds are set when the gate is written, and Kyle has the final say on them.
+| # | Phase | Adds | Needs | Gate (proposed) | State |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Toy economy | Grid, building, wood chain carried by hand | | [Gate 1](/gates/01-first-plank.md) | Done |
+| 2 | Living town | Houses, needs, bread chain, newcomers and departures | 1 | [Gate 2](/gates/02-sustain-town.md) | Done |
+| 3 | First automation | Courier bots on the same job board | 2 | [Gate 3](/gates/03-couriers.md) | Done |
+| 4 | The village plans | [Planner](/systems/planner.md) chooses and places buildings | 2 | [Gate 4](/gates/04-village-plans.md) | Done |
+| 5 | Knowledge | [Knowledge](/systems/knowledge.md): invented, proven, shared, forgotten; two settlements | 4 | [Gate 5](/gates/05-knowledge-spreads.md) | Done |
+| 6 | Solid ground | Solid buildings with doors, mood and supply per settlement, versioned saves, work counters | 5 | Nobody walks through walls; a save resumes exactly | Next |
+| 7 | Big islands | Large maps, a job board and pathfinding that scale, a renderer that culls | 6 | 600 villagers, four settlements, within a work budget | Later |
+| 8 | The lie of the land | Terrain, rivers, deposits, bridges, desire-path roads, surroundings in mood | 7 | Roads cut delivery time; homes stay clear of nuisance | Later |
+| 9 | Village to town | Form by size, streets, a ladder of home sizes, replanning, town and district planners | 8 | A hamlet replans itself into a dense town, nobody displaced | Later |
+| 10 | The steward | Player levers through the town planner, overlays, a chronicle | 9 | Each lever measurably does what it promises | Later |
+| 11 | A deeper economy | Stone, clay, tools, fish, cloth; multi-input recipes; home tiers by goods; storage | 9 | A tier-three town stays supplied | Later |
+| 12 | Seasons | A year: growing seasons, winter, warmth, storing food | 11 | A town lives through three winters | Later |
+| 13 | People | Individuals: families, births, ageing, skills; planners as people | 12 | A town grows by births alone | Later |
+| 14 | Ways to move | Carts, river boats, hubs, multi-leg deliveries | 8, 13 | Carts carry most long hauls and cut delivery time | Later |
+| 15 | New settlements | Crowded towns send settlers off with goods and knowledge | 14 | One settlement becomes four, unscripted | Later |
+| 16 | Trade | Surplus and want, traders, specialisation, money as a discovery | 15 | Trading towns beat the same towns in isolation | Later |
+| 17 | The sea | Archipelagos, ports, ships, exploration, colonies | 16 | A colony on a second island trades back | Later |
+| 18 | Ages | Eras of technology, machine tiers, crafts lost | 17 | An age turns unscripted; an isolated town loses a craft | Later |
+| 19 | Hardship | Fire, flood, sickness and their counters; hard laws | 12, 18 | A town weathers each hazard and three winters | Later |
 
-| Phase | Goal | Gate | State |
-| --- | --- | --- | --- |
-| 1. Toy economy | Grid, building, wood chain carried by hand | [Gate 1](/gates/01-first-plank.md) | Done |
-| 2. Living town | Houses, needs, bread chain, newcomers and departures | [Gate 2](/gates/02-sustain-town.md) | Done |
-| 3. First automation | Courier bots on the same job board | [Gate 3](/gates/03-couriers.md) | Done |
-| 4. The village plans | [Planner](/systems/planner.md) chooses and places buildings | [Gate 4](/gates/04-village-plans.md) | Done |
-| 5. Knowledge | Blueprints discovered, verified by use, shared, forgotten ([knowledge](/systems/knowledge.md)) | [Gate 5](/gates/05-knowledge-spreads.md) | Done |
-| 6. Room to grow | Big islands, saves, solid buildings with doors, and a sim that scales | Gate 6: 600 villagers on a large island, deterministic, within a work budget | Next |
-| 7. The lie of the land | Terrain, deposits, rivers, desire-path roads; surroundings shape mood | Gate 7: planned roads cut haul cost, and homes end up away from noise | Later |
-| 8. Village to town | Settlements change shape as they grow: roomy hamlets, streets and terraced rows in towns, small houses replaced by bigger ones, and a town planner leading district planners | Gate 8: a hamlet becomes a dense town by replanning, without anyone leaving | Later |
-| 9. A deeper economy | Stone, clay, tools, fish, cloth; house tiers; more than bread | Gate 9: a three-tier town stays supplied | Later |
-| 10. People | Individuals: families, births, ageing, skills | Gate 10: a town grows by births alone | Later |
-| 11. Ways to move | Carts, boats on rivers, hubs and multi-leg routes | Gate 11: carts are invented under distance strain and carry most long hauls | Later |
-| 12. New settlements | Towns that outgrow their land send settlers off with goods and knowledge | Gate 12: one settlement becomes four, unscripted | Later |
-| 13. Trade | Traders, surplus and want, specialisation | Gate 13: trading settlements beat the same settlements in isolation | Later |
-| 14. The sea | Archipelagos, ports, ships, colonies | Gate 14: a colony on a second island, trading back | Later |
-| 15. Ages | Eras of technology, from hand tools to steam and rail | Gate 15: an age turns unscripted, and an unused craft is lost | Later |
-| 16. Seasons and hardship | Winter, harvests, fire, flood, sickness | Gate 16: a town lives through three winters | Later |
-| 17. The steward | What the player controls: laws, priorities, zones, a chronicle | Gate 17: each lever measurably changes the outcome it promises | Later |
+Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to 10), **depth of life** (11 to 13), **many peoples** (14 to 17) and **ages and trials** (18 and 19).
 
 # Principles for every phase
 
-- **Earlier gates keep passing.** A new system is off by default or kept separate from scripted scenarios, the way the [planner](/systems/planner.md) and [knowledge](/systems/knowledge.md) are.
+- **Earlier gates keep their intent.** A new system is off by default where it would change a scripted scenario (as the [planner](/systems/planner.md) and [knowledge](/systems/knowledge.md) are), or the affected gates are reworked under [decision 0004](/decisions/0004-reworking-gates.md) and the change is logged.
 - **Deterministic and headless.** One seed and the same commands always give the same world. Each new source of chance gets its own seeded stream, as knowledge did with `S.krng`.
-- **A work budget, not a stopwatch.** Gates count deterministic work (path nodes expanded, job-board pairs scored, per game minute) instead of wall-clock time, which varies between CI machines. A budget metric goes in every gate from Phase 6 on.
-- **Everything moves, and nothing is named in code.** New goods, buildings, vehicles and eras are written as OKF concepts in `design/`. The planner and job board read their fields, so a new blueprint joins in by being written.
+- **Unscripted is the bar.** A system is ready when a gate shows it doing on its own what a script or the player used to do.
 - **Machines earn their place.** Every new tier is discovered under a strain the player can see (hauling, distance, cold, crowding), never unlocked on a timer.
-- **Phone and desktop.** The browser shell stays playable on a phone as the world grows.
+- **Everything moves, and nothing is named in code.** Goods, buildings, vehicles, hazards and ages are OKF concepts in `design/`; the planner and job board read their fields.
+- **Playable every phase.** Each phase ships something the player can see and understand: a panel, an overlay, a status line, a chronicle entry. It still works on a phone.
 
-# 6. Room to grow
+# Tracks that run through every phase
 
-The island is 56 by 40 tiles, and two villages fill it in about 15 to 30 minutes. Every later phase needs room, so the sim has to scale first.
+- **Performance.** From Phase 6, every gate receipt carries deterministic work counters (path nodes expanded, job-board pairs scored, planner spots scored, per game minute), never wall-clock time, which varies between machines. Each counter gets a budget once measured; a budget is only ever tightened, except under decision 0004.
+- **Saves.** From Phase 6, saves carry a schema version. Every later phase that changes state adds a migration, plus a test that loads a saved fixture from the previous version.
+- **Gate upkeep.** Each phase lists the gates it disturbs. Re-sweep them on seeds 1847, 7, 42, 99, 2026 and 31337, record the results in the [log](/log.md), and revise or supersede as decision 0004 says.
+- **Content.** New goods, buildings and tuning live in concepts with `generated` authorship; nothing balance-related is hard-coded.
 
-- **Bigger maps.** Map size, island shape and resource density become tuning; the generator learns larger landmasses, bays and inland forests. Target: 192 by 144 tiles.
-- **Scaling the sim.**
-  - A spatial index for the job board, so a carrier scores nearby requests and offers instead of every pair.
-  - Cached and hierarchical pathfinding: regions with portals, and paths reused between the same doors.
-  - Per-settlement mood and supply, not island-wide.
-  - A chunked renderer that draws only what is on screen.
-- **Solid buildings.** Buildings block walking; only the door tile lets people in, and the tile in front of every door must stay open. A door that cannot be reached shows "No way in" and its building stops being served. Villagers route around blocks instead of through them, which makes street layout matter (Phase 8). This is also when pathfinding is rebuilt, so it belongs here.
-- **Saves.** State serialises (the random streams are plain numbers), and a save and reload gives a byte-identical receipt. Autosave in the browser.
-- **Gate 6.** Four settlements, 60 game minutes on the large map, no build calls:
-  - peak villagers of at least 600;
-  - path nodes and job-board pairs per game minute within a budget;
-  - a save at 30 minutes, reloaded, gives the same receipt as an uninterrupted run;
-  - no agent ever stands inside a building other than at its door.
+# 6. Solid ground
 
-# 7. The lie of the land
+**Why now.** Everything after this assumes buildings are physical, saves exist and the cost of the sim is measured. Today villagers walk through buildings, mood and stock are island-wide, and nothing records how much work a tick costs.
 
-- **Terrain matters.**
-  - Hills and slopes slow walkers.
-  - Rivers block walking until a bridge is built.
-  - Fertile soil, stone outcrops, clay pits and fishing water are deposits that buildings must sit on or near.
-- **Desire paths.** Tiles that many feet cross get worn. Once wear passes a threshold the planner proposes paving them, so road networks grow out of real traffic instead of being drawn. Bridges are blueprints discovered when a river keeps people from somewhere they need to go.
-- **Surroundings shape mood.** Mood stops being only "is there bread". Each home gets a surroundings score from the tiles around it:
-  - **good:** trees and greenery, water, gardens, later parks and wells;
-  - **bad:** nuisance from workplaces (a sawmill's noise, later a smithy's smoke and a tannery's smell), crowding, and the bare ground of a construction site;
-  - which blueprints are a nuisance, how far it carries and which add amenity are fields on the blueprint, like everything else.
-  A settlement's mood blends how well it is fed with how pleasant its homes are, and newcomers weigh both. The planner then keeps homes upwind of industry and next to trees, so districts appear for a reason.
-- **District planning.** The planner learns zones (a farm belt, a workshop quarter, homes near the bakeries), so towns get a shape and not just a spread.
-- **Gate 7.** The same seed and settlement run twice, with road planning on and off. Pass when road planning lowers mean delivery time by a set share and the network stays connected to every workplace. In the same run, no home sits within nuisance range of a workplace, and mood stays at Gate 2's level with surroundings counted.
+**Builds.**
+- **Solid buildings.** Building tiles block walking; only a building's door tile lets people in. The tile in front of each door must stay open: placement (planner and hand) refuses anything that would cover a door front. A building nobody can reach shows "No way in" and is not served. An agent caught inside a new footprint walks out through it.
+- **Mood and supply per settlement.** Each settlement has its own mood, and newcomers choose a settlement with free beds and good mood. The planner's affordability counts its own settlement's free stock.
+- **Saves.** The whole state serialises, with a schema version: the random streams are plain numbers, and references become ids. The browser autosaves and can load.
+- **Work counters** in every receipt: `path_nodes`, `job_pairs`, `planner_spots`.
 
-# 8. Village to town
+**Gate 6 (proposed).** Two settlements, planner on, 30 game minutes. A save at 15 minutes, reloaded, finishes with the same receipt as an uninterrupted run (`save_roundtrip_match = 1`); `agents_inside_walls = 0` at every second; `max_departures: 2`; `min_mood_min: 0.6`. Work counters are recorded as the baseline for Phase 7 budgets.
 
-A settlement's form should follow its size. A hamlet is roomy; a town packs houses into rows along streets, because walking time and land start to matter more than space.
+**Disturbs.** Every gate, since routes change around solid buildings. [Gate 4](/gates/04-village-plans.md) is revised at the same time: its town reaches four times its population bar, so the bar rises to what the planner reliably achieves, less a margin.
 
-- **Settlement form by size.**
-  - **Hamlet** (a few dozen people): today's rule, a ring of open land around every building, with yards and gardens that count as amenity.
-  - **Village:** houses may share a side wall in pairs; workplaces keep their ring.
-  - **Town:** streets first. The planner lays a street grid ahead of growth and fills blocks with terraced rows of houses whose doors face the street, backs to back. Workshops sit on their own blocks.
-  - The thresholds and widths are tuning in the planner's concept.
-- **Bigger homes replace smaller ones.** Homes come in sizes that use land better: a cottage (today's house), a family house, a terrace row and later a tenement, each with more beds per tile and a higher cost. A cottage on a good street plot is torn down for a terrace once the town has outgrown it, much as real towns rebuild. More house types are written as blueprints, so the ladder can grow.
-- **Replanning.** When the planner finds no room, it may replace low-density buildings in good spots with denser ones, but only by these rules:
-  - **Re-house first.** A home is demolished only when its residents already have beds elsewhere, so nobody leaves because of a rebuild.
-  - **Never the last.** It never demolishes the last building of a kind, or one still paying for itself; a building must also be older than a set age.
-  - **Salvage.** Demolition returns a share of the building's cost as goods, carried away like any other.
-  - **Plan the block, then rebuild it.** A replan is one decision covering the whole block, with its own priority, so the planner doesn't tear down and rebuild one house at a time.
-- **A town planner and district planners.** One planner looking at every tile does not scale, and real towns are not planned that way. Planning becomes a hierarchy:
-  - **The town planner** (in a hamlet, the elder who plans today) sets the big picture: where districts go and what they are for (homes, workshops, farms, market), the street grid, how many homes and workplaces each district should add, and which district gets materials first.
-  - **District planners** each run one district. They decide what goes on which block, when a cottage gives way to a terrace, and what that district is short of, reporting their shortages back up.
-  - **Escalation.** A shortage a district cannot fix on its own (the bakery district has no room for another farm) goes up to the town planner, who can rezone, open a new district or move the work elsewhere.
-  - **Split as it grows.** A hamlet has one planner. When a settlement passes a size threshold the town planner founds districts, and a district that grows too large is split.
-  - **Why it helps.** Each district planner looks only at its own blocks, so planning cost grows with district size, not town size (the Phase 6 work budget). Districts get a character of their own, and the plans line can say who decided what ("Mill quarter: a third sawmill; Town: open a district by the river").
-  - The planners become real villagers with a planning skill and an office (a town hall, district halls) in Phase 10, and the player steers the town planner in Phase 17.
-- **Density has a price.** Rows are close and quick to walk, but crowding lowers the surroundings score (Phase 7) and, once fire exists (Phase 16), fire spreads along a row. Parks, gardens and wells earn their place in dense towns.
-- **Gate 8.** A seed that grows past the hamlet size runs 60 game minutes on the large map. Pass when:
-  - at least one block of the old hamlet is demolished and rebuilt denser;
-  - the settlement ends with more homes per tile of built land than it had as a hamlet;
-  - no departures are caused by demolition, and mood stays at Gate 2's level;
-  - the town has at least three districts, each planned by its own district planner;
-  - planning work per game minute stays within budget as the town grows.
+**Kyle's call.** Should the player be stopped from placing a building that blocks a door, or warned and allowed?
 
-# 9. A deeper economy
+# 7. Big islands
 
-- **New goods and chains:**
-  - stone to a quarry, then a mason;
-  - clay to bricks;
-  - iron ore to tools at a smithy;
-  - fish at a fishery;
-  - flax to cloth.
-- **Recipes with several inputs**, and tools that wear out and speed up work.
-- **House tiers.** Huts become houses, then townhouses. Each tier needs more goods (bread and fish, then cloth, then tools in the workshop) and holds more people. Mood draws on variety, not just one staple.
-- **Storage that counts.** Granaries, a woodyard and warehouses with capacity; goods spoil when left out.
-- **Planner depth.** It weighs chains several steps long, and plans upgrades as well as new buildings.
-- **Gate 9.** A town reaches its third house tier and keeps every tier supplied for 30 minutes, with departures and mood thresholds in the style of Gate 2.
+**Why now.** On the 56 by 40 island, two settlements first find no room at 15 to 18 minutes (one settlement at 24 to 30). Every later phase needs room, and room needs a sim that scales.
 
-# 10. People
+**Builds.**
+- **Map presets** in [map](/systems/map.md) tuning: `small` (today's, kept for existing gates) and `large` (target 192 by 144). The game defaults to large, with more settlements.
+- **A richer generator:** larger landmasses with bays, lakes and inland forests, and starting sites chosen for room and wood.
+- **A job board that scales:** a spatial index, so a carrier scores nearby requests and offers instead of every pair.
+- **Pathfinding that scales:** regions joined by portals for long trips, and paths cached between the same doors.
+- **A renderer that culls:** chunked drawing of only what is on screen, and a minimap. Move the sim to a Web Worker if the frame budget demands it.
 
-- **Individuals.** Every villager has an age, a home, a family and a skill per trade that rises with practice. Workers are assigned by skill, and experts are slower to replace.
-- **Life cycle.** Couples have children when the town is fed and housed; children grow up, the old retire and die. Newcomers still arrive, but growth no longer depends on them.
-- **Planners are people.** The town planner and district planners from Phase 8 are villagers with a planning skill, working from a town hall and district halls. A skilled planner sees shortages sooner and lays out tighter blocks; losing the town planner leaves districts working to old plans until someone takes over.
-- **Skills are knowledge too.** A master's craft is part of the settlement's knowledge. A town whose last smith dies risks forgetting the smithy.
-- **Gate 10.** With newcomers turned off, a town grows by births for 60 game minutes, ends with at least one expert in each of its trades, and stays fed.
+**Gate 7 (proposed).** Large preset, four settlements, 60 game minutes, no build calls: `min_peak_villagers: 600`, departures under 1% of peak, `min_mood_min: 0.6`, and every work counter per game minute within its budget. Budgets are set from the measured run plus headroom, then tightened as the code improves.
 
-# 11. Ways to move
+**Disturbs.** Nothing, if gates 1 to 6 stay on the small preset.
 
-- **Vehicles as blueprints.** Handcarts carry more on roads; ox carts more again. River boats run between jetties, and canals come later. Each has a capacity, a speed and the surfaces it can use.
-- **Hubs and legs.** The job board plans multi-leg deliveries: a carrier takes goods to a cart stop, a cart takes them across town, a carrier finishes the trip. Warehouses become transfer points.
-- **Discovery by strain.** Carts are invented when deliveries are long, and boats when a river lies between producers and the people who need their goods. The existing [knowledge](/systems/knowledge.md) rules carry them between settlements.
-- **Gate 11.** On the large map, carts are discovered unscripted and carry most deliveries over a set distance, and mean delivery time beats the Phase 7 baseline.
+**Kyle's call.** Large map size, and how many settlements a new game starts with.
 
-# 12. New settlements
+# 8. The lie of the land
 
-- **Splitting off.** A town short of land, trees or fertile soil sends a founding party: villagers, a share of the stores, and a copy of its knowledge (founders know what their parents knew, minus what they never practised).
-- **Choosing a site.** The settlers score candidate sites for land, deposits, water and distance from rivals, then walk there. Daughter towns keep visiting and sharing knowledge.
-- **Gate 12.** From one settlement on the large map, at least four exist after 90 game minutes, unscripted, and every one is fed and growing.
+**Why now.** On a large map, distance and terrain start to matter, and they shape everything in Phase 9.
 
-# 13. Trade
+**Builds.**
+- **Terrain:** height with slope slowing walkers, rivers that block walking, and deposits (fertile soil, stone, clay, fishing water) that buildings must sit on or near. Deposits sit unused until Phase 11 gives them goods.
+- **Bridges**, discovered when a river keeps people from somewhere they need to go (a knowledge `need` for detours).
+- **Desire paths.** Tiles accumulate wear from feet; the planner paves the worn ones, so roads follow real traffic.
+- **Surroundings in mood.** Each home scores its surroundings from blueprint fields: `nuisance: { radius, amount }` on workplaces such as the sawmill, and `amenity` from trees, water and gardens; crowding and building sites count against. Settlement mood blends being fed with surroundings, and the planner keeps homes away from nuisance.
 
-- **Surplus and want.** Each settlement knows what it has spare and what it lacks. Traders carry goods between settlements by road, cart or boat, and are paid in goods (barter first; money is a discovery).
-- **Specialisation.** A town near the quarry ends up exporting stone, and a fishing town ends up exporting fish. The planner weighs trade as a way to relieve a shortage alongside building.
-- **Gate 13.** The same three settlements run with trade on and off. Pass when trade raises total population and every town's mood, and at least two towns export a large share of one good.
+**Gate 8 (proposed).** A large-map seed with a river, run twice, with road planning on and off: on cuts `mean_delivery_seconds` by at least 15%. In the "on" run, a bridge is discovered and built, `homes_in_nuisance = 0`, and `min_fed_min: 0.6`.
 
-# 14. The sea
+**Disturbs.** Mood changes meaning, so gates 2, 4, 5 and 6 would drop for reasons unrelated to what they test. Receipts gain `fed_min`, the hunger part of mood alone, and those gates' welfare checks are revised from `mood_min` to `fed_min`, which keeps their intent ("nobody goes hungry").
 
-- **Archipelagos.** The map generator makes island groups, with shallows, reefs and open sea.
-- **Ports and ships.** Docks, shipyards and ships with crews; sea routes; explorers who chart unknown islands. Knowledge, settlers and goods cross water only by ship.
-- **Colonies.** A settlement with ships and a reason (land, a deposit, a crowded home) founds a colony overseas.
-- **Gate 14.** A colony is founded on a second island unscripted, survives, and trades back to its mother town.
+# 9. Village to town
 
-# 15. Ages
+**Why now.** It needs land with a shape (8), solid buildings (6) and a planning cost that is measured (6, 7).
 
-- **Eras of technology.** Discoveries cluster into ages, for example the age of wood and hand tools, of stone and bronze, of iron, of wind and water mills, and of steam and rail. An age is a set of discoveries plus what they unlock (vehicles, buildings, machines), all written as OKF concepts.
-- **Machines tier up.** Courier bots lead to conveyors, then rail, each discovered when the tier below visibly struggles.
-- **Loss is real.** Unused crafts are forgotten, and an isolated or shrinking settlement can fall back an age.
-- **Gate 15.** An age turns unscripted across a set of settlements, and in a separate scenario an isolated settlement loses a craft it stopped practising.
+**Builds.**
+- **Form by size.** Hamlets are roomy (today's ring of open land, with gardens as amenity); villages pair houses wall to wall; towns lay a street grid ahead of growth and fill blocks with terraced rows facing the street. Thresholds are tuning.
+- **A ladder of home sizes:** cottage, family house, terrace, and later tenement, each with more beds per tile. A cottage on a good plot is torn down for a terrace once the town outgrows it.
+- **Replanning rules:**
+  - residents are re-housed before their home comes down;
+  - never the last building of a kind, and never one younger than a set age;
+  - demolition salvages part of the cost;
+  - a whole block is planned at once.
+- **A town planner and district planners.**
+  - The town planner sets districts, their purpose, streets, quotas and material priority.
+  - District planners run their own blocks and send up what they cannot solve.
+  - Districts split as they grow.
+  - Each district planner sees only its own blocks, so planning cost follows district size, not town size.
+- **Density has a price:** crowding lowers surroundings, and later fire runs along rows (Phase 19).
 
-# 16. Seasons and hardship
+**Gate 9 (proposed).** Large preset, one settlement, 60 game minutes:
+- `min_blocks_replanned: 1`;
+- homes per built tile at the end at least 1.5 times the hamlet's;
+- `min_districts: 3`;
+- `max_demolition_departures: 0`;
+- `min_fed_min: 0.6`;
+- `planner_spots` per game minute within budget.
 
-- **Seasons.** Crops grow in summer and stop in winter; winter needs firewood and stored food. Granaries and preserved goods become choices that matter.
-- **Hazards.** Fire spreads between close wooden buildings, so a hamlet's gaps and a town's firebreaks have a reason (Phase 8), rivers flood, and sickness spreads in crowded towns. Each has a counter to discover: wells and fire crews, levees, healers and then sanitation.
-- **Gate 16.** A planned town lives through three winters and one hazard of each kind without losing a set share of its people.
+**Disturbs.** Gate 4, if the planner's single-town behaviour changes: revise it, keeping its intent of matching the script with no build calls.
 
-# 17. The steward
+# 10. The steward
 
-- **Levers, not placement.** Most levers act through the town planner from Phase 8: the player sets direction and the planners carry it out.
-  - Laws (rationing, working hours, who may leave).
-  - Priorities (which shortage comes first).
-  - Zoning (where the planner may build).
-  - Encouragement (fund a line of inquiry and make a discovery more likely).
-  - Hand placement stays available.
-- **A chronicle.** Each settlement's history is written as it happens, an OKF log of the civilisation: founded, invented, taught, forgotten, flooded, colonised. Readable in the game, exportable as a bundle.
-- **Gate 17.** For each lever, a paired scenario shows it changes the outcome it promises (rationing gets a town through a lean winter, zoning keeps farms on fertile soil) without breaking earlier gates.
+**Why now.** The vision says the player steers rather than places. With town and district planners in place, there is something to steer, so levers should not wait for the end.
+
+**Builds.**
+- **Levers through the town planner:**
+  - **priorities:** rank shortages;
+  - **zoning:** paint a district's purpose, or no-build land;
+  - **encouragement:** back a line of inquiry to make a discovery likelier;
+  - **pace:** how much the planner builds at once.
+  - Hand placement stays.
+- **Overlays:** mood, nuisance, districts, traffic and coverage.
+- **A chronicle:** each settlement's history as it happens (founded, invented, taught, forgotten, replanned), readable in game and exportable as an OKF log. The tutorial goals give way to an advisor that points at what the chronicle shows.
+
+**Gate 10 (proposed).** A paired scenario per lever. Zoning keeps at least 90% of farms in the farm zone; raising a priority moves that need's first relief earlier; encouragement brings a discovery earlier on at least five of six internal seeds. Also: every invention, teaching and forgetting appears in the chronicle.
+
+# 11. A deeper economy
+
+**Why now.** Deposits exist (8) and towns have room for workshops (9). The planner needs richer choices, and home tiers need goods.
+
+**Builds.**
+- **New goods:** stone, then cut stone; clay, then bricks; iron ore, then tools; fish; flax, then cloth.
+- **Multi-input recipes.** Tools wear out and speed up the work that uses them.
+- **Home tiers by goods,** separate from size: a tier-one home needs bread, tier two adds fish or cloth, tier three adds tools. Mood rewards variety.
+- **Storage:** granaries, a woodyard and warehouses with capacity; some goods spoil when left out.
+- **Planner chains** several steps deep, with upgrades planned alongside new buildings.
+
+**Gate 11 (proposed).** Large preset, one settlement, 60 game minutes: at least 20% of homes at tier three; every tier's homes stocked at least 90% of the time; departures and `fed_min` at Gate 2's level.
+
+# 12. Seasons
+
+**Why now.** Seasons reshape the food economy. Added late, they would mean rebalancing everything built since, so they come straight after the economy deepens.
+
+**Builds.** A year of tuned length: crops grow from spring to autumn and are harvested; winter needs firewood for warmth and stored food. Granaries and preserved food (smoked fish) earn their place. The planner forecasts winter demand, and mood has a seasonal part.
+
+**Gate 12 (proposed).** Three game years on the large preset: no starvation, at most 2% departures, and food in store at the first frost covering at least the winter's need.
+
+**Disturbs.** Every food gate: seasons are off by default for scenarios that predate them, like the planner was.
+
+**Kyle's call.** Year length, and whether winter is harsh or gentle in tone.
+
+# 13. People
+
+**Why now.** It needs a working economy and calendar (11, 12) so that families, ageing and skills have something to live in.
+
+**Builds.**
+- **Individuals.** Each villager has an age, a family, a home, and a skill per trade that grows with practice. Work goes to the most skilled villager free.
+- **Births and ageing.** Couples have children when fed and housed; the old retire and die.
+- **Planners are people.** The town planner and district planners are villagers with a planning skill, working from a town hall and district halls.
+- **Skills are knowledge.** A settlement whose last master of a craft dies may forget that craft.
+
+**Gate 13 (proposed).** Newcomers off, 60 game minutes: population up at least 50% by births; at least one expert in every trade; `fed_min` at Gate 2's level.
+
+**Kyle's call.** Tone of death and ageing in a cosy game: for example old age only, shown gently.
+
+# 14. Ways to move
+
+**Why now.** Distances are real (7, 8), labour is precious (13), and long hauls are visibly slow.
+
+**Builds.** Vehicles as blueprints, each with a capacity, a speed and the surfaces it can use: handcarts, ox carts, and river boats between jetties. The job board plans multi-leg deliveries through hubs and warehouses. Carts are discovered under distance strain and boats under river strain, and spread by the existing knowledge rules.
+
+**Gate 14 (proposed).** Large preset: carts discovered unscripted; at least 50% of deliveries over a set distance go by cart; `mean_delivery_seconds` below the Gate 8 baseline.
+
+# 15. New settlements
+
+**Why now.** Daughter towns need room (7), transport to stay in touch (14), and people to send (13).
+
+**Builds.** A crowded town, or one short of land or a deposit, sends a founding party with villagers, part of the stores, and its knowledge minus the crafts it never practised. The party scores sites for land, deposits, water and distance from rivals, then walks there. Daughter towns keep visiting their mother town.
+
+**Gate 15 (proposed).** Large preset, one settlement at the start, 90 game minutes: at least four settlements, unscripted, each fed and growing.
+
+# 16. Trade
+
+**Why now.** It needs several settlements (15) and ways to carry goods between them (14).
+
+**Builds.** Each settlement knows its surplus and its wants. Traders carry goods along roads and rivers: barter first, with money as a later discovery. The planner counts imports as relief, so towns specialise.
+
+**Gate 16 (proposed).** Three settlements, run with trade on and off: with trade on, total population is higher, every town's mood is at least as good, and at least two towns export at least 40% of one good they make.
+
+**Kyle's call.** Should money exist at all, or stay barter?
+
+# 17. The sea
+
+**Why now.** It needs trade (16) and boats (14) to carry it.
+
+**Builds.** An archipelago preset with shallows, reefs and open sea. Docks, shipyards, ships with crews, and sea routes. Explorers chart islands the settlements have not seen. Settlers, goods and knowledge cross water only by ship, and colonies are founded overseas.
+
+**Gate 17 (proposed).** Archipelago preset: a colony is founded on a second island unscripted, survives 30 game minutes, and trades back to its mother town.
+
+# 18. Ages
+
+**Why now.** By here the game has enough discoveries to group into eras, and enough distance for an age to spread unevenly.
+
+**Builds.**
+- **Eras:** hand tools, stone and bronze, iron, wind and water mills, steam and rail. Each is a set of discoveries plus what they unlock, written as OKF concepts.
+- **Machine tiers:** courier bots, then conveyors, then rail, each discovered when the tier below visibly struggles.
+- **Regression:** an isolated or shrinking settlement can fall back an age.
+
+**Gate 18 (proposed).** An age turns across at least half the settlements unscripted. In a second scenario, an isolated settlement loses a craft it stopped practising.
+
+# 19. Hardship
+
+**Why now.** It needs seasons (12), density (9) and ages that offer remedies (18), so hardship meets a civilisation able to answer it.
+
+**Builds.**
+- **Hazards and their counters:**
+  - fire spreads between close wooden buildings, answered by wells and fire crews;
+  - rivers flood, answered by levees;
+  - sickness spreads in crowded towns, answered by healers and then sanitation.
+  - Each counter is discovered under its strain.
+- **The remaining laws** for the steward: rationing, working hours, who may leave.
+
+**Gate 19 (proposed).** A planned town weathers one hazard of each kind and three winters, losing at most 10% of its people. In a paired scenario, rationing brings a town through a lean winter that kills or drives off more people without it.
+
+**Kyle's call.** Can fire destroy buildings for good, or only damage them?
 
 # Beyond
 
-- Tens of thousands of villagers: the sim in a Web Worker, then in WebAssembly if needed.
+- Tens of thousands of villagers: the sim in a Web Worker, then WebAssembly if needed.
 - Shared worlds: two players' civilisations meeting on one sea.
-- Modding: a mod is an OKF bundle of blueprints, goods and ages loaded beside the base game's.
+- Modding: a mod is an OKF bundle of goods, blueprints and ages loaded beside the base game's.
 
 # Rule
 
-Phase 4 started by turning [Gate 2's scripted build order](/references/scenarios/sustain-town.ts) into the planner: if the planner cannot match the script, it is not ready. [Gate 4](/gates/04-village-plans.md) holds it to Gate 2's thresholds with no build calls at all, and it passes on every swept seed (see the [log](/log.md)). Every later phase follows the same rule: a system is ready only when a gate shows it doing unscripted what a script or the player used to do.
+Phase 4 started by turning [Gate 2's scripted build order](/references/scenarios/sustain-town.ts) into the planner: if the planner cannot match the script, it is not ready. Every phase since follows the same rule: a system is ready only when a gate shows it doing unscripted what a script or the player used to do.
