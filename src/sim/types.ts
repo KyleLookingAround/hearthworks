@@ -59,6 +59,8 @@ export interface BlueprintDef {
   paves: boolean;
   /** Paves a planned road rather than a path; planners lay it in long straight strips at `cost` a tile. */
   road: boolean;
+  /** Paves a road in stone (with `road`): planners repave their busiest roads with it from stone they can spare. */
+  stone: boolean;
   /** Built on the shore: its door opens onto water, and boats are launched from it. */
   shore: boolean;
   /** A crop: works from spring to autumn and rests in winter, when seasons are on. */
@@ -151,7 +153,7 @@ export interface Tuning {
   start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; neighbourSpreadShare: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
-    pathSpeed: number; roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartPathSpeed: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; roundTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number; oxCarry: number; oxPathSpeed: number; oxRoadSpeed: number; oxRoughSpeed: number; oxMinTiles: number; oxFeed: number;
+    pathSpeed: number; roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartPathSpeed: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; roundTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number; stoneRoadSpeed: number; oxCarry: number; oxPathSpeed: number; oxRoadSpeed: number; oxRoughSpeed: number; oxMinTiles: number; oxFeed: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
   settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; storesShare: number; maxSettlements: number };
@@ -445,6 +447,9 @@ export interface World {
   /** cost of a path (or bridge) tile, of a road tile, and of a tile under grown trees, relative to open land: the inverse of their speeds */
   pathCost: number;
   roadCost: number;
+  /** Route cost of a road of stone, and how many tiles are paved in stone (`roads` counts every road tile, stone or not). */
+  stoneCost: number;
+  stone: number;
   /** how many road tiles are laid */
   roads: number;
   forestCost: number;

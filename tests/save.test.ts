@@ -201,3 +201,14 @@ test('a version 22 save is upgraded to version 23: with people and seasons, each
   runFor(S, 60);
   assert.equal(text(loadGame(content, text(S))), text(S));
 });
+
+test('a version 23 save is upgraded to version 24: no road of stone yet, stone walked at the tuning\'s pace, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v23.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 23);
+  const S = loadGame(content, file);
+  assert.equal(S.world.stone, 0);
+  assert.equal(S.world.stoneCost, 1 / content.tuning.logistics.stoneRoadSpeed);
+  assert.ok(!S.world.road.some(v => v === 3));
+  runFor(S, 60);
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});

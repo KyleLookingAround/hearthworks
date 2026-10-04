@@ -5,7 +5,7 @@ import { foundersKnowledge } from './knowledge.ts';
 import { initPeople } from './people.ts';
 import { joinFields, offered } from './farms.ts';
 import { findPath, reachable } from './path.ts';
-import type { Agent, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
+import type { Agent, BlueprintDef, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
 
 /**
  * A place of learning of this kind in a settlement: standing, or with `working` its worker at work.
@@ -105,7 +105,7 @@ export function emit(S: State, kind: GameEvent['kind'], text: string, minor = fa
  */
 function generateWorld(M: MapDef, W: number, H: number, S: State): World {
   const r = S.rng, N = W * H, T = M.terrain, F = M.forest;
-  const w: World = { w: W, h: H, ground: new Uint8Array(N), height: new Uint8Array(N), deposit: new Uint8Array(N), slopeCost: 0, rockCost: 1, pathCost: 1, roadCost: 1, roads: 0, forestCost: 1, wear: new Float32Array(N), bridge: new Uint8Array(N), zone: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1), door: new Uint8Array(N), front: new Uint8Array(N), dock: new Uint8Array(N), docks: 0, waterCost: 1, work: { paths: 0, pathFails: 0, pathNodes: 0, jobPairs: 0, plannerSpots: 0 } };
+  const w: World = { w: W, h: H, ground: new Uint8Array(N), height: new Uint8Array(N), deposit: new Uint8Array(N), slopeCost: 0, rockCost: 1, pathCost: 1, roadCost: 1, stoneCost: 1, roads: 0, stone: 0, forestCost: 1, wear: new Float32Array(N), bridge: new Uint8Array(N), zone: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1), door: new Uint8Array(N), front: new Uint8Array(N), dock: new Uint8Array(N), docks: 0, waterCost: 1, work: { paths: 0, pathFails: 0, pathNodes: 0, jobPairs: 0, plannerSpots: 0 } };
   const n1 = valueNoise(r, T.largeCell, W, H), n2 = valueNoise(r, T.smallCell, W, H), n3 = valueNoise(r, F.cell, W, H);
   // island centres for the islands shape, and islets out at sea: drawn only for maps that have them,
   // so the lone isle draws exactly the random numbers it always did
@@ -298,7 +298,7 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   const L = content.tuning.logistics;
   S.world.waterCost = L.villagerSpeed / L.boatSpeed;
   S.world.slopeCost = L.slopeCost; S.world.rockCost = L.rockCost;
-  S.world.pathCost = 1 / L.pathSpeed; S.world.roadCost = 1 / L.roadSpeed; S.world.forestCost = 1 / L.forestSpeed;
+  S.world.pathCost = 1 / L.pathSpeed; S.world.roadCost = 1 / L.roadSpeed; S.world.stoneCost = 1 / L.stoneRoadSpeed; S.world.forestCost = 1 / L.forestSpeed;
   const first = firstSite(S);
   prepareSite(S, M, first.x, first.y);
   foundTown(S, first.x, first.y, opts.planner ?? false, opts.roads ?? true);
@@ -326,7 +326,7 @@ export function foundTown(S: State, cx: number, cy: number, planner: boolean, ro
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;
   for (const b of [store, h1, h2]) b.town = id;
   h1.inv = { ...t.houseStock }; h2.inv = { ...t.houseStock };
-  for (let x = cx - 5; x <= cx + 4; x++) if (S.world.ground[(cy + 2) * W + x] && S.world.road[(cy + 2) * W + x] !== 2) { S.world.road[(cy + 2) * W + x] = 1; S.world.tree[(cy + 2) * W + x] = 0; }
+  for (let x = cx - 5; x <= cx + 4; x++) if (S.world.ground[(cy + 2) * W + x] && S.world.road[(cy + 2) * W + x] < 2) { S.world.road[(cy + 2) * W + x] = 1; S.world.tree[(cy + 2) * W + x] = 0; }
   const homes = [h1, h2], cap = content.blueprints.house.homes;
   // a founding party moves in rather than new villagers
   if (party) {
@@ -418,7 +418,7 @@ export function placeProblem(S: State, type: string, x: number, y: number, rot =
     if (w.ground[i] === 3) return 'that is bare rock';
     if (w.bgrid[i] !== -1) return 'something is already built there';
     // a road can be laid over a path, but nothing over a road
-    if (B.paves) { if (w.road[i] && !(B.road && w.road[i] === 1)) return `there is a ${w.road[i] === 2 ? 'road' : 'path'} already`; continue; }
+    if (B.paves) { if (w.road[i] && !(B.road && w.road[i] < paveLevel(B))) return `there is a ${w.road[i] >= 2 ? 'road' : 'path'} already`; continue; }
     if (w.front[i]) return "it would block another building's door";
   }
   if (!B.paves) {
@@ -495,7 +495,7 @@ export function turnBuilding(S: State, b: Building, by = 1): boolean {
   for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) w.bgrid[j * w.w + k] = -1;
   setDoor(S, b, false);
   b.x = x; b.y = y; b.w = d.w; b.h = d.h; b.rot = rot;
-  for (let j = y; j < y + d.h; j++) for (let k = x; k < x + d.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; if (w.road[i] === 2) w.roads--; w.road[i] = 0; }
+  for (let j = y; j < y + d.h; j++) for (let k = x; k < x + d.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; unpave(w, i); }
   setDoor(S, b, true);
   stepOut(S, b);
   return true;
@@ -503,14 +503,14 @@ export function turnBuilding(S: State, b: Building, by = 1): boolean {
 
 export function placeBuilding(S: State, type: string, x: number, y: number, complete: boolean, rot = 0, size?: { w: number; h: number }): Building | null {
   const B = S.content.blueprints[type], w = S.world;
-  if (B.paves) { const i = y * w.w + x; if (B.road && w.road[i] !== 2) w.roads++; else if (!B.road && w.road[i] === 2) w.roads--; w.road[i] = B.road ? 2 : 1; w.tree[i] = 0; return null; }
+  if (B.paves) { const i = y * w.w + x; pave(w, i, paveLevel(B)); w.tree[i] = 0; return null; }
   // (new fields take the size of the strip they are laid on)
   const { w: bw, h: bh } = size ?? dims(B, rot);
   const b: Building = {
     id: S.nextId++, type, x, y, w: bw, h: bh, rot, site: !complete, build: 0, inv: {}, incoming: {}, reserved: {},
     worker: null, hands: [], timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + bw / 2, y + bh / 2), used: 0, waiting: {}, noWay: null, doorAt: null, extra: 0, wear: 0, fire: 0, stall: 0, burn: 0, flood: 0, sick: 0, size: 0, of: null, made: 0, ate: {},
   };
-  for (let j = y; j < y + bh; j++) for (let k = x; k < x + bw; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; if (w.road[i] === 2) w.roads--; w.road[i] = 0; }
+  for (let j = y; j < y + bh; j++) for (let k = x; k < x + bw; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; unpave(w, i); }
   setDoor(S, b, true);
   S.buildings.push(b); S.bmap.set(b.id, b);
   stepOut(S, b);
@@ -595,3 +595,21 @@ export function saplings(w: World): Set<number> {
   return s;
 }
 export function plant(w: World, i: number) { w.tree[i] = 1; w.grow[i] = 0; saplings(w).add(i); }
+
+/** What a paving blueprint lays: 1 a path, 2 a road, 3 a road of stone. */
+export const paveLevel = (B: BlueprintDef) => (B.stone ? 3 : B.road ? 2 : 1);
+
+/** Pave a tile at a level (1 path, 2 road, 3 stone road), keeping the world's counts of road and stone tiles. */
+export function pave(w: World, i: number, level: number) {
+  unpave(w, i);
+  w.road[i] = level;
+  if (level >= 2) w.roads++;
+  if (level === 3) w.stone++;
+}
+
+/** Take up whatever paves a tile. */
+export function unpave(w: World, i: number) {
+  if (w.road[i] >= 2) w.roads--;
+  if (w.road[i] === 3) w.stone--;
+  w.road[i] = 0;
+}

@@ -464,7 +464,7 @@ function foundDistrict(S: State, town: Town): boolean {
     const dr = door({ x, y, w: B.w, h: B.h });
     if (!reach[(dr.y + 1) * W.w + dr.x]) continue;
     let grass = 0, road = 0;
-    for (let j = -8; j <= 8; j++) for (let k = -8; k <= 8; k++) { const xx = Math.round(p.x) + k, yy = Math.round(p.y) + j; if (xx >= 0 && yy >= 0 && xx < W.w && yy < W.h) { const i = yy * W.w + xx; if (W.ground[i] === 2 && W.bgrid[i] === -1) grass++; if (W.road[i] === 2 && Math.abs(j) <= RD.districtReach && Math.abs(k) <= RD.districtReach) road++; } }
+    for (let j = -8; j <= 8; j++) for (let k = -8; k <= 8; k++) { const xx = Math.round(p.x) + k, yy = Math.round(p.y) + j; if (xx >= 0 && yy >= 0 && xx < W.w && yy < W.h) { const i = yy * W.w + xx; if (W.ground[i] === 2 && W.bgrid[i] === -1) grass++; if (W.road[i] >= 2 && Math.abs(j) <= RD.districtReach && Math.abs(k) <= RD.districtReach) road++; } }
     // a new district grows along a road: its heart beside one, where the road runs on through open land
     cands.push({ x, y, s: Math.abs(d - P.districtSpacing) - P.districtRoomWeight * grass - (road ? RD.districtWeight : 0) });
   }
@@ -593,7 +593,7 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     }
     // built along the roads: a door onto one (its front tile on a road, or beside it), or looking straight down a short run to one
     if (W.roads > 0) {
-      const Rd = S.content.tuning.roads, roadAt = (q: { x: number; y: number }) => inside(q) && W.road[q.y * W.w + q.x] === 2;
+      const Rd = S.content.tuning.roads, roadAt = (q: { x: number; y: number }) => inside(q) && W.road[q.y * W.w + q.x] >= 2;
       if (roadAt(fr) || roadAt({ x: fr.x + F[1], y: fr.y + F[0] }) || roadAt({ x: fr.x - F[1], y: fr.y - F[0] })) s -= Rd.frontWeight;
       else for (let k = 2; k <= Rd.nearTiles + 1; k++) { const q = { x: dr.x + F[0] * k, y: dr.y + F[1] * k }; if (!inside(q)) break; if (roadAt(q)) { s -= Rd.nearWeight; break; } if (W.bgrid[q.y * W.w + q.x] !== -1) break; }
     }
@@ -922,7 +922,7 @@ function layStreets(S: State, town: Town) {
       const col = ((x - d.x) % P.streetEveryCols + P.streetEveryCols) % P.streetEveryCols === 0;
       const i = y * W.w + x;
       // streets are paths; a road already there stays a road
-      if ((row || col) && (W.ground[i] === 1 || W.ground[i] === 2) && W.bgrid[i] === -1 && W.tree[i] !== 2 && W.zone[i] !== NOBUILD && W.road[i] !== 2) W.road[i] = 1;
+      if ((row || col) && (W.ground[i] === 1 || W.ground[i] === 2) && W.bgrid[i] === -1 && W.tree[i] !== 2 && W.zone[i] !== NOBUILD && W.road[i] < 2) W.road[i] = 1;
     }
     emit(S, 'info', `${town.name} laid out streets: it has grown into a town`, true);
   }

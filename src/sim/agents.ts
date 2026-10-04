@@ -80,13 +80,13 @@ export function updateAgent(S: State, a: Agent, dt: number) {
     let sp = a.kind === 'bot' ? L.botSpeed : L.villagerSpeed;
     if (!w.ground[i] && !w.bridge[i]) sp = L.boatSpeed;
     else if (w.bridge[i]) sp *= L.pathSpeed;
-    else if (w.road[i]) sp *= w.road[i] === 2 ? L.roadSpeed : L.pathSpeed;
+    else if (w.road[i]) sp *= w.road[i] === 3 ? L.stoneRoadSpeed : w.road[i] === 2 ? L.roadSpeed : L.pathSpeed;
     else if (w.ground[i] === 3) sp /= w.rockCost;
     else if (w.tree[i] === 2 && a.kind !== 'bot') sp *= L.forestSpeed;
     // a handcart rolls best on roads, well on paths and bridges, and drags elsewhere; an ox cart likewise, at an ox's pace
     if (a.cart !== null && (w.ground[i] || w.bridge[i])) {
       const shed = S.bmap.get(a.cart), ox = !!shed && S.content.blueprints[shed.type].oxen > 0;
-      sp *= w.road[i] === 2 ? (ox ? L.oxRoadSpeed : L.cartRoadSpeed) : w.road[i] || w.bridge[i] ? (ox ? L.oxPathSpeed : L.cartPathSpeed) : ox ? L.oxRoughSpeed : L.cartRoughSpeed;
+      sp *= w.road[i] >= 2 ? (ox ? L.oxRoadSpeed : L.cartRoadSpeed) : w.road[i] || w.bridge[i] ? (ox ? L.oxPathSpeed : L.cartPathSpeed) : ox ? L.oxRoughSpeed : L.cartRoughSpeed;
     }
     // slopes slow walkers as much as they cost in route finding
     if (w.ground[i]) sp /= 1 + w.slopeCost * Math.abs(w.height[ty * w.w + tx] - w.height[i]);
@@ -95,7 +95,7 @@ export function updateAgent(S: State, a: Agent, dt: number) {
       a.x = gx; a.y = gy; a.path.shift();
       const j = ty * w.w + tx;
       if (w.ground[j]) w.wear[j] += 1;
-      if (a.task) { a.task.steps++; if (w.road[j] === 2) a.task.road++; else if (w.road[j] || w.bridge[j]) a.task.path++; }
+      if (a.task) { a.task.steps++; if (w.road[j] >= 2) a.task.road++; else if (w.road[j] || w.bridge[j]) a.task.path++; }
     } else { a.x += (dx / d) * step; a.y += (dy / d) * step; }
   }
   if (!a.path.length) {

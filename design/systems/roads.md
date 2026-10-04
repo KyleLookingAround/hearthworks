@@ -4,7 +4,7 @@ title: Roads
 description: Paths are worn where people walk; roads are planned as long straight strips that cut through what stands, and the town is then built along them.
 tags: [roads, logistics, planner]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-04T08:56:00Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T12:49:27Z }
 tuning:
   traffic_from: 8
   traffic_span: 8
@@ -45,6 +45,10 @@ The best run that scores above nothing is laid if the settlement can pay `cost` 
 
 Once roads are laid, the planner sites buildings along them: a spot whose door opens onto a road (its front tile on the road or beside it) gains `front_weight`, and one whose door looks down a straight run of at most `near_tiles` to a road gains `near_weight`. The ring of open land every building keeps ([planner](/systems/planner.md)) may be road, so a door can open straight onto one (never a path, and nothing stands on a road). A new district's heart goes beside a road where one passes within `district_reach` tiles of a candidate (worth `district_weight` tiles of its spacing), so districts grow along their roads. What a road cleared away comes back along it, as the planner sees the shortage again.
 
+# Roads of stone
+
+A settlement that knows the [Stone Road](/blueprints/stone_road.md) (thought of under `traffic` once the Road is known) repaves its roads in stone. At a look when it has no new road to lay, it takes the busiest of its roads with tiles not yet of stone, by the footsteps worn on them, and paves the whole strip, at the stone road's `cost` a tile, if its stores hold enough stone to spare ([production](/systems/production.md): the planner wants no more of it and its stores hold `surplus_min` or more) and all the strip needs. Stone roads are walked at `stone_road_speed` ([logistics](/systems/logistics.md)) and drawn as cobbles. Nothing is made for them: a settlement with no quarry, or no stone to spare, keeps its roads as they are.
+
 # Kyle's call
 
-Whether roads should cost stone once a settlement has a quarry, and whether they should run on to the neighbours.
+Whether roads should run on to the neighbours, and whether roads of stone should cost cut stone (from a mason) rather than stone.

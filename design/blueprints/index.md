@@ -36,6 +36,7 @@
 * [School](school.md) - Where children learn to read and to learn; those who went to school pick up a trade faster.
 * [Smithy](smithy.md) - Forges iron ore with logs into tools: a two-input recipe.
 * [Smokehouse](smokehouse.md) - Smokes fish over a log fire into food that keeps all winter.
+* [Stone Road](stone_road.md) - A road paved in stone, the fastest ground there is; a settlement repaves its busiest road in stone it can spare.
 * [Storage Yard](storage.md) - Holds surplus goods. Carriers fetch from here when nothing nearer has what they need.
 * [Terrace](terrace.md) - A row of small homes for twelve villagers on a 4 by 2 plot, built facing a street; towns build them in rows.
 * [University](university.md) - Scholars pursue lines of inquiry, so a town comes up with new ideas faster under strain.

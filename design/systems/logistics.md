@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T11:49:05Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T12:49:27Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -12,6 +12,7 @@ tuning:
   bot_speed: 4.9
   path_speed: 1.7
   road_speed: 2.4
+  stone_road_speed: 3
   forest_speed: 0.65
   boat_speed: 4
   output_cap: 6
@@ -69,7 +70,7 @@ Water is crossed by rowing boat. Boats are launched from a [dock](/blueprints/do
 
 # Terrain, roads and bridges
 
-Route finding and walking speed agree: a [path](/blueprints/path.md) or [bridge](/blueprints/bridge.md) tile costs `1 / path_speed`, a [road](/blueprints/road.md) tile `1 / road_speed`, a tile under grown trees `1 / forest_speed`, rock `rock_cost`, and every step up or down costs `slope_cost` per unit of height more (both read from this tuning; before, two of them were copies in code). Feet wear the tiles they cross; the wear fades with a half-life of the [planner](/systems/planner.md)'s `wear_half_life_seconds`, and planners pave the most worn tiles into paths. Deliveries also count the tiles they step on roads and on paths, so receipts can compare the pace of those mostly along roads with those mostly along paths. Every delivery records its time from claim to drop-off and its straight-line length (carrier to source to destination), so receipts can report `mean_delivery_seconds` and the pace per tile.
+Route finding and walking speed agree: a [path](/blueprints/path.md) or [bridge](/blueprints/bridge.md) tile costs `1 / path_speed`, a [road](/blueprints/road.md) tile `1 / road_speed`, a [stone road](/blueprints/stone_road.md) tile `1 / stone_road_speed`, a tile under grown trees `1 / forest_speed`, rock `rock_cost`, and every step up or down costs `slope_cost` per unit of height more (both read from this tuning; before, two of them were copies in code). Feet wear the tiles they cross; the wear fades with a half-life of the [planner](/systems/planner.md)'s `wear_half_life_seconds`, and planners pave the most worn tiles into paths. Deliveries also count the tiles they step on roads and on paths, so receipts can compare the pace of those mostly along roads with those mostly along paths. Every delivery records its time from claim to drop-off and its straight-line length (carrier to source to destination), so receipts can report `mean_delivery_seconds` and the pace per tile.
 
 # Storage and spoiling
 

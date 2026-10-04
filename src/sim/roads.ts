@@ -4,13 +4,15 @@
  * replanning does). See design/systems/roads.md. No randomness: ties break by scan order.
  */
 import { cancelTask, touches } from './logistics.ts';
-import { add, bp, chronicle, ctr, demolish, emit, front as frontOf, seasonOf, storesOnTrack, villagers } from './world.ts';
-import { foodChainOf } from './production.ts';
+import { add, bp, chronicle, ctr, demolish, emit, front as frontOf, pave, seasonOf, storesOnTrack, villagers } from './world.ts';
+import { enough, foodChainOf } from './production.ts';
 import type { Building, State, Town } from './types.ts';
 
 const R = (S: State) => S.content.tuning.roads;
 /** The blueprint that paves roads (rather than paths). */
-const roadDef = (S: State) => Object.values(S.content.blueprints).find(B => B.paves && B.road);
+const roadDef = (S: State) => Object.values(S.content.blueprints).find(B => B.paves && B.road && !B.stone);
+/** The blueprint that paves roads in stone. */
+const stoneDef = (S: State) => Object.values(S.content.blueprints).find(B => B.paves && B.road && B.stone);
 
 /** The strain of distance on a village's or town's deliveries, 0 to 1: the need `traffic`. */
 export function traffic(S: State, town: Town): number {
@@ -105,7 +107,7 @@ export function bestRoad(S: State, town: Town): Run | null {
       for (const run of runsAlong(S, town, horizontal, line, f0, f1, spare)) {
         if (run.tiles.length < P.minLength || run.worn / run.tiles.length < P.minTraffic) continue;
         if (first && !run.tiles.some(i => Math.abs((i % W.w) - front.x) <= 2 && Math.abs(Math.floor(i / W.w) - front.y) <= 2)) continue;
-        const fresh = run.tiles.filter(i => W.road[i] !== 2).length;
+        const fresh = run.tiles.filter(i => W.road[i] < 2).length;
         if (fresh < P.minLength) continue;
         const movers = run.homes.reduce((n, h) => n + h.residents.length, 0);
         if (movers && spareBeds(S, town, new Set(run.homes)) < movers) continue;
@@ -143,7 +145,7 @@ export function layRoad(S: State, town: Town, run: Run) {
     for (const [k, n] of back) if (n > 0) add(store.inv, k, n);
   }
   let laid = 0;
-  for (const i of run.tiles) { if (W.road[i] !== 2) { W.road[i] = 2; W.roads++; laid++; } W.tree[i] = 0; }
+  for (const i of run.tiles) { if (W.road[i] < 2) { pave(W, i, 2); laid++; } W.tree[i] = 0; }
   town.roads.push([run.x0, run.y0, run.x1, run.y1, S.t]);
   S.stats.roadsLaid++; S.stats.roadTiles += laid; S.stats.roadCut += run.cut.length;
   const moved = run.homes.reduce((n, h) => n + h.residents.length, 0);
@@ -162,16 +164,19 @@ export function planRoads(S: State, town: Town, dt: number): boolean {
   if (!S.plannedRoads || !B || !(B.id in town.knows)) return false;
   // roads in use keep the knowledge of them alive, as a building does
   if (town.roads.length) town.knows[B.id].used = S.t;
+  // and its roads of stone keep the stone road in mind
+  const SB = stoneDef(S);
+  if (SB && SB.id in town.knows && town.roads.some(r => paved(S, r))) town.knows[SB.id].used = S.t;
   if (town.form === 'hamlet') return false;
   town.roadT += dt;
   if (town.roadT < R(S).lookEverySeconds) return false;
   town.roadT = 0;
-  // main roads only: one, and another for every `villagers_per_road` people
+  // main roads only: one, and another for every `villagers_per_road` people; with none to lay, it repaves one in stone
   const pop = villagers(S).filter(a => a.home?.town === town.id).length;
-  if (town.roads.length >= 1 + Math.floor(pop / R(S).villagersPerRoad)) return false;
+  if (town.roads.length >= 1 + Math.floor(pop / R(S).villagersPerRoad)) return paveInStone(S, town);
   const run = bestRoad(S, town);
-  if (!run) return false;
-  const fresh = run.tiles.filter(i => S.world.road[i] !== 2).length;
+  if (!run) return paveInStone(S, town);
+  const fresh = run.tiles.filter(i => S.world.road[i] < 2).length;
   for (const g in B.cost) if (have(S, town, g) < B.cost[g] * fresh) { town.planner.status = `Saving ${S.content.goods[g]?.name.toLowerCase() ?? g} for a road`; return false; }
   for (const g in B.cost) take(S, town, g, B.cost[g] * fresh);
   layRoad(S, town, run);
@@ -180,12 +185,53 @@ export function planRoads(S: State, town: Town, dt: number): boolean {
   return true;
 }
 
+/** Is any tile of one of a settlement's roads (a straight strip from end to end) paved in stone? */
+function paved(S: State, r: number[]): boolean {
+  const W = S.world, [x0, y0, x1, y1] = r;
+  for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) if (W.road[y * W.w + x] === 3) return true;
+  return false;
+}
+
+/** The tiles of one of a settlement's roads (a straight strip from end to end) still a road and not yet of stone. */
+function unpaved(S: State, r: number[]): number[] {
+  const W = S.world, out: number[] = [];
+  const [x0, y0, x1, y1] = r;
+  for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) { const i = y * W.w + x; if (W.road[i] === 2) out.push(i); }
+  return out;
+}
+
+/**
+ * Roads of stone: a settlement that knows the stone road repaves, with stone it can spare (its stores hold enough of
+ * it, and all the strip needs), the busiest of its roads not yet of stone, the whole strip at once.
+ */
+function paveInStone(S: State, town: Town): boolean {
+  const B = stoneDef(S);
+  if (!B || !(B.id in town.knows)) return false;
+  const W = S.world;
+  let best: number[] | null = null, bw = 0;
+  for (const r of town.roads) {
+    const tiles = unpaved(S, r);
+    if (!tiles.length || !Object.keys(B.cost).every(g => enough(S, town, g) && have(S, town, g) >= B.cost[g] * tiles.length)) continue;
+    const worn = tiles.reduce((n, i) => n + W.wear[i], 0) / tiles.length;
+    if (!best || worn > bw) { best = tiles; bw = worn; }
+  }
+  if (!best) return false;
+  for (const g in B.cost) take(S, town, g, B.cost[g] * best.length);
+  for (const i of best) pave(W, i, 3);
+  town.knows[B.id].used = S.t;
+  const why = `${town.name} paved a road in stone, ${best.length} tiles`;
+  chronicle(S, town.id, 'road', why);
+  emit(S, 'info', why, true);
+  town.planner.status = `Paved a road in stone: ${best.length} tiles`;
+  return true;
+}
+
 /** Is there a road tile within `r` of the first storage yard's door front? */
 export function roadByCentre(S: State, town: Town, r = 2): boolean {
   const W = S.world, main = S.bmap.get(town.store);
   if (!main) return false;
   const f = frontOf(main);
-  for (let y = f.y - r; y <= f.y + r; y++) for (let x = f.x - r; x <= f.x + r; x++) if (x >= 0 && y >= 0 && x < W.w && y < W.h && W.road[y * W.w + x] === 2) return true;
+  for (let y = f.y - r; y <= f.y + r; y++) for (let x = f.x - r; x <= f.x + r; x++) if (x >= 0 && y >= 0 && x < W.w && y < W.h && W.road[y * W.w + x] >= 2) return true;
   return false;
 }
 

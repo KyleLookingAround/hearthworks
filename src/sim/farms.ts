@@ -81,7 +81,7 @@ export function growProblem(S: State, b: Building, zoned = false): string | null
     if (!W.ground[i]) return 'there is water behind it';
     if (W.ground[i] === 3) return 'there is bare rock behind it';
     if (W.bgrid[i] !== -1) return 'something is built behind it';
-    if (W.road[i]) return `there is a ${W.road[i] === 2 ? 'road' : 'path'} behind it`;
+    if (W.road[i]) return `there is a ${W.road[i] >= 2 ? 'road' : 'path'} behind it`;
     if (W.front[i]) return "it would block another building's door";
     if (W.zone[i] === NOBUILD) return 'the land behind it is kept free of building';
     if (zoned && W.zone[i] !== 0 && W.zone[i] !== FARMS) return 'the land behind it is zoned for something else';

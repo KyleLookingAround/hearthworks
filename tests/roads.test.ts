@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
-import { bp, createState, ctr, door, findPath, loadGame, placeBuilding, runFor, saveGame, villagers } from '../src/sim/index.ts';
+import { bp, canPlace, createState, ctr, door, findPath, loadGame, placeBuilding, runFor, saveGame, villagers } from '../src/sim/index.ts';
 import { bestRoad, layRoad, planRoads, roadByCentre, traffic } from '../src/sim/roads.ts';
 import { fits } from '../src/sim/place.ts';
 import { centre, findSpot } from '../src/gates/kit.ts';
@@ -129,4 +129,44 @@ test('with seasons, a road laid in autumn or winter cuts through no workplace of
   S.t = Math.ceil(S.t / content.tuning.seasons.yearSeconds) * content.tuning.seasons.yearSeconds + content.tuning.seasons.yearSeconds * 0.8;
   const winter = bestRoad(S, t);
   assert.ok(!winter || !winter.cut.some(food), 'nothing that feeds the village comes down in winter');
+});
+
+test('roads of stone: faster still, laid by hand over a road, and repaved by a settlement with stone to spare', () => {
+  const S = createState(content, 1847, { planner: true });
+  const W = S.world;
+  assert.ok(W.stoneCost < W.roadCost, 'a road of stone is quicker than a road');
+  assert.equal(W.stoneCost, 1 / L.stoneRoadSpeed);
+  // by hand: stone over a road, never a road over stone
+  const y = Math.floor(ctr(S.bmap.get(S.towns[0].store)!).y) + 6;
+  const xs: number[] = [];
+  for (let x = 0; x < W.w; x++) { const i = y * W.w + x; if (W.ground[i] === 2 && W.bgrid[i] === -1) xs.push(x); }
+  placeBuilding(S, 'road', xs[0], y, false);
+  placeBuilding(S, 'stone_road', xs[0], y, false);
+  assert.equal(W.road[y * W.w + xs[0]], 3);
+  assert.equal(W.roads, 1); assert.equal(W.stone, 1);
+  assert.ok(!canPlace(S, 'road', xs[0], y) && !canPlace(S, 'stone_road', xs[0], y), 'nothing over stone');
+  assert.ok(canPlace(S, 'stone_road', xs[1], y), 'stone on open ground');
+
+  // a village with a road, the stone road known and stone to spare repaves the road whole
+  const V = createState(content, 7, { planner: true, plannedRoads: true });
+  V.plannedRoads = false;
+  runFor(V, 1100);
+  V.plannedRoads = true;
+  const t = V.towns[0], yard = V.bmap.get(t.store)!;
+  t.knows.road ??= { by: t.name, at: V.t, verified: [], from: null, learned: V.t, used: V.t };
+  yard.inv.planks = 500;
+  assert.equal(planRoads(V, t, 1e9), true, 'a road first');
+  const strip = V.world.road.reduce((n, v) => n + (v === 2 ? 1 : 0), 0);
+  // it has all the roads it wants: with no stone road known, it does nothing more
+  t.roads.push(...Array.from({ length: 5 }, () => t.roads[0]));
+  yard.inv.stone = 0;
+  t.knows.stone_road = { by: t.name, at: V.t, verified: [], from: null, learned: V.t, used: V.t };
+  assert.equal(planRoads(V, t, 1e9), false, 'no stone to spare');
+  yard.inv.stone = strip + content.tuning.production.surplusMin;
+  // (the stores are counted once a tick)
+  V.t += 0.1;
+  assert.equal(planRoads(V, t, 1e9), true);
+  assert.equal(V.world.stone, strip);
+  assert.equal(yard.inv.stone, content.tuning.production.surplusMin);
+  assert.ok(V.chronicle.some(c => c.kind === 'road' && c.text.includes('in stone')));
 });

@@ -107,6 +107,7 @@ export function buildContent(files: SourceFile[]): Content {
       tools: isMap(f.tools) ? { speedup: num(d, f.tools.speedup, 'tools.speedup'), wearCycles: num(d, f.tools.wear_cycles, 'tools.wear_cycles') } : null,
       paves: f.paves === true,
       road: f.road === true,
+      stone: f.stone === true,
       shore: f.shore === true,
       zone: f.zone === 'farms' || f.zone === 'workshops' || f.zone === 'homes' ? f.zone : (num(d, f.homes, 'homes', 0) > 0 ? 'homes' : null),
       seasonal: f.seasonal === true,
@@ -198,7 +199,7 @@ export function buildContent(files: SourceFile[]): Content {
       villagerCarry: num(ld, lt.villager_carry, 'tuning.villager_carry'), botCarry: num(ld, lt.bot_carry, 'tuning.bot_carry'),
       villagerSpeed: num(ld, lt.villager_speed, 'tuning.villager_speed'), botSpeed: num(ld, lt.bot_speed, 'tuning.bot_speed'),
       pathSpeed: num(ld, lt.path_speed, 'tuning.path_speed'), roadSpeed: num(ld, lt.road_speed, 'tuning.road_speed'), boatSpeed: num(ld, lt.boat_speed, 'tuning.boat_speed'), forestSpeed: num(ld, lt.forest_speed, 'tuning.forest_speed'),
-      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), releaseAfterSeconds: num(ld, lt.release_after_seconds, 'tuning.release_after_seconds'), cartCarry: num(ld, lt.cart_carry, 'tuning.cart_carry'), cartPathSpeed: num(ld, lt.cart_path_speed, 'tuning.cart_path_speed'), cartRoadSpeed: num(ld, lt.cart_road_speed, 'tuning.cart_road_speed'), cartRoughSpeed: num(ld, lt.cart_rough_speed, 'tuning.cart_rough_speed'), cartMinTiles: num(ld, lt.cart_min_tiles, 'tuning.cart_min_tiles'), roundTiles: num(ld, lt.round_tiles, 'tuning.round_tiles'), cartReach: num(ld, lt.cart_reach, 'tuning.cart_reach'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'), noWayRetrySeconds: num(ld, lt.no_way_retry_seconds, 'tuning.no_way_retry_seconds'), slopeCost: num(ld, lt.slope_cost, 'tuning.slope_cost'), rockCost: num(ld, lt.rock_cost, 'tuning.rock_cost'),
+      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), releaseAfterSeconds: num(ld, lt.release_after_seconds, 'tuning.release_after_seconds'), cartCarry: num(ld, lt.cart_carry, 'tuning.cart_carry'), cartPathSpeed: num(ld, lt.cart_path_speed, 'tuning.cart_path_speed'), cartRoadSpeed: num(ld, lt.cart_road_speed, 'tuning.cart_road_speed'), cartRoughSpeed: num(ld, lt.cart_rough_speed, 'tuning.cart_rough_speed'), cartMinTiles: num(ld, lt.cart_min_tiles, 'tuning.cart_min_tiles'), roundTiles: num(ld, lt.round_tiles, 'tuning.round_tiles'), cartReach: num(ld, lt.cart_reach, 'tuning.cart_reach'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'), noWayRetrySeconds: num(ld, lt.no_way_retry_seconds, 'tuning.no_way_retry_seconds'), slopeCost: num(ld, lt.slope_cost, 'tuning.slope_cost'), rockCost: num(ld, lt.rock_cost, 'tuning.rock_cost'), stoneRoadSpeed: num(ld, lt.stone_road_speed, 'tuning.stone_road_speed'),
       oxCarry: num(ld, lt.ox_carry, 'tuning.ox_carry'), oxPathSpeed: num(ld, lt.ox_path_speed, 'tuning.ox_path_speed'), oxRoadSpeed: num(ld, lt.ox_road_speed, 'tuning.ox_road_speed'), oxRoughSpeed: num(ld, lt.ox_rough_speed, 'tuning.ox_rough_speed'), oxMinTiles: num(ld, lt.ox_min_tiles, 'tuning.ox_min_tiles'), oxFeed: num(ld, lt.ox_feed, 'tuning.ox_feed'),
     },
     needs: {

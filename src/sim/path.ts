@@ -15,7 +15,7 @@ function cost(w: World, i: number, inside: number): number {
   if (w.ground[i] === 3) return w.rockCost;
   const b = w.bgrid[i];
   if (b !== -1 && !w.door[i] && b !== inside) return Infinity;
-  if (w.road[i]) return w.road[i] === 2 ? w.roadCost : w.pathCost;
+  if (w.road[i]) return w.road[i] === 3 ? w.stoneCost : w.road[i] === 2 ? w.roadCost : w.pathCost;
   if (w.tree[i] === 2) return w.forestCost;
   return 1;
 }
@@ -41,8 +41,8 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   if (!b || b.g.length < 2 * N) { const n = 2 * N; b = { g: new Float32Array(n), came: new Int32Array(n), seen: new Uint32Array(n), closed: new Uint32Array(n), gen: 0 }; buffers.set(w, b); }
   // only someone trapped on a wall tile (not standing in a doorway) may cross that building to get out
   const gen = ++b.gen, { g, came, seen, closed } = b, inside = w.door[s] ? -1 : w.bgrid[s];
-  // the cheapest tile there is, so the estimate never overshoots: a road once any is laid, else a path
-  const best = w.roads > 0 ? Math.min(w.roadCost, w.pathCost) : w.pathCost, unit = rowing ? Math.min(best, water) : best;
+  // the cheapest tile there is, so the estimate never overshoots: a stone road or a road once any is laid, else a path
+  const best = w.stone > 0 ? Math.min(w.stoneCost, w.roadCost, w.pathCost) : w.roads > 0 ? Math.min(w.roadCost, w.pathCost) : w.pathCost, unit = rowing ? Math.min(best, water) : best;
   const h = (n: number) => { const i = n % N, dx = Math.abs(i % W - gx), dy = Math.abs(((i / W) | 0) - gy); return unit * (Math.max(dx, dy) + 0.414 * Math.min(dx, dy)); };
   const hi: number[] = [], hf: number[] = [];
   const swap = (a: number, c: number) => { [hi[a], hi[c]] = [hi[c], hi[a]]; [hf[a], hf[c]] = [hf[c], hf[a]]; };

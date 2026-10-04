@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 23;
+export const SAVE_VERSION = 24;
 
 type Json = Record<string, unknown>;
 
@@ -171,6 +171,11 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     const st = state.stats as Json; st.feasts ??= 0; st.feastsMissed ??= 0;
     return state;
   },
+  // 23 to 24: roads of stone: the world's route cost on stone (set from the tuning on load) and its count of stone tiles
+  23: state => {
+    const w = state.world as Json; w.stoneCost ??= null; w.stone ??= 0;
+    return state;
+  },
 };
 
 /** Run-length encoding for tile grids: [value, count, value, count, ...]. */
@@ -200,7 +205,7 @@ const ref = (b: Building | null) => (b ? b.id : null);
 
 export function saveGame(S: State): SaveFile {
   const w = S.world;
-  const world: Json = { w: w.w, h: w.h, docks: w.docks, waterCost: w.waterCost, slopeCost: w.slopeCost, rockCost: w.rockCost, pathCost: w.pathCost, roadCost: w.roadCost, roads: w.roads, forestCost: w.forestCost, work: { ...w.work } };
+  const world: Json = { w: w.w, h: w.h, docks: w.docks, waterCost: w.waterCost, slopeCost: w.slopeCost, rockCost: w.rockCost, pathCost: w.pathCost, roadCost: w.roadCost, stoneCost: w.stoneCost, roads: w.roads, stone: w.stone, forestCost: w.forestCost, work: { ...w.work } };
   for (const g of Object.keys(GRIDS) as GridName[]) world[g] = rle(w[g]);
   const task = (t: Task | null) => (t ? { src: t.src.id, dst: t.dst.id, item: t.item, n: t.n, at: t.at, tiles: t.tiles, steps: t.steps, road: t.road, path: t.path, round: t.round.map(r => ({ dst: r.dst.id, n: r.n })) } : null);
   // a carrier's job can still point at a building demolished under it: keep those as `gone`
@@ -238,7 +243,7 @@ export function loadGame(content: Content, input: SaveFile | string): State {
   const file = migrate(typeof input === 'string' ? JSON.parse(input) as SaveFile : input);
   const d = copy(file.state) as any;
   const wd = d.world, N = wd.w * wd.h;
-  const world = { w: wd.w, h: wd.h, docks: wd.docks, waterCost: wd.waterCost, slopeCost: wd.slopeCost, rockCost: wd.rockCost, pathCost: wd.pathCost, roadCost: wd.roadCost ?? 1 / content.tuning.logistics.roadSpeed, roads: wd.roads, forestCost: wd.forestCost, work: wd.work } as World;
+  const world = { w: wd.w, h: wd.h, docks: wd.docks, waterCost: wd.waterCost, slopeCost: wd.slopeCost, rockCost: wd.rockCost, pathCost: wd.pathCost, roadCost: wd.roadCost ?? 1 / content.tuning.logistics.roadSpeed, stoneCost: wd.stoneCost ?? 1 / content.tuning.logistics.stoneRoadSpeed, roads: wd.roads, stone: wd.stone, forestCost: wd.forestCost, work: wd.work } as World;
   for (const g of Object.keys(GRIDS) as GridName[]) (world as any)[g] = unrle(wd[g], new GRIDS[g](N));
 
   const buildings = d.buildings as Building[];
