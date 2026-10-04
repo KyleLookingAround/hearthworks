@@ -115,3 +115,18 @@ test('a door may open straight onto a planned road, never onto a worn path, and 
   W.road[front] = 0; W.road[at.y * W.w + at.x] = 2;
   assert.ok(!fits(S, 'sawmill', at.x, at.y), 'a road under it');
 });
+
+test('with seasons, a road laid in autumn or winter cuts through no workplace of the food chain', () => {
+  const S = createState(content, 1847, { planner: true });
+  runFor(S, 1100);
+  S.plannedRoads = true;
+  const t = S.towns[0];
+  t.knows.road ??= { by: t.name, at: S.t, verified: [], from: null, learned: S.t, used: S.t };
+  const food = (b: { type: string }) => Object.keys(content.blueprints[b.type].output).some(g => ['wheat', 'bread', 'fish', 'smoked_fish'].includes(g));
+  const any = bestRoad(S, t)!;
+  assert.ok(any);
+  S.seasons = true;
+  S.t = Math.ceil(S.t / content.tuning.seasons.yearSeconds) * content.tuning.seasons.yearSeconds + content.tuning.seasons.yearSeconds * 0.8;
+  const winter = bestRoad(S, t);
+  assert.ok(!winter || !winter.cut.some(food), 'nothing that feeds the village comes down in winter');
+});

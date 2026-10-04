@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-04T01:24:57Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T08:56:00Z }
 ---
 
 # How to read this
@@ -38,8 +38,9 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 19 | Ages | Eras of technology, machine tiers, crafts lost | 15, 18 | [Gate 19](/gates/19-ages.md) | Done |
 | 20 | Hardship | Fire, flood, sickness, barbarians and their counters; hard laws | 12, 17, 19 | [Gate 20](/gates/20-hardship.md) | Done |
 | 21 | Paths and roads | Worn paths become paths; roads are planned as long straight strips, cut through what stands, and the town is planned around them | 9, 16 | [Gate 21](/gates/21-paths-and-roads.md) | Done |
+| 22 | Farms that grow | Farms expand their fields, take on more hands and yield more; crops and herds give different foods | 11, 12, 14 | Gate 22 (proposed) | Next |
 
-Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to 10), **depth of life** (11 to 15: goods, seasons, trade, people and learning), **many peoples** (16 to 18), **ages and trials** (19 and 20), and **the shape of roads** (21).
+Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to 10), **depth of life** (11 to 15: goods, seasons, trade, people and learning), **many peoples** (16 to 18), **ages and trials** (19 and 20), **the shape of roads** (21), and **the land that feeds** (22).
 
 # Principles for every phase
 
@@ -345,6 +346,22 @@ Kyle's idea. **Why.** Today's "roads" are desire paths: worn where people walk, 
 **Gate 21 (stable)**, as proposed: the standard map, an hour: at least one straight road through the centre, nobody homeless, deliveries mostly along roads at least 5% faster per tile than those mostly along paths; with \`fed_min\` 0.6 added.
 
 **Gate 21 (proposed).** A town on the standard map lays at least one straight road through its centre unscripted, nobody is left homeless by it, and deliveries along it are faster than along paths.
+
+# 22. Farms that grow
+
+Kyle's idea. **Why.** A farm is a fixed 3 by 2 plot with one worker making wheat at one rate, so a growing town only ever adds more identical farms, and every home eats the same bread. Real farms grow their fields as their village grows, need more hands at harvest, and give different foods from different land.
+
+**Builds.**
+- **Fields that expand.** A farm grows in steps (a smallholding, a farm, an estate): each step adds fields beside it, on open land it can claim (the planner decides when, like replanning, weighing the land it takes against a new farm's), up to a largest size. Expanding costs goods and time like building.
+- **More hands, more yield.** Each step adds a worker place and raises the farm's output; an understaffed farm yields for the hands it has. Fields that rest in winter with [seasons](/systems/seasons.md) rest at every size.
+- **Different foods.** Crops and herds beyond wheat: vegetables (fast, on most land), an orchard's fruit (slow to start, on fertile land), and a herd's milk and meat (on grass, all year round, needing more room). Each is a food homes eat beside bread; the planner chooses what to grow from its land, its season and what its homes lack, and trade carries what one village grows to another.
+- **A varied diet.** Homes keep a little of each food they can get; mood rewards variety (as comforts do today), and a settlement fed by one crop is more exposed to a bad year.
+
+**Gate 22 (proposed).** On the standard map with seasons, a self-planning town grows at least one farm to its largest size unscripted, staffed by more than one worker, making more per tile of land than its first farm did; at least three foods are grown and eaten; every home has eaten two foods or more in the last year; being fed holds (`fed_min` 0.6).
+
+**Disturbs.** Every gate with a self-planning settlement (the economy changes), so like the other systems it is off by default where it would change a scripted scenario and on in new games, behind a new-game option. Saves raise their version (each farm's size, its fields, homes' foods).
+
+**Kyle's call.** How many sizes a farm has and how big the largest is; whether herds need fences and pasture as their own buildings; whether a bad year (blight, drought) belongs here or in [hardship](/systems/hardship.md).
 
 # The second pass
 

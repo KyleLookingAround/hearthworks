@@ -4,7 +4,8 @@
  * replanning does). See design/systems/roads.md. No randomness: ties break by scan order.
  */
 import { cancelTask, touches } from './logistics.ts';
-import { add, bp, chronicle, ctr, demolish, emit, front as frontOf, villagers } from './world.ts';
+import { add, bp, chronicle, ctr, demolish, emit, front as frontOf, seasonOf, storesOnTrack, villagers } from './world.ts';
+import { foodChainOf } from './production.ts';
 import type { Building, State, Town } from './types.ts';
 
 const R = (S: State) => S.content.tuning.roads;
@@ -19,8 +20,21 @@ export function traffic(S: State, town: Town): number {
 
 interface Run { x0: number; y0: number; x1: number; y1: number; tiles: number[]; cut: Building[]; homes: Building[]; worn: number; s: number }
 
-/** What a road may not cut through: storage, bridges, docks and anything else on the shore, places that pave. */
-const solid = (S: State, b: Building) => { const B = bp(S, b); return B.storage || !!B.bridge || B.shore; };
+/**
+ * What a road may not cut through: storage, bridges, docks and anything else on the shore; and, while the settlement
+ * can least spare its bread (with seasons, from autumn to the end of winter or while its winter store is behind), the
+ * workplaces of its food chain: a village of 48 lost its bakery and two farms to a road in late winter.
+ */
+const solid = (S: State, b: Building, lean: boolean) => {
+  const B = bp(S, b);
+  return B.storage || !!B.bridge || B.shore || (lean && Object.keys(B.output).some(g => foodChainOf(S).has(g)));
+};
+
+/** With seasons, can the settlement least spare its bread now? Autumn or winter, or its winter store behind. */
+function lean(S: State, town: Town): boolean {
+  const s = seasonOf(S);
+  return S.seasons && (s === 'autumn' || s === 'winter' || !storesOnTrack(S, town));
+}
 
 /** The settlement's extent: its buildings' bounding box, `margin` tiles around, inside the map. */
 function extent(S: State, town: Town) {
@@ -31,7 +45,7 @@ function extent(S: State, town: Town) {
 }
 
 /** Straight runs along one row (or column): split where water, rock or a building it cannot cut lies. */
-function runsAlong(S: State, town: Town, horizontal: boolean, line: number, from: number, to: number): Run[] {
+function runsAlong(S: State, town: Town, horizontal: boolean, line: number, from: number, to: number, spare: boolean): Run[] {
   const W = S.world, out: Run[] = [];
   let cur: Run | null = null;
   const close = () => { if (cur) out.push(cur); cur = null; };
@@ -39,7 +53,7 @@ function runsAlong(S: State, town: Town, horizontal: boolean, line: number, from
     const x = horizontal ? k : line, y = horizontal ? line : k, i = y * W.w + x;
     const id = W.bgrid[i], b = id >= 0 ? S.bmap.get(id) : undefined;
     // its own settlement's buildings may be cut; anyone else's, and what may never be cut, stop it
-    if (W.ground[i] !== 1 && W.ground[i] !== 2 || (b && (solid(S, b) || b.town !== town.id))) { close(); continue; }
+    if (W.ground[i] !== 1 && W.ground[i] !== 2 || (b && (solid(S, b, !spare) || b.town !== town.id))) { close(); continue; }
     cur ??= { x0: x, y0: y, x1: x, y1: y, tiles: [], cut: [], homes: [], worn: 0, s: 0 };
     cur.x1 = x; cur.y1 = y; cur.tiles.push(i); cur.worn += W.wear[i];
     if (b && !cur.cut.includes(b)) { cur.cut.push(b); if (bp(S, b).homes && !b.site) cur.homes.push(b); }
@@ -78,7 +92,7 @@ function take(S: State, town: Town, g: string, n: number) {
 export function bestRoad(S: State, town: Town): Run | null {
   const P = R(S), W = S.world, main = S.bmap.get(town.store);
   if (!main) return null;
-  const E = extent(S, town), front = frontOf(main);
+  const E = extent(S, town), front = frontOf(main), spare = !lean(S, town);
   const first = !town.roads.length;
   let best: Run | null = null;
   for (const horizontal of [true, false]) {
@@ -88,7 +102,7 @@ export function bestRoad(S: State, town: Town): Run | null {
       // the first road passes by the first yard's door; later ones keep apart from the settlement's roads the same way
       if (first && Math.abs(line - (horizontal ? front.y : front.x)) > 2) continue;
       if (!first && town.roads.some(r => (r[1] === r[3]) === horizontal && Math.abs((horizontal ? r[1] : r[0]) - line) < P.spacing)) continue;
-      for (const run of runsAlong(S, town, horizontal, line, f0, f1)) {
+      for (const run of runsAlong(S, town, horizontal, line, f0, f1, spare)) {
         if (run.tiles.length < P.minLength || run.worn / run.tiles.length < P.minTraffic) continue;
         if (first && !run.tiles.some(i => Math.abs((i % W.w) - front.x) <= 2 && Math.abs(Math.floor(i / W.w) - front.y) <= 2)) continue;
         const fresh = run.tiles.filter(i => W.road[i] !== 2).length;
