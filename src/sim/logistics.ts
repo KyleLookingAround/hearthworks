@@ -8,9 +8,9 @@ import { add, bp, ctr, distAB, distBB, door, seasonOf } from './world.ts';
 import { findPath } from './path.ts';
 import { goToBuilding } from './agents.ts';
 import { wants } from './production.ts';
-import type { Agent, Building, ItemId, State } from './types.ts';
+import type { Agent, Building, ItemId, State, Task } from './types.ts';
 
-export interface Request { dst: Building; item: ItemId; need: number; pri: number }
+export interface Request { dst: Building; item: ItemId; need: number; pri: number; /** not worth a trip of its own: only topped up on a cart's round */ topUp?: boolean }
 
 export function available(S: State, b: Building, item: ItemId): number {
   if (b.site || b.dead) return 0;
@@ -81,7 +81,8 @@ export function collectRequests(S: State): Request[] {
       const need = want[item] - (b.inv[item] || 0) - (b.incoming[item] || 0);
       // a home far from every storage yard asks for its food once it is worth a pair of hands, or it has run out: not a loaf
       // at a time across town (near a yard, a loaf at a time keeps a small village fed)
-      if (B.homes && item === food && need < Math.min(L.villagerCarry, want[item]) && (b.inv[item] || 0) + (b.incoming[item] || 0) > 0 && farFromStores(b)) { delete b.waiting[item]; continue; }
+      // (a cart passing on its round tops it up all the same)
+      if (B.homes && item === food && need < Math.min(L.villagerCarry, want[item]) && (b.inv[item] || 0) + (b.incoming[item] || 0) > 0 && farFromStores(b)) { delete b.waiting[item]; if (need > 0) reqs.push({ dst: b, item, need, pri: 0, topUp: true }); continue; }
       const age = aged(S, b, item, need);
       // a home's food comes first, then firewood and preserved food, then its comforts
       if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? (item === food ? -4 : item === 'logs' || S.content.tuning.seasons.preserved.includes(item) ? -3 : 2) : kitchen ? -4 : 0) - age });
@@ -133,6 +134,7 @@ export function findTask(S: State, a: Agent): boolean {
     for (const [item, list] of offers) { const av = available(S, s, item); if (av > 0) list.push({ b: s, av }); }
   }
   for (const r of reqs) {
+    if (r.topUp) continue;
     for (const { b: s, av } of offers.get(r.item)!) {
       if (s === r.dst) continue;
       S.world.work.jobPairs++;
@@ -157,19 +159,39 @@ export function findTask(S: State, a: Agent): boolean {
     }
   }
   if (!best) return false;
-  add(best.src.reserved, best.item, best.n);
+  const tiles = distAB(a, best.src) + distBB(best.src, best.dst);
+  // a cart on a long haul fills up: the same good for others asking within `round_tiles` of the first drop, in turn
+  const round: { dst: Building; n: number }[] = [];
+  // and a workshop's input comes a cartload at a time, beyond its usual shelf
+  if (shed && tiles >= L.cartMinTiles && !best.dst.site && bp(S, best.dst).input[best.item]) best.n = Math.max(best.n, Math.min(L.cartCarry, available(S, best.src, best.item)));
+  let total = best.n;
+  if (shed && tiles >= L.cartMinTiles && total < L.cartCarry) {
+    const first = best, near = reqs.filter(r => r.item === first.item && r.dst !== first.dst && r.dst !== first.src && distBB(r.dst, first.dst) <= L.roundTiles)
+      .sort((p, q) => distBB(p.dst, first.dst) - distBB(q.dst, first.dst) || p.dst.id - q.dst.id);
+    let av = available(S, best.src, best.item) - total;
+    for (const r of near) {
+      const k = Math.min(r.need, L.cartCarry - total, av);
+      if (k <= 0) continue;
+      round.push({ dst: r.dst, n: k }); total += k; av -= k;
+      if (total >= L.cartCarry) break;
+    }
+  }
+  add(best.src.reserved, best.item, total);
   add(best.dst.incoming, best.item, best.n);
-  a.task = { ...best, at: S.t, tiles: distAB(a, best.src) + distBB(best.src, best.dst), steps: 0, road: 0, path: 0 }; a.state = 'toSrc';
+  for (const r of round) add(r.dst.incoming, best.item, r.n);
+  a.task = { ...best, at: S.t, tiles, steps: 0, road: 0, path: 0, round }; a.state = 'toSrc';
   // only a load bigger than two hands can carry is worth the cart
-  if (shed && a.task.tiles >= L.cartMinTiles && best.n > cap) a.cart = shed.id;
+  if (shed && tiles >= L.cartMinTiles && total > cap) a.cart = shed.id;
   if (!goToBuilding(S, a, best.src)) {
     blame(S, a, best.src);
-    add(best.src.reserved, best.item, -best.n); add(best.dst.incoming, best.item, -best.n);
-    a.task = null; a.state = 'idle'; a.cart = null;
+    cancelTask(a);
     return false;
   }
   return true;
 }
+
+/** Everything a task still carries or will pick up: the first drop and the rest of its round. */
+const loadOf = (t: Task) => t.n + t.round.reduce((s, r) => s + r.n, 0);
 
 /**
  * Nobody found a way to `b`. If its own settlement's storage cannot reach its door either, the building has
@@ -186,15 +208,23 @@ export function pickup(S: State, a: Agent) {
   const t = a.task;
   if (!t) { a.state = 'idle'; return; }
   if (t.src.dead) { cancelTask(a); return; }
-  const have = t.src.inv[t.item] || 0, take = Math.min(t.n, have);
+  const want = loadOf(t), have = t.src.inv[t.item] || 0, take = Math.min(want, have);
   t.src.inv[t.item] = have - take;
-  add(t.src.reserved, t.item, -t.n);
-  if (take < t.n) { if (!t.dst.dead) add(t.dst.incoming, t.item, -(t.n - take)); t.n = take; }
+  add(t.src.reserved, t.item, -want);
+  // less there than claimed: the last drops of the round go without first
+  let short = want - take;
+  while (short > 0 && t.round.length) {
+    const r = t.round[t.round.length - 1], k = Math.min(short, r.n);
+    if (!r.dst.dead) add(r.dst.incoming, t.item, -k);
+    r.n -= k; short -= k;
+    if (!r.n) t.round.pop();
+  }
+  if (short > 0) { if (!t.dst.dead) add(t.dst.incoming, t.item, -short); t.n -= short; }
   if (!take) { a.task = null; a.state = 'idle'; a.cart = null; return; }
   a.carry = { item: t.item, n: take }; a.state = 'toDst';
   if (t.dst.dead || !goToBuilding(S, a, t.dst)) {
-    if (!t.dst.dead) { add(t.dst.incoming, t.item, -t.n); blame(S, a, t.dst); }
-    a.task = null; a.carry = null; a.state = 'idle'; a.cart = null;
+    if (!t.dst.dead) blame(S, a, t.dst);
+    cancelTask(a); a.state = 'idle';
   }
 }
 
@@ -217,15 +247,30 @@ export function drop(S: State, a: Agent) {
     const town = S.towns[t.dst.town];
     if (town && a.kind === 'villager') town.reach += (t.tiles - town.reach) / S.content.tuning.knowledge.reachSmoothing;
   }
+  // a cart's round goes on to its next drop
+  if (t && a.carry) {
+    a.carry.n -= t.dst.dead ? 0 : t.n;
+    while (t.round.length) {
+      const next = t.round.shift()!;
+      if (next.dst.dead) continue;
+      t.tiles += distBB(t.dst, next.dst); t.dst = next.dst; t.n = next.n;
+      if (goToBuilding(S, a, t.dst)) return;
+      add(t.dst.incoming, t.item, -t.n);
+    }
+  }
   a.task = null; a.carry = null; a.state = 'idle'; a.cool = 0; a.cart = null;
 }
+
+/** Does a carrier's job take from or bring to this building, on any drop of its round? */
+export const touches = (a: Agent, b: Building) => !!a.task && (a.task.src === b || a.task.dst === b || a.task.round.some(r => r.dst === b));
 
 /** Drop the current job and release its reservations. Carried goods are lost. */
 export function cancelTask(a: Agent) {
   const t = a.task;
   if (t) {
-    if (a.state === 'toSrc' && !t.src.dead) add(t.src.reserved, t.item, -t.n);
+    if (a.state === 'toSrc' && !t.src.dead) add(t.src.reserved, t.item, -loadOf(t));
     if (!t.dst.dead) add(t.dst.incoming, t.item, -t.n);
+    for (const r of t.round) if (!r.dst.dead) add(r.dst.incoming, t.item, -r.n);
   }
   a.task = null; a.carry = null; a.path = []; a.cart = null;
   if (a.role !== 'worker') a.state = 'idle';

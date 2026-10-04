@@ -146,3 +146,14 @@ test('a version 17 save is upgraded to version 18: no settlement is yet waiting 
   runFor(S, 60);
   assert.equal(text(loadGame(content, text(S))), text(S));
 });
+
+test('a version 18 save is upgraded to version 19: carriers on a job have no further drops, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v18.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 18);
+  const S = loadGame(content, file);
+  const busy = S.agents.filter(a => a.task);
+  assert.ok(busy.length > 0);
+  assert.ok(busy.every(a => a.task!.round.length === 0));
+  runFor(S, 60);
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});

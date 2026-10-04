@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T01:24:57Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T04:42:36Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -22,6 +22,7 @@ tuning:
   cart_rough_speed: 0.9
   cart_min_tiles: 20
   cart_reach: 30
+  round_tiles: 8
   dump_at: 3
   request_aging: 0.5
   no_way_retry_seconds: 30
@@ -43,7 +44,12 @@ tuning:
 
 # Carts
 
-With carts on (every new game, off in older scenarios), a [Cart Shed](/blueprints/cart_shed.md) lends handcarts. A villager taking a job of at least `cart_min_tiles` within `cart_reach` of a shed with a cart free takes one: `cart_carry` goods instead of `villager_carry`, `cart_road_speed` times as fast on [roads](/blueprints/road.md), `cart_path_speed` on paths and bridges and `cart_rough_speed` elsewhere. The cart goes back when the load is delivered. Ox carts, river boats between jetties and multi-leg deliveries through hubs come later.
+With carts on (every new game, off in older scenarios), a [Cart Shed](/blueprints/cart_shed.md) lends handcarts. A villager taking a job of at least `cart_min_tiles` within `cart_reach` of a shed with a cart free takes one: `cart_carry` goods instead of `villager_carry`, `cart_road_speed` times as fast on [roads](/blueprints/road.md), `cart_path_speed` on paths and bridges and `cart_rough_speed` elsewhere. The cart goes back when the load is delivered.
+
+- **Rounds.** A carrier taking a cart fills it: after the first drop, the same good for others asking within `round_tiles` of it, nearest first, delivered in turn. A home far from every yard that holds back a request worth less than a pair of hands is still topped up by a cart passing on its round; those small requests are never scored on their own, so they cost the job board nothing.
+- **Cartloads.** A cart bound for a workshop that uses the good brings it a cartload, beyond its usual shelf: a bakery across town gets six sacks of wheat at once, not one or two.
+
+Ox carts, river boats between jetties and multi-leg deliveries through hubs come later.
 
 # Walls and doors
 

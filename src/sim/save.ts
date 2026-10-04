@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 
 type Json = Record<string, unknown>;
 
@@ -141,6 +141,11 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     for (const t of state.towns as (Json & { trade: Json })[]) t.trade.waits ??= {};
     return state;
   },
+  // 18 to 19: a cart's round: a carrier's job has no further drops yet
+  18: state => {
+    for (const a of state.agents as Json[]) if (a.task) (a.task as Json).round ??= [];
+    return state;
+  },
 };
 
 /** Run-length encoding for tile grids: [value, count, value, count, ...]. */
@@ -172,11 +177,11 @@ export function saveGame(S: State): SaveFile {
   const w = S.world;
   const world: Json = { w: w.w, h: w.h, docks: w.docks, waterCost: w.waterCost, slopeCost: w.slopeCost, rockCost: w.rockCost, pathCost: w.pathCost, roadCost: w.roadCost, roads: w.roads, forestCost: w.forestCost, work: { ...w.work } };
   for (const g of Object.keys(GRIDS) as GridName[]) world[g] = rle(w[g]);
-  const task = (t: Task | null) => (t ? { src: t.src.id, dst: t.dst.id, item: t.item, n: t.n, at: t.at, tiles: t.tiles, steps: t.steps, road: t.road, path: t.path } : null);
+  const task = (t: Task | null) => (t ? { src: t.src.id, dst: t.dst.id, item: t.item, n: t.n, at: t.at, tiles: t.tiles, steps: t.steps, road: t.road, path: t.path, round: t.round.map(r => ({ dst: r.dst.id, n: r.n })) } : null);
   // a carrier's job can still point at a building demolished under it: keep those as `gone`
   const live = new Set(S.buildings), gone = new Map<number, Building>();
   const keep = (b: Building | null) => { if (b && !live.has(b)) gone.set(b.id, b); };
-  for (const a of S.agents) { keep(a.home); keep(a.work); keep(a.depot); keep(a.task?.src ?? null); keep(a.task?.dst ?? null); }
+  for (const a of S.agents) { keep(a.home); keep(a.work); keep(a.depot); keep(a.task?.src ?? null); keep(a.task?.dst ?? null); for (const r of a.task?.round ?? []) keep(r.dst); }
   const agents = S.agents.map(a => ({ ...copy({ ...a, task: null, home: null, work: null, depot: null }), task: task(a.task), home: ref(a.home), work: ref(a.work), depot: ref(a.depot) }));
   return {
     game: 'hearthworks',
@@ -222,7 +227,7 @@ export function loadGame(content: Content, input: SaveFile | string): State {
   };
   const agents = (d.agents as any[]).map(a => ({
     ...a, home: get(a.home), work: get(a.work), depot: get(a.depot),
-    task: a.task ? { src: get(a.task.src)!, dst: get(a.task.dst)!, item: a.task.item, n: a.task.n, at: a.task.at, tiles: a.task.tiles, steps: a.task.steps, road: a.task.road, path: a.task.path } : null,
+    task: a.task ? { src: get(a.task.src)!, dst: get(a.task.dst)!, item: a.task.item, n: a.task.n, at: a.task.at, tiles: a.task.tiles, steps: a.task.steps, road: a.task.road, path: a.task.path, round: (a.task.round as { dst: number; n: number }[]).map(r => ({ dst: get(r.dst)!, n: r.n })) } : null,
   })) as Agent[];
 
   const S = {

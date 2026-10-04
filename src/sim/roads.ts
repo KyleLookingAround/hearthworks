@@ -3,7 +3,7 @@
  * where its people walk most, cutting through what stands in the line (moving people first, salvaging as
  * replanning does). See design/systems/roads.md. No randomness: ties break by scan order.
  */
-import { cancelTask } from './logistics.ts';
+import { cancelTask, touches } from './logistics.ts';
 import { add, bp, chronicle, ctr, demolish, door, emit, villagers } from './world.ts';
 import type { Building, State, Town } from './types.ts';
 
@@ -123,7 +123,7 @@ export function layRoad(S: State, town: Town, run: Run) {
     const B = bp(S, b);
     // a site gives back what was delivered; a building a share of its cost
     const back: [string, number][] = b.site ? Object.entries(b.inv) : Object.entries(B.cost).map(([k, n]) => [k, Math.floor(n * share)]);
-    for (const a of S.agents) if (a.task && (a.task.src === b || a.task.dst === b)) cancelTask(a);
+    for (const a of S.agents) if (touches(a, b)) cancelTask(a);
     if (town.planner.site === b.id) town.planner.site = null;
     demolish(S, b);
     for (const [k, n] of back) if (n > 0) add(store.inv, k, n);

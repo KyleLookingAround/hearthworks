@@ -141,7 +141,7 @@ export interface Tuning {
   start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; neighbourSpreadShare: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
-    pathSpeed: number; roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartPathSpeed: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
+    pathSpeed: number; roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartPathSpeed: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; roundTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
   settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; storesShare: number; maxSettlements: number };
@@ -278,7 +278,7 @@ export interface Building {
 export type AgentState = 'idle' | 'wander' | 'toSrc' | 'toDst' | 'toWork' | 'working' | 'visit';
 
 /** A delivery: `at` is the game time it was claimed, for delivery times. */
-export interface Task { src: Building; dst: Building; item: ItemId; n: number; at: number; /** straight-line tiles: carrier to source to destination */ tiles: number; /** tiles stepped on the way, and of those on a road and on a path */ steps: number; road: number; path: number }
+export interface Task { src: Building; dst: Building; item: ItemId; n: number; at: number; /** straight-line tiles: carrier to source to destination */ tiles: number; /** tiles stepped on the way, and of those on a road and on a path */ steps: number; road: number; path: number; /** a cart's round: more drops of the same good after `dst`, in turn */ round: { dst: Building; n: number }[] }
 
 export interface Agent {
   id: number;
