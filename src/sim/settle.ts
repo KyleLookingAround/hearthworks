@@ -1,6 +1,6 @@
 import { goToBuilding } from './agents.ts';
 import { cancelTask } from './logistics.ts';
-import { add, bp, chronicle, clearSite, emit, foundTown, neighbourSite, villagers } from './world.ts';
+import { add, bp, chronicle, clearSite, emit, foundTown, neighbourSite, seasonOf, storesOnTrack, villagers } from './world.ts';
 import type { Agent, State, Stock, Town } from './types.ts';
 
 /**
@@ -27,21 +27,21 @@ function foundingCost(S: State): Stock {
   return out;
 }
 
-/** Goods in a settlement's stores. */
-function stock(S: State, t: Town): Stock {
+/** Goods in a settlement's stores; with `all`, in every finished building of it (homes' shelves, workshops' stocks). */
+function stock(S: State, t: Town, all = false): Stock {
   const out: Stock = {};
-  for (const b of S.buildings) if (b.town === t.id && !b.site && bp(S, b).storage) for (const k in b.inv) add(out, k, (b.inv[k] || 0) - (b.reserved[k] || 0));
+  for (const b of S.buildings) if (b.town === t.id && !b.site && (all || bp(S, b).storage)) for (const k in b.inv) add(out, k, (b.inv[k] || 0) - (b.reserved[k] || 0));
   return out;
 }
 
-/** Take goods out of a settlement's stores, first yard first. */
+/** Take goods out of a settlement's stores, first yard first, then from its other buildings (bread from homes' shelves, logs from a sawmill's pile). */
 function take(S: State, t: Town, g: string, n: number): number {
   let got = 0;
-  for (const b of S.buildings) {
-    if (b.town !== t.id || b.site || !bp(S, b).storage) continue;
+  for (const pass of [true, false]) for (const b of S.buildings) {
+    if (got >= n) return got;
+    if (b.town !== t.id || b.site || !!bp(S, b).storage !== pass) continue;
     const k = Math.min(n - got, (b.inv[g] || 0) - (b.reserved[g] || 0));
     if (k > 0) { add(b.inv, g, -k); got += k; }
-    if (got >= n) break;
   }
   return got;
 }
@@ -49,19 +49,25 @@ function take(S: State, t: Town, g: string, n: number): number {
 export function sendParty(S: State, mother: Town): Town | null {
   const pop = villagers(S).filter(a => a.home?.town === mother.id);
   if (pop.length < Z(S).minVillagers || S.towns.length >= Z(S).maxSettlements) return null;
-  const have = stock(S, mother), cost = foundingCost(S);
-  if (Object.keys(cost).some(k => (have[k] || 0) < cost[k])) return null;
-  // the party: villagers not at a workplace or on an errand away, adults if people are on
-  const P = S.content.tuning.people;
-  const free = pop.filter(a => a.role === 'carrier' && !a.visit && !a.carry && (!S.people || (S.t - a.born >= P.adultSeconds && S.t - a.born < P.elderSeconds)));
-  if (free.length < Z(S).partySize) return null;
-  // a site the party can reach, on foot or by boat from a dock; with none, but land across the water,
-  // the settlement feels the need to cross it (and so comes up with the dock and builds one)
+  // a site the party can reach, on foot or by boat from a dock; with none, but land across the water, a crowded
+  // settlement feels the need to cross it (and so comes up with the dock and builds one) before it is ready to send anyone
   const site = neighbourSite(S, mother, true);
   if (!site) {
     if (neighbourSite(S, mother, false)) mother.cut = 1;
     return null;
   }
+  // nobody sets out from a hungry settlement, and with seasons on parties travel in spring and summer, as newcomers do,
+  // while the winter store keeps pace (the party takes a share of it)
+  const season = seasonOf(S);
+  if (mother.fed < 1 || (S.seasons && (season === 'autumn' || season === 'winter' || !storesOnTrack(S, mother)))) return null;
+  // the founding cost may be gathered from the whole settlement (bread seldom rests in a yard, nor logs beside a busy sawmill);
+  // the share of the rest comes from the stores
+  const have = stock(S, mother), cost = foundingCost(S), round = stock(S, mother, true);
+  if (Object.keys(cost).some(k => (round[k] || 0) < cost[k])) return null;
+  // the party: villagers not at a workplace or on an errand away, adults if people are on
+  const P = S.content.tuning.people;
+  const free = pop.filter(a => a.role === 'carrier' && !a.visit && !a.carry && (!S.people || (S.t - a.born >= P.adultSeconds && S.t - a.born < P.elderSeconds)));
+  if (free.length < Z(S).partySize) return null;
   const party: Agent[] = free.slice(0, Z(S).partySize);
   for (const a of party) cancelTask(a);
   // what they carry: the cost of their first buildings and a share of every good in store

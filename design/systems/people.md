@@ -4,7 +4,7 @@ title: People
 description: Villagers as individuals; ages, births and deaths, skills that grow with practice and pass from master to apprentice, and each village's custom for its dead.
 tags: [people, customs, settlement]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T19:05:47Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T00:02:17Z }
 tuning:
   adult_seconds: 600
   elder_seconds: 6000
@@ -36,7 +36,7 @@ Each villager is born at a moment of game time. A child (younger than `adult_sec
 
 # Births
 
-A home with two adults in it, fed (no hunger, food on the shelf), has a child on average once every `birth_every_seconds` while its settlement has a free bed (the child's own home first), everyone in it is fed, and its planner is not badly short (a severity of 0.5 or more) of anything in the food chain (bread, wheat): a village has children when it can feed them. Newcomers still come where they do; a settlement can also grow by births alone.
+A home with two adults in it, fed (no hunger, food on the shelf), has a child on average once every `birth_every_seconds` while its settlement has a free bed (the child's own home first), everyone in it is fed, and its planner is not badly short (a severity of 0.5 or more) of anything in the food chain (bread, wheat) nor short of food as newcomers judge it ([needs](/systems/needs.md)): a village has children when it can feed them. Newcomers still come where they do; a settlement can also grow by births alone.
 
 # Skills
 

@@ -3,6 +3,7 @@ import { findPath, type PathOptions } from './path.ts';
 import { bp, distAB, door, inB, seasonOf, storesOnTrack } from './world.ts';
 import { blame, cancelTask, drop, findTask, pickup } from './logistics.ts';
 import { arrive } from './knowledge.ts';
+import { enoughInStore } from './production.ts';
 import type { Agent, Building, State } from './types.ts';
 
 export function makeAgent(S: State, kind: Agent['kind'], x: number, y: number): Agent {
@@ -113,6 +114,13 @@ function foodChain(S: State): Set<string> {
   return out;
 }
 
+/** The carriers a self-planning settlement keeps: `carrier_share` of its grown villagers, at least one. */
+export function reserve(S: State, town: number): number {
+  let n = 0;
+  for (const a of S.agents) if (a.kind === 'villager' && a.role !== 'child' && a.home?.town === town) n++;
+  return Math.max(1, Math.ceil(n * S.content.tuning.planner.carrierShare));
+}
+
 /** Give each staffed building a worker from its own settlement, keeping one carrier there until it has bots. */
 /** Send a building's worker back to carrying. */
 export function release(S: State, b: Building) {
@@ -122,15 +130,27 @@ export function release(S: State, b: Building) {
 }
 
 export function assignWorkers(S: State) {
-  const essential = foodChain(S), winter = seasonOf(S) === 'winter', behind: Record<number, boolean> = {};
-  for (const b of S.buildings) {
+  const essential = foodChain(S), winter = seasonOf(S) === 'winter', behind: Record<number, boolean> = {}, backlog: Record<number, boolean> = {};
+  // hands go first where the planner is shortest: open workplaces by how badly their settlement wants what they make
+  const want = (b: Building) => { const w = S.towns[b.town]?.planner.wants; return w ? Math.max(0, ...Object.keys(bp(S, b).output).map(g => w[g] || 0)) : 0; };
+  const order = S.buildings.map(b => ({ b, w: bp(S, b).workers && !b.site && !b.worker ? want(b) : 0 })).sort((p, q) => q.w - p.w).map(o => o.b);
+  for (const b of order) {
     if (!bp(S, b).workers || b.site || b.worker) continue;
+    // nobody is sent to a workplace resting with enough in store
+    if (enoughInStore(S, b)) continue;
     // fields resting through winter need nobody
     if (winter && bp(S, b).seasonal) continue;
     if (b.noWay !== null && S.t - b.noWay < S.content.tuning.logistics.noWayRetrySeconds) continue;
+    // nobody is sent to a workplace whose output stands full: it waits for carriers, and its worker was one
+    if (Object.keys(bp(S, b).output).some(k => (b.inv[k] || 0) >= S.content.tuning.logistics.outputCap)) continue;
     const anyBots = S.agents.some(a => a.kind === 'bot' && a.depot?.town === b.town);
     const carriers = S.agents.filter(a => a.kind === 'villager' && a.role === 'carrier' && a.state !== 'visit' && a.home?.town === b.town);
     if (carriers.length <= (anyBots ? 0 : 1)) continue;
+    // while goods stand waiting at full workplaces, a self-planning settlement keeps its planner's share of grown
+    // hands carrying, unless it goes hungry and this workplace feeds it
+    const town = S.towns[b.town];
+    if (town?.planner.on && (backlog[b.town] ??= S.buildings.some(o => o.town === b.town && !o.site && Object.keys(bp(S, o).output).some(k => (o.inv[k] || 0) >= S.content.tuning.logistics.outputCap)))
+      && !(town.fed < 1 && Object.keys(bp(S, b).output).some(g => essential.has(g))) && carriers.length <= reserve(S, b.town)) continue;
     // someone who has just found they cannot get anywhere waits out that long cool-down (idle carriers
     // otherwise only pause under a second between looks for work)
     // (with people on, the old have retired from workplaces)
@@ -138,8 +158,18 @@ export function assignWorkers(S: State) {
     // a hungry settlement takes a worker off a workplace outside the food chain to staff one in it
     // (and so does one whose winter store has fallen behind, or with people on, one short of what this workplace makes)
     if (!idle.length && S.towns[b.town] && (S.towns[b.town].fed < 1 || (behind[b.town] ??= !storesOnTrack(S, S.towns[b.town])) || (S.people && Object.keys(bp(S, b).output).some(g => (S.towns[b.town].planner.wants[g] || 0) > 0))) && Object.keys(bp(S, b).output).some(g => essential.has(g))) {
-      const spare = S.agents.find(a => a.role === 'worker' && a.work && a.home?.town === b.town && !Object.keys(bp(S, a.work).output).some(g => essential.has(g)));
+      // the worker whose trade its settlement wants least
+      let spare: Agent | undefined, sw = Infinity;
+      for (const a of S.agents) if (a.role === 'worker' && a.work && a.home?.town === b.town && !Object.keys(bp(S, a.work).output).some(g => essential.has(g))) { const w = want(a.work); if (w < sw) { sw = w; spare = a; } }
       if (spare) { spare.work!.worker = null; spare.work = null; spare.role = 'carrier'; spare.state = 'idle'; spare.path = []; idle.push(spare); }
+    }
+    // with people on, a carrier much more skilled at this work than anyone idle is called back from an errand
+    // (only on the way to pick up, so nothing carried is lost)
+    if (S.people) {
+      const best = Math.max(0, ...idle.map(a => a.skill[b.type] || 0));
+      const skilled = carriers.filter(a => a.task && a.state === 'toSrc' && !(S.t - a.born >= S.content.tuning.people.elderSeconds) && (a.skill[b.type] || 0) >= best + 0.25)
+        .sort((p, q) => (q.skill[b.type] || 0) - (p.skill[b.type] || 0))[0];
+      if (skilled) { cancelTask(skilled); idle.unshift(skilled); }
     }
     if (!idle.length) continue;
     // the nearest, or with people on the most skilled at this work (then the nearest)

@@ -130,9 +130,9 @@ export function updateKnowledge(S: State, dt: number) {
       if (!B.discovery || knows(town, B.id)) continue;
       // encouragement: the player backs this line of thought, so it comes at less strain and sooner
       const backed = town.levers.encourage === B.id;
-      if (pressure(S, town, B.discovery.need) < P.struggleSeverity * (backed ? P.encourageThreshold : 1)) continue;
-      // scholars at a university pursue every line of inquiry faster
-      const scholars = learningAt(S, town.id, 'university') ? P.universityFactor : 1;
+      // scholars at a university take up every line of inquiry sooner, at less strain, and pursue it faster
+      const university = learningAt(S, town.id, 'university'), scholars = university ? P.universityFactor : 1;
+      if (pressure(S, town, B.discovery.need) < P.struggleSeverity * (backed ? P.encourageThreshold : 1) * (university ? P.universityThreshold : 1)) continue;
       if (rand(S.krng) >= dt / (B.discovery.meanSeconds / (backed ? P.encourageFactor : 1) / scholars)) continue;
       town.knows[B.id] = { by: town.name, at: S.t, verified: [], from: null, learned: S.t, used: S.t };
       S.stats.invented++;

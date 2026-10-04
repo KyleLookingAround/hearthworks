@@ -4,7 +4,7 @@ title: Seasons
 description: A year of spring, summer, autumn and winter; crops rest in winter, homes burn firewood, and settlements store food and fuel ahead.
 tags: [seasons, needs, economy]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T17:39:15Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T00:02:17Z }
 tuning:
   year_seconds: 1200
   firewood_every_seconds: 120
@@ -30,7 +30,7 @@ With seasons on the [planner](/systems/planner.md) plans for winter all year: it
 
 # Who comes, and who works
 
-- **Newcomers** travel in spring and summer only. In summer one comes only while the stores keep pace with the winter's meals counting them (none at the start of summer, half by its end, the autumn harvest bringing the rest).
+- **Newcomers** travel in spring and summer only. In summer one comes only while the stores keep pace with the winter's meals and `winter_headroom` more, counting them (none at the start of summer, half by its end, the autumn harvest bringing the rest). Through the winter the store is on track while what is left covers what is left of it.
 - **A store fallen behind** moves workers onto the food chain, as hunger does.
 - **Resting fields** need nobody: in winter farm workers go carrying, and the grain reaches the bakeries as soon as a home's bread would.
 

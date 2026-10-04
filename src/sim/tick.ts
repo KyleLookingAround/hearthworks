@@ -1,7 +1,7 @@
 import { assignWorkers, makeAgent, nearestStore, updateAgent } from './agents.ts';
 import { cold, homeTier, updateBuilding } from './production.ts';
 import { formOf } from './planner.ts';
-import { plan } from './planner.ts';
+import { plan, shortOfFood } from './planner.ts';
 import { updateKnowledge } from './knowledge.ts';
 import { updateTrade } from './trade.ts';
 import { newcomer, riteMood, updatePeople } from './people.ts';
@@ -63,6 +63,8 @@ function migrate(S: State) {
   if (!S.newcomers || s === 'autumn' || s === 'winter') return;
   for (const t of S.towns) {
     if (t.mood < S.content.tuning.needs.migrateMinMood) continue;
+    // nobody moves to a self-planning settlement whose bread falls short of what its people already need
+    if (shortOfFood(S, t)) continue;
     // in summer a newcomer comes only while the stores keep pace with what one more mouth would need by the frost
     if (s === 'summer' && !storesOnTrack(S, t, 1)) continue;
     const house = S.buildings.find(b => b.town === t.id && freeBeds(b) > 0);

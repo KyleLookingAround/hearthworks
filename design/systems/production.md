@@ -4,12 +4,15 @@ title: Production and construction
 description: Construction sites and their priority queue, worker assignment and recipe cycles.
 tags: [production, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T11:59:22Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T00:02:17Z }
 tuning:
   build_seconds: 3
   replant_every_seconds: 6
   max_trees_near_forester: 9
   site_priority_tiles: 2
+  surplus_seconds: 900
+  surplus_min: 40
+  surplus_full_seconds: 120
 ---
 
 # Placement
@@ -31,7 +34,15 @@ Code: `siteRequests` in `src/sim/logistics.ts`.
 
 # Workers
 
-Each second, staffed buildings without a worker take the nearest idle carrier. One villager always stays a carrier until a [Courier Depot](/blueprints/depot.md) exists.
+Each second, staffed buildings without a worker take the nearest idle carrier. One villager always stays a carrier until a [Courier Depot](/blueprints/depot.md) exists. Nobody is sent to a workplace whose output stands full (its worker went carrying after `release_after_seconds`): before, the freed worker was sent straight back, and a hamlet of 15 had 3 carriers while seven workplaces stood full. In a self-planning settlement:
+
+- hands go first where its planner is shortest: open workplaces by how badly it wants what they make;
+- while goods stand waiting at a full workplace it keeps the planner's `carrier_share` of its grown villagers carrying, unless it goes hungry and the workplace feeds it;
+- a hungry settlement, or one whose winter store has fallen behind, moves to its food chain the worker whose trade it wants least.
+
+# Enough in store
+
+In a self-planning settlement, a workplace whose every good is *enough* rests between cycles, and after `release_after_seconds` its worker goes carrying; nobody is sent to it until the stock runs down. A good is enough while the settlement's stores hold `surplus_seconds` of what its planner uses of it (at least `surplus_min`; `surplus_full_seconds` for a good outside the food chain while its open yards are `store_full_share` full, so that logs and planks leave room for the harvest) and its planner wants no more of it; with seasons on, a good of the food chain is enough outside winter only once the stores also hold the coming winter's meals with `winter_headroom`. Farms rest when the granaries are full, as sawmills and quarries do when the yards are: labour goes where the shortages are. Scripted scenarios without a planner are unchanged.
 
 # Recipes
 

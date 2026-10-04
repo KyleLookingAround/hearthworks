@@ -12,8 +12,10 @@ import { supplyOf } from './logistics.ts';
 import { fits } from './place.ts';
 import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
-import { bp, chronicle, ctr, demolish, door, emit, nearestTown, placeBridge, placeBuilding, seasonOf, villagers } from './world.ts';
+import { bp, chronicle, ctr, demolish, door, emit, nearestTown, placeBridge, placeBuilding, seasonOf, storesOnTrack, villagers } from './world.ts';
 import { hasPlace } from './people.ts';
+import { reserve } from './agents.ts';
+import { enoughInStore, foodChainOf, plentyInStore } from './production.ts';
 import { atRisk, guarded, struckLately, unguarded } from './hardship.ts';
 import { planRoads } from './roads.ts';
 import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
@@ -22,7 +24,7 @@ export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, 
 
 interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; learn?: 'library' | 'school' | 'university' }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
-interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
+interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; coming: boolean; foodShort: boolean; movable: boolean; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
 const goodName = (S: State, g: ItemId) => S.content.goods[g]?.name.toLowerCase() ?? g;
 const runningLow = (S: State, g: ItemId) => { const n = goodName(S, g); return `${n} ${n.endsWith('s') ? 'are' : 'is'} running low`; };
@@ -137,12 +139,17 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   if (form !== 'hamlet') for (const b of mine) { const B = bp(S, b); if (B.tools && !b.site && B.seconds) { comfort.add('tools'); demand.tools = (demand.tools || 0) + B.tools.speedup / (B.seconds * B.tools.wearCycles); } }
 
   const goods = Object.values(S.content.goods).sort((a, b) => (a.id === food ? -1 : b.id === food ? 1 : a.order - b.order));
-  // comforts wait while bread is short: food first
-  const foodShort = food ? clamp01(1 - (supply[food] || 0) / (demand[food] || 1)) >= P.minSeverity || town.fed < 1 : false;
+  // comforts wait while bread is short: food first. Short means less than everyone's bare need (the headroom is for planning
+  // bakeries, not for holding back everything else: a growing town always plans a little more bread than it eats)
+  // With seasons, a winter store fallen behind is food short too.
+  const foodShort = food ? (supply[food] || 0) < (demand[food] || 0) / P.foodHeadroom || town.fed < 1 || !storesOnTrack(S, town) : false;
+  // and so does every other good outside the basics (food, building materials, firewood): iron ore for a smithy waits too
+  const basic = basics(S);
   for (const g of goods) {
     const d = demand[g.id] || 0;
     if (d <= 0) continue;
-    const sev = clamp01(1 - (supply[g.id] || 0) / d) * (comfort.has(g.id) ? (foodShort ? 0 : P.comfortWeight) : 1);
+    // a good the stores hold plenty of is not short, whatever the rates
+    const sev = plentyInStore(S, town, g.id, d) ? 0 : clamp01(1 - (supply[g.id] || 0) / d) * (comfort.has(g.id) ? (foodShort ? 0 : P.comfortWeight) : foodShort && !basic.has(g.id) ? 0 : 1);
     shortages.push({ key: g.id, good: g.id, sev, why: comfort.has(g.id) ? `homes want ${goodName(S, g.id)}` : runningLow(S, g.id) });
   }
   // hauling: carriers run off their feet; machines that haul relieve it where they reach.
@@ -157,13 +164,23 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   shortages.push({ key: 'detours', detours: true, sev: clamp01(pressure(S, town, 'detours') * P.detourWeight), why: NEED_TEXT.detours });
   // labour: villagers free to take a new job, keeping a share of the town hauling
   const carriers = people.filter(a => a.role === 'carrier' && a.state !== 'visit').length;
-  const openJobs = mine.filter(b => bp(S, b).workers && b.worker === null).length;
-  const spareHands = carriers - Math.max(1, Math.ceil(pop * P.carrierShare)) - openJobs;
-  const idleJobs = mine.filter(b => !b.site && bp(S, b).workers && b.worker === null).length;
-  if (idleJobs > freeBeds) shortages.push({ key: 'beds', homes: true, sev: 1, why: idleJobs > 1 ? `${idleJobs} workplaces have nobody to staff them` : 'a workplace has nobody to staff it' });
+  // a workplace resting (fields in winter, or with enough in store) needs nobody now, and its worker is a spare hand
+  const winter = seasonOf(S) === 'winter', rests = (b: Building) => !b.site && ((winter && !!bp(S, b).seasonal) || enoughInStore(S, b));
+  const openJobs = mine.filter(b => bp(S, b).workers && b.worker === null && !rests(b)).length;
+  const resting = mine.filter(b => bp(S, b).workers && b.worker !== null && rests(b)).length;
+  const spareHands = carriers - reserve(S, town.id) - openJobs + resting;
+  const idleJobs = mine.filter(b => !b.site && bp(S, b).workers && b.worker === null && !rests(b)).length;
+  // newcomers would come to a settlement in good heart, given beds, in spring and summer (in summer while its winter store keeps pace)
+  const s = seasonOf(S);
+  // (and not while its bread falls short of what its people already eat: see shortOfFood)
+  const coming = S.newcomers && (!food || !S.seasons || (supply[food] || 0) >= ((pop + 1) / needs.eatEverySeconds) * P.newcomerFoodShare) && town.mood >= needs.migrateMinMood && s !== 'autumn' && s !== 'winter' && (s !== 'summer' || storesOnTrack(S, town, 1));
+  // a hand that can be moved to the food chain: a carrier beyond the last, or a worker outside the chain
+  const chain = foodChainOf(S);
+  const movable = carriers > 1 || mine.some(b => b.worker !== null && !Object.keys(bp(S, b).output).some(g => chain.has(g)));
+  if (idleJobs > freeBeds && !foodShort) shortages.push({ key: 'beds', homes: true, sev: 1, why: idleJobs > 1 ? `${idleJobs} workplaces have nobody to staff them` : 'a workplace has nobody to staff it' });
   else {
     // don't invite newcomers the village can't feed yet
-    const fed = (shortages.find(s => s.good === food)?.sev ?? 0) < P.minSeverity ? 1 : 0;
+    const fed = foodShort ? 0 : 1;
     // no newcomers come in autumn or winter: homes for them wait for spring
     const growing = (town.mood >= needs.migrateMinMood ? 1 : 0.5) * (S.seasons && (seasonOf(S) === 'autumn' || seasonOf(S) === 'winter') ? 0 : 1);
     shortages.push({ key: 'beds', homes: true, sev: clamp01((P.growthBeds - freeBeds) / P.growthBeds) * growing * fed * P.growthWeight, why: 'no free beds for newcomers' });
@@ -221,7 +238,44 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   // the player's priorities weigh each need
   for (const sh of shortages) sh.sev = clamp01(sh.sev * (town.levers.priority[sh.key] ?? 1));
   shortages.sort((a, b) => b.sev - a.sev);
-  return { storeNeed, storeRoom, town, pop, freeBeds, spareHands, uncovered, hasDock, supply, demand, shortages };
+  return { storeNeed, storeRoom, town, pop, freeBeds, spareHands, coming, foodShort, movable, uncovered, hasDock, supply, demand, shortages };
+}
+
+/** The basics: the food chain, the building goods and, with seasons, firewood, with everything that goes into making them. */
+const basicSets = new WeakMap<object, { seasons: boolean; set: Set<ItemId> }[]>();
+function basics(S: State): Set<ItemId> {
+  const list = basicSets.get(S.content) ?? [];
+  basicSets.set(S.content, list);
+  const hit = list.find(e => e.seasons === S.seasons);
+  if (hit) return hit.set;
+  const out = new Set<ItemId>([...foodChainOf(S), ...T(S).buildGoods, ...(S.seasons ? ['logs'] : [])]);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const B of Object.values(S.content.blueprints)) if (Object.keys(B.output).some(g => out.has(g))) for (const i in B.input) if (!out.has(i)) { out.add(i); grew = true; }
+  }
+  list.push({ seasons: S.seasons, set: out });
+  return out;
+}
+
+/**
+ * Short of food: a self-planning settlement whose bakeries (as its planner last counted them) make less bread than its
+ * people, and one more, eat. Newcomers and births wait while it is.
+ */
+export function shortOfFood(S: State, town: Town): boolean {
+  if (!town.planner.on) return false;
+  // out of land for food: it found no room for a workplace of the food chain lately
+  const chain = foodChainOf(S);
+  for (const id in town.planner.noRoom) if (S.t - town.planner.noRoom[id] < T(S).noRoomRetrySeconds * 2 && Object.keys(S.content.blueprints[id]?.output ?? {}).some(g => chain.has(g))) return true;
+  // bread made against bread eaten only with seasons: without them a shortfall shows at once as hunger, which keeps newcomers away by itself
+  if (!S.seasons) return false;
+  const food = Object.values(S.content.blueprints).find(B => B.homes)?.keepStocked;
+  const g = food ? Object.keys(food)[0] : undefined;
+  if (!g || !(g in town.planner.use)) return false;
+  // what the planner found made: its use (demand) less the shortage it saw
+  const made = town.planner.use[g] * (1 - (town.planner.wants[g] || 0));
+  let pop = 1;
+  for (const a of S.agents) if (a.kind === 'villager' && a.home?.town === town.id) pop++;
+  return made < (pop / S.content.tuning.needs.eatEverySeconds) * T(S).newcomerFoodShare;
 }
 
 const FORMS: Form[] = ['hamlet', 'village', 'town'];
@@ -281,15 +335,20 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
 /** If the chosen producer would starve for an input, plan that input's producer first. */
 function follow(S: State, L: Look, c: Choice, depth: number): Choice {
   if (depth > 3) return c;
-  if (c.B.workers && L.spareHands < c.B.workers) {
+  // food does not wait on newcomers who are not coming: while the settlement goes hungry or short of food,
+  // a workplace in the food chain is built, and a hand moves to it from carrying or from outside the chain
+  // (and so are the other basics, building materials and firewood: nothing else can be built without them)
+  const outs = Object.keys(c.B.output), chain = foodChainOf(S), basic = basics(S);
+  const urgent = !L.coming && L.movable && (outs.some(g => chain.has(g)) ? L.foodShort || L.town.fed < 1 : outs.some(g => basic.has(g)));
+  if (c.B.workers && L.spareHands < c.B.workers && !urgent) {
     // nobody free to work it: newcomers will come if there are beds, otherwise build homes
-    if (L.freeBeds > 0) return { ...c, wait: `Waiting for newcomers to work ${article(c.B.name)} ${c.B.name}: ${c.why}` };
+    if (L.freeBeds > 0) return { ...c, wait: L.coming ? `Waiting for newcomers to work ${article(c.B.name)} ${c.B.name}: ${c.why}` : `No hands free for ${article(c.B.name)} ${c.B.name}, and no newcomers coming: ${c.why}` };
     const home = homeFor(S, L.town, true);
     if (home) return { B: home, sev: c.sev, why: `${c.why}, and a new ${c.B.name.toLowerCase()} would need a worker` };
   }
   for (const i in c.B.input) {
     const spare = (L.supply[i] || 0) - (L.demand[i] || 0);
-    if (spare >= (c.B.input[i] / c.B.seconds) * T(S).inputCover) continue;
+    if (spare >= (c.B.input[i] / c.B.seconds) * T(S).inputCover || plentyInStore(S, L.town, i, L.demand[i] || 0)) continue;
     const maker = known(S, L.town).find(B => B.seconds && B.output[i]);
     // a maker it has just found no room for doesn't hold this one back: build with the stock there is
     const noRoom = L.town.planner.noRoom[maker?.id ?? ''];
@@ -827,16 +886,21 @@ function planTown(S: State, town: Town, dt: number) {
   if (!worst || worst.sev < T(S).minSeverity) { Q.streak = { type: '', n: 0 }; Q.status = `The ${formOf(S, town)} has what it needs`; return; }
   // something it recently found no room for waits `no_room_retry_seconds`; the next need goes ahead
   const roomless = (id: string) => id in Q.noRoom && S.t - Q.noRoom[id] < T(S).noRoomRetrySeconds;
-  let c: Choice | null = null, blocked: Choice | null = null;
+  // what waits for hands to work it doesn't hold back the next need: the next that can go ahead does
+  let c: Choice | null = null, blocked: Choice | null = null, waiting: Choice | null = null;
   for (const sh of L.shortages) {
     if (sh.sev < T(S).minSeverity) break;
     c = propose(S, L, sh);
     if (c && roomless(c.B.id)) { blocked ??= c; c = null; continue; }
+    if (c?.wait) { waiting ??= c; c = null; continue; }
+    // short of a good whose maker it has just found no room for: saving would wait for good, so the next need goes ahead
+    const owe = c ? affordable(S, c.B, town) : null, maker = owe ? known(S, town).find(B => B.seconds && B.output[owe.good]) : undefined;
+    if (c && maker && roomless(maker.id) && (L.supply[owe!.good] || 0) <= 0) { blocked ??= { ...c, B: maker }; c = null; continue; }
     if (c) break;
   }
+  if (!c && waiting) { Q.streak = { type: '', n: 0 }; Q.status = waiting.wait!; return; }
   if (!c && blocked) { Q.status = `No room for ${article(blocked.B.name)} ${blocked.B.name}: ${blocked.why}`; return; }
   if (!c) { Q.status = `Nothing the ${formOf(S, town)} knows would help: ${worst.why}`; return; }
-  if (c.wait) { Q.streak = { type: '', n: 0 }; Q.status = c.wait; return; }
 
   // what the village is working towards counts as use: it is not forgotten while saved for
   Q.want = c.B.id;

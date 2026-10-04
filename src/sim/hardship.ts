@@ -137,6 +137,8 @@ function gut(S: State, b: Building) {
   b.site = true; b.build = 0; b.incoming = {}; b.reserved = {}; b.waiting = {}; b.timer = 0; b.used = 0;
   b.inv = {};
   for (const k in B.cost) { const left = Math.floor(B.cost[k] * (1 - Z.rebuildShare)); if (left > 0) b.inv[k] = left; }
+  // the last maker of a good its own rebuilding needs is rebuilt from what its makers save of it, or nothing could rebuild it
+  for (const k in B.cost) if (B.output[k] && !S.buildings.some(o => o !== b && o.town === b.town && !o.site && bp(S, o).output[k])) b.inv[k] = B.cost[k];
   b.priority = Math.max(b.priority, 1 + S.content.tuning.planner.urgencyPriority);
   b.reason = 'rebuilding after the fire';
   S.stats.burnt++;

@@ -66,7 +66,7 @@ function siteRequests(S: State, reqs: Request[]) {
 export function collectRequests(S: State): Request[] {
   const reqs: Request[] = [];
   siteRequests(S, reqs);
-  const winter = seasonOf(S) === 'winter', homeFood = new Set<ItemId>();
+  const winter = seasonOf(S) === 'winter', homeFood = new Set<ItemId>(), L = S.content.tuning.logistics;
   if (winter) for (const id in S.content.blueprints) for (const g of Object.keys(S.content.blueprints[id].keepStocked)) if (S.content.blueprints[id].homes) homeFood.add(g);
   for (const b of S.buildings) {
     const B = bp(S, b);
@@ -77,6 +77,8 @@ export function collectRequests(S: State): Request[] {
     const kitchen = winter && Object.keys(B.output).some(g => homeFood.has(g));
     for (const item in want) {
       const need = want[item] - (b.inv[item] || 0) - (b.incoming[item] || 0);
+      // a home asks for its food once it is worth a pair of hands, or it has run out: not a loaf at a time
+      if (B.homes && item === food && need < Math.min(L.villagerCarry, want[item]) && (b.inv[item] || 0) + (b.incoming[item] || 0) > 0) { delete b.waiting[item]; continue; }
       const age = aged(S, b, item, need);
       // a home's food comes first, then firewood and preserved food, then its comforts
       if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? (item === food ? -4 : item === 'logs' || S.content.tuning.seasons.preserved.includes(item) ? -3 : 2) : kitchen ? -4 : 0) - age });

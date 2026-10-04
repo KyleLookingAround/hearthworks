@@ -4,7 +4,7 @@ title: Hardship
 description: Fire, flood, sickness and barbarian raids, the counters a settlement finds for each, and the steward's laws for hard times.
 tags: [hardship, hazards, laws, settlement]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T21:17:32Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T00:02:17Z }
 tuning:
   fire_every_seconds: 40000
   spread_gap: 0.5
@@ -61,7 +61,7 @@ Each hazard has a counter, a [blueprint](/blueprints/) nobody knows at the found
 
 # Fire
 
-Anything built without a `fireproof` good (bricks, cut stone) catches fire about once every `fire_every_seconds` per building. A fire burns `burn_seconds`, and each second may jump (`spread_chance`) to any building that burns within `spread_gap` tiles: wooden rows built wall to wall are most at risk. When it burns out, `fire_loss` of what was inside is gone. A storage yard (open piles) stands; anything else stands gutted: a construction site again, needing `rebuild_share` of its cost, built before anything else. Its people stay on in the shell; its worker goes carrying.
+Anything built without a `fireproof` good (bricks, cut stone) catches fire about once every `fire_every_seconds` per building. A fire burns `burn_seconds`, and each second may jump (`spread_chance`) to any building that burns within `spread_gap` tiles: wooden rows built wall to wall are most at risk. When it burns out, `fire_loss` of what was inside is gone. A storage yard (open piles) stands; anything else stands gutted: a construction site again, needing `rebuild_share` of its cost, built before anything else (the last maker of a good its own cost needs, such as a settlement's only sawmill, needs none of that good: what its makers save of it rebuilds it, or nothing could). Its people stay on in the shell; its worker goes carrying.
 
 The [Well](/blueprints/well.md) and a fire crew mustered from the neighbours answer it: a fire within its reach is put out in `douse_seconds` and spreads no further, and the building is saved.
 

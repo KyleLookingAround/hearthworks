@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T21:50:12Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T01:24:57Z }
 ---
 
 # How to read this
@@ -355,6 +355,8 @@ Kyle's call: once Phases 20 and 21 are built, the roadmap is walked again from P
 - **Polish:** how each system reads and feels in the game (inspector lines, overlays, chronicle wording, the advisor), the new-game screen's growing list of options, and performance on the largest maps with every system on.
 
 Each phase's second pass is pushed and verified like any phase, with its gates rerun and any that can now be raised superseded (rule 6).
+
+**Under way.** The economy first, as it underlies every phase: labour goes where the shortages are (workplaces rest with enough in store, food included), the planner weighs stock as well as rates and does not let one waiting choice hold back the rest, basics do not wait on newcomers who are not coming, and with seasons growth waits for bread and land. The first-year stall of every new game is gone ([log](/log.md), 2026-10-04). Homes ask for their food two loaves at a time.
 
 # Beyond
 

@@ -1,5 +1,6 @@
 import { rand } from './rng.ts';
 import { makeAgent, release, removeAgent } from './agents.ts';
+import { shortOfFood } from './planner.ts';
 import { add, bp, chronicle, door, emit, foodsOf, learningAt, villagers } from './world.ts';
 import type { Agent, Building, Custom, State, Town } from './types.ts';
 
@@ -110,8 +111,9 @@ function foodChain(S: State): Set<string> {
 /** A fed home with two adults has a child now and then, while its settlement has a bed for one and its food is not short. */
 function births(S: State, dt: number) {
   const T = P(S), chain = foodChain(S);
-  // a settlement badly short of anything in its food chain, or with anyone hungry, has no children for now
-  const easy = S.towns.map(t => t.fed >= 1 && !Object.keys(t.planner.wants).some(g => chain.has(g) && t.planner.wants[g] >= 0.5));
+  // a settlement badly short of anything in its food chain, with anyone hungry, or short of food (see shortOfFood),
+  // has no children for now
+  const easy = S.towns.map(t => t.fed >= 1 && !shortOfFood(S, t) && !Object.keys(t.planner.wants).some(g => chain.has(g) && t.planner.wants[g] >= 0.5));
   for (const b of S.buildings) {
     const B = bp(S, b);
     if (!B.homes || b.site || !easy[b.town] || b.hunger > 0 || !foodsOf(S, b).some(f => (b.inv[f] || 0) > 0)) continue;
