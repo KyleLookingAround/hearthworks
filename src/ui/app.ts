@@ -642,7 +642,7 @@ export class App {
       let out = 0;
       for (const a of S.agents) if (a.cart === b.id) out++;
       const n = B.oxen || B.carts, kind = B.oxen ? 'Ox carts' : 'Handcarts', L = T.logistics;
-      rows += row(`${kind} out`, `${out} of ${n}`) + row('Takes', `${B.oxen ? L.oxCarry : L.cartCarry} goods on jobs of ${B.oxen ? L.oxMinTiles : L.cartMinTiles} tiles or more, within ${L.cartReach} tiles`);
+      rows += row(`${kind} out`, `${out} of ${n}`) + row('Takes', `${B.oxen ? L.oxCarry : L.cartCarry} goods, on jobs of ${B.oxen ? L.oxMinTiles : L.cartMinTiles}+ tiles`);
       for (const k in B.keepStocked) rows += row(`${G[k].name} for the oxen`, `${n0(b.inv[k])} / ${B.keepStocked[k]}` + ((b.incoming[k] || 0) > 0 ? ` (+${n0(b.incoming[k])})` : '') + (B.oxen && (b.inv[k] || 0) < L.oxFeed ? ': the oxen wait for feed' : ''));
     } else if (B.couriers) {
       const busy = b.bots.filter(id => S.amap.get(id)?.task).length;
