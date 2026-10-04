@@ -18,6 +18,7 @@ import { reserve } from './agents.ts';
 import { enoughInStore, foodChainOf, plentyInStore } from './production.ts';
 import { atRisk, guarded, struckLately, unguarded } from './hardship.ts';
 import { planRoads } from './roads.ts';
+import { crew, growFarm, maxSize, places, sizeName, toGrow, unripe } from './farms.ts';
 import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
@@ -72,12 +73,13 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   const mine = mineOf(S, town);
   const producers = mine.filter(b => { const B = bp(S, b); return B.seconds > 0 && Object.keys(B.output).length > 0; });
   const own = new Map(producers.map(b => [b, ownEffect(S, b)]));
-  for (const b of producers) { const B = bp(S, b); for (const i in B.input) demand[i] = (demand[i] || 0) + B.input[i] / B.seconds; }
+  // (a grown workplace works as many cycles at once as it has places for hands)
+  for (const b of producers) { const B = bp(S, b); for (const i in B.input) demand[i] = (demand[i] || 0) + (B.input[i] / B.seconds) * places(S, b); }
   // chain pass: a producer short of inputs delivers only the share its inputs allow
   let eff = new Map(own);
   for (let pass = 0; pass < 3; pass++) {
     for (const k in supply) supply[k] = 0;
-    for (const b of producers) { const B = bp(S, b); for (const o in B.output) supply[o] = (supply[o] || 0) + (B.output[o] / B.seconds) * eff.get(b)!; }
+    for (const b of producers) { const B = bp(S, b); for (const o in B.output) supply[o] = (supply[o] || 0) + (B.output[o] / B.seconds) * eff.get(b)! * places(S, b); }
     const next = new Map<Building, number>();
     for (const b of producers) {
       const B = bp(S, b);
@@ -112,15 +114,25 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   }
 
   const shortages: Shortage[] = [];
+  const F = S.content.tuning.farms, diet = new Set(S.farms ? F.diet : []);
   if (food) {
     // feed everyone here plus everyone the free beds will bring
-    demand[food] = (demand[food] || 0) + ((pop + freeBeds) / needs.eatEverySeconds) * P.foodHeadroom;
+    const meals = ((pop + freeBeds) / needs.eatEverySeconds) * P.foodHeadroom;
+    if (S.farms) {
+      // with farms that grow: `diet_share` of the meals from the foods of the diet, an equal part each, and bread for
+      // the rest and for whatever part of the diet is not grown
+      const part = (meals * F.dietShare) / F.diet.length;
+      let bread = meals * (1 - F.dietShare);
+      for (const g of F.diet) { demand[g] = (demand[g] || 0) + part; bread += Math.max(0, part - (supply[g] || 0)); }
+      demand[food] = (demand[food] || 0) + bread;
+    } else demand[food] = (demand[food] || 0) + meals;
   }
   // planks build everything: want a steady flow that grows with the town (other materials are made when saved for)
   for (const g of P.buildGoods) demand[g] = (demand[g] || 0) + (pop * P.planksPerVillagerMinute) / 60;
   // seasons: plan for winter all year: crops grow three seasons of four, firewood burns at the winter rate
   if (S.seasons) {
-    const crops = new Set(Object.values(S.content.blueprints).filter(B => B.seasonal).flatMap(B => Object.keys(B.output)));
+    // (fresh foods of the diet are eaten in season, not stored for the winter)
+    const crops = new Set(Object.values(S.content.blueprints).filter(B => B.seasonal).flatMap(B => Object.keys(B.output)).filter(g => !diet.has(g)));
     for (const g of crops) if (demand[g]) demand[g] *= (4 / 3) * S.content.tuning.seasons.winterHeadroom;
     demand.logs = (demand.logs || 0) + pop / S.content.tuning.seasons.firewoodEverySeconds;
     // the gap: what the winter will eat, less the food already in store, over the time left before the frost
@@ -151,8 +163,8 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     const d = demand[g.id] || 0;
     if (d <= 0) continue;
     // a good the stores hold plenty of is not short, whatever the rates
-    const sev = plentyInStore(S, town, g.id, d) ? 0 : clamp01(1 - (supply[g.id] || 0) / d) * (comfort.has(g.id) ? (foodShort ? 0 : P.comfortWeight) : foodShort && !basic.has(g.id) ? 0 : 1);
-    shortages.push({ key: g.id, good: g.id, sev, why: comfort.has(g.id) ? `homes want ${goodName(S, g.id)}` : runningLow(S, g.id) });
+    const sev = plentyInStore(S, town, g.id, d) ? 0 : clamp01(1 - (supply[g.id] || 0) / d) * (comfort.has(g.id) ? (foodShort ? 0 : P.comfortWeight) : foodShort && !basic.has(g.id) ? 0 : 1) * (diet.has(g.id) ? F.dietWeight : 1);
+    shortages.push({ key: g.id, good: g.id, sev, why: comfort.has(g.id) ? `homes want ${goodName(S, g.id)}` : diet.has(g.id) ? `homes would eat ${goodName(S, g.id)} with their bread` : runningLow(S, g.id) });
   }
   // specialisation: what a neighbour makes and this settlement does not, it trades for
   for (const sh of shortages) if (sh.sev >= P.minSeverity) sh.from = importFrom(S, town, sh.good!, demand[sh.good!] || 0) ?? undefined;
@@ -169,15 +181,19 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   // labour: villagers free to take a new job, keeping a share of the town hauling
   const carriers = people.filter(a => a.role === 'carrier' && a.state !== 'visit').length;
   // a workplace resting (fields in winter, or with enough in store) needs nobody now, and its worker is a spare hand
-  const winter = seasonOf(S) === 'winter', rests = (b: Building) => !b.site && ((winter && !!bp(S, b).seasonal) || enoughInStore(S, b));
-  const openJobs = mine.filter(b => bp(S, b).workers && b.worker === null && !rests(b)).length;
-  const resting = mine.filter(b => bp(S, b).workers && b.worker !== null && rests(b)).length;
+  // (counted by places for hands: a grown farm has more than one)
+  const winter = seasonOf(S) === 'winter', rests = (b: Building) => !b.site && ((winter && !!bp(S, b).seasonal) || unripe(S, b) || enoughInStore(S, b));
+  const open = (b: Building) => places(S, b) - crew(b).length;
+  const openJobs = mine.reduce((n, b) => n + (bp(S, b).workers && !rests(b) ? open(b) : 0), 0);
+  const resting = mine.reduce((n, b) => n + (bp(S, b).workers && rests(b) ? crew(b).length : 0), 0);
   const spareHands = carriers - reserve(S, town.id) - openJobs + resting;
-  const idleJobs = mine.filter(b => !b.site && bp(S, b).workers && b.worker === null && !rests(b)).length;
+  const idleJobs = mine.reduce((n, b) => n + (!b.site && bp(S, b).workers && !rests(b) ? open(b) : 0), 0);
   // newcomers would come to a settlement in good heart, given beds, in spring and summer (in summer while its winter store keeps pace)
   const s = seasonOf(S);
   // (and not while its bread falls short of what its people already eat: see shortOfFood)
-  const coming = S.newcomers && (!food || !S.seasons || (supply[food] || 0) >= ((pop + 1) / needs.eatEverySeconds) * P.newcomerFoodShare) && town.mood >= needs.migrateMinMood && s !== 'autumn' && s !== 'winter' && (s !== 'summer' || storesOnTrack(S, town, 1));
+  // (with farms that grow, the foods of the diet feed newcomers as bread does)
+  const meals = (food ? supply[food] || 0 : 0) + [...diet].reduce((n, g) => n + (supply[g] || 0), 0);
+  const coming = S.newcomers && (!food || !S.seasons || meals >= ((pop + 1) / needs.eatEverySeconds) * P.newcomerFoodShare) && town.mood >= needs.migrateMinMood && s !== 'autumn' && s !== 'winter' && (s !== 'summer' || storesOnTrack(S, town, 1));
   // a hand that can be moved to the food chain: a carrier beyond the last, or a worker outside the chain
   const chain = foodChainOf(S);
   const movable = carriers > 1 || mine.some(b => b.worker !== null && !Object.keys(bp(S, b).output).some(g => chain.has(g)));
@@ -282,16 +298,19 @@ function basics(S: State): Set<ItemId> {
  */
 export function shortOfFood(S: State, town: Town): boolean {
   if (!town.planner.on) return false;
-  // out of land for food: it found no room for a workplace of the food chain lately
-  const chain = foodChainOf(S);
-  for (const id in town.planner.noRoom) if (S.t - town.planner.noRoom[id] < T(S).noRoomRetrySeconds * 2 && Object.keys(S.content.blueprints[id]?.output ?? {}).some(g => chain.has(g))) return true;
+  // out of land for food: it found no room for a workplace of the food chain lately (bread's chain: an orchard
+  // with no fertile land in reach is no reason to stop growing)
+  const chain = foodChainOf(S), F = S.content.tuning.farms;
+  for (const id in town.planner.noRoom) if (S.t - town.planner.noRoom[id] < T(S).noRoomRetrySeconds * 2 && Object.keys(S.content.blueprints[id]?.output ?? {}).some(g => chain.has(g) && !F.diet.includes(g))) return true;
   // bread made against bread eaten only with seasons: without them a shortfall shows at once as hunger, which keeps newcomers away by itself
   if (!S.seasons) return false;
   const food = Object.values(S.content.blueprints).find(B => B.homes)?.keepStocked;
   const g = food ? Object.keys(food)[0] : undefined;
   if (!g || !(g in town.planner.use)) return false;
   // what the planner found made: its use (demand) less the shortage it saw
-  const made = town.planner.use[g] * (1 - (town.planner.wants[g] || 0));
+  let made = town.planner.use[g] * (1 - (town.planner.wants[g] || 0));
+  // with farms that grow, the foods of the diet feed people as bread does (their shortage is weighed at `diet_weight`)
+  if (S.farms) for (const d of F.diet) made += (town.planner.use[d] || 0) * (1 - Math.min(1, (town.planner.wants[d] || 0) / F.dietWeight));
   let pop = 1;
   for (const a of S.agents) if (a.kind === 'villager' && a.home?.town === town.id) pop++;
   return made < (pop / S.content.tuning.needs.eatEverySeconds) * T(S).newcomerFoodShare;
@@ -545,6 +564,16 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
       for (let j = y - P.gap; j < y + bh + P.gap; j++) for (let k = x - P.gap; k < x + bw + P.gap; k++) if (W.tree[j * W.w + k] === 2) s += 1;
       for (const h of harvesters) if (Math.hypot(p.x - ctr(h).x, p.y - ctr(h).y) <= bp(S, h).harvest!.radius) s += P.forestPenalty;
     }
+    // a farm that grows wants open land behind it to grow into (the planner's farms face south: behind is north)
+    if (S.farms && B.grows && rot === 0) {
+      let rows = 0;
+      for (let k = 1; k <= maxSize(B) && rows === k - 1; k++) {
+        let open = y - k >= 0;
+        for (let i = x; open && i < x + bw; i++) { const t = (y - k) * W.w + i; open = (W.ground[t] === 1 || W.ground[t] === 2) && W.bgrid[t] === -1 && !W.road[t] && !W.front[t]; }
+        if (open) rows++;
+      }
+      s -= S.content.tuning.farms.growRoomWeight * rows;
+    }
     for (const i in B.input) { const from = producersOf(i); if (from.length) s += P.linkWeight * near(p, from); }
     for (const o in B.output) { const to = usersOf(o); if (to.length) s += P.linkWeight * mean(p, to); }
     if (B.homes && houses.length) s += P.linkWeight * near(p, houses);
@@ -711,7 +740,7 @@ function cutsOff(S: State, town: Town, type: string, x: number, y: number): bool
 }
 
 /** Would a footprint at (x, y) cut storage off from any of `doors`, or from the tile in front of its own door? */
-function sealsOff(W: World, x: number, y: number, w: number, h: number, from: { x: number; y: number }, doors: number[], front: number): boolean {
+export function sealsOff(W: World, x: number, y: number, w: number, h: number, from: { x: number; y: number }, doors: number[], front: number): boolean {
   const saved: number[] = [];
   for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) { const i = j * W.w + k; saved.push(W.bgrid[i]); W.bgrid[i] = -2; }
   const reach = reachable(W, from.x, from.y);
@@ -990,6 +1019,19 @@ function planTown(S: State, town: Town, dt: number) {
   Q.streak = Q.streak.type === c.B.id ? { type: c.B.id, n: Q.streak.n + 1 } : { type: c.B.id, n: 1 };
   if (Q.streak.n < T(S).confirmCycles) { Q.status = `Thinking about ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
 
+  // a farm that can grow grows instead: new fields behind it, and a place for one more hand
+  const grow = S.farms && c.B.grows ? toGrow(S, town, c.B) : null, fields = grow ? growFarm(S, grow, true) : null;
+  if (grow && fields) {
+    fields.priority = 1 + Math.round(c.sev * T(S).urgencyPriority);
+    fields.reason = `${fields.reason}: ${c.why}`;
+    Q.site = fields.id; Q.placed++; Q.streak = { type: '', n: 0 };
+    delete Q.noRoom[c.B.id];
+    if (c.key && !(c.key in Q.firstFor)) Q.firstFor[c.key] = S.t;
+    const name = sizeName(S, grow);
+    Q.status = `Growing ${article(name)} ${name.toLowerCase()}: ${c.why}`;
+    emit(S, 'info', S.towns.length > 1 ? `${town.name}: ${Q.status}` : Q.status, true);
+    return;
+  }
   if (c.B.bridge) {
     const span = chooseBridge(S, c.B, town);
     if (!span) { Q.noRoom[c.B.id] = S.t; Q.streak = { type: '', n: 0 }; Q.status = `No place for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }

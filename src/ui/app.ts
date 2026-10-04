@@ -2,6 +2,7 @@
 import { surroundings } from '../sim/surroundings.ts';
 import { homeTier } from '../sim/production.ts';
 import { formOf, hubs } from '../sim/planner.ts';
+import { capOf, crew, foodsEaten, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
 import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
@@ -56,7 +57,7 @@ export class App {
   }
 
   newGame(c: GameChoice) {
-    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, trade: c.trade !== false, people: c.people !== false, carts: c.carts !== false, settlers: c.settlers !== false, hardship: c.hardship !== false, plannedRoads: c.roads !== false, settlements: c.settlements, map: c.map, size: c.size }));
+    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, trade: c.trade !== false, people: c.people !== false, carts: c.carts !== false, settlers: c.settlers !== false, hardship: c.hardship !== false, plannedRoads: c.roads !== false, farms: c.farms !== false, settlements: c.settlements, map: c.map, size: c.size }));
     this.save();
   }
 
@@ -69,6 +70,8 @@ export class App {
     $('#world').textContent = this.worldLabel();
     this.setSpeed(1);
     this.knowKey = '';
+    // what only exists with an option of the world on (farms that grow) shows only in such a world
+    document.querySelectorAll<HTMLButtonElement>('#build .tool[data-type]').forEach(btn => { const B = this.content.blueprints[btn.dataset.type!]; if (B) btn.hidden = !offered(S, B); });
     // a loaded game has already told its news
     this.seenEvents = S.t > 0 ? S.events.length : 0;
     // open on the player's first settlement, wherever the seed put it
@@ -168,8 +171,8 @@ export class App {
   private buildBar() {
     const bar = $('#build');
     const bps = Object.values(this.content.blueprints).sort((a, b) => a.order - b.order);
-    // bridges are planned by the villages only, for now
-    for (const B of bps.filter(B => !B.bridge)) {
+    // bridges are planned by the villages only, for now; new fields are laid from a farm's inspector
+    for (const B of bps.filter(B => !B.bridge && !B.field)) {
       const btn = document.createElement('button');
       btn.className = 'tool'; btn.dataset.type = B.id; btn.id = 'tool-' + B.id; btn.setAttribute('aria-pressed', 'false');
       // paving by hand is free; planners pay for the roads they lay
@@ -564,7 +567,15 @@ export class App {
       p.addEventListener('click', () => { b.paused = !b.paused; this.renderActions(); this.updateInspector(); });
       acts.appendChild(p);
     }
-    if (!B.bridge) {
+    // farms that grow: lay new fields behind it
+    if (this.S.farms && B.grows && !b.site && b.size < maxSize(B)) {
+      const g = document.createElement('button');
+      g.className = 'btn'; g.id = 'act-grow'; g.textContent = 'Grow fields';
+      g.title = `Lay new fields behind it to grow it into ${B.grows.names[b.size + 1].toLowerCase()}, with a place for one more hand`;
+      g.addEventListener('click', () => { const why = growProblem(this.S, b); if (why) this.toast(`It cannot grow: ${why}`, 'bad'); else { growFarm(this.S, b); this.toast(`New fields are being laid behind the ${sizeName(this.S, b).toLowerCase()}`); } this.renderActions(); this.updateInspector(); });
+      acts.appendChild(g);
+    }
+    if (!B.bridge && !B.field && !b.size) {
       const r = document.createElement('button');
       r.className = 'btn'; r.id = 'act-turn'; r.textContent = 'Turn'; r.title = 'Turn it a quarter about its centre, its door to the next side';
       r.addEventListener('click', () => { if (!turnBuilding(this.S, b)) this.toast('No room to turn it there', 'bad'); this.updateInspector(); });
@@ -589,7 +600,7 @@ export class App {
     panel.hidden = false;
     const B = this.content.blueprints[b.type], G = this.content.goods, T = this.content.tuning;
     $('#insSw').style.background = B.color;
-    $('#insName').textContent = b.site ? `${B.name} (site)` : B.name;
+    $('#insName').textContent = b.site ? `${B.name} (site)` : sizeName(S, b);
     $('#insDesc').textContent = B.description;
     const why = $('#insWhy');
     why.hidden = !b.reason;
@@ -613,6 +624,12 @@ export class App {
       const su = surroundings(S, b), good = [su.trees > 0 && 'trees', su.water > 0 && 'water'].filter(Boolean), bad = [su.noise > 0 && 'noise', su.crowd > 0 && 'crowding', su.sites > 0 && 'building work'].filter(Boolean);
       const tier = homeTier(S, b), N = T.needs;
       rows += row('Tier', ['Hungry', 'Fed', 'Comfortable', 'Well off'][tier]);
+      // farms that grow: the foods of the diet on the shelf, and how varied its meals have been lately
+      if (S.farms) {
+        for (const g of T.farms.diet) if ((b.inv[g] || 0) >= 1 || (b.incoming[g] || 0) > 0) rows += row(G[g].name, `${n0(b.inv[g])}` + ((b.incoming[g] || 0) > 0 ? ` (+${n0(b.incoming[g])})` : ''));
+        const ate = Object.keys(b.ate).filter(f => S.t - b.ate[f] <= T.farms.dietSeconds).map(f => G[f]?.name.toLowerCase() ?? f);
+        rows += row('Eaten lately', ate.length ? `${foodsEaten(S, b)} food${ate.length > 1 ? 's' : ''}: ${ate.join(', ')}` : 'nothing yet');
+      }
       for (const g of [...N.tierTwo, ...N.tierThree]) if ((b.inv[g] || 0) >= 1 || (b.incoming[g] || 0) > 0) rows += row(G[g].name, `${n0(b.inv[g])}` + ((b.incoming[g] || 0) > 0 ? ` (+${n0(b.incoming[g])})` : ''));
       rows += row('Surroundings', `${Math.round(su.score * 100)}%` + (good.length ? `, ${good.join(' and ')}` : '') + (bad.length ? `; ${bad.join(', ')}` : ''));
     } else if (B.storage) {
@@ -624,10 +641,14 @@ export class App {
       const busy = b.bots.filter(id => S.amap.get(id)?.task).length;
       rows += row('Bots', b.bots.length) + row('Hauling now', busy) + row('Range', `${B.couriers.radius} tiles`);
     } else if (B.workers) {
-      const w = b.worker !== null ? S.amap.get(b.worker) : undefined;
-      rows += row('Worker', w ? (w.state === 'working' ? 'On the job' : 'Walking over') : 'None free');
+      const w = b.worker !== null ? S.amap.get(b.worker) : undefined, n = places(S, b);
+      if (n > 1) { const ids = crew(b), at = ids.filter(id => S.amap.get(id)?.state === 'working').length; rows += row('Hands', `${ids.length} of ${n}` + (ids.length > at ? `, ${ids.length - at} walking over` : '')); }
+      else rows += row('Worker', w ? (w.state === 'working' ? 'On the job' : 'Walking over') : 'None free');
+      // farms that grow: its size and fields, and what it has made
+      if (S.farms && B.grows) rows += row('Size', `${sizeName(S, b)}, ${b.size + 1} of ${B.grows.names.length}`) + row('Fields', `${b.w * b.h} tiles`) + row('Made', n0(b.made));
+      if (B.ripens && b.plantT < B.ripens) rows += row('Bears in', `${Math.ceil(B.ripens - b.plantT)}s`);
       for (const k in B.input) rows += row(`${G[k].name} in`, `${n0(b.inv[k])} / ${B.keepStocked[k] ?? B.input[k]}` + ((b.incoming[k] || 0) > 0 ? ` (+${n0(b.incoming[k])})` : ''));
-      for (const k in B.output) rows += row(`${G[k].name} out`, `${n0(b.inv[k])} / ${T.logistics.outputCap}`);
+      for (const k in B.output) rows += row(`${G[k].name} out`, `${n0(b.inv[k])} / ${capOf(S, b)}`);
       if (B.learning === 'library') {
         // the shelves: every record its settlement holds beyond founding knowledge, with who thought of it
         const t = S.towns[b.town], shelf = t ? Object.entries(t.knows).filter(([, k]) => k.by !== 'founders') : [];

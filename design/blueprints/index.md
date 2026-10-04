@@ -10,11 +10,13 @@
 * [Courier Depot](depot.md) - Winds up three courier bots that haul goods within twelve tiles. They never eat, so villagers are free to work.
 * [Dock](dock.md) - A jetty on the shore where rowing boats are kept. Villagers launch from it and can land on any shore.
 * [Family House](family_house.md) - Home for six villagers on a 3 by 2 plot; villages build them wall to wall.
-* [Farm](farm.md) - Grows wheat for the bakery.
+* [Farm](farm.md) - Grows wheat for the bakery; with farms that grow on, grows its fields as the village needs more.
+* [New fields](field.md) - A strip of land behind a farm, garden, orchard or pasture, cleared and fenced to grow it one size.
 * [Fishery](fishery.md) - Catches fish in fishing water within four tiles.
 * [Flax Farm](flax_farm.md) - Grows flax on fertile soil.
 * [Forester](forester.md) - Fells grown trees within five tiles and plants saplings so the woods come back.
-* [Granary](granary.md) - A stone store for food: keeps grain, bread, fish and flax from spoiling.
+* [Garden](garden.md) - Grows vegetables, quickly, on most land; rests in winter. Grows its beds as the village needs more.
+* [Granary](granary.md) - A stone store for food: keeps grain, bread, fish, flax and the fresh foods from spoiling.
 * [Graveyard](graveyard.md) - Where a village that buries its dead lays them to rest. It takes land, fills with the years, and is never built over.
 * [Healer's House](healer.md) (draft) - A healer tends the sick nearby, so sickness passes sooner, spreads no further and takes fewer lives.
 * [Cottage](house.md) - A small home for three villagers on a roomy plot, the first rung of the ladder of homes. Keeps a small stock of bread on the shelf.
@@ -22,7 +24,9 @@
 * [Library](library.md) - Holds the settlement's knowledge in the world, so nothing on its shelves is forgotten; its scribe copies records for the neighbours.
 * [Mason](mason.md) - Dresses two rough stones into one block of cut stone.
 * [Mine](mine.md) - Digs iron ore from an iron deposit within three tiles.
+* [Orchard](orchard.md) - Fruit trees on fertile land; the young trees bear only after a while, then every year but winter.
 * [Palisade](palisade.md) (draft) - A stake wall and gate that guards the stores against raiders.
+* [Pasture](pasture.md) - A herd on open grass giving milk and meat all year round; needs more room than a field.
 * [Path](path.md) - Paved footpath. Villagers walk faster on paths; planners pave the ones their people wear.
 * [Pyre](pyre.md) - Where a village that cremates its dead burns them. Every farewell burns logs, so a timber-poor village feels it.
 * [Quarry](quarry.md) - Cuts rough stone from a stone deposit within three tiles.

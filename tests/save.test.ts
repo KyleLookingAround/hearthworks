@@ -166,3 +166,15 @@ test('a version 19 save is upgraded to version 20: every building faces south, a
   runFor(S, 60);
   assert.equal(text(loadGame(content, text(S))), text(S));
 });
+
+test('a version 20 save is upgraded to version 21: farms that grow are off, every building has its one place and no meals remembered', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v20.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 20);
+  const S = loadGame(content, file);
+  assert.equal(S.farms, false);
+  assert.ok(S.buildings.length > 0 && S.buildings.every(b => b.size === 0 && b.hands.length === 0 && b.of === null && b.made === 0));
+  assert.deepEqual(S.stats.eaten, {});
+  runFor(S, 60);
+  assert.ok(Object.keys(S.stats.eaten).length > 0, 'homes eat on');
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});

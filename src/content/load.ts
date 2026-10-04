@@ -119,10 +119,15 @@ export function buildContent(files: SourceFile[]): Content {
       nuisance: nuisance ? { radius: num(d, nuisance.radius, 'nuisance.radius'), amount: num(d, nuisance.amount, 'nuisance.amount') } : null,
       guards: guards ? { hazard: str(d, guards.hazard, 'guards.hazard') as Hazard, radius: num(d, guards.radius, 'guards.radius'), defence: num(d, guards.defence, 'guards.defence', 0) } : null,
       discovery: discovery ? { need: str(d, discovery.need, 'discovery.need'), meanSeconds: num(d, discovery.mean_seconds, 'discovery.mean_seconds') } : null,
+      grows: isMap(f.grows) ? { names: Array.isArray(f.grows.names) ? f.grows.names.map(String) : [] } : null,
+      field: f.field === true,
+      option: f.option === 'farms' ? 'farms' : null,
+      ripens: num(d, f.ripens, 'ripens', 0),
     };
+    if (bp.grows && bp.grows.names.length < 2) problems.push(`${d.path}: grows.names must name at least two sizes`);
+    if (f.option !== undefined && f.option !== 'farms') problems.push(`${d.path}: option "${String(f.option)}" is not farms`);
     if (bp.discovery && !NEEDS.includes(bp.discovery.need)) problems.push(`${d.path}: discovery.need "${bp.discovery.need}" is not one of ${NEEDS.join(', ')}`);
     if (bp.guards && !HAZARDS.includes(bp.guards.hazard)) problems.push(`${d.path}: guards.hazard "${bp.guards.hazard}" is not one of ${HAZARDS.join(', ')}`);
-    if (bp.workers > 1) problems.push(`${d.path}: workers above 1 are not supported yet`);
     if (Object.keys(bp.output).length && bp.seconds <= 0) problems.push(`${d.path}: recipe.seconds must be above 0 when there is an output`);
     if (Object.keys(bp.output).length && !bp.workers) problems.push(`${d.path}: a recipe needs workers: 1`);
     checkGoods(d, bp.cost, 'cost'); checkGoods(d, bp.input, 'recipe.input'); checkGoods(d, bp.output, 'recipe.output'); checkGoods(d, bp.keepStocked, 'keep_stocked');
@@ -172,7 +177,7 @@ export function buildContent(files: SourceFile[]): Content {
     if (!isMap(d.data.tuning)) { problems.push(`${d.path}: needs a "tuning:" block`); return [d, {}]; }
     return [d, d.data.tuning];
   };
-  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people'), [ld2, lt2] = sys('settling'), [hd, ht] = sys('hardship'), [rd, rt] = sys('roads');
+  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people'), [ld2, lt2] = sys('settling'), [hd, ht] = sys('hardship'), [rd, rt] = sys('roads'), [fd, ft] = sys('farms');
   const sizes: Record<string, MapSize> = {};
   for (const [id, v] of Object.entries(isMap(mt.sizes) ? mt.sizes : {})) {
     const m = isMap(v) ? v : {};
@@ -210,6 +215,7 @@ export function buildContent(files: SourceFile[]): Content {
       everySeconds: num(td, tt.every_seconds, 'tuning.every_seconds'), load: num(td, tt.load, 'tuning.load'), keep: num(td, tt.keep, 'tuning.keep'), minVillagers: num(td, tt.min_villagers, 'tuning.min_villagers'),
       smoothingSeconds: num(td, tt.smoothing_seconds, 'tuning.smoothing_seconds'), distanceWeight: num(td, tt.distance_weight, 'tuning.distance_weight'), minRate: num(td, tt.min_rate, 'tuning.min_rate'), maxRate: num(td, tt.max_rate, 'tuning.max_rate'), villagersPerPorter: num(td, tt.villagers_per_porter, 'tuning.villagers_per_porter'), exportDemand: num(td, tt.export_demand, 'tuning.export_demand'), wantCover: num(td, tt.want_cover, 'tuning.want_cover'), spareCover: num(td, tt.spare_cover, 'tuning.spare_cover'), kinBonus: num(td, tt.kin_bonus, 'tuning.kin_bonus'), importPatienceSeconds: num(td, tt.import_patience_seconds, 'tuning.import_patience_seconds'), importShare: num(td, tt.import_share, 'tuning.import_share'),
     },
+    farms: (() => { const g = (k: string) => num(fd, ft[k], `tuning.${k}`); return { diet: Array.isArray(ft.diet) ? ft.diet.map(String) : [], dietShare: g('diet_share'), dietStock: g('diet_stock'), dietSeconds: g('diet_seconds'), dietFull: g('diet_full'), dietBonus: g('diet_bonus'), dietWeight: g('diet_weight'), growRoomWeight: g('grow_room_weight') }; })(),
     seasons: {
       yearSeconds: num(ed, et.year_seconds, 'tuning.year_seconds'), firewoodEverySeconds: num(ed, et.firewood_every_seconds, 'tuning.firewood_every_seconds'),
       firewoodStock: num(ed, et.firewood_stock, 'tuning.firewood_stock'), coldPenalty: num(ed, et.cold_penalty, 'tuning.cold_penalty'), winterHeadroom: num(ed, et.winter_headroom, 'tuning.winter_headroom'),
@@ -247,6 +253,8 @@ export function buildContent(files: SourceFile[]): Content {
       copyEverySeconds: k('copy_every_seconds'), universityFactor: k('university_factor'), universityThreshold: k('university_threshold'), schoolFactor: k('school_factor'), forgettingMemorySeconds: k('forgetting_memory_seconds'), learningWeight: k('learning_weight'), schoolChildren: k('school_children'), distanceFrom: k('distance_from'), distanceSpan: k('distance_span'), reachSmoothing: k('reach_smoothing'),
     },
   };
+  for (const g of tuning.farms.diet) if (!goods[g]) problems.push(`${fd.path}: tuning.diet names "${g}", which has no goods/${g}.md`);
+  if (!Object.values(blueprints).some(B => B.field)) problems.push('blueprints/field.md (field: true) is required: farms that grow lay new fields');
   checkGoods(sd, tuning.start.storage, 'tuning.storage'); checkGoods(sd, tuning.start.houseStock, 'tuning.house_stock');
 
   if (problems.length) throw new ContentError(problems);

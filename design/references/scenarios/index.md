@@ -6,6 +6,7 @@
 * [carts.ts](carts.ts)
 * [couriers.ts](couriers.ts)
 * [deeper-economy.ts](deeper-economy.ts)
+* [farms.ts](farms.ts)
 * [first-plank.ts](first-plank.ts)
 * [hardship.ts](hardship.ts)
 * [knowledge-spreads.ts](knowledge-spreads.ts)

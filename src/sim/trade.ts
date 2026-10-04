@@ -46,12 +46,17 @@ export function spareOf(S: State, town: Town): Stock {
   return out;
 }
 
-/** The goods homes eat. */
-const homeFoods = (S: State) => new Set(Object.values(S.content.blueprints).filter(B => B.homes).flatMap(B => Object.keys(B.keepStocked)));
+/** The goods homes eat: their bread and the foods of the diet (once per content). */
+const foodSets = new WeakMap<object, Set<ItemId>>();
+const homeFoods = (S: State) => {
+  let out = foodSets.get(S.content);
+  if (!out) { out = new Set([...Object.values(S.content.blueprints).filter(B => B.homes).flatMap(B => Object.keys(B.keepStocked)), ...S.content.tuning.farms.diet]); foodSets.set(S.content, out); }
+  return out;
+};
 
 /** What homes eat and everything that goes into making it. */
 function foodChain(S: State): Set<ItemId> {
-  const out = homeFoods(S);
+  const out = new Set(homeFoods(S));
   for (let grew = true; grew;) {
     grew = false;
     for (const B of Object.values(S.content.blueprints)) if (Object.keys(B.output).some(g => out.has(g))) for (const i in B.input) if (!out.has(i)) { out.add(i); grew = true; }

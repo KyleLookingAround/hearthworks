@@ -4,7 +4,7 @@ title: Production and construction
 description: Construction sites and their priority queue, worker assignment and recipe cycles.
 tags: [production, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T00:02:17Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T10:16:19Z }
 tuning:
   build_seconds: 3
   replant_every_seconds: 6
@@ -47,6 +47,8 @@ In a self-planning settlement, a workplace whose every good is *enough* rests be
 # Recipes
 
 A staffed building with its worker present, all inputs on hand and room in its output buffer runs one cycle every `recipe.seconds`. Status explains any stall: no worker, missing input, output full, no trees.
+
+With [farms that grow](/systems/farms.md), a workplace that has grown has a place for a hand per step beyond its `workers`. Every hand at work adds their pace to the cycle (an estate of three makes three times a smallholding's wheat), its output buffer holds `output_cap` for each place, and hands go to a second place anywhere only after every first place has been offered.
 
 # Resolved issues
 

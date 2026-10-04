@@ -83,6 +83,14 @@ export interface BlueprintDef {
   guards: { hazard: Hazard; radius: number; defence: number } | null;
   /** Not known at the start: a village invents it while it struggles with `need`. Null for founding knowledge. */
   discovery: { need: string; meanSeconds: number } | null;
+  /** Grows in steps, one per name (farms that grow): each step adds a row of fields behind it and a place for a hand. */
+  grows: { names: string[] } | null;
+  /** New fields: a strip laid behind a farm that grows, which becomes part of it when finished. */
+  field: boolean;
+  /** Exists only with this option of the world on (farms that grow). */
+  option: 'farms' | null;
+  /** Seconds after it is built before it yields anything (an orchard's young trees). */
+  ripens: number;
 }
 
 /** The hardships a settlement can be struck by. */
@@ -151,6 +159,7 @@ export interface Tuning {
     changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number;
   };
   trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number };
+  farms: { diet: ItemId[]; dietShare: number; dietStock: number; dietSeconds: number; dietFull: number; dietBonus: number; dietWeight: number; growRoomWeight: number };
   seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[] };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number; surplusSeconds: number; surplusMin: number; surplusFullSeconds: number };
@@ -237,8 +246,11 @@ export interface Building {
   inv: Stock;
   incoming: Stock;
   reserved: Stock;
+  /** Its first hand; `hands` are the rest, when it has places for more (a grown farm). */
   worker: number | null;
+  hands: number[];
   timer: number;
+  /** A forester's replanting clock; an orchard's ripening clock. */
   plantT: number;
   paused: boolean;
   status: { t: string; l: Level };
@@ -275,6 +287,13 @@ export interface Building {
   burn: number;
   flood: number;
   sick: number;
+  /** Farms that grow: how many steps it has grown, and (a new fields site) the farm it grows. */
+  size: number;
+  of: number | null;
+  /** Everything it has made, counted one by one. */
+  made: number;
+  /** A home: when it last ate each food (game time). */
+  ate: Stock;
 }
 
 export type AgentState = 'idle' | 'wander' | 'toSrc' | 'toDst' | 'toWork' | 'working' | 'visit';
@@ -437,7 +456,7 @@ export interface Work { paths: number; pathFails: number; pathNodes: number; job
 /** Something worth telling the player. `minor` marks routine news (a building finished, a newcomer) the UI can keep quiet. */
 export interface GameEvent { kind: 'good' | 'bad' | 'info'; text: string; t: number; minor: boolean }
 
-/** One line of history. `kind` sorts it: founded, form, invented, taught, proven, forgotten, replanned, district, bridge. */
+/** One line of history. `kind` sorts it: founded, form, invented, taught, proven, forgotten, replanned, district, bridge, farm. */
 export interface Chronicle { t: number; town: number; kind: string; text: string }
 
 export interface Stats {
@@ -475,6 +494,9 @@ export interface Stats {
   longDeliveries: number;
   longByCart: number;
   peakVillagers: number;
+  /** Meals eaten, by food, and fields laid (farms grown a size). */
+  eaten: Stock;
+  grown: number;
   invented: number;
   taught: number;
   forgotten: number;
@@ -535,4 +557,6 @@ export interface State {
   chronicle: Chronicle[];
   /** Separate stream for discovery, so knowledge never shifts the main simulation's random numbers. */
   krng: Rng;
+  /** Farms that grow on: farms grow fields and hands, and homes eat a varied diet of the foods they grow. */
+  farms: boolean;
 }

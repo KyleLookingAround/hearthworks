@@ -23,3 +23,4 @@
 * [Gate 19: ages](19-ages.md) - An age turns across at least half the settlements unscripted, and an isolated settlement without a library falls back an age when it stops practising its crafts.
 * [Gate 20: hardship](20-hardship.md) - A planned town weathers fire, flood, sickness and barbarian raids through three winters losing at most a tenth of its people, and rationing brings a town through a lean winter that costs more people without it.
 * [Gate 21: paths and roads](21-paths-and-roads.md) - A town on the standard map lays straight roads through its centre unscripted, nobody is left homeless by them, and deliveries along them are faster than along paths.
+* [Gate 22: farms that grow](22-farms-that-grow.md) - A self-planning town on the standard map with seasons grows a farm to its largest size unscripted, worked by more than one hand and making more per tile than its first farm, and its homes eat a varied diet.

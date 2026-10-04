@@ -3,6 +3,7 @@ import { goToBuilding, makeAgent, removeAgent } from './agents.ts';
 import { plannerOn } from './planner.ts';
 import { foundersKnowledge } from './knowledge.ts';
 import { initPeople } from './people.ts';
+import { joinFields, offered } from './farms.ts';
 import { findPath, reachable } from './path.ts';
 import type { Agent, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
 
@@ -82,10 +83,10 @@ export function storesOnTrack(S: State, t: Town, extra = 0): boolean {
   return stored >= meals(Z.yearSeconds / 4) * Z.winterHeadroom * Math.max(0, (phase - 0.25) / 0.5);
 }
 
-/** The foods a home eats, in order: its own (bread), then the preserved foods when seasons are on. */
+/** The foods a home eats, in order: its own (bread), with farms that grow the foods of the diet, then the preserved foods when seasons are on. */
 export function foodsOf(S: State, b: Building): string[] {
   const f = Object.keys(bp(S, b).keepStocked)[0];
-  return f ? [f, ...(S.seasons ? S.content.tuning.seasons.preserved : [])] : [];
+  return f ? [f, ...(S.farms ? S.content.tuning.farms.diet : []), ...(S.seasons ? S.content.tuning.seasons.preserved : [])] : [];
 }
 
 /** Write a line of a settlement's history. */
@@ -266,13 +267,13 @@ function firstSite(S: State): { x: number; y: number } {
  * `settlements` above 1 founds neighbours the same way, as far apart as the land allows.
  * The village planner is off unless `planner` is set, so scripted scenarios stay scripted.
  */
-export interface WorldOptions { /** the year turns (default off, for scenarios that predate seasons) */ seasons?: boolean; /** neighbours trade (default off, for scenarios that predate it) */ trade?: boolean; /** villagers age, are born and die, learn, and honour their dead (default off) */ people?: boolean; /** cart sheds and handcarts (default off) */ carts?: boolean; /** crowded settlements found daughter towns (default off) */ settlers?: boolean; /** fire, flood, sickness and barbarians (default off) */ hardship?: boolean; /** settlements think of roads and lay them in straight strips (default off) */ plannedRoads?: boolean; /** newcomers arrive (default on) */ newcomers?: boolean; /** planners pave worn paths (default on) */ roads?: boolean; planner?: boolean; settlements?: number; map?: string; size?: string }
+export interface WorldOptions { /** the year turns (default off, for scenarios that predate seasons) */ seasons?: boolean; /** neighbours trade (default off, for scenarios that predate it) */ trade?: boolean; /** villagers age, are born and die, learn, and honour their dead (default off) */ people?: boolean; /** cart sheds and handcarts (default off) */ carts?: boolean; /** crowded settlements found daughter towns (default off) */ settlers?: boolean; /** fire, flood, sickness and barbarians (default off) */ hardship?: boolean; /** settlements think of roads and lay them in straight strips (default off) */ plannedRoads?: boolean; /** newcomers arrive (default on) */ newcomers?: boolean; /** farms grow fields and hands, and homes eat a varied diet (default off) */ farms?: boolean; /** planners pave worn paths (default on) */ roads?: boolean; planner?: boolean; settlements?: number; map?: string; size?: string }
 
 export function createState(content: Content, seed: number, opts: WorldOptions = {}): State {
   const S = {
     content, seed, rng: makeRng(seed), krng: makeRng(seed ^ 0x6b6e6f77), t: 0, buildings: [], agents: [], bmap: new Map(), amap: new Map(), nextId: 1,
     mood: 1, fed: 1, migT: 0, secT: 0, events: [], towns: [], chronicle: [], seasons: false, trade: false,
-    stats: { made: {}, trades: 0, births: 0, deaths: 0, honoured: 0, riteWaitMax: 0, cartDeliveries: 0, goodsDelivered: 0, longGoods: 0, longGoodsByCart: 0, longFootSeconds: 0, longCartSeconds: 0, longDeliveries: 0, longByCart: 0, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, spoiled: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, invented: 0, taught: 0, forgotten: 0, fires: 0, burnt: 0, floods: 0, outbreaks: 0, raids: 0, repelled: 0, looted: 0, sickDeaths: 0, starved: 0, camps: 0, roadsLaid: 0, roadTiles: 0, roadCut: 0, roadMoved: 0, roadDeliveries: 0, roadDeliverySeconds: 0, roadDeliveryTiles: 0, pathDeliveries: 0, pathDeliverySeconds: 0, pathDeliveryTiles: 0 },
+    stats: { made: {}, trades: 0, births: 0, deaths: 0, honoured: 0, riteWaitMax: 0, cartDeliveries: 0, goodsDelivered: 0, longGoods: 0, longGoodsByCart: 0, longFootSeconds: 0, longCartSeconds: 0, longDeliveries: 0, longByCart: 0, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, spoiled: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, eaten: {}, grown: 0, invented: 0, taught: 0, forgotten: 0, fires: 0, burnt: 0, floods: 0, outbreaks: 0, raids: 0, repelled: 0, looted: 0, sickDeaths: 0, starved: 0, camps: 0, roadsLaid: 0, roadTiles: 0, roadCut: 0, roadMoved: 0, roadDeliveries: 0, roadDeliverySeconds: 0, roadDeliveryTiles: 0, pathDeliveries: 0, pathDeliverySeconds: 0, pathDeliveryTiles: 0 },
   } as unknown as State;
   const mt = content.tuning.map;
   const mapId = opts.map ?? mt.standardType, sizeId = opts.size ?? mt.standardSize;
@@ -290,6 +291,7 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   S.prng = makeRng(seed ^ 0x70656f70);
   S.hardship = opts.hardship ?? false;
   S.plannedRoads = opts.plannedRoads ?? false;
+  S.farms = opts.farms ?? false;
   S.hrng = makeRng(seed ^ 0x68617264);
   S.camps = []; S.campT = 0;
   S.world = generateWorld(M, size.width, size.height, S);
@@ -318,7 +320,7 @@ export function foundTown(S: State, cx: number, cy: number, planner: boolean, ro
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', rites: [], graves: {}, copyT: 0, reach: 0, mother: null, overseas: false, age: 0, laws: { rationing: false, hours: 'normal', leave: true }, struck: {}, roadT: 0, roads: [], sentAt: -1e9, settleT: 0 };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content, B => offered(S, B)), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', rites: [], graves: {}, copyT: 0, reach: 0, mother: null, overseas: false, age: 0, laws: { rationing: false, hours: 'normal', leave: true }, struck: {}, roadT: 0, roads: [], sentAt: -1e9, settleT: 0 };
   S.towns.push(town);
   if (!party) chronicle(S, id, 'founded', `${town.name} was founded with ${t.villagers} villagers`);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;
@@ -483,6 +485,8 @@ export function lift(S: State, b: Building): () => void {
 export function turnBuilding(S: State, b: Building, by = 1): boolean {
   const B = bp(S, b), w = S.world;
   if (B.bridge || B.paves || b.dead) return false;
+  // a farm that has grown fields (or is laying them) no longer turns
+  if (b.size > 0 || B.field || S.buildings.some(o => o.of === b.id)) return false;
   // about its centre, rounding toward its corner so that turning back undoes it exactly
   const rot = (b.rot + by) % 4, d = dims(B, rot), x = b.x + Math.trunc((b.w - d.w) / 2), y = b.y + Math.trunc((b.h - d.h) / 2);
   const back = lift(S, b), ok = canPlace(S, b.type, x, y, rot);
@@ -497,13 +501,14 @@ export function turnBuilding(S: State, b: Building, by = 1): boolean {
   return true;
 }
 
-export function placeBuilding(S: State, type: string, x: number, y: number, complete: boolean, rot = 0): Building | null {
+export function placeBuilding(S: State, type: string, x: number, y: number, complete: boolean, rot = 0, size?: { w: number; h: number }): Building | null {
   const B = S.content.blueprints[type], w = S.world;
   if (B.paves) { const i = y * w.w + x; if (B.road && w.road[i] !== 2) w.roads++; else if (!B.road && w.road[i] === 2) w.roads--; w.road[i] = B.road ? 2 : 1; w.tree[i] = 0; return null; }
-  const { w: bw, h: bh } = dims(B, rot);
+  // (new fields take the size of the strip they are laid on)
+  const { w: bw, h: bh } = size ?? dims(B, rot);
   const b: Building = {
     id: S.nextId++, type, x, y, w: bw, h: bh, rot, site: !complete, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + bw / 2, y + bh / 2), used: 0, waiting: {}, noWay: null, doorAt: null, extra: 0, wear: 0, fire: 0, stall: 0, burn: 0, flood: 0, sick: 0,
+    worker: null, hands: [], timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + bw / 2, y + bh / 2), used: 0, waiting: {}, noWay: null, doorAt: null, extra: 0, wear: 0, fire: 0, stall: 0, burn: 0, flood: 0, sick: 0, size: 0, of: null, made: 0, ate: {},
   };
   for (let j = y; j < y + bh; j++) for (let k = x; k < x + bw; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; if (w.road[i] === 2) w.roads--; w.road[i] = 0; }
   setDoor(S, b, true);
@@ -521,7 +526,7 @@ export function placeBridge(S: State, x: number, y: number, w: number, h: number
   const W = S.world;
   const b: Building = {
     id: S.nextId++, type: 'bridge', x, y, w, h, site: true, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town, used: 0, waiting: {}, noWay: null, doorAt: { ...from }, rot: 0, extra: 0, wear: 0, fire: 0, stall: 0, burn: 0, flood: 0, sick: 0,
+    worker: null, hands: [], timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town, used: 0, waiting: {}, noWay: null, doorAt: { ...from }, rot: 0, extra: 0, wear: 0, fire: 0, stall: 0, burn: 0, flood: 0, sick: 0, size: 0, of: null, made: 0, ate: {},
   };
   for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) W.bgrid[j * W.w + k] = b.id;
   for (const p of [from, to]) W.front[p.y * W.w + p.x]++;
@@ -539,6 +544,13 @@ function farBank(b: Building) {
 export function completeSite(S: State, b: Building, announce: boolean) {
   b.site = false; b.build = 0; b.inv = {}; b.incoming = {}; b.reserved = {}; b.waiting = {};
   const B = bp(S, b);
+  // new fields join their farm and are gone
+  if (B.field) {
+    setDoor(S, b, false);
+    b.dead = true; S.buildings = S.buildings.filter(o => o !== b); S.bmap.delete(b.id);
+    joinFields(S, b, b.of !== null ? S.bmap.get(b.of) : undefined, announce);
+    return;
+  }
   if (B.bridge) {
     for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) S.world.bridge[j * S.world.w + k] = 1;
     // the long ways round it remembered were measured before this bridge stood
@@ -555,6 +567,8 @@ export function completeSite(S: State, b: Building, announce: boolean) {
 }
 
 export function demolish(S: State, b: Building) {
+  // new fields being laid for it go with it
+  for (const o of S.buildings.filter(o => o.of === b.id)) demolish(S, o);
   b.dead = true;
   S.buildings = S.buildings.filter(o => o !== b); S.bmap.delete(b.id);
   const w = S.world;
@@ -562,6 +576,7 @@ export function demolish(S: State, b: Building) {
   if (bp(S, b).bridge) for (const p of [door(b), farBank(b)]) w.front[p.y * w.w + p.x] = Math.max(0, w.front[p.y * w.w + p.x] - 1);
   else setDoor(S, b, false);
   for (const a of S.agents) if (a.work === b) { a.work = null; a.role = 'carrier'; a.state = 'idle'; a.path = []; }
+  b.worker = null; b.hands = [];
   const gone = b.residents.length;
   for (const id of [...b.residents]) { const a = S.amap.get(id); if (a) { removeAgent(S, a); S.stats.departures++; S.stats.demolitionDepartures++; } }
   for (const id of b.bots) { const a = S.amap.get(id); if (a) removeAgent(S, a); }

@@ -348,10 +348,56 @@ export class Renderer {
       case 'farm': {
         c.fillStyle = '#7d5f35'; this.rr(px + 2, py + 2, pw - 4, ph - 4, 4); c.fill();
         const ripe = b.site ? 0.2 : 0.35 + 0.65 * (B.seconds ? b.timer / B.seconds : 0);
+        // the farmhouse stands in the first two rows, by the door; grown fields stretch away behind
+        const hy = py + ph - 2 * TS;
         c.fillStyle = `rgba(227,196,84,${ripe})`;
-        for (let y = py + 6; y < py + ph - 5; y += 6) c.fillRect(px + 20, y, pw - 26, 3);
-        c.fillStyle = '#b5654a'; this.rr(px + 4, py + 6, 12, 14, 2); c.fill();
-        c.fillStyle = '#dccaa2'; c.fillRect(px + 6, py + 14, 8, 6);
+        for (let y = py + 6; y < py + ph - 5; y += 6) c.fillRect(y >= hy && y < hy + 22 ? px + 20 : px + 6, y, y >= hy && y < hy + 22 ? pw - 26 : pw - 12, 3);
+        c.fillStyle = '#b5654a'; this.rr(px + 4, hy + 6, 12, 14, 2); c.fill();
+        c.fillStyle = '#dccaa2'; c.fillRect(px + 6, hy + 14, 8, 6);
+        return;
+      }
+      case 'garden': {
+        c.fillStyle = '#5b4630'; this.rr(px + 2, py + 2, pw - 4, ph - 4, 4); c.fill();
+        // beds of greens, fuller as the crop comes on; a shed by the door
+        const hy = py + ph - 2 * TS, grow = b.site ? 0.3 : 0.5 + 0.5 * (B.seconds ? b.timer / B.seconds : 0);
+        for (let y = py + 7; y < py + ph - 6; y += 7) for (let x = px + 8; x < px + pw - 6; x += 7) {
+          if (x < px + 20 && y >= hy && y < hy + 22) continue;
+          c.fillStyle = (x + y) % 3 ? '#79b54f' : '#d08a3c'; c.beginPath(); c.arc(x, y, 2.3 * grow, 0, 7); c.fill();
+        }
+        c.fillStyle = '#8d6b48'; this.rr(px + 4, hy + 8, 12, 12, 2); c.fill();
+        return;
+      }
+      case 'orchard': {
+        c.fillStyle = '#6f9a4a'; this.rr(px + 2, py + 2, pw - 4, ph - 4, 4); c.fill();
+        // rows of trees, small while young; fruit on them once they bear
+        const young = !b.site && B.ripens > 0 && b.plantT < B.ripens, r = b.site ? 3 : young ? 3 + 3 * (b.plantT / B.ripens) : 6.5;
+        for (let y = py + TS / 2; y < py + ph; y += TS) for (let x = px + TS / 2; x < px + pw; x += TS) {
+          c.fillStyle = '#6b4a2f'; c.fillRect(x - 1, y, 2, 6);
+          c.fillStyle = '#3f7a3a'; c.beginPath(); c.arc(x, y - 1, r, 0, 7); c.fill();
+          if (!b.site && !young && seasonOf(S) !== 'winter') { c.fillStyle = '#d5503f'; c.beginPath(); c.arc(x - 2.5, y - 2, 1.6, 0, 7); c.arc(x + 2.5, y + 1, 1.6, 0, 7); c.fill(); }
+        }
+        return;
+      }
+      case 'pasture': {
+        c.fillStyle = '#8fbf62'; this.rr(px + 2, py + 2, pw - 4, ph - 4, 4); c.fill();
+        // a fence round it, a byre by the door, and the herd grazing
+        c.strokeStyle = '#7b5a3a'; c.lineWidth = 1.5; this.rr(px + 3, py + 3, pw - 6, ph - 6, 3); c.stroke();
+        const hy = py + ph - 2 * TS;
+        c.fillStyle = '#9b5a3e'; this.rr(px + 5, hy + 9, 14, 12, 2); c.fill();
+        const cows = Math.max(2, Math.round((b.w * b.h) / 4));
+        for (let k = 0; k < cows; k++) {
+          const t = live ? S.t * 0.15 + k * 2.1 : k * 2.1;
+          const x = px + 26 + ((k * 37) % Math.max(1, pw - 36)) + Math.sin(t) * 3, y = py + 10 + ((k * 23) % Math.max(1, ph - 20)) + Math.cos(t * 0.7) * 2;
+          c.fillStyle = '#f2efe6'; c.beginPath(); c.ellipse(x, y, 5, 3.2, 0, 0, 7); c.fill();
+          c.fillStyle = '#3d3a36'; c.beginPath(); c.arc(x + 1.5, y - 0.5, 1.4, 0, 7); c.arc(x + 5, y - 1, 1.6, 0, 7); c.fill();
+        }
+        return;
+      }
+      case 'field': {
+        // new fields being laid: furrows turned in the bare earth
+        c.fillStyle = '#8a6a42'; this.rr(px + 2, py + 2, pw - 4, ph - 4, 3); c.fill();
+        c.strokeStyle = 'rgba(60,40,20,.45)'; c.lineWidth = 1;
+        for (let x = px + 6; x < px + pw - 3; x += 5) { c.beginPath(); c.moveTo(x, py + 4); c.lineTo(x, py + ph - 4); c.stroke(); }
         return;
       }
       case 'bakery': {

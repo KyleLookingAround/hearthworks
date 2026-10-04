@@ -9,10 +9,14 @@
 * [Cut Stone](cut_stone.md) - Dressed stone blocks for buildings that must last.
 * [Fish](fish.md) - Fresh fish: with cloth, the comfort of a second-tier home. Spoils left out in a storage yard.
 * [Flax](flax.md) - Flax grown on fertile soil, for cloth.
+* [Fruit](fruit.md) - Picked in an orchard on fertile land and eaten as it is. Spoils slowly left out in a storage yard.
 * [Iron Ore](iron_ore.md) - Ore from a mine on an iron deposit.
 * [Logs](logs.md) - Felled timber. The Forester produces them; the Sawmill consumes them.
+* [Meat](meat.md) - From a herd on the pasture, all year round. Spoils left out in a storage yard.
+* [Milk](milk.md) - From a herd on the pasture, all year round. Goes off quickly left out in a storage yard.
 * [Planks](planks.md) - Sawn timber. Every construction site is built from planks.
 * [Smoked Fish](smoked_fish.md) - Fish smoked over a log fire. It never spoils, and homes eat it when their bread runs out.
 * [Stone](stone.md) - Rough stone from a quarry on a stone deposit.
 * [Tools](tools.md) - Iron tools: they speed up the work of farms, sawmills, quarries and mines, and wear out. Homes of the third tier keep some.
+* [Vegetables](vegetables.md) - Grown in a garden from spring to autumn and eaten as they are. Spoils left out in a storage yard.
 * [Wheat](wheat.md) - Grain grown on farms and baked into bread.

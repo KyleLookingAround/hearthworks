@@ -19,17 +19,17 @@ import { chronicle, door, emit, learningAt, villagers } from './world.ts';
 import { reachable } from './path.ts';
 import { struckLately } from './hardship.ts';
 import { traffic } from './roads.ts';
-import type { Agent, Content, Knowledge, State, Town } from './types.ts';
+import type { Agent, BlueprintDef, Content, Knowledge, State, Town } from './types.ts';
 
 const K = (S: State) => S.content.tuning.knowledge;
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const name = (S: State, id: string) => S.content.blueprints[id]?.name ?? id;
 
 /** Everything without a `discovery` block: what every settlement starts out knowing. */
-export function foundersKnowledge(content: Content): Record<string, Knowledge> {
+export function foundersKnowledge(content: Content, offered: (B: BlueprintDef) => boolean = () => true): Record<string, Knowledge> {
   const out: Record<string, Knowledge> = {};
   for (const B of Object.values(content.blueprints)) {
-    if (B.discovery) continue;
+    if (B.discovery || !offered(B)) continue;
     out[B.id] = { by: 'founders', at: 0, verified: [{ by: 'founders', at: 0 }], from: null, learned: 0, used: 0 };
   }
   return out;

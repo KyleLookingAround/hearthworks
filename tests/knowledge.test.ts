@@ -19,8 +19,11 @@ test('settlements start with founding knowledge only: the depot has to be discov
   const S = createState(content, 1847);
   const t = S.towns[0];
   assert.equal(t.name, content.tuning.start.names[0]);
-  for (const B of Object.values(content.blueprints)) assert.equal(B.id in t.knows, !B.discovery, B.id);
+  // (what belongs to an option of the world that is off, farms that grow, is not known at all)
+  for (const B of Object.values(content.blueprints)) assert.equal(B.id in t.knows, !B.discovery && !B.option, B.id);
   assert.ok(content.blueprints.depot.discovery);
+  const F = createState(content, 1847, { farms: true }).towns[0];
+  for (const B of Object.values(content.blueprints)) assert.equal(B.id in F.knows, !B.discovery, B.id);
   assert.equal(t.knows.house.by, 'founders');
 });
 

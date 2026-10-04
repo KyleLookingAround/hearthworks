@@ -2,7 +2,8 @@ import { rand } from './rng.ts';
 import { release, removeAgent } from './agents.ts';
 import { skillPace } from './people.ts';
 import { add, bp, completeSite, ctr, emit, foodsOf, inB, plant, seasonOf } from './world.ts';
-import type { Building, ItemId, Level, State, Stock, Town } from './types.ts';
+import { capOf, crew, dietOf, mealOf, places, unripe } from './farms.ts';
+import type { Agent, Building, ItemId, Level, State, Stock, Town } from './types.ts';
 
 const setStatus = (b: Building, t: string, l: Level) => { b.status.t = t; b.status.l = l; };
 
@@ -67,18 +68,20 @@ export function wants(S: State, b: Building, form: string): Stock {
     if (B.rite === 'ship') out.planks = S.content.tuning.people.shipPlanks;
   }
   if (B.homes) {
+    // with farms that grow, a little of each food of the diet its settlement can get
+    if (S.farms) for (const g of dietOf(S, b.town)) out[g] = S.content.tuning.farms.dietStock;
     if (form !== 'hamlet') for (const g of N.tierTwo) out[g] = N.extrasStock;
     if (form === 'town') for (const g of N.tierThree) out[g] = 1;
   }
   return out;
 }
 
-/** What homes eat and everything that goes into making it, once per content. */
+/** What homes eat (their bread and the foods of the diet) and everything that goes into making it, once per content. */
 const chains = new WeakMap<object, Set<string>>();
 export function foodChainOf(S: State): Set<string> {
   let out = chains.get(S.content);
   if (out) return out;
-  out = new Set(Object.values(S.content.blueprints).filter(B => B.homes).flatMap(B => Object.keys(B.keepStocked)));
+  out = new Set([...Object.values(S.content.blueprints).filter(B => B.homes).flatMap(B => Object.keys(B.keepStocked)), ...S.content.tuning.farms.diet]);
   for (let grew = true; grew;) {
     grew = false;
     for (const B of Object.values(S.content.blueprints)) if (Object.keys(B.output).some(g => out!.has(g))) for (const i in B.input) if (!out.has(i)) { out.add(i); grew = true; }
@@ -186,9 +189,9 @@ function run(S: State, b: Building, dt: number) {
     // rationing: everyone eats less often
     b.eat += (dt * r) / (T.needs.eatEverySeconds * (laws?.rationing ? T.hardship.rationFactor : 1));
     if (b.eat >= 1) {
-      // bread first, then preserved food
-      const meal = foods.find(f => (b.inv[f] || 0) >= 1);
-      if (meal) { add(b.inv, meal, -1); b.eat -= 1; b.hunger = 0; }
+      // bread first, then preserved food (with farms that grow, whichever it has gone longest without)
+      const meal = mealOf(S, b, foods);
+      if (meal) { add(b.inv, meal, -1); b.eat -= 1; b.hunger = 0; b.ate[meal] = S.t; add(S.stats.eaten, meal, 1); }
       else { b.eat = 1; b.hunger += dt; }
     }
     // in winter each resident burns a log every `firewood_every_seconds`; without one the home is cold
@@ -229,17 +232,22 @@ function run(S: State, b: Building, dt: number) {
   if (b.burn > 0 || b.flood > 0) return;
   // in winter the fields rest and their workers go carrying
   if (B.seasonal && seasonOf(S) === 'winter') { if (b.worker !== null) release(S, b); setStatus(b, 'Winter: the fields rest', 'wait'); return; }
+  // an orchard's young trees bear nothing for a while
+  if (unripe(S, b)) { b.plantT += dt; setStatus(b, 'The young trees are not bearing yet', 'wait'); return; }
   const w = b.worker !== null ? S.amap.get(b.worker) : undefined;
-  if (!w || w.state !== 'working') { setStatus(b, w ? 'Worker on the way' : 'No worker free', w ? 'wait' : 'bad'); return; }
-  // a worker from a sick home stays in bed
-  if (w.home && w.home.sick > 0) { setStatus(b, 'Its worker is sick in bed', 'bad'); return; }
+  // the hands at work (a grown farm has more than one); a worker from a sick home stays in bed
+  const team = b.hands.length ? crew(b).map(id => S.amap.get(id)).filter(a => !!a && a.state === 'working' && !(a.home && a.home.sick > 0)) as Agent[] : null;
+  if (!team?.length) {
+    if (!w || w.state !== 'working') { setStatus(b, w ? 'Worker on the way' : 'No worker free', w ? 'wait' : 'bad'); return; }
+    if (w.home && w.home.sick > 0) { setStatus(b, 'Its worker is sick in bed', 'bad'); return; }
+  }
   // counters have no recipe: their worker stands ready
   if (B.guards) { setStatus(b, { fire: 'The fire crew stands ready', flood: 'Holding the water back', sickness: 'The healer is in', raids: 'A lookout on watch' }[B.guards.hazard], 'ok'); return; }
   // places of learning have no recipe: their worker keeps, teaches or studies
   if (B.learning) { setStatus(b, { library: 'A scribe at work', school: 'Lessons under way', university: 'Scholars at their inquiries' }[B.learning], 'ok'); return; }
   const lacking = Object.keys(B.input).filter(k => (b.inv[k] || 0) < B.input[k]);
   if (lacking.length) { setStatus(b, `Needs ${itemsText(S, lacking)}`, 'bad'); return; }
-  if (Object.keys(B.output).some(k => (b.inv[k] || 0) >= T.logistics.outputCap)) {
+  if (Object.keys(B.output).some(k => (b.inv[k] || 0) >= capOf(S, b))) {
     // a worker left standing at a full workplace goes carrying instead
     b.stall += dt;
     if (b.stall >= T.logistics.releaseAfterSeconds) { b.stall = 0; release(S, b); }
@@ -258,16 +266,17 @@ function run(S: State, b: Building, dt: number) {
     if (tree < 0) { setStatus(b, 'No grown trees nearby', 'bad'); return; }
   }
   // tools speed the work up, and wear out
-  const tooled = !!B.tools && (b.inv.tools || 0) >= 1;
-  setStatus(b, tooled ? 'Working, with tools' : 'Working', 'ok');
+  const tooled = !!B.tools && (b.inv.tools || 0) >= 1, n = places(S, b);
+  setStatus(b, (tooled ? 'Working, with tools' : 'Working') + (n > 1 ? `: ${team?.length ?? 1} of ${n} hands` : ''), 'ok');
   // working hours, by law
   const hours = S.towns[b.town]?.laws.hours, pace = hours === 'long' ? T.hardship.longPace : hours === 'short' ? T.hardship.shortPace : 1;
-  b.timer += dt * (tooled ? B.tools!.speedup : 1) * skillPace(S, w, b) * pace;
+  // every hand at work adds their own pace
+  b.timer += dt * (tooled ? B.tools!.speedup : 1) * (team ? team.reduce((s, a) => s + skillPace(S, a, b), 0) : skillPace(S, w!, b)) * pace;
   if (b.timer >= B.seconds) {
     b.timer = 0;
     if (tooled && ++b.wear >= B.tools!.wearCycles) { b.wear = 0; add(b.inv, 'tools', -1); }
     for (const k in B.input) add(b.inv, k, -B.input[k]);
     if (tree >= 0) plant(S.world, tree);
-    for (const k in B.output) { add(b.inv, k, B.output[k]); add(S.stats.made, k, B.output[k]); if (S.towns[b.town]) add(S.towns[b.town].trade.made, k, B.output[k]); }
+    for (const k in B.output) { add(b.inv, k, B.output[k]); add(S.stats.made, k, B.output[k]); if (S.towns[b.town]) add(S.towns[b.town].trade.made, k, B.output[k]); b.made += B.output[k]; }
   }
 }

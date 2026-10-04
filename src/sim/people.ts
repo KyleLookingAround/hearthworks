@@ -1,5 +1,6 @@
 import { rand } from './rng.ts';
-import { makeAgent, release, removeAgent } from './agents.ts';
+import { makeAgent, quit, removeAgent } from './agents.ts';
+import { foodChainOf } from './production.ts';
 import { shortOfFood } from './planner.ts';
 import { add, bp, chronicle, door, emit, foodsOf, learningAt, villagers } from './world.ts';
 import type { Agent, Building, Custom, State, Town } from './types.ts';
@@ -76,7 +77,7 @@ export function updatePeople(S: State, dt: number) {
       if (a.home && learningAt(S, a.home.town, 'school')) a.schooled = true;
     }
     // the old retire from their workplace, and lend a hand carrying
-    else if (a.role === 'worker' && age >= T.elderSeconds && a.work) release(S, a.work);
+    else if (a.role === 'worker' && age >= T.elderSeconds && a.work) quit(a);
     // practice: a worker at work learns the trade, faster with a master in the settlement
     if (a.role === 'worker' && a.work && a.state === 'working') {
       const k = a.work.type, s = a.skill[k] || 0, master = a.home ? hasExpert(S, a.home.town, k, a) : false;
@@ -98,19 +99,9 @@ function die(S: State, a: Agent) {
   emit(S, 'info', `An elder of ${town.name} died, old and content; they wait ${how}`, true);
 }
 
-/** What homes eat and everything that goes into making it. */
-function foodChain(S: State): Set<string> {
-  const out = new Set(Object.values(S.content.blueprints).filter(B => B.homes).flatMap(B => Object.keys(B.keepStocked)));
-  for (let grew = true; grew;) {
-    grew = false;
-    for (const B of Object.values(S.content.blueprints)) if (Object.keys(B.output).some(g => out.has(g))) for (const i in B.input) if (!out.has(i)) { out.add(i); grew = true; }
-  }
-  return out;
-}
-
 /** A fed home with two adults has a child now and then, while its settlement has a bed for one and its food is not short. */
 function births(S: State, dt: number) {
-  const T = P(S), chain = foodChain(S);
+  const T = P(S), chain = foodChainOf(S);
   // a settlement badly short of anything in its food chain, with anyone hungry, or short of food (see shortOfFood),
   // has no children for now
   const easy = S.towns.map(t => t.fed >= 1 && !shortOfFood(S, t) && !Object.keys(t.planner.wants).some(g => chain.has(g) && t.planner.wants[g] >= 0.5));

@@ -3,7 +3,8 @@ import { findPath, type PathOptions } from './path.ts';
 import { bp, distAB, door, inB, seasonOf, storesOnTrack } from './world.ts';
 import { blame, cancelTask, drop, findTask, pickup } from './logistics.ts';
 import { arrive } from './knowledge.ts';
-import { enoughInStore } from './production.ts';
+import { enoughInStore, foodChainOf } from './production.ts';
+import { capOf, crew, leave, places, unripe } from './farms.ts';
 import type { Agent, Building, State } from './types.ts';
 
 export function makeAgent(S: State, kind: Agent['kind'], x: number, y: number): Agent {
@@ -17,7 +18,7 @@ export function makeAgent(S: State, kind: Agent['kind'], x: number, y: number): 
 
 export function removeAgent(S: State, a: Agent) {
   cancelTask(a);
-  if (a.work && a.work.worker === a.id) a.work.worker = null;
+  if (a.work) leave(a.work, a.id);
   if (a.home) a.home.residents = a.home.residents.filter(id => id !== a.id);
   a.dead = true;
   S.agents = S.agents.filter(o => o !== a); S.amap.delete(a.id);
@@ -103,17 +104,6 @@ export function updateAgent(S: State, a: Agent, dt: number) {
   }
 }
 
-/** The goods homes eat, and every good that goes into making them. */
-function foodChain(S: State): Set<string> {
-  const out = new Set<string>();
-  for (const B of Object.values(S.content.blueprints)) if (B.homes) { const f = Object.keys(B.keepStocked)[0]; if (f) out.add(f); }
-  for (let grew = true; grew;) {
-    grew = false;
-    for (const B of Object.values(S.content.blueprints)) if (Object.keys(B.output).some(g => out.has(g))) for (const i in B.input) if (!out.has(i)) { out.add(i); grew = true; }
-  }
-  return out;
-}
-
 /** The carriers a self-planning settlement keeps: `carrier_share` of its grown villagers, at least one. */
 export function reserve(S: State, town: number): number {
   let n = 0;
@@ -122,35 +112,49 @@ export function reserve(S: State, town: number): number {
 }
 
 /** Give each staffed building a worker from its own settlement, keeping one carrier there until it has bots. */
-/** Send a building's worker back to carrying. */
+/** Send a building's workers back to carrying. */
 export function release(S: State, b: Building) {
-  const w = b.worker !== null ? S.amap.get(b.worker) : undefined;
-  b.worker = null;
-  if (w) { w.work = null; w.role = 'carrier'; w.state = 'idle'; w.path = []; }
+  const ids = crew(b);
+  b.worker = null; b.hands = [];
+  for (const id of ids) { const w = S.amap.get(id); if (w) { w.work = null; w.role = 'carrier'; w.state = 'idle'; w.path = []; } }
+}
+
+/** One worker leaves their workplace (its other hands stay) and goes back to carrying. */
+export function quit(a: Agent) {
+  if (a.work) leave(a.work, a.id);
+  a.work = null; a.role = 'carrier'; a.state = 'idle'; a.path = [];
 }
 
 export function assignWorkers(S: State) {
-  const essential = foodChain(S), winter = seasonOf(S) === 'winter', behind: Record<number, boolean> = {}, backlog: Record<number, boolean> = {};
+  const essential = foodChainOf(S), winter = seasonOf(S) === 'winter', behind: Record<number, boolean> = {}, backlog: Record<number, boolean> = {};
   // hands go first where the planner is shortest: open workplaces by how badly their settlement wants what they make
   const want = (b: Building) => { const w = S.towns[b.town]?.planner.wants; return w ? Math.max(0, ...Object.keys(bp(S, b).output).map(g => w[g] || 0)) : 0; };
   const order = S.buildings.map(b => ({ b, w: bp(S, b).workers && !b.site && !b.worker ? want(b) : 0 })).sort((p, q) => q.w - p.w).map(o => o.b);
   for (const b of order) {
     if (!bp(S, b).workers || b.site || b.worker) continue;
+    staff(b);
+  }
+  // then a second hand and more where a grown workplace has places for them, again where wanted most
+  const more = S.buildings.filter(b => b.worker !== null && !b.site && places(S, b) > 1 + b.hands.length).map(b => ({ b, w: want(b) })).sort((p, q) => q.w - p.w).map(o => o.b);
+  for (const b of more) if (b.worker !== null && places(S, b) > 1 + b.hands.length) staff(b);
+
+  function staff(b: Building) {
     // nobody is sent to a workplace resting with enough in store
-    if (enoughInStore(S, b)) continue;
-    // fields resting through winter need nobody
-    if (winter && bp(S, b).seasonal) continue;
-    if (b.noWay !== null && S.t - b.noWay < S.content.tuning.logistics.noWayRetrySeconds) continue;
+    if (enoughInStore(S, b)) return;
+    // fields resting through winter need nobody, nor young trees not bearing yet
+    if (winter && bp(S, b).seasonal) return;
+    if (unripe(S, b)) return;
+    if (b.noWay !== null && S.t - b.noWay < S.content.tuning.logistics.noWayRetrySeconds) return;
     // nobody is sent to a workplace whose output stands full: it waits for carriers, and its worker was one
-    if (Object.keys(bp(S, b).output).some(k => (b.inv[k] || 0) >= S.content.tuning.logistics.outputCap)) continue;
+    if (Object.keys(bp(S, b).output).some(k => (b.inv[k] || 0) >= capOf(S, b))) return;
     const anyBots = S.agents.some(a => a.kind === 'bot' && a.depot?.town === b.town);
     const carriers = S.agents.filter(a => a.kind === 'villager' && a.role === 'carrier' && a.state !== 'visit' && a.home?.town === b.town);
-    if (carriers.length <= (anyBots ? 0 : 1)) continue;
+    if (carriers.length <= (anyBots ? 0 : 1)) return;
     // while goods stand waiting at full workplaces, a self-planning settlement keeps its planner's share of grown
     // hands carrying, unless it goes hungry and this workplace feeds it
     const town = S.towns[b.town];
-    if (town?.planner.on && (backlog[b.town] ??= S.buildings.some(o => o.town === b.town && !o.site && Object.keys(bp(S, o).output).some(k => (o.inv[k] || 0) >= S.content.tuning.logistics.outputCap)))
-      && !(town.fed < 1 && Object.keys(bp(S, b).output).some(g => essential.has(g))) && carriers.length <= reserve(S, b.town)) continue;
+    if (town?.planner.on && (backlog[b.town] ??= S.buildings.some(o => o.town === b.town && !o.site && Object.keys(bp(S, o).output).some(k => (o.inv[k] || 0) >= capOf(S, o))))
+      && !(town.fed < 1 && Object.keys(bp(S, b).output).some(g => essential.has(g))) && carriers.length <= reserve(S, b.town)) return;
     // someone who has just found they cannot get anywhere waits out that long cool-down (idle carriers
     // otherwise only pause under a second between looks for work)
     // (with people on, the old have retired from workplaces)
@@ -161,7 +165,7 @@ export function assignWorkers(S: State) {
       // the worker whose trade its settlement wants least
       let spare: Agent | undefined, sw = Infinity;
       for (const a of S.agents) if (a.role === 'worker' && a.work && a.home?.town === b.town && !Object.keys(bp(S, a.work).output).some(g => essential.has(g))) { const w = want(a.work); if (w < sw) { sw = w; spare = a; } }
-      if (spare) { spare.work!.worker = null; spare.work = null; spare.role = 'carrier'; spare.state = 'idle'; spare.path = []; idle.push(spare); }
+      if (spare) { leave(spare.work!, spare.id); spare.work = null; spare.role = 'carrier'; spare.state = 'idle'; spare.path = []; idle.push(spare); }
     }
     // with people on, a carrier much more skilled at this work than anyone idle is called back from an errand
     // (only on the way to pick up, so nothing carried is lost)
@@ -171,16 +175,16 @@ export function assignWorkers(S: State) {
         .sort((p, q) => (q.skill[b.type] || 0) - (p.skill[b.type] || 0))[0];
       if (skilled) { cancelTask(skilled); idle.unshift(skilled); }
     }
-    if (!idle.length) continue;
+    if (!idle.length) return;
     // the nearest, or with people on the most skilled at this work (then the nearest)
     let pick = idle[0], pd = Infinity;
     for (const a of idle) { const d = distAB(a, b) - (S.people ? (a.skill[b.type] || 0) * 1e4 : 0); if (d < pd) { pd = d; pick = a; } }
-    pick.path = []; pick.role = 'worker'; pick.work = b; b.worker = pick.id; pick.state = 'toWork';
+    pick.path = []; pick.role = 'worker'; pick.work = b; if (b.worker === null) b.worker = pick.id; else b.hands.push(pick.id); pick.state = 'toWork';
     // already at the door, or nobody could walk there: they don't work it from afar
     if (!goToBuilding(S, pick, b)) {
       const d = door(b);
       if (Math.floor(pick.x) === d.x && Math.floor(pick.y) === d.y) pick.state = 'working';
-      else { b.worker = null; pick.work = null; pick.role = 'carrier'; pick.state = 'idle'; blame(S, pick, b); }
+      else { leave(b, pick.id); pick.work = null; pick.role = 'carrier'; pick.state = 'idle'; blame(S, pick, b); }
     }
   }
 }

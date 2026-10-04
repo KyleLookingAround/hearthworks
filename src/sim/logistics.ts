@@ -85,7 +85,8 @@ export function collectRequests(S: State): Request[] {
       if (B.homes && item === food && need < Math.min(L.villagerCarry, want[item]) && (b.inv[item] || 0) + (b.incoming[item] || 0) > 0 && farFromStores(b)) { delete b.waiting[item]; if (need > 0) reqs.push({ dst: b, item, need, pri: 0, topUp: true }); continue; }
       const age = aged(S, b, item, need);
       // a home's food comes first, then firewood and preserved food, then its comforts
-      if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? (item === food ? -4 : item === 'logs' || S.content.tuning.seasons.preserved.includes(item) ? -3 : 2) : kitchen ? -4 : 0) - age });
+      // (with farms that grow, the foods of the diet come with the preserved food)
+      if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? (item === food ? -4 : item === 'logs' || S.content.tuning.seasons.preserved.includes(item) || (S.farms && S.content.tuning.farms.diet.includes(item)) ? -3 : 2) : kitchen ? -4 : 0) - age });
     }
   }
   return reqs;

@@ -10,7 +10,7 @@
  *              palisades and a militia beat them off, and settling the wilds breaks the camps up
  */
 import { rand } from './rng.ts';
-import { removeAgent } from './agents.ts';
+import { release, removeAgent } from './agents.ts';
 import { cancelTask, touches } from './logistics.ts';
 import { findPath } from './path.ts';
 import { add, bp, chronicle, ctr, emit, front, nearestTown, villagers } from './world.ts';
@@ -130,7 +130,7 @@ function fires(S: State, dt: number) {
 function gut(S: State, b: Building) {
   const B = bp(S, b), Z = H(S);
   for (const a of S.agents) if (touches(a, b)) cancelTask(a);
-  if (b.worker !== null) { const w = S.amap.get(b.worker); if (w) { w.work = null; w.role = 'carrier'; w.state = 'idle'; w.path = []; } b.worker = null; }
+  release(S, b);
   // a depot's bots burn with it: rebuilt, it winds up new ones
   for (const id of b.bots) { const bot = S.amap.get(id); if (bot) removeAgent(S, bot); }
   b.bots = [];

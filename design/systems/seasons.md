@@ -4,7 +4,7 @@ title: Seasons
 description: A year of spring, summer, autumn and winter; crops rest in winter, homes burn firewood, and settlements store food and fuel ahead.
 tags: [seasons, needs, economy]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T00:02:17Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T10:16:19Z }
 tuning:
   year_seconds: 1200
   firewood_every_seconds: 120
@@ -22,7 +22,7 @@ When seasons are on (every new game; off in scenarios that predate them, as the 
 
 - **Crops rest.** Farms and flax farms (`seasonal: true`) work from spring to autumn and stand idle in winter, so the year's grain must be stored before the first frost. Bread keeps baking from stored wheat.
 - **Firewood.** In autumn and winter homes keep `firewood_stock` logs, and in winter each resident burns one every `firewood_every_seconds`. A home with no fire in winter is cold: mood loses up to `cold_penalty` for the share of people in cold homes. Nobody leaves for the cold; they leave for hunger as ever.
-- **Preserved food.** Homes eat their bread first and any of `preserved` ([smoked fish](/goods/smoked_fish.md)) when the bread is gone. Smoked fish never spoils.
+- **Preserved food.** Homes eat their bread first and any of `preserved` ([smoked fish](/goods/smoked_fish.md)) when the bread is gone (with [farms that grow](/systems/farms.md), when every fresh food is gone too). Smoked fish never spoils. Gardens and orchards rest in winter like fields; a [pasture's](/blueprints/pasture.md) herd gives milk and meat all year.
 
 # Looking ahead
 
