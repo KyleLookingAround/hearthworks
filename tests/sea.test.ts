@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
-import { createState, placeBuilding, runFor } from '../src/sim/index.ts';
+import { createState, dims, placeBuilding, runFor } from '../src/sim/index.ts';
 import { chooseSpot, clearShore } from '../src/sim/planner.ts';
 import { ZONES } from '../src/sim/types.ts';
 
@@ -34,8 +34,9 @@ test('a dock with no shore left clears a workshop from the shore, and may stand 
   assert.deepEqual(chooseSpot(S, 'dock', town), spot);
   // keep every other shore off limits, then build a workshop over the spot
   const NB = 1 + ZONES.indexOf('nobuild');
-  for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) if (Math.abs(x - spot.x) > 3 || Math.abs(y - spot.y) > 3) W.zone[y * W.w + x] = NB;
-  const shop = placeBuilding(S, 'weaver', spot.x, spot.y - 1, true)!;
+  const foot = dims(content.blueprints.dock, spot.rot);
+  for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) if (x < spot.x || y < spot.y || x >= spot.x + foot.w || y >= spot.y + foot.h) W.zone[y * W.w + x] = NB;
+  const shop = placeBuilding(S, 'weaver', spot.x, spot.y, true)!;
   shop.town = town.id;
   assert.equal(chooseSpot(S, 'dock', town), null, 'no shore is free');
   const planks = store.inv.planks || 0;
