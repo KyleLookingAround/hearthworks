@@ -4,7 +4,7 @@ title: "Gate 16: ways to move"
 description: On the largest landmass a settlement thinks of carts itself, and long hauls go largely by cart, each good in well under the time on foot.
 tags: [gate, roadmap, logistics, vehicles]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T04:42:36Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T11:49:05Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/carts.ts
 parameters:
@@ -23,7 +23,7 @@ attester:
 
 # Computation
 
-The sanctioned scenario is [carts.ts](/references/scenarios/carts.ts). One settlement plans for itself on Landmass at size L (384 by 288) for an hour of game time with carts on, no build calls and no scripted knowledge. A long haul is a delivery of at least `cart_min_tiles` ([logistics](/systems/logistics.md)). `long_cart_share` is the share of the goods on long hauls that went by cart; `cart_time_ratio` is the seconds per good by cart over the seconds per good on foot, both from claim to drop-off.
+The sanctioned scenario is [carts.ts](/references/scenarios/carts.ts). One settlement plans for itself on Landmass at size L (384 by 288) for an hour of game time with carts on, no build calls and no scripted knowledge. A long haul is a delivery of at least `cart_min_tiles` ([logistics](/systems/logistics.md)). `long_cart_share` is the share of the goods on long hauls that went by cart; `cart_time_ratio` is the seconds per good by cart over the seconds per good on foot, both from claim to drop-off. The receipt also reports [ox carts](/blueprints/ox_barn.md): barns standing, trips, `long_ox_share` (the long-haul goods by ox cart, counted within `long_cart_share`) and `ox_time_ratio`; none of them is held to a threshold.
 
 # Proves
 
@@ -36,3 +36,4 @@ The roadmap proposed at least 50% of long deliveries by cart and `mean_delivery_
 # Revisions
 
 - 2026-10-04: tightened in place with cart rounds and cartloads (the second pass): `min_long_cart_share` 0.4 to 0.5, the roadmap's proposal. Same scenario and intent.
+- 2026-10-04: the receipt reports ox carts (`ox_barns`, `ox_trips`, `long_ox_share`, `ox_time_ratio`), with no threshold. Same thresholds and intent.

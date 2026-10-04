@@ -73,3 +73,58 @@ test('a cart on a long haul goes round: it fills up for homes asking near its fi
   const promised = (h: typeof store) => S.agents.reduce((s, v) => { const k = v.task; if (!k || k.item !== 'bread') return s; return s + (k.dst === h ? k.n : 0) + k.round.reduce((m, r) => m + (r.dst === h ? r.n : 0), 0); }, 0);
   for (const h of homes) assert.equal(h.incoming.bread || 0, promised(h));
 });
+
+test('the ox barn is thought of only once the cart shed is known, under long hauls', () => {
+  const K = content.tuning.knowledge;
+  assert.deepEqual(content.blueprints.ox_barn.discovery?.after, ['cart_shed']);
+  const S = createState(content, 1847, { carts: true });
+  const town = S.towns[0];
+  town.reach = K.longHaulFrom + K.distanceSpan;
+  assert.equal(pressure(S, town, 'long_hauls'), 1);
+  town.reach = K.longHaulFrom;
+  assert.equal(pressure(S, town, 'long_hauls'), 0);
+  // strained as hard as can be for a long while: without the cart shed, no ox barn; with it, one in time
+  runFor(S, 600, s => { delete s.towns[0].knows.cart_shed; s.towns[0].reach = 999; });
+  assert.ok(!('ox_barn' in town.knows));
+  let had = false, ok = true;
+  runFor(S, 1200, s => { s.towns[0].reach = 999; if (!had && 'ox_barn' in town.knows) { had = true; ok = 'cart_shed' in town.knows; } });
+  assert.ok(had && ok, 'thought of in time, while the cart shed was known');
+  assert.equal(pressure(createState(content, 1847, {}), town, 'long_hauls'), 0);
+});
+
+/** Six homes far from the only yard, each wanting two loaves; a shed and an ox barn by the yard. */
+function longHaul(feed: number) {
+  const S = createState(content, 1847, { carts: true, map: 'landmass', size: 'l' });
+  const L = content.tuning.logistics, store = S.bmap.get(S.towns[0].store)!, c = centre(S);
+  for (const b of S.buildings) if (bp(S, b).homes) b.inv = { bread: 3 };
+  store.inv = { bread: 40 };
+  const far = { x: c.x + L.oxMinTiles + 4, y: c.y };
+  const homes = [0, 1, 2, 3, 4, 5].map(() => { const at = findSpot(S, 'house', far, 9)!; const h = placeBuilding(S, 'house', at.x, at.y, true)!; h.town = 0; h.inv = { bread: 1 }; return h; });
+  const put = (type: string) => { const at = findSpot(S, type, c, 12)!; const b = placeBuilding(S, type, at.x, at.y, true)!; b.town = 0; return b; };
+  const shed = put('cart_shed'), barn = put('ox_barn');
+  barn.inv = { wheat: feed };
+  const a = S.agents.find(v => v.kind === 'villager')!;
+  a.x = store.x; a.y = store.y; a.task = null; a.state = 'idle';
+  return { S, L, store, homes, shed, barn, a };
+}
+
+test('an ox cart takes the longest hauls, twelve goods at a time, and eats its feed', () => {
+  const { S, L, homes, barn, a } = longHaul(4);
+  assert.ok(homes.every(h => distBB(h, S.bmap.get(S.towns[0].store)!) >= L.oxMinTiles - 6));
+  assert.ok(findTask(S, a));
+  const t = a.task!, load = t.n + t.round.reduce((s, r) => s + r.n, 0);
+  assert.ok(t.tiles >= L.oxMinTiles);
+  assert.equal(a.cart, barn.id, 'an ox cart');
+  assert.ok(load > L.cartCarry && load <= L.oxCarry, `a load of ${load}`);
+  assert.equal(barn.inv.wheat, 4 - L.oxFeed, 'the ox ate as it set out');
+  assert.equal(S.stats.oxTrips, 1);
+  runFor(S, 240);
+  assert.ok(S.stats.longGoodsByOx > 0, 'the goods arrived by ox cart');
+});
+
+test('with no feed in the barn the oxen stay home, and a handcart goes instead', () => {
+  const { S, shed, a } = longHaul(0);
+  assert.ok(findTask(S, a));
+  assert.equal(a.cart, shed.id);
+  assert.equal(S.stats.oxTrips, 0);
+});

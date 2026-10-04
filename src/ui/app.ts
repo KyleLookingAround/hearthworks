@@ -637,6 +637,13 @@ export class App {
       if (B.capacity) rows += row('Holding', `${n0(held)} / ${B.capacity}`);
       if (B.keeps) rows += row('Keeps', B.keeps.map(k => G[k].name).join(', '));
       for (const g of Object.values(G).sort((a, b) => a.order - b.order)) if ((b.inv[g.id] || 0) >= 1 || g.order <= 4) rows += row(g.name, n0(b.inv[g.id]));
+    } else if (B.carts || B.oxen) {
+      // a cart shed or an ox barn: how many of its carts are out, and the oxen's feed
+      let out = 0;
+      for (const a of S.agents) if (a.cart === b.id) out++;
+      const n = B.oxen || B.carts, kind = B.oxen ? 'Ox carts' : 'Handcarts', L = T.logistics;
+      rows += row(`${kind} out`, `${out} of ${n}`) + row('Takes', `${B.oxen ? L.oxCarry : L.cartCarry} goods on jobs of ${B.oxen ? L.oxMinTiles : L.cartMinTiles} tiles or more, within ${L.cartReach} tiles`);
+      for (const k in B.keepStocked) rows += row(`${G[k].name} for the oxen`, `${n0(b.inv[k])} / ${B.keepStocked[k]}` + ((b.incoming[k] || 0) > 0 ? ` (+${n0(b.incoming[k])})` : '') + (B.oxen && (b.inv[k] || 0) < L.oxFeed ? ': the oxen wait for feed' : ''));
     } else if (B.couriers) {
       const busy = b.bots.filter(id => S.amap.get(id)?.task).length;
       rows += row('Bots', b.bots.length) + row('Hauling now', busy) + row('Range', `${B.couriers.radius} tiles`);

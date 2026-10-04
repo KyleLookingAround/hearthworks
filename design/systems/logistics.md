@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T10:49:33Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T11:49:05Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -22,6 +22,12 @@ tuning:
   cart_rough_speed: 0.9
   cart_min_tiles: 20
   cart_reach: 30
+  ox_carry: 12
+  ox_path_speed: 1.2
+  ox_road_speed: 1.4
+  ox_rough_speed: 0.8
+  ox_min_tiles: 40
+  ox_feed: 1
   round_tiles: 8
   dump_at: 3
   request_aging: 0.5
@@ -49,7 +55,9 @@ With carts on (every new game, off in older scenarios), a [Cart Shed](/blueprint
 - **Rounds.** A carrier taking a cart fills it: after the first drop, the same good for others asking within `round_tiles` of it, nearest first, delivered in turn. A home far from every yard that holds back a request worth less than a pair of hands is still topped up by a cart passing on its round; those small requests are never scored on their own, so they cost the job board nothing.
 - **Cartloads.** A cart bound for a workshop that uses the good brings it a cartload, beyond its usual shelf: a bakery across town gets six sacks of wheat at once, not one or two.
 
-Ox carts, river boats between jetties and multi-leg deliveries through hubs come later.
+- **Ox carts.** An [Ox Barn](/blueprints/ox_barn.md) keeps ox carts for the longest hauls. A job of at least `ox_min_tiles` within `cart_reach` of a barn with an ox free and `ox_feed` wheat in its stock takes an ox cart: `ox_carry` goods, at `ox_road_speed` on roads, `ox_path_speed` on paths and bridges and `ox_rough_speed` elsewhere, the feed eaten as it sets out. Rounds and cartloads fill it as they fill a handcart; a load that a handcart could take goes by handcart, which is quicker. A long job with no ox to be had takes a handcart.
+
+River boats between jetties and multi-leg deliveries through hubs come later.
 
 # Walls and doors
 

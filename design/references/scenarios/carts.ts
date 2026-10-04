@@ -28,6 +28,10 @@ export const run: Scenario = (content, params) => {
       seconds_per_good_by_cart: r(cart),
       cart_time_ratio: r(st.longGoodsByCart ? cart / Math.max(1e-6, foot) : 1),
       mean_delivery_seconds: r(st.deliverySeconds / Math.max(1, st.delivered)),
+      ox_barns: S.buildings.filter(b => b.type === 'ox_barn' && !b.site).length,
+      ox_trips: st.oxTrips,
+      long_ox_share: r(st.longGoodsByOx / Math.max(1, st.longGoods)),
+      ox_time_ratio: r(st.longGoodsByOx ? st.longOxSeconds / st.longGoodsByOx / Math.max(1e-6, foot) : 1),
     },
   };
 };

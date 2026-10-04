@@ -25,6 +25,7 @@
 * [Mason](mason.md) - Dresses two rough stones into one block of cut stone.
 * [Mine](mine.md) - Digs iron ore from an iron deposit within three tiles.
 * [Orchard](orchard.md) - Fruit trees on fertile land; the young trees bear only after a while, then every year but winter.
+* [Ox Barn](ox_barn.md) - Keeps oxen and their carts for the longest hauls. Twelve goods a trip, slower than a handcart; each trip eats a sack of wheat.
 * [Palisade](palisade.md) (draft) - A stake wall and gate that guards the stores against raiders.
 * [Pasture](pasture.md) - A herd on open grass giving milk and meat all year round; needs more room than a field.
 * [Path](path.md) - Paved footpath. Villagers walk faster on paths; planners pave the ones their people wear.

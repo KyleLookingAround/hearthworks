@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 21;
+export const SAVE_VERSION = 22;
 
 type Json = Record<string, unknown>;
 
@@ -157,6 +157,11 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     state.farms ??= false;
     for (const b of [...state.buildings as Json[], ...(state.gone as Json[] ?? [])]) { b.hands ??= []; b.size ??= 0; b.of ??= null; b.made ??= 0; b.ate ??= {}; }
     const st = state.stats as Json; st.eaten ??= {}; st.grown ??= 0;
+    return state;
+  },
+  // 21 to 22: ox carts: trips set out, and long goods carried by ox cart with their seconds
+  21: state => {
+    const st = state.stats as Json; st.oxTrips ??= 0; st.longGoodsByOx ??= 0; st.longOxSeconds ??= 0;
     return state;
   },
 };

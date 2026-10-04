@@ -69,6 +69,8 @@ export interface BlueprintDef {
   learning: 'library' | 'school' | 'university' | null;
   /** Handcarts it keeps for long hauls (a cart shed). */
   carts: number;
+  /** Ox carts it keeps for the longest hauls (an ox barn); each trip eats `ox_feed` of what it keeps stocked. */
+  oxen: number;
   /** How many of the dead it holds (a graveyard). */
   graves: number;
   /** The zone a planner keeps it in, when the player has painted one: homes (any home), farms or workshops. */
@@ -82,7 +84,7 @@ export interface BlueprintDef {
   /** Answers a hardship (fire, flood, sickness, raids) for buildings within `radius`; `defence` against raiders (watchtowers and palisades). */
   guards: { hazard: Hazard; radius: number; defence: number } | null;
   /** Not known at the start: a village invents it while it struggles with `need`. Null for founding knowledge. */
-  discovery: { need: string; meanSeconds: number } | null;
+  discovery: { need: string; meanSeconds: number; /** blueprints the settlement must know first */ after: string[] } | null;
   /** Grows in steps, one per name (farms that grow): each step adds a row of fields behind it and a place for a hand. */
   grows: { names: string[] } | null;
   /** New fields: a strip laid behind a farm that grows, which becomes part of it when finished. */
@@ -149,7 +151,7 @@ export interface Tuning {
   start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; neighbourSpreadShare: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
-    pathSpeed: number; roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartPathSpeed: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; roundTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number;
+    pathSpeed: number; roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartPathSpeed: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; roundTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number; oxCarry: number; oxPathSpeed: number; oxRoadSpeed: number; oxRoughSpeed: number; oxMinTiles: number; oxFeed: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
   settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; storesShare: number; maxSettlements: number };
@@ -177,13 +179,13 @@ export interface Tuning {
   knowledge: {
     haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number; encourageFactor: number; encourageThreshold: number;
     verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number; visitMinVillagers: number;
-    copyEverySeconds: number; universityFactor: number; universityThreshold: number; schoolFactor: number; forgettingMemorySeconds: number; learningWeight: number; schoolChildren: number; distanceFrom: number; distanceSpan: number; reachSmoothing: number;
+    copyEverySeconds: number; universityFactor: number; universityThreshold: number; schoolFactor: number; forgettingMemorySeconds: number; learningWeight: number; schoolChildren: number; distanceFrom: number; distanceSpan: number; longHaulFrom: number; reachSmoothing: number;
   };
 }
 
 export interface PlannerTuning {
   intervalSeconds: number; sitePatienceSeconds: number; buildGoods: ItemId[]; comfortWeight: number; depositWeight: number; replanMinAge: number; districtBuildings: number; districtSpacing: number; districtRoomWeight: number; replanEverySeconds: number; salvageShare: number; clearReach: number; clearTries: number; villageAt: number; townAt: number; rowWeight: number; streetWeight: number; streetEveryRows: number; streetEveryCols: number; streetRadius: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
-  foodHeadroom: number; newcomerFoodShare: number; growthBeds: number; storeFullShare: number; villagersPerCartShed: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
+  foodHeadroom: number; newcomerFoodShare: number; growthBeds: number; storeFullShare: number; villagersPerCartShed: number; villagersPerOxBarn: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
   costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; noRoomRetrySeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; searchRadiusMax: number; gap: number; minTrees: number;
   treeWeight: number; sharedTreeWeight: number; linkWeight: number; storeWeight: number; forestPenalty: number;
@@ -493,6 +495,10 @@ export interface Stats {
   longCartSeconds: number;
   longDeliveries: number;
   longByCart: number;
+  /** Ox carts: trips set out (each eating its feed), and of the long goods by cart those by ox cart and their seconds. */
+  oxTrips: number;
+  longGoodsByOx: number;
+  longOxSeconds: number;
   peakVillagers: number;
   /** Meals eaten, by food, and fields laid (farms grown a size). */
   eaten: Stock;

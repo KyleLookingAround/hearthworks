@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T00:25:38Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T11:49:05Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -24,6 +24,7 @@ tuning:
   school_children: 3
   distance_from: 12
   distance_span: 12
+  long_haul_from: 30
   reach_smoothing: 50
 ---
 
@@ -56,7 +57,7 @@ With [hardship](/systems/hardship.md) on, the needs `fire`, `flood`, `sickness` 
 
 With planned [roads](/systems/roads.md) on, the need `traffic` of a village or town grows from 0 when its deliveries average `traffic_from` tiles to 1 at `traffic_span` more, and leads to the [Road](/blueprints/road.md).
 
-The need `distance` (with carts on) grows from 0 when a settlement's deliveries average `distance_from` tiles to 1 at `distance_span` more, the average smoothed over about `reach_smoothing` deliveries.
+The need `distance` (with carts on) grows from 0 when a settlement's deliveries average `distance_from` tiles to 1 at `distance_span` more, the average smoothed over about `reach_smoothing` deliveries. The need `long_hauls` ([Ox Barn](/blueprints/ox_barn.md)) grows the same way from `long_haul_from` tiles, over the same span. A blueprint whose `discovery` lists blueprints `after` is thought of only by a settlement that knows them all.
 
 # Founding
 

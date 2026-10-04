@@ -178,3 +178,14 @@ test('a version 20 save is upgraded to version 21: farms that grow are off, ever
   assert.ok(Object.keys(S.stats.eaten).length > 0, 'homes eat on');
   assert.equal(text(loadGame(content, text(S))), text(S));
 });
+
+test('a version 21 save is upgraded to version 22: no ox trips yet, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v21.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 21);
+  const S = loadGame(content, file);
+  assert.equal(S.stats.oxTrips, 0);
+  assert.equal(S.stats.longGoodsByOx, 0);
+  assert.equal(S.stats.longOxSeconds, 0);
+  runFor(S, 60);
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});

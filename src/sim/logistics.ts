@@ -92,18 +92,33 @@ export function collectRequests(S: State): Request[] {
   return reqs;
 }
 
-/** The nearest cart shed of the carrier's settlement within `cart_reach` with a cart not already out. */
-function freeCart(S: State, a: Agent, town: number | null): Building | null {
+/** How many more of a good a store takes: none if it does not keep that kind, else the room left (no limit: plenty). */
+function roomFor(S: State, st: Building, item: ItemId): number {
+  const B = bp(S, st);
+  if (B.keeps && !B.keeps.includes(item)) return 0;
+  if (!B.capacity) return Infinity;
+  let n = 0;
+  for (const k in st.inv) n += st.inv[k];
+  for (const k in st.incoming) n += st.incoming[k];
+  return Math.max(0, B.capacity - n);
+}
+
+/**
+ * The nearest cart shed (or, with `ox`, ox barn with feed in stock) of the carrier's settlement within `cart_reach`
+ * with a cart not already out.
+ */
+function freeCart(S: State, a: Agent, town: number | null, ox = false): Building | null {
   const L = S.content.tuning.logistics;
   let best: Building | null = null, bd = Infinity;
   for (const b of S.buildings) {
-    const B = bp(S, b);
-    if (!B.carts || b.site || b.town !== town) continue;
+    const B = bp(S, b), n = ox ? B.oxen : B.carts;
+    if (!n || b.site || b.town !== town) continue;
     const d = distAB(a, b);
     if (d > L.cartReach || d >= bd) continue;
+    if (ox && Object.keys(B.keepStocked).some(g => (b.inv[g] || 0) < L.oxFeed)) continue;
     let out = 0;
     for (const o of S.agents) if (o.cart === b.id) out++;
-    if (out < B.carts) { best = b; bd = d; }
+    if (out < n) { best = b; bd = d; }
   }
   return best;
 }
@@ -123,8 +138,12 @@ export function findTask(S: State, a: Agent): boolean {
   };
   let best: { src: Building; dst: Building; item: ItemId; n: number } | null = null, bestScore = Infinity;
   // a cart shed near the carrier with a cart free: long jobs take a cart and a bigger load
+  // and for the longest jobs an ox cart, from a barn with an ox free and feed for it
   const shed = a.kind === 'villager' && S.carts ? freeCart(S, a, town) : null;
-  const capFor = (tiles: number) => (shed && tiles >= L.cartMinTiles ? L.cartCarry : cap);
+  const barn = a.kind === 'villager' && S.carts ? freeCart(S, a, town, true) : null;
+  const vehicleFor = (tiles: number) => (barn && tiles >= L.oxMinTiles ? barn : shed && tiles >= L.cartMinTiles ? shed : null);
+  const loadFor = (v: Building | null) => (!v ? cap : bp(S, v).oxen ? L.oxCarry : L.cartCarry);
+  const capFor = (tiles: number) => loadFor(vehicleFor(tiles));
 
   // offers indexed by good, in building order, so only real source/request pairs are scored
   const reqs = collectRequests(S).filter(r => inRange(r.dst));
@@ -146,7 +165,7 @@ export function findTask(S: State, a: Agent): boolean {
   // surplus goes to the nearest storage yard so producers don't stall
   const stores = S.buildings.filter(b => bp(S, b).storage && !b.site && inRange(b));
   // a store takes a good if it keeps that kind and has room left
-  const room = (st: Building, item: ItemId) => { const B = bp(S, st); if (B.keeps && !B.keeps.includes(item)) return false; if (!B.capacity) return true; let n = 0; for (const k in st.inv) n += st.inv[k]; for (const k in st.incoming) n += st.incoming[k]; return n < B.capacity; };
+  const room = (st: Building, item: ItemId) => roomFor(S, st, item) > 0;
   if (stores.length) for (const s of S.buildings) {
     if (s.site) continue;
     for (const item in bp(S, s).output) {
@@ -161,28 +180,35 @@ export function findTask(S: State, a: Agent): boolean {
   }
   if (!best) return false;
   const tiles = distAB(a, best.src) + distBB(best.src, best.dst);
+  let cart = vehicleFor(tiles), load = loadFor(cart);
   // a cart on a long haul fills up: the same good for others asking within `round_tiles` of the first drop, in turn
   const round: { dst: Building; n: number }[] = [];
   // and a workshop's input comes a cartload at a time, beyond its usual shelf
-  if (shed && tiles >= L.cartMinTiles && !best.dst.site && bp(S, best.dst).input[best.item]) best.n = Math.max(best.n, Math.min(L.cartCarry, available(S, best.src, best.item)));
+  if (cart && !best.dst.site && bp(S, best.dst).input[best.item]) best.n = Math.max(best.n, Math.min(load, available(S, best.src, best.item)));
   let total = best.n;
-  if (shed && tiles >= L.cartMinTiles && total < L.cartCarry) {
+  if (cart && total < load) {
     const first = best, near = reqs.filter(r => r.item === first.item && r.dst !== first.dst && r.dst !== first.src && distBB(r.dst, first.dst) <= L.roundTiles)
       .sort((p, q) => distBB(p.dst, first.dst) - distBB(q.dst, first.dst) || p.dst.id - q.dst.id);
     let av = available(S, best.src, best.item) - total;
     for (const r of near) {
-      const k = Math.min(r.need, L.cartCarry - total, av);
+      const k = Math.min(r.need, load - total, av);
       if (k <= 0) continue;
       round.push({ dst: r.dst, n: k }); total += k; av -= k;
-      if (total >= L.cartCarry) break;
+      if (total >= load) break;
     }
   }
+  // an ox cart is slower than a handcart: only a load a handcart cannot take is worth the ox
+  if (cart && bp(S, cart).oxen && total <= L.cartCarry && shed) cart = shed;
   add(best.src.reserved, best.item, total);
   add(best.dst.incoming, best.item, best.n);
   for (const r of round) add(r.dst.incoming, best.item, r.n);
   a.task = { ...best, at: S.t, tiles, steps: 0, road: 0, path: 0, round }; a.state = 'toSrc';
-  // only a load bigger than two hands can carry is worth the cart
-  if (shed && tiles >= L.cartMinTiles && total > cap) a.cart = shed.id;
+  // only a load bigger than two hands can carry is worth the cart; an ox eats its feed as it sets out
+  if (cart && total > cap) {
+    a.cart = cart.id;
+    const C = bp(S, cart);
+    if (C.oxen) { for (const g in C.keepStocked) cart.inv[g] -= L.oxFeed; S.stats.oxTrips++; }
+  }
   if (!goToBuilding(S, a, best.src)) {
     blame(S, a, best.src);
     cancelTask(a);
@@ -238,9 +264,10 @@ export function drop(S: State, a: Agent) {
     S.stats.deliverySeconds += S.t - t.at; S.stats.delivered++; S.stats.deliveryTiles += t.tiles;
     S.stats.goodsDelivered += t.n;
     if (a.cart !== null) S.stats.cartDeliveries++;
+    const ox = a.cart !== null && !!S.bmap.get(a.cart) && bp(S, S.bmap.get(a.cart)!).oxen > 0;
     if (t.tiles >= S.content.tuning.logistics.cartMinTiles && a.kind === 'villager') {
       S.stats.longDeliveries++; S.stats.longGoods += t.n;
-      if (a.cart !== null) { S.stats.longByCart++; S.stats.longGoodsByCart += t.n; S.stats.longCartSeconds += S.t - t.at; } else S.stats.longFootSeconds += S.t - t.at;
+      if (a.cart !== null) { S.stats.longByCart++; S.stats.longGoodsByCart += t.n; S.stats.longCartSeconds += S.t - t.at; if (ox) { S.stats.longGoodsByOx += t.n; S.stats.longOxSeconds += S.t - t.at; } } else S.stats.longFootSeconds += S.t - t.at;
     }
     // deliveries mostly along roads, and mostly along paths: their time and straight-line tiles
     if (t.steps && t.road * 2 >= t.steps) { S.stats.roadDeliveries++; S.stats.roadDeliverySeconds += S.t - t.at; S.stats.roadDeliveryTiles += t.tiles; }

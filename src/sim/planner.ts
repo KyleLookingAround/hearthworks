@@ -23,7 +23,7 @@ import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type For
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
 
-interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; learn?: 'library' | 'school' | 'university'; /** traded for from this neighbour rather than made */ from?: Town }
+interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; learn?: 'library' | 'school' | 'university'; /** traded for from this neighbour rather than made */ from?: Town }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
 interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; coming: boolean; foodShort: boolean; movable: boolean; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
@@ -248,6 +248,12 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     const p = pressure(S, town, 'distance');
     if (p > 0 && sheds < want) shortages.push({ key: 'hauling', carts: true, sev: p * (1 - sheds / want), why: NEED_TEXT.distance });
   }
+  // and an ox barn where they run longer still
+  if (S.carts && 'ox_barn' in town.knows) {
+    const barns = mine.filter(b => bp(S, b).oxen).length, want = Math.max(1, Math.floor(pop / P.villagersPerOxBarn));
+    const p = pressure(S, town, 'long_hauls');
+    if (p > 0 && barns < want) shortages.push({ key: 'hauling', oxen: true, sev: p * (1 - barns / want), why: NEED_TEXT.long_hauls });
+  }
   // hardship: struck lately by a hazard it knows a counter for, with buildings at risk no counter guards
   if (S.hardship) for (const h of HAZARDS) {
     if (!struckLately(S, town, h) || !known(S, town).some(B => B.guards?.hazard === h)) continue;
@@ -350,6 +356,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.crossing) return B.shore && !L.hasDock ? 1 : 0;
     if (sh.detours) return B.bridge ? 1 : 0;
     if (sh.carts) return B.carts ? 1 : 0;
+    if (sh.oxen) return B.oxen ? 1 : 0;
     if (sh.rite) return B.rite === L.town.custom ? 1 : 0;
     if (sh.learn) return B.learning === sh.learn ? 1 : 0;
     if (sh.guard) return B.guards?.hazard === sh.guard ? 1 : 0;

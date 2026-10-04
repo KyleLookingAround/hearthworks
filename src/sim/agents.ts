@@ -83,8 +83,11 @@ export function updateAgent(S: State, a: Agent, dt: number) {
     else if (w.road[i]) sp *= w.road[i] === 2 ? L.roadSpeed : L.pathSpeed;
     else if (w.ground[i] === 3) sp /= w.rockCost;
     else if (w.tree[i] === 2 && a.kind !== 'bot') sp *= L.forestSpeed;
-    // a handcart rolls best on roads, well on paths and bridges, and drags elsewhere
-    if (a.cart !== null && (w.ground[i] || w.bridge[i])) sp *= w.road[i] === 2 ? L.cartRoadSpeed : w.road[i] || w.bridge[i] ? L.cartPathSpeed : L.cartRoughSpeed;
+    // a handcart rolls best on roads, well on paths and bridges, and drags elsewhere; an ox cart likewise, at an ox's pace
+    if (a.cart !== null && (w.ground[i] || w.bridge[i])) {
+      const shed = S.bmap.get(a.cart), ox = !!shed && S.content.blueprints[shed.type].oxen > 0;
+      sp *= w.road[i] === 2 ? (ox ? L.oxRoadSpeed : L.cartRoadSpeed) : w.road[i] || w.bridge[i] ? (ox ? L.oxPathSpeed : L.cartPathSpeed) : ox ? L.oxRoughSpeed : L.cartRoughSpeed;
+    }
     // slopes slow walkers as much as they cost in route finding
     if (w.ground[i]) sp /= 1 + w.slopeCost * Math.abs(w.height[ty * w.w + tx] - w.height[i]);
     const dx = gx - a.x, dy = gy - a.y, d = Math.hypot(dx, dy), step = sp * dt;

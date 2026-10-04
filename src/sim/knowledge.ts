@@ -48,6 +48,7 @@ export function pressure(S: State, town: Town, need: string): number {
   if (need === 'fire' || need === 'flood' || need === 'sickness' || need === 'raids') return struckLately(S, town, need) ? 1 : 0;
   if (need === 'traffic') return traffic(S, town);
   if (need === 'distance') return S.carts ? clamp01((town.reach - K(S).distanceFrom) / K(S).distanceSpan) : 0;
+  if (need === 'long_hauls') return S.carts ? clamp01((town.reach - K(S).longHaulFrom) / K(S).distanceSpan) : 0;
   if (need === 'inquiry') {
     if (!S.people) return 0;
     let p = 0;
@@ -57,7 +58,7 @@ export function pressure(S: State, town: Town, need: string): number {
   return 0;
 }
 
-export const NEED_TEXT: Record<string, string> = { distance: 'its goods travel a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it strains at needs nothing it knows can meet', hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths' };
+export const NEED_TEXT: Record<string, string> = { distance: 'its goods travel a long way', long_hauls: 'its carts go a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it strains at needs nothing it knows can meet', hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths' };
 
 /** A settlement's age: the latest era it has reached, knowing each era's `share` of its discoveries and every earlier era's. */
 export function ageOf(S: State, town: Town): number {
@@ -127,7 +128,7 @@ export function updateKnowledge(S: State, dt: number) {
     }
 
     for (const B of Object.values(S.content.blueprints)) {
-      if (!B.discovery || knows(town, B.id)) continue;
+      if (!B.discovery || knows(town, B.id) || B.discovery.after.some(id => !knows(town, id))) continue;
       // encouragement: the player backs this line of thought, so it comes at less strain and sooner
       const backed = town.levers.encourage === B.id;
       // scholars at a university take up every line of inquiry sooner, at less strain, and pursue it faster

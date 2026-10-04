@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T10:16:19Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T11:49:05Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -42,6 +42,7 @@ tuning:
   growth_beds: 3
   store_full_share: 0.9
   villagers_per_cart_shed: 12
+  villagers_per_ox_barn: 40
   growth_weight: 0.7
   carrier_share: 0.4
   planks_per_villager_minute: 0.7
@@ -135,7 +136,7 @@ Overlays in the menu show how each home feels (surroundings, hunger), the reach 
 
 # Carts
 
-With carts on and the [Cart Shed](/blueprints/cart_shed.md) known, a settlement whose deliveries run long (the need `distance`) wants a shed for every `villagers_per_cart_shed` villagers, placed in its newest district like any building.
+With carts on and the [Cart Shed](/blueprints/cart_shed.md) known, a settlement whose deliveries run long (the need `distance`) wants a shed for every `villagers_per_cart_shed` villagers, placed in its newest district like any building. Knowing the [Ox Barn](/blueprints/ox_barn.md), one whose deliveries run longer still (the need `long_hauls`) wants a barn for every `villagers_per_ox_barn`.
 
 # Full stores
 

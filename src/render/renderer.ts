@@ -294,6 +294,13 @@ export class Renderer {
     // the door on its tile: the middle tile of the bottom row (the right-hand one of the middle two on an even width)
     c.fillStyle = '#5c3f2b'; c.fillRect(px + (Math.floor(Math.round(pw / TS) / 2) + 0.5) * TS - 3.5, py + ph - 13, 7, 10);
   }
+  /** An ox: a brown body, a darker head ahead of it and two pale horns. */
+  private ox(x: number, y: number, t: number) {
+    const c = this.ctx, bob = Math.sin(t * 5) * 0.6;
+    c.fillStyle = '#8a5a34'; c.beginPath(); c.ellipse(x, y + bob, 5.5, 3.4, 0, 0, 7); c.fill();
+    c.fillStyle = '#5e3c22'; c.beginPath(); c.arc(x + 5.5, y - 1 + bob, 2.2, 0, 7); c.fill();
+    c.strokeStyle = '#efe6cf'; c.lineWidth = 1; c.beginPath(); c.moveTo(x + 5, y - 3 + bob); c.lineTo(x + 4, y - 5 + bob); c.moveTo(x + 6.5, y - 3 + bob); c.lineTo(x + 7.5, y - 5 + bob); c.stroke();
+  }
   private gear(x: number, y: number, r: number, rot: number, col: string) {
     const c = this.ctx;
     c.save(); c.translate(x, y); c.rotate(rot); c.fillStyle = col;
@@ -423,6 +430,17 @@ export class Renderer {
         c.fillStyle = '#8a6a44'; c.fillRect(jx, py + ph * 0.75, 8, ph * 0.5);
         c.strokeStyle = '#5a4020'; c.lineWidth = 1;
         for (let k = 0; k < 3; k++) { const y = py + ph * 0.8 + k * 5; c.beginPath(); c.moveTo(jx, y); c.lineTo(jx + 8, y); c.stroke(); }
+        return;
+      }
+      case 'ox_barn': {
+        // a barn on the left, and a fenced yard with the oxen at home
+        this.hut(px, py, pw * 0.55, ph, '#c8a878', B.color);
+        const yx = px + pw * 0.55, yw = pw * 0.45 - 3;
+        c.fillStyle = '#a9b86a'; this.rr(yx, py + 4, yw, ph - 8, 3); c.fill();
+        c.strokeStyle = '#7b5a3a'; c.lineWidth = 1.5; this.rr(yx, py + 4, yw, ph - 8, 3); c.stroke();
+        let out = 0;
+        for (const a of S.agents) if (a.cart === b.id) out++;
+        for (let k = 0; k < Math.max(0, B.oxen - out); k++) this.ox(yx + yw / 2 - 2, py + ph * (0.35 + k * 0.32), 0);
         return;
       }
       default:
@@ -580,7 +598,13 @@ export class Renderer {
       c.beginPath(); c.arc(x, y + (1 - s) * 3, 3.8 * s, 0, 7); c.fill();
       c.fillStyle = '#f1d3b0'; c.beginPath(); c.arc(x, y - 4.5 * s + (1 - s) * 3, 2.4 * s, 0, 7); c.fill();
     }
-    if (a.cart !== null) {
+    const shed = a.cart !== null ? S.bmap.get(a.cart) : undefined;
+    if (shed && S.content.blueprints[shed.type].oxen) {
+      // an ox cart: a long wagon on two big wheels behind the carter, the ox ahead pulling
+      c.fillStyle = '#7a5a3a'; this.rr(x - 15, y - 3, 11, 6, 1); c.fill();
+      c.fillStyle = '#3a2a1a'; c.beginPath(); c.arc(x - 12, y + 4, 2.2, 0, 7); c.arc(x - 7, y + 4, 2.2, 0, 7); c.fill();
+      this.ox(x + 8, y + 1, S.t + a.id);
+    } else if (a.cart !== null) {
       // a handcart: a small box on two wheels beside the carter
       c.fillStyle = '#8a6a4a'; this.rr(x + 3, y - 2, 8, 5, 1); c.fill();
       c.fillStyle = '#3a2a1a'; c.beginPath(); c.arc(x + 5, y + 4, 1.6, 0, 7); c.arc(x + 9, y + 4, 1.6, 0, 7); c.fill();

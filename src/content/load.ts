@@ -26,7 +26,7 @@ export function fnv1a(s: string): string {
 
 const isMap = (v: YamlValue | undefined): v is YamlMap => !!v && typeof v === 'object' && !Array.isArray(v);
 /** Pressures a village can struggle with, and so invent its way out of. */
-const NEEDS = ['hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'traffic', 'fire', 'flood', 'sickness', 'raids'];
+const NEEDS = ['hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'long_hauls', 'traffic', 'fire', 'flood', 'sickness', 'raids'];
 const HAZARDS = ['fire', 'flood', 'sickness', 'raids'];
 const slug = (path: string) => path.replace(/^.*\//, '').replace(/\.md$/, '');
 
@@ -113,12 +113,13 @@ export function buildContent(files: SourceFile[]): Content {
       rite: f.rite === 'burial' || f.rite === 'cremation' || f.rite === 'ship' ? f.rite : null,
       graves: typeof f.graves === 'number' ? f.graves : 0,
       carts: typeof f.carts === 'number' ? f.carts : 0,
+      oxen: typeof f.oxen === 'number' ? f.oxen : 0,
       learning: f.learning === 'library' || f.learning === 'school' || f.learning === 'university' ? f.learning : null,
       form: f.form === 'town' ? 'town' : f.form === 'village' ? 'village' : 'hamlet',
       bridge: bridge ? { maxSpan: num(d, bridge.max_span, 'bridge.max_span') } : null,
       nuisance: nuisance ? { radius: num(d, nuisance.radius, 'nuisance.radius'), amount: num(d, nuisance.amount, 'nuisance.amount') } : null,
       guards: guards ? { hazard: str(d, guards.hazard, 'guards.hazard') as Hazard, radius: num(d, guards.radius, 'guards.radius'), defence: num(d, guards.defence, 'guards.defence', 0) } : null,
-      discovery: discovery ? { need: str(d, discovery.need, 'discovery.need'), meanSeconds: num(d, discovery.mean_seconds, 'discovery.mean_seconds') } : null,
+      discovery: discovery ? { need: str(d, discovery.need, 'discovery.need'), meanSeconds: num(d, discovery.mean_seconds, 'discovery.mean_seconds'), after: Array.isArray(discovery.after) ? discovery.after.map(String) : [] } : null,
       grows: isMap(f.grows) ? { names: Array.isArray(f.grows.names) ? f.grows.names.map(String) : [] } : null,
       field: f.field === true,
       option: f.option === 'farms' ? 'farms' : null,
@@ -198,6 +199,7 @@ export function buildContent(files: SourceFile[]): Content {
       villagerSpeed: num(ld, lt.villager_speed, 'tuning.villager_speed'), botSpeed: num(ld, lt.bot_speed, 'tuning.bot_speed'),
       pathSpeed: num(ld, lt.path_speed, 'tuning.path_speed'), roadSpeed: num(ld, lt.road_speed, 'tuning.road_speed'), boatSpeed: num(ld, lt.boat_speed, 'tuning.boat_speed'), forestSpeed: num(ld, lt.forest_speed, 'tuning.forest_speed'),
       outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), releaseAfterSeconds: num(ld, lt.release_after_seconds, 'tuning.release_after_seconds'), cartCarry: num(ld, lt.cart_carry, 'tuning.cart_carry'), cartPathSpeed: num(ld, lt.cart_path_speed, 'tuning.cart_path_speed'), cartRoadSpeed: num(ld, lt.cart_road_speed, 'tuning.cart_road_speed'), cartRoughSpeed: num(ld, lt.cart_rough_speed, 'tuning.cart_rough_speed'), cartMinTiles: num(ld, lt.cart_min_tiles, 'tuning.cart_min_tiles'), roundTiles: num(ld, lt.round_tiles, 'tuning.round_tiles'), cartReach: num(ld, lt.cart_reach, 'tuning.cart_reach'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'), noWayRetrySeconds: num(ld, lt.no_way_retry_seconds, 'tuning.no_way_retry_seconds'), slopeCost: num(ld, lt.slope_cost, 'tuning.slope_cost'), rockCost: num(ld, lt.rock_cost, 'tuning.rock_cost'),
+      oxCarry: num(ld, lt.ox_carry, 'tuning.ox_carry'), oxPathSpeed: num(ld, lt.ox_path_speed, 'tuning.ox_path_speed'), oxRoadSpeed: num(ld, lt.ox_road_speed, 'tuning.ox_road_speed'), oxRoughSpeed: num(ld, lt.ox_rough_speed, 'tuning.ox_rough_speed'), oxMinTiles: num(ld, lt.ox_min_tiles, 'tuning.ox_min_tiles'), oxFeed: num(ld, lt.ox_feed, 'tuning.ox_feed'),
     },
     needs: {
       eatEverySeconds: num(nd, nt.eat_every_seconds, 'tuning.eat_every_seconds'), leaveAfterHungrySeconds: num(nd, nt.leave_after_hungry_seconds, 'tuning.leave_after_hungry_seconds'),
@@ -233,7 +235,7 @@ export function buildContent(files: SourceFile[]): Content {
     },
     planner: {
       intervalSeconds: q('interval_seconds'), sitePatienceSeconds: q('site_patience_seconds'), buildGoods: Array.isArray(qt.build_goods) ? qt.build_goods.map(String) : ['planks'], comfortWeight: q('comfort_weight'), depositWeight: q('deposit_weight'), replanMinAge: q('replan_min_age'), districtBuildings: q('district_buildings'), districtSpacing: q('district_spacing'), districtRoomWeight: q('district_room_weight'), replanEverySeconds: q('replan_every_seconds'), salvageShare: q('salvage_share'), clearReach: q('clear_reach'), clearTries: q('clear_tries'), villageAt: q('village_at'), townAt: q('town_at'), rowWeight: q('row_weight'), streetWeight: q('street_weight'), streetEveryRows: q('street_every_rows'), streetEveryCols: q('street_every_cols'), streetRadius: q('street_radius'), detourRatio: q('detour_ratio'), detourWeight: q('detour_weight'), bridgeReachWeight: q('bridge_reach_weight'), bridgeMinGain: q('bridge_min_gain'), bridgeSpacing: q('bridge_spacing'), paveWear: q('pave_wear'), pavePerLook: q('pave_per_look'), wearHalfLifeSeconds: q('wear_half_life_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'),
-      foodHeadroom: q('food_headroom'), newcomerFoodShare: q('newcomer_food_share'), growthBeds: q('growth_beds'), storeFullShare: q('store_full_share'), villagersPerCartShed: q('villagers_per_cart_shed'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
+      foodHeadroom: q('food_headroom'), newcomerFoodShare: q('newcomer_food_share'), growthBeds: q('growth_beds'), storeFullShare: q('store_full_share'), villagersPerCartShed: q('villagers_per_cart_shed'), villagersPerOxBarn: q('villagers_per_ox_barn'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
       costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), crossingWeight: q('crossing_weight'), savePatienceSeconds: q('save_patience_seconds'), noRoomRetrySeconds: q('no_room_retry_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
       searchRadius: q('search_radius'), searchRadiusMax: q('search_radius_max'), gap: q('gap'), minTrees: q('min_trees'),
       treeWeight: q('tree_weight'), sharedTreeWeight: q('shared_tree_weight'), linkWeight: q('link_weight'), storeWeight: q('store_weight'), forestPenalty: q('forest_penalty'),
@@ -250,14 +252,15 @@ export function buildContent(files: SourceFile[]): Content {
     knowledge: {
       haulTarget: k('haul_target'), haulSmoothingSeconds: k('haul_smoothing_seconds'), struggleSeverity: k('struggle_severity'), encourageFactor: k('encourage_factor'), encourageThreshold: k('encourage_threshold'),
       verifySeconds: k('verify_seconds'), forgetAfterSeconds: k('forget_after_seconds'), visitEverySeconds: k('visit_every_seconds'), visitMinVillagers: k('visit_min_villagers'),
-      copyEverySeconds: k('copy_every_seconds'), universityFactor: k('university_factor'), universityThreshold: k('university_threshold'), schoolFactor: k('school_factor'), forgettingMemorySeconds: k('forgetting_memory_seconds'), learningWeight: k('learning_weight'), schoolChildren: k('school_children'), distanceFrom: k('distance_from'), distanceSpan: k('distance_span'), reachSmoothing: k('reach_smoothing'),
+      copyEverySeconds: k('copy_every_seconds'), universityFactor: k('university_factor'), universityThreshold: k('university_threshold'), schoolFactor: k('school_factor'), forgettingMemorySeconds: k('forgetting_memory_seconds'), learningWeight: k('learning_weight'), schoolChildren: k('school_children'), distanceFrom: k('distance_from'), distanceSpan: k('distance_span'), longHaulFrom: k('long_haul_from'), reachSmoothing: k('reach_smoothing'),
     },
   };
   for (const g of tuning.farms.diet) if (!goods[g]) problems.push(`${fd.path}: tuning.diet names "${g}", which has no goods/${g}.md`);
   if (!Object.values(blueprints).some(B => B.field)) problems.push('blueprints/field.md (field: true) is required: farms that grow lay new fields');
   checkGoods(sd, tuning.start.storage, 'tuning.storage'); checkGoods(sd, tuning.start.houseStock, 'tuning.house_stock');
 
-  if (problems.length) throw new ContentError(problems);
+  for (const B of Object.values(blueprints)) for (const id of B.discovery?.after ?? []) if (!blueprints[id]) problems.push(`blueprints/${B.id}.md: discovery.after names "${id}", which is not a blueprint`);
   for (const e of eras) for (const id of e.discoveries) if (!blueprints[id]?.discovery) problems.push(`eras/${e.id}.md: discovery "${id}" is not a blueprint that must be thought of`);
+  if (problems.length) throw new ContentError(problems);
   return { goods, blueprints, maps, eras, tuning, hash };
 }
