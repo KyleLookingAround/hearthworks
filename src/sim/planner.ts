@@ -12,7 +12,7 @@ import { cancelTask, supplyOf, touches } from './logistics.ts';
 import { fits } from './place.ts';
 import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
-import { add, bp, chronicle, ctr, demolish, door, emit, lift, nearestTown, placeBridge, placeBuilding, seasonOf, storesOnTrack, villagers } from './world.ts';
+import { add, beside, bp, chronicle, ctr, demolish, dims, door, emit, FACING, front as frontOf, lift, nearestTown, placeBridge, placeBuilding, seasonOf, storesOnTrack, villagers } from './world.ts';
 import { hasPlace } from './people.ts';
 import { reserve } from './agents.ts';
 import { enoughInStore, foodChainOf, plentyInStore } from './production.ts';
@@ -457,7 +457,7 @@ function foundDistrict(S: State, town: Town): boolean {
 }
 
 /** Place: score every free spot near the town for this blueprint; lower is better. */
-export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZone = false, hub?: Building): { x: number; y: number } | null {
+export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZone = false, hub?: Building): { x: number; y: number; rot: number } | null {
   const P = T(S), B = S.content.blueprints[type], W = S.world;
   // a settlement grows in its newest district: search around that district's centre (or the one asked for)
   const hs = hubs(S, town), store = hub ?? hs[hs.length - 1] ?? S.bmap.get(town.store);
@@ -475,12 +475,12 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
   const near = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((m, b) => Math.min(m, Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y)), Infinity);
   const mean = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((s, b) => s + Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y), 0) / bs.length;
 
-  const scored: { x: number; y: number; s: number }[] = [];
+  const scored: { x: number; y: number; rot: number; s: number }[] = [];
   // villages and towns set homes wall to wall: no ring of open land between a home and its neighbours
   const form = formOf(S, town), dense = !!B.homes && form !== 'hamlet', gap = dense ? 0 : P.gap;
   const homeAt = (i: number) => { const id = W.bgrid[i]; if (id < 0) return false; const o = S.bmap.get(id); return !!o && !!bp(S, o).homes; };
-  const touchesNonHome = (x: number, y: number) => {
-    for (let j = y - P.gap; j < y + B.h + P.gap; j++) for (let k = x - P.gap; k < x + B.w + P.gap; k++) {
+  const touchesNonHome = (x: number, y: number, bw: number, bh: number) => {
+    for (let j = y - P.gap; j < y + bh + P.gap; j++) for (let k = x - P.gap; k < x + bw + P.gap; k++) {
       if (k < 0 || j < 0 || k >= W.w || j >= W.h) continue;
       const i = j * W.w + k;
       if (W.bgrid[i] >= 0 && !homeAt(i)) return true;
@@ -509,24 +509,29 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     }
     if (zx0 <= zx1) { zoned = true; x0 = zx0; x1 = zx1 - B.w + 1; y0 = zy0; y1 = zy1 - B.h + 1; }
   }
-  const zoneOk = (x: number, y: number, strict: boolean) => {
-    for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) {
+  const zoneOk = (x: number, y: number, strict: boolean, bw: number, bh: number) => {
+    for (let j = y; j < y + bh; j++) for (let k = x; k < x + bw; k++) {
       const z = W.zone[j * W.w + k];
       if (z === nobuild || (strict ? z !== mine1 : z !== 0 && (z !== mine1 || !ours(k, j)))) return false;
     }
     return true;
   };
+  // a dock turns to face any shore; everything else the planner builds faces south (the player turns what they place)
+  for (const rot of B.shore ? [0, 1, 2, 3] : [0]) {
+  const { w: bw, h: bh } = dims(B, rot);
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     W.work.plannerSpots++;
-    if (!fits(S, type, x, y, gap)) continue;
-    if (!zoneOk(x, y, zoned)) continue;
-    const ore = B.deposit ? depositsNear(W, x + B.w / 2, y + B.h / 2, B.deposit.kind, B.deposit.radius + Math.max(B.w, B.h) / 2) : 0;
+    if (!fits(S, type, x, y, gap, rot)) continue;
+    if (!zoneOk(x, y, zoned, bw, bh)) continue;
+    const ore = B.deposit ? depositsNear(W, x + bw / 2, y + bh / 2, B.deposit.kind, B.deposit.radius + Math.max(bw, bh) / 2) : 0;
     if (B.deposit && !ore) continue;
     // homes share walls only with other homes: anything else keeps its ring of open land
-    if (dense && touchesNonHome(x, y)) continue;
-    if (!reach[(y + B.h - 1) * W.w + x + Math.floor(B.w / 2)] && !reach[(y + B.h) * W.w + x + Math.floor(B.w / 2)]) continue;
-    if (facing) { const d = door({ x, y, w: B.w, h: B.h }); if (!facing.has(facing.label[(d.y + 1) * W.w + d.x])) continue; }
-    const p = { x: x + B.w / 2, y: y + B.h / 2 };
+    if (dense && touchesNonHome(x, y, bw, bh)) continue;
+    const at = { x, y, w: bw, h: bh, rot }, dr = door(at), fr = frontOf(at), F = FACING[rot];
+    const inside = (q: { x: number; y: number }) => q.x >= 0 && q.y >= 0 && q.x < W.w && q.y < W.h;
+    if (!reach[dr.y * W.w + dr.x] && !(inside(fr) && reach[fr.y * W.w + fr.x])) continue;
+    if (facing && !(inside(fr) && facing.has(facing.label[fr.y * W.w + fr.x]))) continue;
+    const p = { x: x + bw / 2, y: y + bh / 2 };
     // homes and noisy workplaces stay apart
     if (B.homes && inNuisance(S, p)) continue;
     if (B.nuisance && S.buildings.some(o => bp(S, o).homes && Math.hypot(ctr(o).x - p.x, ctr(o).y - p.y) <= B.nuisance!.radius)) continue;
@@ -537,7 +542,7 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
       s -= P.treeWeight * trees;
     } else {
       // keep out of the woods and out of a forester's replanting ground
-      for (let j = y - P.gap; j < y + B.h + P.gap; j++) for (let k = x - P.gap; k < x + B.w + P.gap; k++) if (W.tree[j * W.w + k] === 2) s += 1;
+      for (let j = y - P.gap; j < y + bh + P.gap; j++) for (let k = x - P.gap; k < x + bw + P.gap; k++) if (W.tree[j * W.w + k] === 2) s += 1;
       for (const h of harvesters) if (Math.hypot(p.x - ctr(h).x, p.y - ctr(h).y) <= bp(S, h).harvest!.radius) s += P.forestPenalty;
     }
     for (const i in B.input) { const from = producersOf(i); if (from.length) s += P.linkWeight * near(p, from); }
@@ -546,16 +551,15 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     if (dense) {
       // rows: every tile of wall shared with another home, and a door onto a street
       let shared = 0;
-      for (let j = y; j < y + B.h; j++) { if (x > 0 && homeAt(j * W.w + x - 1)) shared++; if (x + B.w < W.w && homeAt(j * W.w + x + B.w)) shared++; }
+      for (let j = y; j < y + bh; j++) { if (x > 0 && homeAt(j * W.w + x - 1)) shared++; if (x + bw < W.w && homeAt(j * W.w + x + bw)) shared++; }
       s -= P.rowWeight * shared;
-      const d = door({ x, y, w: B.w, h: B.h });
-      if (W.road[(d.y + 1) * W.w + d.x]) s -= P.streetWeight;
+      if (inside(fr) && W.road[fr.y * W.w + fr.x]) s -= P.streetWeight;
     }
-    // built along the roads: a door onto one (its front tile on a road, or beside one), or looking straight down a short run to one
+    // built along the roads: a door onto one (its front tile on a road, or beside it), or looking straight down a short run to one
     if (W.roads > 0) {
-      const d = door({ x, y, w: B.w, h: B.h }), Rd = S.content.tuning.roads, f = (d.y + 1) * W.w + d.x;
-      if (W.road[f] === 2 || (d.x > 0 && W.road[f - 1] === 2) || (d.x + 1 < W.w && W.road[f + 1] === 2)) s -= Rd.frontWeight;
-      else for (let k = 2; k <= Rd.nearTiles + 1 && d.y + k < W.h; k++) { const i = (d.y + k) * W.w + d.x; if (W.road[i] === 2) { s -= Rd.nearWeight; break; } if (W.bgrid[i] !== -1) break; }
+      const Rd = S.content.tuning.roads, roadAt = (q: { x: number; y: number }) => inside(q) && W.road[q.y * W.w + q.x] === 2;
+      if (roadAt(fr) || roadAt({ x: fr.x + F[1], y: fr.y + F[0] }) || roadAt({ x: fr.x - F[1], y: fr.y - F[0] })) s -= Rd.frontWeight;
+      else for (let k = 2; k <= Rd.nearTiles + 1; k++) { const q = { x: dr.x + F[0] * k, y: dr.y + F[1] * k }; if (!inside(q)) break; if (roadAt(q)) { s -= Rd.nearWeight; break; } if (W.bgrid[q.y * W.w + q.x] !== -1) break; }
     }
     if (B.couriers) {
       // a depot only helps where its bots reach buildings nobody's bots reach yet
@@ -568,7 +572,8 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
       if (!n) continue;
       s -= P.coverWeight * n;
     }
-    scored.push({ x, y, s });
+    scored.push({ x, y, rot, s });
+  }
   }
   // a zone with no spot that fits: fall back to unzoned land rather than build nothing
   if (zoned && !scored.length) return chooseSpot(S, type, town, true, hub);
@@ -579,12 +584,12 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
   // every settlement's doors: neighbours that grow into each other must not wall each other in
   const doors = S.buildings.filter(b => !b.dead && !bp(S, b).bridge).map(b => { const d = door(b); return d.y * W.w + d.x; }).filter(i => rootReach[i]);
   for (const c of scored.slice(0, 8)) {
-    const d = { x: c.x + Math.floor(B.w / 2), y: c.y + B.h - 1 };
+    const at = { x: c.x, y: c.y, ...dims(B, c.rot), rot: c.rot }, d = door(at);
     if (!findPath(W, from.x, from.y, d.x, d.y)) continue;
-    // the open tile in front of its door: below it, or beside it for a building on the shore
-    const front = B.shore ? d.y * W.w + d.x + 1 : (d.y + 1) * W.w + d.x;
-    if (sealsOff(W, c.x, c.y, B.w, B.h, root, doors, rootReach[front] ? front : -1)) continue;
-    return { x: c.x, y: c.y };
+    // the open tile in front of its door, or beside it for a building on the shore
+    const o = B.shore ? beside(at) : frontOf(at), front = o.y * W.w + o.x;
+    if (sealsOff(W, c.x, c.y, at.w, at.h, root, doors, rootReach[front] ? front : -1)) continue;
+    return { x: c.x, y: c.y, rot: c.rot };
   }
   return null;
 }
@@ -595,7 +600,7 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
  * chain, a bridge or a place of rites), whose ground would take the dock if it came down. It comes down, its carriers'
  * jobs cancelled and `salvage_share` of its cost back in storage, and the spot is returned.
  */
-export function clearShore(S: State, town: Town, B: BlueprintDef): { spot: { x: number; y: number }; cut: Building } | null {
+export function clearShore(S: State, town: Town, B: BlueprintDef): { spot: { x: number; y: number; rot: number }; cut: Building } | null {
   const P = T(S), W = S.world, chain = foodChainOf(S), store = S.bmap.get(town.store);
   if (!store) return null;
   const nearWater = (b: Building) => {
@@ -610,7 +615,7 @@ export function clearShore(S: State, town: Town, B: BlueprintDef): { spot: { x: 
   }).sort((a, b) => cost(a) - cost(b) || a.id - b.id).slice(0, P.clearTries);
   for (const b of cands) {
     const back = lift(S, b);
-    let spot: { x: number; y: number } | null = null;
+    let spot: { x: number; y: number; rot: number } | null = null;
     for (const h of hubs(S, town).reverse()) spot ??= chooseSpot(S, B.id, town, false, h);
     back();
     if (!spot) continue;
@@ -853,12 +858,12 @@ function fitsWithout(S: State, type: string, x: number, y: number, without: Set<
   const W = S.world, saved: [number, number, number][] = [];
   for (const o of without) {
     for (let j = o.y; j < o.y + o.h; j++) for (let k = o.x; k < o.x + o.w; k++) { const i = j * W.w + k; saved.push([i, W.bgrid[i], W.door[i]]); W.bgrid[i] = -1; W.door[i] = 0; }
-    const d = door(o), f = (d.y + 1) * W.w + d.x;
+    const fo = frontOf(o), f = fo.y * W.w + fo.x;
     W.front[f] = Math.max(0, W.front[f] - 1);
   }
   const ok = fits(S, type, x, y, 0) && !cutsOff(S, town, type, x, y);
   for (const [i, b, dr] of saved) { W.bgrid[i] = b; W.door[i] = dr; }
-  for (const o of without) { const d = door(o); W.front[(d.y + 1) * W.w + d.x]++; }
+  for (const o of without) { const fo = frontOf(o); W.front[fo.y * W.w + fo.x]++; }
   return ok;
 }
 
@@ -874,10 +879,10 @@ function layStreets(S: State, town: Town) {
     const b = S.bmap.get(hub);
     if (!b) continue;
     town.streets.push(hub);
-    const d = door(b), R = P.streetRadius;
-    for (let y = d.y + 1 - R; y <= d.y + 1 + R; y++) for (let x = d.x - R; x <= d.x + R; x++) {
+    const d = frontOf(b), R = P.streetRadius;
+    for (let y = d.y - R; y <= d.y + R; y++) for (let x = d.x - R; x <= d.x + R; x++) {
       if (x < 0 || y < 0 || x >= W.w || y >= W.h) continue;
-      const row = ((y - d.y - 1) % P.streetEveryRows + P.streetEveryRows) % P.streetEveryRows === 0;
+      const row = ((y - d.y) % P.streetEveryRows + P.streetEveryRows) % P.streetEveryRows === 0;
       const col = ((x - d.x) % P.streetEveryCols + P.streetEveryCols) % P.streetEveryCols === 0;
       const i = y * W.w + x;
       // streets are paths; a road already there stays a road
@@ -1012,7 +1017,7 @@ function planTown(S: State, town: Town, dt: number) {
   }
   if (!spot) { Q.noRoom[c.B.id] = S.t; Q.streak = { type: '', n: 0 }; Q.status = `No room for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
   delete Q.noRoom[c.B.id];
-  const b = placeBuilding(S, c.B.id, spot.x, spot.y, false)!;
+  const b = placeBuilding(S, c.B.id, spot.x, spot.y, false, spot.rot)!;
   b.town = town.id;
   b.priority = 1 + Math.round(c.sev * T(S).urgencyPriority);
   b.reason = c.why;

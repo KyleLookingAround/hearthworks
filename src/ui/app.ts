@@ -2,7 +2,7 @@
 import { surroundings } from '../sim/surroundings.ts';
 import { homeTier } from '../sim/production.ts';
 import { formOf, hubs } from '../sim/planner.ts';
-import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
 
@@ -41,7 +41,7 @@ export class App {
     this.r = new Renderer($<HTMLCanvasElement>('#view'));
     this.S = createState(content, seed);
     this.dialog = new NewGameDialog(content, c => this.newGame(c), () => this.continueGame(), seed);
-    this.view = { cam: { x: 0, y: 0, z: 1 }, hover: null, tool: null, sel: null, routes: false, overlay: 'none' };
+    this.view = { cam: { x: 0, y: 0, z: 1 }, hover: null, tool: null, rot: 0, sel: null, routes: false, overlay: 'none' };
     this.buildBar();
     this.wireControls();
     this.wireInput();
@@ -241,6 +241,7 @@ export class App {
       if (typing || !$('#newgame').hidden) return;
       if (e.key === 'h' || e.key === 'H') this.setUiHidden(!document.body.classList.contains('ui-hidden'));
       if ((e.key === 'f' || e.key === 'F') && document.fullscreenEnabled) this.toggleFullscreen();
+      if ((e.key === 'r' || e.key === 'R') && this.turnable()) this.turn(e.shiftKey ? 3 : 1);
     });
   }
 
@@ -286,12 +287,28 @@ export class App {
       hint.textContent = t === 'zone:clear' ? 'Drag across the map to clear zones.' : `Drag across the map to paint a ${ZONE_TOOLS.find(z => z[0] === t)![1].toLowerCase()}. The village plans keep to it.`;
       hint.hidden = false; this.select(null); return;
     }
-    const B = this.content.blueprints[t];
-    const cost = Object.entries(B.cost).map(([k, n]) => `${n} ${this.content.goods[k].name.toLowerCase()}`).join(' and ');
-    hint.textContent = B.paves ? `Drag across the map to lay ${B.name.toLowerCase()}. Esc or the ${B.name} button to stop.` : `Tap open land to place a ${B.name}. Carriers will bring ${cost} to build it.`;
+    this.toolHint();
     hint.hidden = false;
     this.select(null);
   }
+
+  /** The hint for the building being placed, with which way it faces and a button to turn it. */
+  private toolHint() {
+    const t = this.view.tool, hint = $('#toolhint');
+    if (!t || t.startsWith('zone:')) return;
+    const B = this.content.blueprints[t];
+    const cost = Object.entries(B.cost).map(([k, n]) => `${n} ${this.content.goods[k].name.toLowerCase()}`).join(' and ');
+    if (B.paves) { hint.textContent = `Drag across the map to lay ${B.name.toLowerCase()}. Esc or the ${B.name} button to stop.`; return; }
+    const way = ['south', 'west', 'north', 'east'][this.view.rot];
+    hint.innerHTML = `<span>${esc(`Tap open land to place a ${B.name}, its door facing ${way}. Carriers will bring ${cost} to build it.`)}</span> <button type="button" class="btn" id="turnTool" title="Turn it a quarter (R; Shift+R turns back)">Turn</button>`;
+    $('#turnTool').addEventListener('click', () => this.turn(1));
+  }
+
+  /** Can the building being placed be turned? Anything but paving. */
+  private turnable() { const t = this.view.tool; return !!t && !t.startsWith('zone:') && !this.content.blueprints[t].paves; }
+
+  /** Turn the building being placed a quarter: `by` 1 clockwise from south to west, 3 back. */
+  private turn(by: number) { this.view.rot = (this.view.rot + by) % 4; this.toolHint(); }
 
   // ---------- input ----------
   private wireInput() {
@@ -367,9 +384,9 @@ export class App {
     const t = this.view.tool;
     if (t && t.startsWith('zone:')) return;
     if (t && !this.content.blueprints[t].paves) {
-      const o = ghostOrigin(S, t, h);
-      if (canPlace(S, t, o.x, o.y)) { const b = placeBuilding(S, t, o.x, o.y, false); this.setTool(null); this.select(b); }
-      else this.toast(`Can't build there: ${placeProblem(S, t, o.x, o.y)}`, 'bad');
+      const rot = this.view.rot, o = ghostOrigin(S, t, h, rot);
+      if (canPlace(S, t, o.x, o.y, rot)) { const b = placeBuilding(S, t, o.x, o.y, false, rot); this.setTool(null); this.select(b); }
+      else this.toast(`Can't build there: ${placeProblem(S, t, o.x, o.y, rot)}`, 'bad');
       return;
     }
     if (!t) {
@@ -546,6 +563,12 @@ export class App {
       p.className = 'btn'; p.id = 'act-pause'; p.textContent = b.paused ? 'Resume' : 'Pause'; p.setAttribute('aria-pressed', String(b.paused));
       p.addEventListener('click', () => { b.paused = !b.paused; this.renderActions(); this.updateInspector(); });
       acts.appendChild(p);
+    }
+    if (!B.bridge) {
+      const r = document.createElement('button');
+      r.className = 'btn'; r.id = 'act-turn'; r.textContent = 'Turn'; r.title = 'Turn it a quarter about its centre, its door to the next side';
+      r.addEventListener('click', () => { if (!turnBuilding(this.S, b)) this.toast('No room to turn it there', 'bad'); this.updateInspector(); });
+      acts.appendChild(r);
     }
     const d = document.createElement('button');
     d.className = 'btn danger' + (this.confirmDel ? ' armed' : ''); d.id = 'act-demolish';

@@ -4,7 +4,7 @@
  * replanning does). See design/systems/roads.md. No randomness: ties break by scan order.
  */
 import { cancelTask, touches } from './logistics.ts';
-import { add, bp, chronicle, ctr, demolish, door, emit, villagers } from './world.ts';
+import { add, bp, chronicle, ctr, demolish, emit, front as frontOf, villagers } from './world.ts';
 import type { Building, State, Town } from './types.ts';
 
 const R = (S: State) => S.content.tuning.roads;
@@ -78,7 +78,7 @@ function take(S: State, town: Town, g: string, n: number) {
 export function bestRoad(S: State, town: Town): Run | null {
   const P = R(S), W = S.world, main = S.bmap.get(town.store);
   if (!main) return null;
-  const E = extent(S, town), d = door(main), front = { x: d.x, y: d.y + 1 };
+  const E = extent(S, town), front = frontOf(main);
   const first = !town.roads.length;
   let best: Run | null = null;
   for (const horizontal of [true, false]) {
@@ -170,8 +170,8 @@ export function planRoads(S: State, town: Town, dt: number): boolean {
 export function roadByCentre(S: State, town: Town, r = 2): boolean {
   const W = S.world, main = S.bmap.get(town.store);
   if (!main) return false;
-  const d = door(main);
-  for (let y = d.y + 1 - r; y <= d.y + 1 + r; y++) for (let x = d.x - r; x <= d.x + r; x++) if (x >= 0 && y >= 0 && x < W.w && y < W.h && W.road[y * W.w + x] === 2) return true;
+  const f = frontOf(main);
+  for (let y = f.y - r; y <= f.y + r; y++) for (let x = f.x - r; x <= f.x + r; x++) if (x >= 0 && y >= 0 && x < W.w && y < W.h && W.road[y * W.w + x] === 2) return true;
   return false;
 }
 

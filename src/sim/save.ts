@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 19;
+export const SAVE_VERSION = 20;
 
 type Json = Record<string, unknown>;
 
@@ -144,6 +144,11 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
   // 18 to 19: a cart's round: a carrier's job has no further drops yet
   18: state => {
     for (const a of state.agents as Json[]) if (a.task) (a.task as Json).round ??= [];
+    return state;
+  },
+  // 19 to 20: buildings turn: every building so far faces south
+  19: state => {
+    for (const b of [...state.buildings as Json[], ...(state.gone as Json[] ?? [])]) b.rot ??= 0;
     return state;
   },
 };

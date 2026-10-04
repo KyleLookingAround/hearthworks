@@ -267,8 +267,10 @@ export interface Building {
   waiting: Record<string, number>;
   /** Game time a carrier last found no way to its door; it is left alone for `no_way_retry_seconds`. */
   noWay: number | null;
-  /** Where its door is, when not the middle of its bottom row: a bridge's door is the near bank. */
+  /** Where its door is, when not the middle of the side it faces: a bridge's door is the near bank. */
   doorAt: { x: number; y: number } | null;
+  /** Which way it faces, its door in the middle of that side: 0 south (the bottom row), 1 west, 2 north, 3 east. Turned a quarter, its footprint turns with it. */
+  rot: number;
   /** Hardship: seconds left burning, flooded, and (a home) sick; 0 when none. */
   burn: number;
   flood: number;

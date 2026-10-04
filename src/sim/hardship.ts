@@ -13,7 +13,7 @@ import { rand } from './rng.ts';
 import { removeAgent } from './agents.ts';
 import { cancelTask, touches } from './logistics.ts';
 import { findPath } from './path.ts';
-import { add, bp, chronicle, ctr, door, emit, nearestTown, villagers } from './world.ts';
+import { add, bp, chronicle, ctr, emit, front, nearestTown, villagers } from './world.ts';
 import type { Building, Camp, Hazard, State, Town } from './types.ts';
 
 const H = (S: State) => S.content.tuning.hardship;
@@ -322,7 +322,7 @@ function raid(S: State, c: Camp) {
   const targets = S.towns.map(t => ({ t, s: S.bmap.get(t.store) })).filter(o => o.s).sort((a, b) => Math.hypot(ctr(a.s!).x - c.x, ctr(a.s!).y - c.y) - Math.hypot(ctr(b.s!).x - c.x, ctr(b.s!).y - c.y));
   for (const { t, s } of targets) {
     if (Math.hypot(ctr(s!).x - c.x, ctr(s!).y - c.y) > Z.raidReach) break;
-    const d = door(s!), p = findPath(W, Math.floor(c.x), Math.floor(c.y), d.x, d.y + 1);
+    const f = front(s!), p = findPath(W, Math.floor(c.x), Math.floor(c.y), f.x, f.y);
     if (!p || p.length > Z.raidReach * 1.5 || p.some(([x, y]) => !W.ground[y * W.w + x] && !W.bridge[y * W.w + x])) continue;
     c.raid = { town: t.id, path: p, x: c.x, y: c.y, n: Math.floor(c.strength), back: false, loot: 0 };
     emit(S, 'bad', `Raiders are on their way to ${t.name}`, true);

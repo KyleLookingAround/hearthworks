@@ -43,6 +43,6 @@ test('a dock with no shore left clears a workshop from the shore, and may stand 
   assert.ok(cleared, 'the workshop comes down for the dock');
   assert.equal(cleared.cut, shop);
   assert.ok(shop.dead && !S.buildings.includes(shop));
-  assert.ok(placeBuilding(S, 'dock', cleared.spot.x, cleared.spot.y, false), 'the dock goes where the workshop stood');
+  assert.ok(placeBuilding(S, 'dock', cleared.spot.x, cleared.spot.y, false, cleared.spot.rot), 'the dock goes where the workshop stood');
   assert.equal((store.inv.planks || 0) - planks, Math.floor((content.blueprints.weaver.cost.planks || 0) * content.tuning.planner.salvageShare));
 });

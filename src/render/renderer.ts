@@ -2,7 +2,7 @@
 import { canPlace, ctr, hash01, type Agent, type Building, type State } from '../sim/index.ts';
 
 import { surroundings } from '../sim/surroundings.ts';
-import { seasonOf } from '../sim/world.ts';
+import { dims, door, FACING, seasonOf } from '../sim/world.ts';
 
 export const TS = 24;
 /** Zone tints, in ZONES order: homes, farms, workshops, no-build. */
@@ -16,6 +16,8 @@ export interface View {
   cam: Camera;
   hover: { x: number; y: number } | null;
   tool: string | null;
+  /** Which way the building being placed faces: 0 south, 1 west, 2 north, 3 east. */
+  rot: number;
   sel: Building | null;
   routes: boolean;
   /** What to lay over the map: nothing, mood, nuisance, districts, traffic or courier coverage. */
@@ -24,9 +26,9 @@ export interface View {
 
 type Ctx = CanvasRenderingContext2D;
 
-export function ghostOrigin(S: State, type: string, t: { x: number; y: number }) {
-  const B = S.content.blueprints[type];
-  return { x: t.x - Math.floor((B.w - 1) / 2), y: t.y - Math.floor((B.h - 1) / 2) };
+export function ghostOrigin(S: State, type: string, t: { x: number; y: number }, rot = 0) {
+  const { w, h } = dims(S.content.blueprints[type], rot);
+  return { x: t.x - Math.floor((w - 1) / 2), y: t.y - Math.floor((h - 1) / 2) };
 }
 
 export class Renderer {
@@ -215,11 +217,18 @@ export class Renderer {
     if (v.tool?.startsWith('zone:') && v.hover) {
       c.strokeStyle = '#f0c27a'; c.lineWidth = 2; c.strokeRect((v.hover.x - 1) * TS, (v.hover.y - 1) * TS, 3 * TS, 3 * TS);
     } else if (v.tool && v.hover) {
-      const B = S.content.blueprints[v.tool], o = B.paves ? v.hover : ghostOrigin(S, v.tool, v.hover), ok = canPlace(S, v.tool, o.x, o.y);
+      const B = S.content.blueprints[v.tool], rot = B.paves ? 0 : v.rot, o = B.paves ? v.hover : ghostOrigin(S, v.tool, v.hover, rot), ok = canPlace(S, v.tool, o.x, o.y, rot);
+      const { w: gw, h: gh } = B.paves ? { w: 1, h: 1 } : dims(B, rot);
       c.fillStyle = ok ? 'rgba(127,194,138,.35)' : 'rgba(226,115,94,.4)';
       c.strokeStyle = ok ? '#7fc28a' : '#e2735e'; c.lineWidth = 1.5;
-      this.rr(o.x * TS, o.y * TS, B.w * TS, B.h * TS, 4); c.fill(); c.stroke();
-      const fake = { x: o.x, y: o.y, w: B.w, h: B.h };
+      this.rr(o.x * TS, o.y * TS, gw * TS, gh * TS, 4); c.fill(); c.stroke();
+      const fake = { x: o.x, y: o.y, w: gw, h: gh, rot };
+      // the side its door opens on: a bar along the door tile's outer edge
+      if (!B.paves) {
+        const d = door(fake), F = FACING[rot], cx = (d.x + 0.5 + F[0] * 0.5) * TS, cy = (d.y + 0.5 + F[1] * 0.5) * TS;
+        c.fillStyle = ok ? '#e8f5ea' : '#ffd9d0';
+        c.fillRect(cx - (F[0] ? 2 : TS * 0.35), cy - (F[1] ? 2 : TS * 0.35), F[0] ? 4 : TS * 0.7, F[1] ? 4 : TS * 0.7);
+      }
       if (B.harvest) this.ring(fake, B.harvest.radius, 'rgba(127,194,138,.8)');
       if (B.couriers) this.ring(fake, B.couriers.radius, 'rgba(240,194,122,.85)');
       if (B.guards) this.ring(fake, B.guards.radius, 'rgba(140,190,230,.85)');
@@ -375,12 +384,23 @@ export class Renderer {
     }
   }
 
+  /** Draw a building's art facing its way: the art is drawn facing south, turned about the footprint's centre. */
+  private turned(S: State, b: Building, px: number, py: number, pw: number, ph: number) {
+    const r = b.rot || 0;
+    if (!r) { this.art(S, b, px, py, pw, ph); return; }
+    const c = this.ctx, w = r % 2 ? ph : pw, h = r % 2 ? pw : ph;
+    c.save(); c.translate(px + pw / 2, py + ph / 2); c.rotate((r * Math.PI) / 2);
+    // the art sees the footprint as it was before turning
+    this.art(S, r % 2 ? { ...b, w: b.h, h: b.w } : b, -w / 2, -h / 2, w, h);
+    c.restore();
+  }
+
   private building(S: State, b: Building) {
     const c = this.ctx, B = S.content.blueprints[b.type], px = b.x * TS, py = b.y * TS, pw = b.w * TS, ph = b.h * TS;
     if (B.bridge) { this.bridge(S, b, px, py, pw, ph); return; }
     c.fillStyle = 'rgba(16,26,22,.22)'; this.rr(px + 3, py + 4, pw - 4, ph - 4, 5); c.fill();
     if (b.site) {
-      c.globalAlpha = 0.4; this.art(S, b, px, py, pw, ph); c.globalAlpha = 1;
+      c.globalAlpha = 0.4; this.turned(S, b, px, py, pw, ph); c.globalAlpha = 1;
       c.save(); this.rr(px + 2, py + 2, pw - 4, ph - 4, 4); c.clip();
       c.strokeStyle = 'rgba(122,92,60,.55)'; c.lineWidth = 1.5;
       for (let k = -ph; k < pw; k += 7) { c.beginPath(); c.moveTo(px + k, py + ph); c.lineTo(px + k + ph, py); c.stroke(); }
@@ -393,7 +413,7 @@ export class Renderer {
       if (f >= 1) this.bar(px + 5, py + ph - 15, pw - 10, 3, b.build / S.content.tuning.production.buildSeconds, '#7fc28a');
       return;
     }
-    this.art(S, b, px, py, pw, ph);
+    this.turned(S, b, px, py, pw, ph);
     if (b.paused) { c.fillStyle = 'rgba(20,28,30,.4)'; this.rr(px + 2, py + 2, pw - 4, ph - 4, 4); c.fill(); }
     if (B.workers && b.timer > 0 && b.status.l === 'ok') {
       c.strokeStyle = '#f0c27a'; c.lineWidth = 2; c.beginPath();

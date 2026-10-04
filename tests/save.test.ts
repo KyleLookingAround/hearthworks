@@ -157,3 +157,12 @@ test('a version 18 save is upgraded to version 19: carriers on a job have no fur
   runFor(S, 60);
   assert.equal(text(loadGame(content, text(S))), text(S));
 });
+
+test('a version 19 save is upgraded to version 20: every building faces south, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v19.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 19);
+  const S = loadGame(content, file);
+  assert.ok(S.buildings.length > 0 && S.buildings.every(b => b.rot === 0));
+  runFor(S, 60);
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});

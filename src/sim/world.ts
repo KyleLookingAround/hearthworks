@@ -23,8 +23,25 @@ export function learningAt(S: State, town: number, kind: 'library' | 'school' | 
 export const newLedger = (): Ledger => ({ t: 0, imports: {}, made: {}, exported: {}, imported: {}, waits: {} });
 
 export const inB = (w: World, x: number, y: number) => x >= 0 && y >= 0 && x < w.w && y < w.h;
-/** The door: middle of the bottom row. The tile below it (the door front) must stay open. */
-export const door = (b: { x: number; y: number; w: number; h: number; doorAt?: { x: number; y: number } | null }) => b.doorAt ?? { x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 };
+/** The way each facing looks: 0 south, 1 west, 2 north, 3 east. */
+export const FACING: readonly (readonly [number, number])[] = [[0, 1], [-1, 0], [0, -1], [1, 0]];
+/** A blueprint's footprint turned to a facing: a quarter turn swaps its width and height. */
+export const dims = (B: { w: number; h: number }, rot = 0) => (rot % 2 ? { w: B.h, h: B.w } : { w: B.w, h: B.h });
+type Placed = { x: number; y: number; w: number; h: number; rot?: number; doorAt?: { x: number; y: number } | null };
+/** The door: the middle of the side the building faces (the bottom row, facing south). The tile beyond it (the door front) must stay open. */
+export const door = (b: Placed) => {
+  if (b.doorAt) return b.doorAt;
+  switch (b.rot ?? 0) {
+    case 1: return { x: b.x, y: b.y + Math.floor(b.h / 2) };
+    case 2: return { x: b.x + Math.floor(b.w / 2), y: b.y };
+    case 3: return { x: b.x + b.w - 1, y: b.y + Math.floor(b.h / 2) };
+    default: return { x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 };
+  }
+};
+/** The door front: the tile beyond the door, the way the building faces. */
+export const front = (b: Placed) => { const d = door(b), f = FACING[b.rot ?? 0]; return { x: d.x + f[0], y: d.y + f[1] }; };
+/** Beside the door, to its left as one looks out (east of a dock facing south): where people reach a dock that opens onto water. */
+export const beside = (b: Placed) => { const d = door(b), f = FACING[b.rot ?? 0]; return { x: d.x + f[1], y: d.y - f[0] }; };
 export const ctr = (b: { x: number; y: number; w: number; h: number }) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
 export const distAB = (a: { x: number; y: number }, b: Building) => { const p = ctr(b); return Math.hypot(a.x - p.x, a.y - p.y); };
 export const distBB = (a: Building, b: Building) => { const p = ctr(a), q = ctr(b); return Math.hypot(p.x - q.x, p.y - q.y); };
@@ -384,10 +401,11 @@ export const townOf = (S: State, a: Agent) => a.home?.town ?? a.depot?.town ?? n
  * Why `type` cannot go here, or null if it can. Every tile must be open land, the building
  * must not cover another building's door front, and its own door front must be open land too.
  */
-export function placeProblem(S: State, type: string, x: number, y: number): string | null {
+export function placeProblem(S: State, type: string, x: number, y: number, rot = 0): string | null {
   const B = S.content.blueprints[type], w = S.world;
   if (!B) return 'unknown building';
-  for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) {
+  const { w: bw, h: bh } = B.paves ? { w: 1, h: 1 } : dims(B, rot);
+  for (let j = y; j < y + bh; j++) for (let k = x; k < x + bw; k++) {
     if (!inB(w, k, j)) return 'off the edge of the map';
     const i = j * w.w + k;
     if (!w.ground[i]) return 'that is water';
@@ -398,19 +416,19 @@ export function placeProblem(S: State, type: string, x: number, y: number): stri
     if (w.front[i]) return "it would block another building's door";
   }
   if (!B.paves) {
-    const d = door({ x, y, w: B.w, h: B.h }), fy = d.y + 1, fi = fy * w.w + d.x;
+    const at = { x, y, w: bw, h: bh, rot }, f = front(at), fi = f.y * w.w + f.x;
     if (B.shore) {
       // boats launch from the door onto water; people reach the door from open land beside it
-      if (!inB(w, d.x, fy) || w.ground[fi] !== 0) return 'a dock has to open onto water';
-      const si = d.y * w.w + d.x + 1;
-      if (!inB(w, d.x + 1, d.y) || !w.ground[si] || w.bgrid[si] !== -1 || w.front[si]) return 'a dock needs open land beside its door';
+      if (!inB(w, f.x, f.y) || w.ground[fi] !== 0) return 'a dock has to open onto water';
+      const s = beside(at), si = s.y * w.w + s.x;
+      if (!inB(w, s.x, s.y) || !w.ground[si] || w.bgrid[si] !== -1 || w.front[si]) return 'a dock needs open land beside its door';
     }
-    else if (!inB(w, d.x, fy) || !w.ground[fi] || w.bgrid[fi] !== -1) return 'its door would open onto nothing';
+    else if (!inB(w, f.x, f.y) || !w.ground[fi] || w.bgrid[fi] !== -1) return 'its door would open onto nothing';
   }
   return null;
 }
 
-export const canPlace = (S: State, type: string, x: number, y: number) => placeProblem(S, type, x, y) === null;
+export const canPlace = (S: State, type: string, x: number, y: number, rot = 0) => placeProblem(S, type, x, y, rot) === null;
 
 /**
  * Anyone standing where a new building goes steps out to its door front, and anyone whose
@@ -421,7 +439,7 @@ function stepOut(S: State, b: Building) {
   for (const a of S.agents) {
     const inside = inFoot(Math.floor(a.x), Math.floor(a.y));
     if (!inside && !a.path.some(([x, y]) => inFoot(x, y) && !(x === d.x && y === d.y))) continue;
-    if (inside) { a.x = d.x + 0.5; a.y = d.y + 1.5; }
+    if (inside) { const f = front(b); a.x = f.x + 0.5; a.y = f.y + 0.5; }
     a.path = [];
     const t = a.task, to = a.state === 'toSrc' ? t?.src : a.state === 'toDst' ? t?.dst : a.state === 'toWork' ? a.work : a.state === 'visit' && a.visit ? S.bmap.get(S.towns[a.visit.back ? a.visit.from : a.visit.to].store) : null;
     if (to && !to.dead) goToBuilding(S, a, to);
@@ -431,7 +449,7 @@ function stepOut(S: State, b: Building) {
 
 /** Mark or clear a building's door and the open tile in front of it (beside it, for a dock), and a dock's launching place. */
 function setDoor(S: State, b: Building, on: boolean) {
-  const w = S.world, d = door(b), i = d.y * w.w + d.x, f = bp(S, b).shore ? d.y * w.w + d.x + 1 : (d.y + 1) * w.w + d.x;
+  const w = S.world, d = door(b), i = d.y * w.w + d.x, o = bp(S, b).shore ? beside(b) : front(b), f = inB(w, o.x, o.y) ? o.y * w.w + o.x : -1;
   w.door[i] = on ? 1 : 0;
   if (bp(S, b).shore) { w.dock[i] = on ? 1 : 0; w.docks += on ? 1 : -1; }
   if (f >= 0 && f < w.front.length) w.front[f] = Math.max(0, w.front[f] + (on ? 1 : -1));
@@ -454,14 +472,36 @@ export function lift(S: State, b: Building): () => void {
   };
 }
 
-export function placeBuilding(S: State, type: string, x: number, y: number, complete: boolean): Building | null {
+/**
+ * Turn a building a quarter about its centre (`by` 1 from south to west, 3 to turn back), if its turned footprint and
+ * door fit there; returns whether it turned. Anyone inside steps out of its new door; routes through it are found again.
+ */
+export function turnBuilding(S: State, b: Building, by = 1): boolean {
+  const B = bp(S, b), w = S.world;
+  if (B.bridge || B.paves || b.dead) return false;
+  // about its centre, rounding toward its corner so that turning back undoes it exactly
+  const rot = (b.rot + by) % 4, d = dims(B, rot), x = b.x + Math.trunc((b.w - d.w) / 2), y = b.y + Math.trunc((b.h - d.h) / 2);
+  const back = lift(S, b), ok = canPlace(S, b.type, x, y, rot);
+  back();
+  if (!ok) return false;
+  for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) w.bgrid[j * w.w + k] = -1;
+  setDoor(S, b, false);
+  b.x = x; b.y = y; b.w = d.w; b.h = d.h; b.rot = rot;
+  for (let j = y; j < y + d.h; j++) for (let k = x; k < x + d.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; if (w.road[i] === 2) w.roads--; w.road[i] = 0; }
+  setDoor(S, b, true);
+  stepOut(S, b);
+  return true;
+}
+
+export function placeBuilding(S: State, type: string, x: number, y: number, complete: boolean, rot = 0): Building | null {
   const B = S.content.blueprints[type], w = S.world;
   if (B.paves) { const i = y * w.w + x; if (B.road && w.road[i] !== 2) w.roads++; else if (!B.road && w.road[i] === 2) w.roads--; w.road[i] = B.road ? 2 : 1; w.tree[i] = 0; return null; }
+  const { w: bw, h: bh } = dims(B, rot);
   const b: Building = {
-    id: S.nextId++, type, x, y, w: B.w, h: B.h, site: !complete, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + B.w / 2, y + B.h / 2), used: 0, waiting: {}, noWay: null, doorAt: null, extra: 0, wear: 0, fire: 0, stall: 0, burn: 0, flood: 0, sick: 0,
+    id: S.nextId++, type, x, y, w: bw, h: bh, rot, site: !complete, build: 0, inv: {}, incoming: {}, reserved: {},
+    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town: nearestTown(S, x + bw / 2, y + bh / 2), used: 0, waiting: {}, noWay: null, doorAt: null, extra: 0, wear: 0, fire: 0, stall: 0, burn: 0, flood: 0, sick: 0,
   };
-  for (let j = y; j < y + B.h; j++) for (let k = x; k < x + B.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; if (w.road[i] === 2) w.roads--; w.road[i] = 0; }
+  for (let j = y; j < y + bh; j++) for (let k = x; k < x + bw; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; if (w.road[i] === 2) w.roads--; w.road[i] = 0; }
   setDoor(S, b, true);
   S.buildings.push(b); S.bmap.set(b.id, b);
   stepOut(S, b);
@@ -477,7 +517,7 @@ export function placeBridge(S: State, x: number, y: number, w: number, h: number
   const W = S.world;
   const b: Building = {
     id: S.nextId++, type: 'bridge', x, y, w, h, site: true, build: 0, inv: {}, incoming: {}, reserved: {},
-    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town, used: 0, waiting: {}, noWay: null, doorAt: { ...from }, extra: 0, wear: 0, fire: 0, stall: 0, burn: 0, flood: 0, sick: 0,
+    worker: null, timer: 0, plantT: 0, paused: false, status: { t: '', l: 'ok' }, residents: [], eat: 0, hunger: 0, bots: [], dead: false, priority: 0, reason: '', town, used: 0, waiting: {}, noWay: null, doorAt: { ...from }, rot: 0, extra: 0, wear: 0, fire: 0, stall: 0, burn: 0, flood: 0, sick: 0,
   };
   for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) W.bgrid[j * W.w + k] = b.id;
   for (const p of [from, to]) W.front[p.y * W.w + p.x]++;

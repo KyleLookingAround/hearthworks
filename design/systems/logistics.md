@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T04:42:36Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T07:13:58Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -53,7 +53,7 @@ Ox carts, river boats between jetties and multi-leg deliveries through hubs come
 
 # Walls and doors
 
-Buildings are solid. A building is entered only through its door (the middle of its bottom row); every other tile of it blocks walking, and nobody cuts a corner past a wall or water. Someone caught on a tile where a new building goes steps out to its door front, and anyone whose route crossed it finds a new one. Walking around buildings made trips 20 to 35% longer, so `villager_speed` rose from 2.2 to 3 and `bot_speed` from 3.6 to 4.9 to keep the economy's pace (see the [log](/log.md)).
+Buildings are solid. A building is entered only through its door, the middle of the side it faces; every other tile of it blocks walking, and nobody cuts a corner past a wall or water. Every building faces one of four ways (south, west, north or east: a quarter turn swaps its width and height), and the tile beyond its door, the door front, must stay open. The player turns a building while placing it (R, Shift+R back, or the Turn button by the hint) and turns one already standing from its inspector, about its centre, when its turned footprint and door fit there. The planner turns a [dock](/blueprints/dock.md) to face whichever shore it finds; everything else it builds faces south. Someone caught on a tile where a new building goes (or turns) steps out to its door front, and anyone whose route crossed it finds a new one. Walking around buildings made trips 20 to 35% longer, so `villager_speed` rose from 2.2 to 3 and `bot_speed` from 3.6 to 4.9 to keep the economy's pace (see the [log](/log.md)).
 
 # Boats
 
