@@ -23,7 +23,8 @@ test('fire guts a building, which is rebuilt at a share of its cost; a well puts
   const S = createState(quiet, 1847, { hardship: true });
   const house = S.buildings.find(b => bp(S, b).homes)!, people = house.residents.length;
   ignite(S, house, true);
-  runFor(S, H.burnSeconds + 2);
+  // checked the moment it is gutted, before carriers start bringing what the rebuilding needs
+  for (let t = 0; t < H.burnSeconds + 2 && !house.site; t++) runFor(S, 1);
   assert.equal(house.site, true, 'gutted');
   assert.equal(house.residents.length, people, 'its people stay on in the shell');
   assert.equal(house.reason, 'rebuilding after the fire');
