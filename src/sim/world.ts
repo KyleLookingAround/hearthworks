@@ -3,7 +3,7 @@ import { goToBuilding, makeAgent, removeAgent } from './agents.ts';
 import { plannerOn } from './planner.ts';
 import { foundersKnowledge } from './knowledge.ts';
 import { initPeople } from './people.ts';
-import { findPath } from './path.ts';
+import { findPath, reachable } from './path.ts';
 import type { Agent, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
 
 /**
@@ -350,12 +350,17 @@ export function neighbourSite(S: State, from: Town = S.towns[0], reach = false):
   const apart = spots.filter(p => p.spread >= far);
   const top = apart.reduce((m, p) => Math.max(m, p.score), 0) * t.startRoomShare;
   const good = apart.filter(p => p.score >= top);
-  const onFoot = S.content.maps[S.setup.map].neighbours === 'reachable';
-  while (good.length) {
-    const k = Math.floor(rand(S.rng) * good.length), p = good[k];
+  const onFoot = S.content.maps[S.setup.map].neighbours === 'reachable', test = onFoot || reach;
+  // what can be walked to is found once; only with docks can a route search reach more (by boat), and a search
+  // that fails covers the whole map, so without them the sites out of reach are never searched for
+  const foot = test ? reachable(w, home.x, home.y) : null;
+  const walks = (p: { x: number; y: number }) => !!foot && foot[(p.y + 1) * w.w + p.x] === 1;
+  const left = test && !w.docks ? good.filter(walks) : good;
+  while (left.length) {
+    const k = Math.floor(rand(S.rng) * left.length), p = left[k];
     // with `reach`, the site must be reachable from `from`: on foot, or rowing from a dock
-    if ((!onFoot && !reach) || findPath(w, home.x, home.y, p.x, p.y + 1)) return { x: p.x, y: p.y };
-    good.splice(k, 1);
+    if (!test || walks(p) || findPath(w, home.x, home.y, p.x, p.y + 1)) return { x: p.x, y: p.y };
+    left.splice(k, 1);
   }
   return null;
 }

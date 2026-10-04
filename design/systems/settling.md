@@ -28,7 +28,7 @@ The party looks for a site as the world's first neighbours were placed ([settlem
 
 # Across the water
 
-The party must be able to reach its site: on foot, or rowing from a [dock](/blueprints/dock.md). A settlement with no such site left but land across the water feels the need to cross it, so it comes up with the dock and builds one (clearing a workshop from its shore if it has built along every shore: [planner](/systems/planner.md)), and its next party sails: the daughter is a colony (`overseas`), and the chronicle says so.
+The party must be able to reach its site: on foot, or rowing from a [dock](/blueprints/dock.md). What it can walk to is found once a look; without a dock, sites beyond it are never searched for (a route search that fails covers the whole map). A settlement with no such site left but land across the water feels the need to cross it, so it comes up with the dock and builds one (clearing a workshop from its shore if it has built along every shore: [planner](/systems/planner.md)), and its next party sails: the daughter is a colony (`overseas`), and the chronicle says so.
 
 # Who and what
 
