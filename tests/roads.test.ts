@@ -35,8 +35,10 @@ test('paths and roads: a road is faster than a path, and routes take it', () => 
 });
 
 test('a village under traffic strain lays a straight road by its first yard, moving people and salvaging what it clears', () => {
-  const S = createState(content, 1847, { planner: true, plannedRoads: true });
+  // roads turned on only now, so none was laid while the village grew
+  const S = createState(content, 1847, { planner: true });
   runFor(S, 1100);
+  S.plannedRoads = true;
   const t = S.towns[0];
   t.knows.road ??= { by: t.name, at: S.t, verified: [], from: null, learned: S.t, used: S.t };
   assert.notEqual(t.form, 'hamlet');
@@ -57,7 +59,10 @@ test('roads are laid at a cost a tile, only by villages and towns that know them
   const S = createState(content, 7, { planner: true, plannedRoads: true });
   const t = S.towns[0];
   assert.equal(planRoads(S, t, 1e9), false, 'a hamlet that does not know the road lays none');
+  // roads off while the village grows, so none is laid before the test
+  S.plannedRoads = false;
   runFor(S, 1100);
+  S.plannedRoads = true;
   t.knows.road ??= { by: t.name, at: S.t, verified: [], from: null, learned: S.t, used: S.t };
   const yard = S.bmap.get(t.store)!; yard.inv.planks = 0;
   for (const b of S.buildings) if (bp(S, b).storage) b.inv.planks = 0;
@@ -81,8 +86,10 @@ test('deliveries count the tiles they walk on roads and paths', () => {
 });
 
 test('a game with roads saves and loads and plays on the same', () => {
-  const S = createState(content, 1847, { planner: true, plannedRoads: true });
+  // roads turned on only now, so none was laid while the village grew
+  const S = createState(content, 1847, { planner: true });
   runFor(S, 1100);
+  S.plannedRoads = true;
   const t = S.towns[0];
   t.knows.road ??= { by: t.name, at: S.t, verified: [], from: null, learned: S.t, used: S.t };
   layRoad(S, t, bestRoad(S, t)!);
