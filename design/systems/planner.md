@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T00:02:17Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T04:16:45Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -157,7 +157,7 @@ With people on, the planner wants a [Library](/blueprints/library.md) while it h
 
 # Trade
 
-With [trade](/systems/trade.md) on, a settlement's steady imports count as supply, so it stops planning what it reliably trades for; a neighbour's want of a good that neighbour makes none of counts as demand here, at `export_demand`. At each look the planner notes its `wants` (shortages of goods and what it is saving for) and `use` (what it uses of each good a second), which its porters trade by.
+With [trade](/systems/trade.md) on, a settlement's steady imports count as supply, so it stops planning what it reliably trades for; a neighbour's want of a good that neighbour makes none of counts as demand here, at `export_demand` (and at least what its porters carry away when it trades for the good here). A good outside the basics that a neighbour makes and this settlement does not is traded for, not made, while the imports come ([specialisation](/systems/trade.md)): the planner passes over that shortage, saying who it trades with, and goes on to the next. At each look the planner notes its `wants` (shortages of goods and what it is saving for) and `use` (what it uses of each good a second), which its porters trade by.
 
 # Seasons
 

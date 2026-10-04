@@ -356,7 +356,7 @@ Kyle's call: once Phases 20 and 21 are built, the roadmap is walked again from P
 
 Each phase's second pass is pushed and verified like any phase, with its gates rerun and any that can now be raised superseded (rule 6).
 
-**Under way.** The economy first, as it underlies every phase: labour goes where the shortages are (workplaces rest with enough in store, food included), the planner weighs stock as well as rates and does not let one waiting choice hold back the rest, basics do not wait on newcomers who are not coming, and with seasons growth waits for bread and land. The first-year stall of every new game is gone ([log](/log.md), 2026-10-04). Homes far from a yard ask for their food two loaves at a time.
+**Under way.** The economy first, as it underlies every phase: labour goes where the shortages are (workplaces rest with enough in store, food included), the planner weighs stock as well as rates and does not let one waiting choice hold back the rest, basics do not wait on newcomers who are not coming, and with seasons growth waits for bread and land. The first-year stall of every new game is gone ([log](/log.md), 2026-10-04). Homes far from a yard ask for their food two loaves at a time. With trade, a settlement trades for what its neighbour already makes instead of building its own maker, so two villages on one island grow different workshops (Gate 13 tightened).
 
 # Beyond
 

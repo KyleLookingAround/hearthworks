@@ -4,7 +4,7 @@ title: "Gate 13: neighbours trade"
 description: Two self-planning settlements trade by porter, both ways and at volume, at no real cost to their growth or to being fed.
 tags: [gate, roadmap, trade, economy]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T18:21:01Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T04:16:45Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/trade.ts
 parameters:
@@ -13,7 +13,7 @@ parameters:
   - { name: map, type: string, required: true }
   - { name: size, type: string, required: true }
 defaults: { seed: 1847, seconds: 3600, map: island, size: standard }
-pass_when: { min_trades: 20, min_export_share_min: 0.03, min_population_gain: 0.95, min_fed_min_trading: 0.6 }
+pass_when: { min_trades: 40, min_export_share_min: 0.1, min_population_gain: 0.95, min_fed_min_trading: 0.6 }
 executor:
   resource: ../references/skills/run-gate.md
   receipt: [gate, params, ticks, scenario_sha256, content_hash, metrics]
@@ -29,9 +29,13 @@ The sanctioned scenario is [trade.ts](/references/scenarios/trade.ts). Two settl
 
 Phase 13 of the [roadmap](/roadmap.md): neighbours swap surplus for want, on foot.
 
-- `trades` at least 20 and `export_share_min` at least 3%: trade happens at volume, and both settlements send away a real share of something they make.
+- `trades` at least 40 and `export_share_min` at least 10%: trade happens at volume, and both settlements send away a real share of something they make: each has specialised.
 - `population_gain` at least 0.95 and `fed_min_trading` at least Gate 2's 0.6: trade costs neither settlement its growth nor its food.
 
 # Against the proposal
 
-The roadmap proposed more people with trade than without, each settlement fed at least as well, and each exporting 30% of one good. Measured on six seeds, trade by porter on foot (four goods a trip) moves 10 to 110 loads an hour and shifts population by 3% down to 7% up: within the noise between seeds. Two settlements on one island build near-identical economies, so there is little to specialise in. The proposal waits for cheaper carriage (carts, Phase 16) and settlements with different land; this gate holds what trade does today.
+The roadmap proposed more people with trade than without, each settlement fed at least as well, and each exporting 30% of one good. When the phase was built, two settlements on one island built near-identical economies and traded within the noise. With [specialisation](/systems/trade.md) (the second pass) a settlement trades for what its neighbour already makes instead of building its own maker, so the two grow different workshops: on twelve seeds 29 to 149 loads an hour (mean 78, against 55 before), the least exporter sending 9 to 31% of its best export (1 to 40%, median 8%, before), and population with trade 0.85 to 1.11 of without (mean 1.02, against 0.99). Both villages still fill the same island, so land, not trade, sets how many live there; "more people with trade" on every seed and 30% exports from both wait for settlements on different land (the sea, Phase 18).
+
+# Revisions
+
+- 2026-10-04: tightened in place with specialisation (the second pass): `min_trades` 20 to 40, `min_export_share_min` 0.03 to 0.1. Same scenario and intent.

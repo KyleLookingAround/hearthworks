@@ -20,7 +20,7 @@ export function learningAt(S: State, town: number, kind: 'library' | 'school' | 
 }
 
 /** A new settlement's trade ledger. */
-export const newLedger = (): Ledger => ({ t: 0, imports: {}, made: {}, exported: {}, imported: {} });
+export const newLedger = (): Ledger => ({ t: 0, imports: {}, made: {}, exported: {}, imported: {}, waits: {} });
 
 export const inB = (w: World, x: number, y: number) => x >= 0 && y >= 0 && x < w.w && y < w.h;
 /** The door: middle of the bottom row. The tile below it (the door front) must stay open. */

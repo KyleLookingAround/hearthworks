@@ -150,7 +150,7 @@ export interface Tuning {
     practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
     changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number;
   };
-  trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number };
+  trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number };
   seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[] };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number; surplusSeconds: number; surplusMin: number; surplusFullSeconds: number };
@@ -312,7 +312,7 @@ export type Custom = 'burial' | 'cremation' | 'ship';
 export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge>; /** rowed there, so has a boat to row home in */ boat: boolean; /** a porter's errand: the good taken and the good wanted back */ trade?: { give: ItemId; want: ItemId } }
 
 /** A settlement's trade: when it last sent a porter, smoothed imports per second, and running totals. */
-export interface Ledger { t: number; imports: Stock; made: Stock; exported: Stock; imported: Stock }
+export interface Ledger { t: number; imports: Stock; made: Stock; exported: Stock; imported: Stock; /** when it first chose to trade for a good rather than make it */ waits: Stock }
 
 /**
  * What one settlement knows about one blueprint. The fields mirror an OKF concept's

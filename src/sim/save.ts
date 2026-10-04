@@ -10,7 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 
-export const SAVE_VERSION = 17;
+export const SAVE_VERSION = 18;
 
 type Json = Record<string, unknown>;
 
@@ -134,6 +134,11 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     for (const a of state.agents as Json[]) if (a.task) { const k = a.task as Json; k.steps ??= 0; k.road ??= 0; k.path ??= 0; }
     const st = state.stats as Json;
     for (const k of ['roadsLaid', 'roadTiles', 'roadCut', 'roadMoved', 'roadDeliveries', 'roadDeliverySeconds', 'roadDeliveryTiles', 'pathDeliveries', 'pathDeliverySeconds', 'pathDeliveryTiles']) st[k] ??= 0;
+    return state;
+  },
+  // 17 to 18: specialisation: when each settlement first chose to trade for a good rather than make it (none yet)
+  17: state => {
+    for (const t of state.towns as (Json & { trade: Json })[]) t.trade.waits ??= {};
     return state;
   },
 };

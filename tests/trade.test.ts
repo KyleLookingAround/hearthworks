@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
-import { createState, runFor, bp } from '../src/sim/index.ts';
+import { createState, runFor, bp, ctr, findSpot, placeBuilding } from '../src/sim/index.ts';
 import { spareOf, stockOf, wantOf } from '../src/sim/trade.ts';
+import { importFrom } from '../src/sim/planner.ts';
 
 const content = loadContent();
 
@@ -43,4 +44,21 @@ test('porters carry spare goods to a neighbour and bring wanted ones back', () =
   for (const t of S.towns) for (const g in t.trade.imports) assert.ok(t.trade.imports[g] >= 0);
   assert.ok(S.chronicle.some(c => c.kind === 'trade'), 'the first trade is in the chronicle');
   void bp;
+});
+
+test('a settlement trades for what its neighbour makes rather than making it, while the imports come', () => {
+  const S = createState(content, 1847, { planner: true, settlements: 2, trade: true });
+  const [a, b] = S.towns, X = content.tuning.trade;
+  assert.equal(importFrom(S, a, 'cloth', 0.1), null, 'nobody makes cloth yet');
+  const spot = findSpot(S, 'weaver', ctr(S.bmap.get(b.store)!), 20)!;
+  placeBuilding(S, 'weaver', spot.x, spot.y, true)!.town = b.id;
+  assert.equal(importFrom(S, a, 'cloth', 0.1), b, 'its neighbour makes cloth');
+  assert.equal(importFrom(S, b, 'cloth', 0.1), null, 'the maker makes its own');
+  assert.equal(importFrom(S, a, 'planks', 0.1), null, 'the basics stay its own business');
+  S.t += X.importPatienceSeconds;
+  assert.equal(importFrom(S, a, 'cloth', 0.1), null, 'no imports came in time: it makes its own');
+  a.trade.imports.cloth = 0.1 * X.importShare;
+  assert.equal(importFrom(S, a, 'cloth', 0.1), b, 'imports keep coming: it keeps trading');
+  S.trade = false;
+  assert.equal(importFrom(S, a, 'cloth', 0.1), null, 'no trade, no specialising');
 });

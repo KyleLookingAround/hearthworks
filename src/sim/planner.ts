@@ -22,7 +22,7 @@ import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type For
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
 
-interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; learn?: 'library' | 'school' | 'university' }
+interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; learn?: 'library' | 'school' | 'university'; /** traded for from this neighbour rather than made */ from?: Town }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
 interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; coming: boolean; foodShort: boolean; movable: boolean; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
@@ -95,7 +95,9 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     for (const o of S.towns) {
       if (o === town) continue;
       const theirs = new Set(S.buildings.filter(b => b.town === o.id && !b.site).flatMap(b => Object.keys(bp(S, b).output)));
-      for (const g in o.planner.wants) if (makes.has(g) && !theirs.has(g)) demand[g] = (demand[g] || 0) + o.planner.wants[g] * S.content.tuning.trade.exportDemand;
+      // a neighbour's want of a good it makes none of: `export_demand` a second for each unit of its severity, or,
+      // from a neighbour trading for it with this settlement, at least what its porters carry away
+      for (const g in o.planner.wants) if (makes.has(g) && !theirs.has(g)) demand[g] = (demand[g] || 0) + Math.max(o.planner.wants[g] * S.content.tuning.trade.exportDemand, g in o.trade.waits ? o.trade.imports[g] || 0 : 0);
     }
   }
 
@@ -152,6 +154,8 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     const sev = plentyInStore(S, town, g.id, d) ? 0 : clamp01(1 - (supply[g.id] || 0) / d) * (comfort.has(g.id) ? (foodShort ? 0 : P.comfortWeight) : foodShort && !basic.has(g.id) ? 0 : 1);
     shortages.push({ key: g.id, good: g.id, sev, why: comfort.has(g.id) ? `homes want ${goodName(S, g.id)}` : runningLow(S, g.id) });
   }
+  // specialisation: what a neighbour makes and this settlement does not, it trades for
+  for (const sh of shortages) if (sh.sev >= P.minSeverity) sh.from = importFrom(S, town, sh.good!, demand[sh.good!] || 0) ?? undefined;
   // hauling: carriers run off their feet; machines that haul relieve it where they reach.
   // Listed before beds so that, at full strain, it wins a tie with growth.
   const stops = mine.filter(b => !b.site);
@@ -239,6 +243,21 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   for (const sh of shortages) sh.sev = clamp01(sh.sev * (town.levers.priority[sh.key] ?? 1));
   shortages.sort((a, b) => b.sev - a.sev);
   return { storeNeed, storeRoom, town, pop, freeBeds, spareHands, coming, foodShort, movable, uncovered, hasDock, supply, demand, shortages };
+}
+
+/**
+ * Specialisation, with trade on: a good outside the basics that this settlement makes none of and a neighbour makes
+ * (or is building the maker of) is traded for, not made. The first imports have `import_patience_seconds` to come;
+ * after that it keeps trading while imports bring at least `import_share` of what it uses, and builds its own maker
+ * when they do not. Returns the neighbour it trades with, or null to make the good itself.
+ */
+export function importFrom(S: State, town: Town, g: ItemId, use = town.planner.use[g] || 0): Town | null {
+  if (!S.trade || basics(S).has(g) || S.buildings.some(b => b.town === town.id && bp(S, b).output[g])) return null;
+  const host = S.towns.find(o => o !== town && S.bmap.has(o.store) && S.buildings.some(b => b.town === o.id && !b.paused && bp(S, b).output[g]));
+  if (!host) return null;
+  const X = S.content.tuning.trade, since = (town.trade.waits[g] ??= S.t);
+  const got = town.trade.imports[g] || 0;
+  return S.t - since < X.importPatienceSeconds || (got > 0 && got >= use * X.importShare) ? host : null;
 }
 
 /** The basics: the food chain, the building goods and, with seasons, firewood, with everything that goes into making them. */
@@ -349,6 +368,9 @@ function follow(S: State, L: Look, c: Choice, depth: number): Choice {
   for (const i in c.B.input) {
     const spare = (L.supply[i] || 0) - (L.demand[i] || 0);
     if (spare >= (c.B.input[i] / c.B.seconds) * T(S).inputCover || plentyInStore(S, L.town, i, L.demand[i] || 0)) continue;
+    // an input it trades for, coming in but short: another user of it waits until more comes
+    const from = (L.town.trade.imports[i] || 0) > 0 ? importFrom(S, L.town, i, (L.demand[i] || 0) + c.B.input[i] / c.B.seconds) : null;
+    if (from) return { ...c, wait: `Waiting for more ${goodName(S, i)} from ${from.name} for ${article(c.B.name)} ${c.B.name}: ${c.why}` };
     const maker = known(S, L.town).find(B => B.seconds && B.output[i]);
     // a maker it has just found no room for doesn't hold this one back: build with the stock there is
     const noRoom = L.town.planner.noRoom[maker?.id ?? ''];
@@ -887,9 +909,11 @@ function planTown(S: State, town: Town, dt: number) {
   // something it recently found no room for waits `no_room_retry_seconds`; the next need goes ahead
   const roomless = (id: string) => id in Q.noRoom && S.t - Q.noRoom[id] < T(S).noRoomRetrySeconds;
   // what waits for hands to work it doesn't hold back the next need: the next that can go ahead does
-  let c: Choice | null = null, blocked: Choice | null = null, waiting: Choice | null = null;
+  let c: Choice | null = null, blocked: Choice | null = null, waiting: Choice | null = null, trading: Shortage | null = null;
   for (const sh of L.shortages) {
     if (sh.sev < T(S).minSeverity) break;
+    // what it trades for from a neighbour that makes it, it does not make
+    if (sh.from) { trading ??= sh; continue; }
     c = propose(S, L, sh);
     if (c && roomless(c.B.id)) { blocked ??= c; c = null; continue; }
     if (c?.wait) { waiting ??= c; c = null; continue; }
@@ -900,6 +924,7 @@ function planTown(S: State, town: Town, dt: number) {
   }
   if (!c && waiting) { Q.streak = { type: '', n: 0 }; Q.status = waiting.wait!; return; }
   if (!c && blocked) { Q.status = `No room for ${article(blocked.B.name)} ${blocked.B.name}: ${blocked.why}`; return; }
+  if (!c && trading) { Q.streak = { type: '', n: 0 }; Q.status = `Trading with ${trading.from!.name} for ${goodName(S, trading.good!)}: ${trading.why}`; return; }
   if (!c) { Q.status = `Nothing the ${formOf(S, town)} knows would help: ${worst.why}`; return; }
 
   // what the village is working towards counts as use: it is not forgotten while saved for
@@ -909,12 +934,14 @@ function planTown(S: State, town: Town, dt: number) {
   const owe = affordable(S, c.B, town);
   if (owe) {
     if (Q.saving?.good !== owe.good) Q.saving = { good: owe.good, since: S.t };
-    const stuck = (L.supply[owe.good] || 0) <= 0 || S.t - Q.saving.since > T(S).savePatienceSeconds;
+    // (a good it trades for from a neighbour that makes it is waited for, not made)
+    const from = importFrom(S, town, owe.good, L.demand[owe.good] || 0);
+    const stuck = !from && ((L.supply[owe.good] || 0) <= 0 || S.t - Q.saving.since > T(S).savePatienceSeconds);
     const maker = stuck ? known(S, town).find(B => B.seconds && B.output[owe.good]) : undefined;
     if (maker) Q.saving.since = S.t;
     const why = `${runningLow(S, owe.good)} to build ${article(c.B.name)} ${c.B.name}`;
     if (maker && !affordable(S, maker, town)) c = follow(S, L, { B: maker, sev: c.sev, why }, 0);
-    else { Q.status = `Saving ${goodName(S, owe.good)} for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
+    else { Q.status = from ? `Trading with ${from.name} for ${goodName(S, owe.good)} to build ${article(c.B.name)} ${c.B.name}: ${c.why}` : `Saving ${goodName(S, owe.good)} for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
     // what the maker led to (an input's maker, a home for its worker) must be affordable as well;
     // if it is not, build the maker itself: its inputs can follow, but nothing comes without it
     if (affordable(S, c.B, town)) c = { B: maker, sev: c.sev, why };

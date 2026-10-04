@@ -136,3 +136,13 @@ test('a version 16 save is upgraded to version 17: its road cost becomes the pat
   assert.equal(S.stats.roadsLaid, 0);
   assert.equal(text(loadGame(content, text(S))), text(S));
 });
+
+test('a version 17 save is upgraded to version 18: no settlement is yet waiting on a trade, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v17.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 17);
+  const S = loadGame(content, file);
+  assert.equal(S.towns.length, 2);
+  assert.ok(S.towns.every(t => Object.keys(t.trade.waits).length === 0));
+  runFor(S, 60);
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});
