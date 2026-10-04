@@ -130,6 +130,8 @@ export function updateKnowledge(S: State, dt: number) {
 
     for (const B of Object.values(S.content.blueprints)) {
       if (!B.discovery || knows(town, B.id) || B.discovery.after.some(id => !knows(town, id))) continue;
+      // some discoveries need scholars at work: a settlement without a university never comes up with them
+      if (B.discovery.university && !learningAt(S, town.id, 'university')) continue;
       // encouragement: the player backs this line of thought, so it comes at less strain and sooner
       const backed = town.levers.encourage === B.id;
       // scholars at a university take up every line of inquiry sooner, at less strain, and pursue it faster

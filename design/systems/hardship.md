@@ -4,7 +4,7 @@ title: Hardship
 description: Fire, flood, sickness and barbarian raids, the counters a settlement finds for each, and the steward's laws for hard times.
 tags: [hardship, hazards, laws, settlement]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-04T00:02:17Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T13:07:27Z }
 tuning:
   fire_every_seconds: 40000
   spread_gap: 0.5
@@ -27,6 +27,7 @@ tuning:
   sick_death: 0.1
   healed_seconds: 30
   healed_death: 0.03
+  clean_factor: 0.33
   sick_mood: 0.3
   wild_distance: 28
   wild_tiles_per_camp: 3000
@@ -71,7 +72,7 @@ At the turn of each year (the thaw, with seasons on) the waters rise with chance
 
 # Sickness
 
-A settlement of `sick_at` people or more falls sick about once every `sickness_every_seconds` per villager: one home first, then any home within `sick_spread_gap` with chance `sick_spread_chance` a second. A home is sick for `sick_seconds`, its workers in bed, and when it passes each of its people dies with chance `sick_death`. The sick weigh on mood (`sick_mood` times their share). A [Healer](/blueprints/healer.md) at work shortens it to `healed_seconds`, stops it spreading, and only `healed_death` die. Sanitation (wells for drinking, bathhouses) waits for a later pass.
+A settlement of `sick_at` people or more falls sick about once every `sickness_every_seconds` per villager: one home first, then any home within `sick_spread_gap` with chance `sick_spread_chance` a second. A home is sick for `sick_seconds`, its workers in bed, and when it passes each of its people dies with chance `sick_death`. The sick weigh on mood (`sick_mood` times their share). A [Healer](/blueprints/healer.md) at work shortens it to `healed_seconds`, stops it spreading, and only `healed_death` die. Sanitation: a [Bathhouse](/blueprints/bathhouse.md) with its attendant in keeps the homes within its radius clean, so an outbreak that would start in one passes it by with chance `1 - clean_factor`, and a sick neighbour spreads to it `clean_factor` as often; healers and bathhouses work together. Only a settlement with a university at work thinks of the bathhouse. Its planner builds one, once struck by sickness and everyone is fed, where it keeps the most homes clean that nothing keeps clean yet.
 
 # Barbarians
 

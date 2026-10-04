@@ -35,6 +35,9 @@ export function guardsOf(S: State, p: { x: number; y: number }, hazard: Hazard):
 }
 export const guarded = (S: State, b: Building, hazard: Hazard) => guardsOf(S, ctr(b), hazard).length > 0;
 
+/** Is a home kept clean (sanitation: a bathhouse at work within its radius)? */
+export const clean = (S: State, b: Building) => S.buildings.some(c => { const C = bp(S, c).sanitation; return !!C && c.town === b.town && manned(S, c) && Math.hypot(ctr(c).x - ctr(b).x, ctr(c).y - ctr(b).y) <= C.radius; });
+
 /** Does it burn? Anything built without a fireproof good (bricks, cut stone), bridges aside. */
 export const burns = (S: State, b: Building) => { const B = bp(S, b); return !B.bridge && !B.paves && !Object.keys(B.cost).some(k => H(S).fireproof.includes(k)); };
 
@@ -215,6 +218,8 @@ function sickness(S: State, dt: number) {
     const homes = S.buildings.filter(b => b.town === town.id && !b.site && !b.sick && bp(S, b).homes && b.residents.length);
     if (!homes.length) continue;
     const b = homes[Math.floor(rand(S.hrng) * homes.length)];
+    // a home kept clean falls sick only `clean_factor` as often
+    if (clean(S, b) && rand(S.hrng) >= Z.cleanFactor) continue;
     fallSick(S, b);
     S.stats.outbreaks++;
     record(S, town, 'sickness', `Sickness broke out in ${town.name}`);
@@ -223,7 +228,7 @@ function sickness(S: State, dt: number) {
     if (b.sick <= 0) continue;
     const healed = guarded(S, b, 'sickness');
     if (healed) b.sick = Math.min(b.sick, Z.healedSeconds);
-    else for (const o of S.buildings) if (o !== b && !o.sick && !o.site && bp(S, o).homes && o.residents.length && gap(b, o) <= Z.sickSpreadGap && rand(S.hrng) < Z.sickSpreadChance * dt) fallSick(S, o);
+    else for (const o of S.buildings) if (o !== b && !o.sick && !o.site && bp(S, o).homes && o.residents.length && gap(b, o) <= Z.sickSpreadGap && rand(S.hrng) < Z.sickSpreadChance * dt * (clean(S, o) ? Z.cleanFactor : 1)) fallSick(S, o);
     b.sick -= dt;
     if (b.sick > 0) continue;
     b.sick = 0;

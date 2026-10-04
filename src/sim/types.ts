@@ -85,8 +85,10 @@ export interface BlueprintDef {
   nuisance: { radius: number; amount: number } | null;
   /** Answers a hardship (fire, flood, sickness, raids) for buildings within `radius`; `defence` against raiders (watchtowers and palisades). */
   guards: { hazard: Hazard; radius: number; defence: number } | null;
+  /** Keeps homes within `radius` clean while its worker is in: they fall sick, and catch sickness, `clean_factor` as often. */
+  sanitation: { radius: number } | null;
   /** Not known at the start: a village invents it while it struggles with `need`. Null for founding knowledge. */
-  discovery: { need: string; meanSeconds: number; /** blueprints the settlement must know first */ after: string[] } | null;
+  discovery: { need: string; meanSeconds: number; /** blueprints the settlement must know first */ after: string[]; /** thought of only with a university at work */ university: boolean } | null;
   /** Grows in steps, one per name (farms that grow): each step adds a row of fields behind it and a place for a hand. */
   grows: { names: string[] } | null;
   /** New fields: a strip laid behind a farm that grows, which becomes part of it when finished. */
@@ -174,7 +176,7 @@ export interface Tuning {
     sicknessEverySeconds: number; sickAt: number; sickSeconds: number; sickSpreadGap: number; sickSpreadChance: number; sickDeath: number; healedSeconds: number; healedDeath: number; sickMood: number;
     wildDistance: number; wildTilesPerCamp: number; campEverySeconds: number; campStrength: number; campGrowSeconds: number; campMax: number; raidEverySeconds: number; raidReach: number; raidSpeed: number; raidTake: number; raidLoss: number;
     militiaShare: number; surprisedShare: number;
-    memorySeconds: number; guardWeight: number;
+    memorySeconds: number; guardWeight: number; cleanFactor: number;
     rationFactor: number; rationMood: number; longPace: number; longMood: number; shortPace: number; shortMood: number; stayMood: number; starveFactor: number;
   };
   roads: { trafficFrom: number; trafficSpan: number; villagersPerRoad: number; lookEverySeconds: number; minTraffic: number; margin: number; minLength: number; demolishWeight: number; homeWeight: number; spacing: number; frontWeight: number; nearWeight: number; nearTiles: number; districtWeight: number; districtReach: number };

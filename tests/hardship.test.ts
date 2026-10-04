@@ -190,3 +190,32 @@ test('the advisor warns of raiders who outnumber the defence, and of a winter st
   t.laws.rationing = true;
   assert.ok(!advise(S, t, 9).some(x => /ration food before the frost/.test(x)));
 });
+
+test('a bathhouse at work keeps the homes near it clean, and only scholars think of one', () => {
+  // sickness tries to break out every few seconds; kept clean, a home never falls sick (clean_factor 0 here)
+  const often: Content = { ...quiet, tuning: { ...quiet.tuning, hardship: { ...quiet.tuning.hardship, sicknessEverySeconds: 20, sickAt: 1, cleanFactor: 0 } } };
+  const dirty = createState(often, 1847, { hardship: true, newcomers: false });
+  runFor(dirty, 60);
+  assert.ok(dirty.stats.outbreaks > 0, 'without one, homes fall sick');
+  const S = createState(often, 1847, { hardship: true, newcomers: false });
+  const bath = at(S, 'bathhouse');
+  runFor(S, 1);
+  for (let k = 0; k < 20 && S.amap.get(bath.worker!)?.state !== 'working'; k++) runFor(S, 1);
+  assert.equal(S.amap.get(bath.worker!)?.state, 'working', 'the attendant is in');
+  const homes = S.buildings.filter(b => bp(S, b).homes && b.residents.length);
+  assert.ok(homes.every(h => Math.hypot(ctr(h).x - ctr(bath).x, ctr(h).y - ctr(bath).y) <= content.blueprints.bathhouse.sanitation!.radius));
+  // (the sick from before the attendant came are well again before it counts)
+  runFor(S, H.sickSeconds + 2);
+  const before = S.stats.outbreaks;
+  runFor(S, 120);
+  assert.equal(S.stats.outbreaks, before, 'kept clean, nobody fell sick');
+  assert.ok(S.buildings.every(b => !b.sick));
+
+  // the bathhouse needs a university: struck by sickness, knowing the healer, a settlement without one never thinks of it
+  const T = createState(content, 1847, { planner: true, people: true, hardship: true });
+  const t = T.towns[0];
+  t.knows.healer = { by: t.name, at: 0, verified: [], from: null, learned: 0, used: 0 };
+  runFor(T, 1200, s => { s.towns[0].struck.sickness = s.t; });
+  assert.ok(!('bathhouse' in t.knows));
+  assert.equal(content.blueprints.bathhouse.discovery?.university, true);
+});

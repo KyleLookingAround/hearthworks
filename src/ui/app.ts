@@ -671,6 +671,7 @@ export class App {
       progress = B.seconds ? b.timer / B.seconds : 0;
     }
     // a counter: what it guards against and how far
+    if (B.sanitation) rows += row('Keeps clean', `homes within ${B.sanitation.radius} tiles, while its attendant is in: they fall sick ${Math.round(T.hardship.cleanFactor * 100)}% as often`);
     if (B.guards) rows += row('Guards against', `${({ fire: 'fire', flood: 'floods', sickness: 'sickness', raids: 'raiders' })[B.guards.hazard]} within ${B.guards.radius} tiles` + (B.guards.defence ? `; defence ${B.guards.defence}` : ''));
     const pct = progress === null ? null : Math.round(Math.max(0, Math.min(1, progress)) * 100);
     $('#insDyn').innerHTML = `<div class="ins-body"><span class="status ${b.status.l}">${esc(b.status.t)}</span><dl class="rows">${rows}</dl>${pct === null ? '' : `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div>`}</div>`;
