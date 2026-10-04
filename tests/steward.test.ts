@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
-import { advise, chronicleLog, createState, loadGame, runFor, saveGame, ZONES } from '../src/sim/index.ts';
+import { advise, chronicleLog, createState, loadGame, placeBuilding, runFor, saveGame, ZONES } from '../src/sim/index.ts';
+import { centre, findSpot } from '../src/gates/kit.ts';
 
 const content = loadContent();
 
@@ -40,4 +41,23 @@ test('the advisor points at a lever when a settlement is stuck', () => {
   S.towns[0].fed = 1;
   S.towns[0].planner.status = 'Nothing the village knows would help: carriers are run off their feet';
   assert.ok(advise(S, S.towns[0]).some(t => /encourage them to think of the Courier Depot/.test(t)));
+});
+
+test('the advisor points at carts for long hauls, at oxen without feed, and at a diet of bread alone', () => {
+  const S = createState(content, 1847, { planner: true, carts: true, farms: true });
+  const t = S.towns[0], K = content.tuning.knowledge;
+  t.reach = K.distanceFrom + K.distanceSpan;
+  assert.ok(advise(S, t, 9).some(x => /encourage the Cart Shed/.test(x)));
+  t.knows.cart_shed = { by: t.name, at: 0, verified: [], from: null, learned: 0, used: 0 };
+  t.reach = K.longHaulFrom + K.distanceSpan;
+  assert.ok(advise(S, t, 9).some(x => /encourage the Ox Barn/.test(x)));
+  const at = findSpot(S, 'ox_barn', centre(S), 12)!;
+  const barn = placeBuilding(S, 'ox_barn', at.x, at.y, true)!;
+  barn.town = t.id;
+  assert.ok(advise(S, t, 9).some(x => /oxen of .* wait for wheat/.test(x)));
+  barn.inv.wheat = 4;
+  assert.ok(!advise(S, t, 9).some(x => /wait for wheat/.test(x)));
+  // four homes or more, and nothing grown but wheat
+  for (let k = 0; k < 4; k++) { const h = findSpot(S, 'house', centre(S), 14)!; placeBuilding(S, 'house', h.x, h.y, true)!.town = t.id; }
+  assert.ok(advise(S, t, 9).some(x => /eats nothing but bread/.test(x)));
 });

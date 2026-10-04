@@ -3,7 +3,8 @@
  * chronicle and the planners to point the player at a lever. Pure reads of the state.
  */
 import { homesInNuisance } from './surroundings.ts';
-import { NEED_TEXT, knows } from './knowledge.ts';
+import { NEED_TEXT, knows, pressure } from './knowledge.ts';
+import { dietOf } from './farms.ts';
 import { defence } from './hardship.ts';
 import { seasonOf, storesOnTrack } from './world.ts';
 import type { State, Town } from './types.ts';
@@ -13,7 +14,7 @@ const LABEL: Record<string, string> = {
   founded: 'Creation', invented: 'Creation', district: 'Creation', bridge: 'Creation',
   form: 'Update', replanned: 'Update', taught: 'Update', learned: 'Update', proven: 'Update', season: 'Update', trade: 'Creation', birth: 'Creation', custom: 'Update', settled: 'Creation', age: 'Update',
   forgotten: 'Deprecation',
-  fire: 'Finding', flood: 'Finding', sickness: 'Finding', raids: 'Finding', road: 'Creation',
+  fire: 'Finding', flood: 'Finding', sickness: 'Finding', raids: 'Finding', road: 'Creation', dock: 'Creation', farm: 'Update',
 };
 
 /**
@@ -37,7 +38,8 @@ export function chronicleLog(S: State, town?: number): string {
 /**
  * Up to `n` suggestions for one settlement, most pressing first: hunger, a need nothing known answers
  * (encourage the blueprint that would), no room (zones), raiders who outnumber the defence, a winter store
- * fallen behind (ration), the hungry kept from leaving, noisy homes, then the latest page of history.
+ * fallen behind (ration), the hungry kept from leaving, long hauls with no carts thought of or oxen without feed,
+ * a diet of bread alone, noisy homes, then the latest page of history.
  */
 export function advise(S: State, town: Town, n = 3): string[] {
   const out: string[] = [], status = town.planner.status;
@@ -58,6 +60,15 @@ export function advise(S: State, town: Town, n = 3): string[] {
   const season = seasonOf(S);
   if ((season === 'summer' || season === 'autumn') && !storesOnTrack(S, town) && !town.laws.rationing) out.push(`${town.name}'s store for the winter has fallen behind: ration food before the frost.`);
   if (!town.laws.leave && town.fed < 1) out.push(`The hungry of ${town.name} may not leave, and may starve: let them go, or ration food.`);
+  // long hauls: carts to think of or to feed, and with farms that grow, a diet of bread alone
+  if (S.carts) {
+    const tiles = Math.round(town.reach), barns = S.buildings.filter(b => b.town === town.id && !b.site && S.content.blueprints[b.type].oxen);
+    if (pressure(S, town, 'distance') >= 1 && !knows(town, 'cart_shed')) out.push(`${town.name}'s deliveries go ${tiles} tiles on average: encourage the Cart Shed.`);
+    else if (pressure(S, town, 'long_hauls') >= 1 && knows(town, 'cart_shed') && !knows(town, 'ox_barn')) out.push(`${town.name}'s carts go ${tiles} tiles on average: encourage the Ox Barn.`);
+    const feed = S.content.tuning.logistics.oxFeed;
+    if (barns.length && barns.every(b => Object.keys(S.content.blueprints[b.type].keepStocked).some(g => (b.inv[g] || 0) < feed))) out.push(`The oxen of ${town.name} wait for wheat: raise the priority of bread, or of hauling.`);
+  }
+  if (S.farms && S.buildings.filter(b => b.town === town.id && !b.site && S.content.blueprints[b.type].homes).length >= 4 && !dietOf(S, town.id).size) out.push(`${town.name} eats nothing but bread: a Garden, an Orchard or a Pasture would vary its meals and lift its mood.`);
   if (homesInNuisance(S) > 0) out.push('Some homes are within a sawmill\'s noise: zone homes and workshops apart.');
   const last = [...S.chronicle].reverse().find(c => c.town === town.id && c.kind !== 'founded');
   if (last) out.push(`Latest: ${last.text}.`);
