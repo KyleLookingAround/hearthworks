@@ -158,7 +158,7 @@ export interface Tuning {
   people: {
     adultSeconds: number; elderSeconds: number; lifespanSeconds: number; lifespanJitterSeconds: number; founderAgeMaxSeconds: number; birthEverySeconds: number;
     practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
-    changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number;
+    changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number; feastSeconds: number; feastMood: number; harvestBread: number; fireLogs: number; woodForFire: number; feastSpread: number;
   };
   trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number };
   farms: { diet: ItemId[]; dietShare: number; dietStock: number; dietSeconds: number; dietFull: number; dietBonus: number; dietWeight: number; growRoomWeight: number };
@@ -331,6 +331,8 @@ export interface Agent {
 }
 
 export type Custom = 'burial' | 'cremation' | 'ship';
+/** The feasts a settlement may keep: a harvest festival as autumn comes, a fire as winter comes. */
+export type Feast = 'harvest' | 'midwinter';
 
 export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge>; /** rowed there, so has a boat to row home in */ boat: boolean; /** a porter's errand: the good taken and the good wanted back */ trade?: { give: ItemId; want: ItemId } }
 
@@ -387,6 +389,9 @@ export interface Town {
   /** How it honours its dead, the deaths still waiting for their farewell (when each died), and how many lie in each graveyard. */
   custom: Custom;
   rites: number[];
+  /** The feasts it keeps through the year (with people and seasons on), and until when the last one lifts its mood. */
+  feasts: Feast[];
+  feastUntil: number;
   graves: Record<number, number>;
   /** Seconds since its library's scribe last copied records for the neighbours. */
   copyT: number;
@@ -483,6 +488,9 @@ export interface Stats {
   honoured: number;
   /** Longest wait of a death for its farewell, in seconds. */
   riteWaitMax: number;
+  /** Feasts held, and feasts missed for want of what they need. */
+  feasts: number;
+  feastsMissed: number;
   /** Deliveries made with a cart; deliveries of at least `cart_min_tiles`, and of those how many by cart. */
   cartDeliveries: number;
   /** Goods delivered, counted one by one (a cart's six count six). */

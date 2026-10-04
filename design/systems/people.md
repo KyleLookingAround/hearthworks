@@ -1,10 +1,10 @@
 ---
 type: System
 title: People
-description: Villagers as individuals; ages, births and deaths, skills that grow with practice and pass from master to apprentice, and each village's custom for its dead.
+description: Villagers as individuals; ages, births and deaths, skills that grow with practice and pass from master to apprentice, each village's custom for its dead, and its feasts through the year.
 tags: [people, customs, settlement]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T00:02:17Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T12:46:04Z }
 tuning:
   adult_seconds: 600
   elder_seconds: 6000
@@ -24,6 +24,12 @@ tuning:
   custom_radius: 12
   wood_for_pyre: 0.45
   water_for_ship: 0.1
+  feast_seconds: 240
+  feast_mood: 0.1
+  harvest_bread: 0.5
+  fire_logs: 0.25
+  wood_for_fire: 0.45
+  feast_spread: 0.1
 ---
 
 # Idea
@@ -56,9 +62,18 @@ Every settlement keeps a custom for its dead:
 
 A new settlement takes up its custom from its land: within `custom_radius` of its storage yard, a share of water of at least `water_for_ship` makes it a people of the sea, else a share of its land in grown trees of at least `wood_for_pyre` makes it cremate, and otherwise it buries. Each death waits for its farewell; the planner builds the custom's place when it needs one. A death not honoured within `rite_grace_seconds` costs the settlement's mood up to `rite_penalty` until it is. A settlement whose dead have waited `change_custom_after_seconds` with no place for its custom at all, not even one being built (no room for a graveyard, no dock it knows how to build) takes up another, and its neighbours notice: both go into the chronicle.
 
+# Feasts
+
+With seasons on as well (every new game), each settlement keeps feasts through the year, each a practice with a cost and a lift:
+
+- **Harvest Festival**, as autumn comes: the stores give `harvest_bread` loaves for each villager.
+- **Midwinter Fire**, as winter comes: the stores give `fire_logs` logs for each villager to a bonfire.
+
+A settlement starts out keeping the feast its land suggests: one whose land within `custom_radius` is at least `wood_for_fire` grown trees lights the fire, others hold the festival. A feast held lifts the settlement's mood by `feast_mood` for `feast_seconds`, on top of everything else and against the winter's cold; a feast whose stores fall short is not held, and the chronicle says so. A visitor home from a neighbour that keeps a feast their own settlement does not brings it home with a chance of `feast_spread`, so over the years each settlement's mix of feasts comes from its land and its neighbours. Daughter settlements keep their mother's feasts. Code: `holdFeasts` and `bringFeast` in `src/sim/people.ts`.
+
 # Not yet
 
-Planners as people (a town hall and district halls, planners with a planning skill), and traditions beyond the dead (feasts, harvest festivals, naming customs), come later.
+Planners as people (a town hall and district halls, planners with a planning skill), and naming customs and other traditions, come later.
 
 # Kyle's call
 

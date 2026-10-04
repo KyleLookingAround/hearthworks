@@ -189,3 +189,15 @@ test('a version 21 save is upgraded to version 22: no ox trips yet, and it plays
   runFor(S, 60);
   assert.equal(text(loadGame(content, text(S))), text(S));
 });
+
+test('a version 22 save is upgraded to version 23: with people and seasons, each settlement keeps a harvest festival, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v22.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 22);
+  const S = loadGame(content, file);
+  assert.ok(S.people && S.seasons);
+  assert.ok(S.towns.length > 0 && S.towns.every(t => t.feasts.length === 1 && t.feasts[0] === 'harvest' && t.feastUntil < 0));
+  assert.equal(S.stats.feasts, 0);
+  assert.equal(S.stats.feastsMissed, 0);
+  runFor(S, 60);
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});

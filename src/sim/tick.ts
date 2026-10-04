@@ -4,7 +4,7 @@ import { formOf } from './planner.ts';
 import { plan, shortOfFood } from './planner.ts';
 import { updateKnowledge } from './knowledge.ts';
 import { updateTrade } from './trade.ts';
-import { newcomer, riteMood, updatePeople } from './people.ts';
+import { feastMood, holdFeasts, newcomer, riteMood, updatePeople } from './people.ts';
 import { updateSettling } from './settle.ts';
 import { moveRaids, sickShare, updateHardship } from './hardship.ts';
 import { bp, chronicle, door, emit, foodsOf, saplings, seasonOf, storesOnTrack, villagers } from './world.ts';
@@ -42,7 +42,8 @@ export function computeMood(S: State) {
   const H = S.content.tuning.hardship;
   const hard = (t: (typeof S.towns)[number]) => (S.hardship ? H.sickMood * sickShare(S, t) : 0) + (t.laws.rationing ? H.rationMood : 0) + (t.laws.hours === 'long' ? H.longMood : t.laws.hours === 'short' ? -H.shortMood : 0) + (t.laws.leave ? 0 : H.stayMood);
   const hardTown = S.towns.map(hard);
-  S.towns.forEach((t, i) => { t.fed = pop[i] ? fed[i] / pop[i] : 1; t.mood = pop[i] ? Math.max(0, Math.min(1, blend(t.fed, around[i] / pop[i]) + variety(tier[i], pop[i]) + eats[i] / pop[i] - hardTown[i]) - chilled(chill[i], pop[i]) - riteMood(S, t)) : 1; });
+  // a feast lately held lifts it, against the cold too
+  S.towns.forEach((t, i) => { t.fed = pop[i] ? fed[i] / pop[i] : 1; t.mood = pop[i] ? Math.min(1, Math.max(0, Math.min(1, blend(t.fed, around[i] / pop[i]) + variety(tier[i], pop[i]) + eats[i] / pop[i] - hardTown[i]) - chilled(chill[i], pop[i]) - riteMood(S, t)) + feastMood(S, t)) : 1; });
   // each settlement's form follows its people, whether or not it plans for itself
   for (const t of S.towns) { const f = formOf(S, t); if (f !== t.form) { chronicle(S, t.id, 'form', `${t.name} became a ${f}`); t.form = f; } }
   const P = pop.reduce((s, k) => s + k, 0), F = fed.reduce((s, k) => s + k, 0), A = around.reduce((s, k) => s + k, 0);
@@ -51,8 +52,8 @@ export function computeMood(S: State) {
   const C = chill.reduce((s, k) => s + k, 0);
   // the dead waiting for their farewell weigh on their own settlement's share of the people
   const R = S.towns.reduce((s, t, i) => s + pop[i] * riteMood(S, t), 0), Hd = S.towns.reduce((s, t, i) => s + pop[i] * hardTown[i], 0);
-  const E = eats.reduce((s, k) => s + k, 0);
-  S.mood = P ? Math.max(0, Math.min(1, blend(S.fed, A / P) + variety(V, P) + E / P - Hd / P) - chilled(C, P) - R / P) : 1;
+  const E = eats.reduce((s, k) => s + k, 0), Fe = S.towns.reduce((s, t, i) => s + pop[i] * feastMood(S, t), 0);
+  S.mood = P ? Math.min(1, Math.max(0, Math.min(1, blend(S.fed, A / P) + variety(V, P) + E / P - Hd / P) - chilled(C, P) - R / P) + Fe / P) : 1;
   S.stats.peakVillagers = Math.max(S.stats.peakVillagers, villagers(S).length);
 }
 
@@ -102,6 +103,7 @@ export function tick(S: State, dt: number) {
       const s = seasonOf(S)!;
       emit(S, s === 'winter' ? 'bad' : 'info', s === 'winter' ? 'Winter has come: the fields rest and homes burn firewood' : `${s[0].toUpperCase()}${s.slice(1)} has come`);
       for (const t of S.towns) chronicle(S, t.id, 'season', `${s[0].toUpperCase()}${s.slice(1)} came to ${t.name} in year ${Math.floor(S.t / S.content.tuning.seasons.yearSeconds) + 1}`);
+      holdFeasts(S, s);
     }
     // once a minute, food left out in stores that do not keep it spoils: the whole units of `spoils` of the pile
     if (Math.floor(S.t) % 60 === 0) for (const b of S.buildings) {

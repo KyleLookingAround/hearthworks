@@ -15,7 +15,7 @@
 * [Gate 11: a deeper economy](11-deeper-economy.md) - One self-planning settlement builds chains several steps deep in an hour, and its homes climb the tiers by goods while staying stocked with food.
 * [Gate 12: seasons](12-seasons.md) - A self-planning settlement grows through three years of seasons, storing enough food by the first frost, with hardly anyone leaving and nobody starving.
 * [Gate 13: neighbours trade](13-trade.md) - Two self-planning settlements trade by porter, both ways and at volume, at no real cost to their growth or to being fed.
-* [Gate 14: people and traditions](14-people.md) - A settlement grows by births alone with an expert in every trade, and two settlements on different land honour every death by their own custom.
+* [Gate 14: people and traditions](14-people.md) - A settlement grows by births alone with an expert in every trade, two settlements on different land honour every death by their own custom, and with the year turning each holds its feasts.
 * [Gate 15: learning](15-learning.md) - A library keeps a craft its settlement would otherwise forget, and a university brings a discovery sooner on at least five of six seeds.
 * [Gate 16: ways to move](16-ways-to-move.md) - On the largest landmass a settlement thinks of carts itself, and long hauls go largely by cart, each good in well under the time on foot.
 * [Gate 17: new settlements](17-new-settlements.md) - On the largest landmass one settlement becomes at least four, unscripted, each fed and growing.

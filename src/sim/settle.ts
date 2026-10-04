@@ -90,6 +90,7 @@ export function sendParty(S: State, mother: Town): Town | null {
   }
   if (S.towns.some(o => o !== d && o.name === d.name)) d.name = `New ${d.name}`;
   d.custom = mother.custom;
+  d.feasts = [...mother.feasts];
   d.mother = mother.id;
   d.levers = { priority: { ...mother.levers.priority }, encourage: null, pace: mother.levers.pace };
   d.laws = { ...mother.laws };

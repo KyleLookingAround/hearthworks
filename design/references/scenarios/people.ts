@@ -2,7 +2,8 @@
  * Gate 14 scenario, in two parts. Growth: one self-planning settlement on the standard map with people on
  * and newcomers off, so it grows by births alone. Customs: two self-planning settlements whose founding
  * generation is old (scripted: each founder dies between `old_from` and `old_to` seconds in), so every
- * settlement has its dead to honour within the hour. No build calls.
+ * settlement has its dead to honour within the hour. Feasts: two self-planning settlements with people and seasons
+ * on, three years: each holds the feasts it keeps as their seasons come. No build calls.
  */
 import { start, worldOf, type Scenario } from '../../../src/gates/kit.ts';
 import { bp, rand, runFor, villagers } from '../../../src/sim/index.ts';
@@ -28,6 +29,13 @@ export const run: Scenario = (content, params) => {
   for (let t = 0; t < seconds; t++) runFor(S, 1);
   const late = S.towns.reduce((n, t) => n + t.rites.filter(d => S.t - d > content.tuning.people.riteGraceSeconds * 5).length, 0);
 
+  // feasts, with the year turning: how many each settlement held, and what each kept first and at the end
+  const F = start(content, seed, { planner: true, people: true, seasons: true, settlements: 2, ...worldOf(params) });
+  const feastsFirst = F.towns.map(t => t.feasts.join('+'));
+  for (let t = 0; t < seconds; t++) runFor(F, 1);
+  const held = F.towns.map(t => F.chronicle.filter(c => c.town === t.id && c.kind === 'feast' && c.text.includes(' held its ')).length);
+  const years = Math.floor(F.t / content.tuning.seasons.yearSeconds);
+
   return {
     state: S,
     metrics: {
@@ -46,6 +54,12 @@ export const run: Scenario = (content, params) => {
       honoured: S.stats.honoured,
       rite_wait_max: Math.round(S.stats.riteWaitMax),
       unhonoured_late: late,
+      feasts_first: feastsFirst.join(' '),
+      feasts_end: F.towns.map(t => t.feasts.join('+')).join(' '),
+      feasts_held: F.stats.feasts,
+      feasts_missed: F.stats.feastsMissed,
+      feasts_per_year_min: r(Math.min(...held) / Math.max(1, years)),
+      feast_kinds: new Set(F.towns.flatMap(t => t.feasts)).size,
     } as unknown as Record<string, number>,
   };
 };

@@ -15,6 +15,7 @@ import { rand } from './rng.ts';
 import { goToBuilding } from './agents.ts';
 import { cancelTask } from './logistics.ts';
 import { barter, homecoming } from './trade.ts';
+import { bringFeast } from './people.ts';
 import { chronicle, door, emit, learningAt, villagers } from './world.ts';
 import { reachable } from './path.ts';
 import { struckLately } from './hardship.ts';
@@ -230,7 +231,7 @@ export function arrive(S: State, a: Agent) {
     // a stranded porter's load still reaches home, as they do
     if (v.trade) homecoming(S, a);
     strand(S, a, from, to);
-  } else { teach(S, from, v.carry, to.name); if (v.trade) homecoming(S, a); }
+  } else { teach(S, from, v.carry, to.name); bringFeast(S, from, to); if (v.trade) homecoming(S, a); }
   a.visit = null; a.state = 'idle';
 }
 

@@ -3,7 +3,7 @@ import { makeAgent, quit, removeAgent } from './agents.ts';
 import { foodChainOf } from './production.ts';
 import { shortOfFood } from './planner.ts';
 import { add, bp, chronicle, door, emit, foodsOf, learningAt, villagers } from './world.ts';
-import type { Agent, Building, Custom, State, Town } from './types.ts';
+import type { Agent, Building, Custom, Feast, ItemId, State, Town } from './types.ts';
 
 /**
  * People (Phase 14): villagers age, are born and die, learn their trades, and their settlements honour
@@ -23,6 +23,8 @@ export function initPeople(S: State) {
   }
   const word = { burial: 'buries', cremation: 'cremates', ship: 'sets out to sea' };
   for (const t of S.towns) { t.custom = customFor(S, t); chronicle(S, t.id, 'custom', `${t.name} ${word[t.custom]} its dead`); }
+  // with the year turning, each keeps a feast its land suggests
+  if (S.seasons) for (const t of S.towns) { t.feasts = [feastFor(S, t)]; chronicle(S, t.id, 'feast', `${t.name} keeps ${FEAST[t.feasts[0]].text}`); }
 }
 
 /** A newcomer is a young adult. */
@@ -31,10 +33,10 @@ export function newcomer(S: State, a: Agent) {
   a.dies = lifespan(S);
 }
 
-/** The custom a settlement's land suggests: one by much water sets its dead out to sea, a well-wooded one cremates, others bury. */
-export function customFor(S: State, t: Town): Custom {
+/** The land within `custom_radius` of a settlement's storage yard: its share of water, and of its land in grown trees. */
+export function landOf(S: State, t: Town): { water: number; wood: number } {
   const store = S.bmap.get(t.store);
-  if (!store) return 'burial';
+  if (!store) return { water: 0, wood: 0 };
   const W = S.world, r = P(S).customRadius, cx = store.x + store.w / 2, cy = store.y + store.h / 2;
   let all = 0, land = 0, water = 0, wood = 0;
   for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(W.h - 1, Math.ceil(cy + r)); y++) for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W.w - 1, Math.ceil(cx + r)); x++) {
@@ -45,9 +47,69 @@ export function customFor(S: State, t: Town): Custom {
     land++;
     if (W.tree[i] === 2) wood++;
   }
-  if (all && water / all >= P(S).waterForShip) return 'ship';
-  if (land && wood / land >= P(S).woodForPyre) return 'cremation';
+  return { water: all ? water / all : 0, wood: land ? wood / land : 0 };
+}
+
+/** The custom a settlement's land suggests: one by much water sets its dead out to sea, a well-wooded one cremates, others bury. */
+export function customFor(S: State, t: Town): Custom {
+  if (!S.bmap.get(t.store)) return 'burial';
+  const l = landOf(S, t);
+  if (l.water >= P(S).waterForShip) return 'ship';
+  if (l.wood >= P(S).woodForPyre) return 'cremation';
   return 'burial';
+}
+
+/**
+ * The feasts (with people and seasons on): each is held as its season comes, if the stores hold what it needs,
+ * and lifts the settlement's mood by `feast_mood` for `feast_seconds`.
+ */
+export const FEAST: Record<Feast, { name: string; text: string; season: string; item: ItemId; per: (S: State) => number }> = {
+  harvest: { name: 'Harvest Festival', text: 'a harvest festival as autumn comes', season: 'autumn', item: 'bread', per: S => P(S).harvestBread },
+  midwinter: { name: 'Midwinter Fire', text: 'a midwinter fire as winter comes', season: 'winter', item: 'logs', per: S => P(S).fireLogs },
+};
+
+/** The feast a settlement's land suggests: a well-wooded one lights a midwinter fire, others hold a harvest festival. */
+export function feastFor(S: State, t: Town): Feast {
+  return landOf(S, t).wood >= P(S).woodForFire ? 'midwinter' : 'harvest';
+}
+
+/** As a season comes: every settlement holds its feasts of that season, if its stores hold what each needs. */
+export function holdFeasts(S: State, season: string) {
+  if (!S.people || !S.seasons) return;
+  for (const t of S.towns) for (const f of t.feasts) {
+    const F = FEAST[f];
+    if (F.season !== season) continue;
+    const yards = S.buildings.filter(b => b.town === t.id && !b.site && bp(S, b).storage);
+    const pop = villagers(S).filter(a => a.home?.town === t.id).length;
+    if (!yards.length || !pop) continue;
+    const need = Math.ceil(pop * F.per(S));
+    const spare = (b: Building) => Math.max(0, Math.floor((b.inv[F.item] || 0) - (b.reserved[F.item] || 0)));
+    if (yards.reduce((n, b) => n + spare(b), 0) < need) {
+      S.stats.feastsMissed++;
+      chronicle(S, t.id, 'feast', `${t.name} could not hold its ${F.name}: too little ${S.content.goods[F.item]?.name.toLowerCase() ?? F.item} in store`);
+      continue;
+    }
+    let left = need;
+    for (const b of yards) { const k = Math.min(left, spare(b)); if (k > 0) { add(b.inv, F.item, -k); left -= k; } if (!left) break; }
+    t.feastUntil = S.t + P(S).feastSeconds;
+    S.stats.feasts++;
+    chronicle(S, t.id, 'feast', `${t.name} held its ${F.name}`);
+    emit(S, 'good', `${t.name} held its ${F.name}`);
+  }
+}
+
+/** How much a feast lately held lifts a settlement's mood. */
+export const feastMood = (S: State, t: Town) => (S.people && S.seasons && S.t < t.feastUntil ? P(S).feastMood : 0);
+
+/** A visitor home from a neighbour that keeps a feast their own settlement does not may bring it home (`feast_spread`). */
+export function bringFeast(S: State, home: Town, host: Town) {
+  if (!S.people || !S.seasons) return;
+  for (const f of host.feasts) {
+    if (home.feasts.includes(f) || rand(S.prng) >= P(S).feastSpread) continue;
+    home.feasts.push(f);
+    chronicle(S, home.id, 'feast', `${home.name} took up ${FEAST[f].text} from ${host.name}`);
+    emit(S, 'info', `${home.name} took up the ${FEAST[f].name} from ${host.name}`);
+  }
 }
 
 /** How much the dead waiting past `rite_grace_seconds` weigh on a settlement's mood. */

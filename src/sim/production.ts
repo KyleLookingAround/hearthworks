@@ -53,7 +53,17 @@ export function homeTier(S: State, b: Building): number {
 /** A home in winter with no firewood. */
 export const cold = (S: State, b: Building) => seasonOf(S) === 'winter' && !!bp(S, b).homes && b.residents.length > 0 && !((b.inv.logs || 0) >= 1);
 
+/** What each building wants, worked out once a tick: it reads only the season, the settlement's form and rites, and the diet. */
+const wanted = new WeakMap<Building, { t: number; form: string; custom: string | undefined; rites: boolean; out: Stock }>();
 export function wants(S: State, b: Building, form: string): Stock {
+  const town = S.towns[b.town], custom = town?.custom, rites = !!town?.rites.length, hit = wanted.get(b);
+  if (hit && hit.t === S.t && hit.form === form && hit.custom === custom && hit.rites === rites) return hit.out;
+  const out = wantsNow(S, b, form);
+  wanted.set(b, { t: S.t, form, custom, rites, out });
+  return out;
+}
+
+function wantsNow(S: State, b: Building, form: string): Stock {
   const B = bp(S, b), N = S.content.tuning.needs, out: Stock = { ...B.keepStocked }, season = seasonOf(S);
   // ahead of and through winter, homes keep firewood and some preserved food
   if (B.homes && (season === 'autumn' || season === 'winter')) {
