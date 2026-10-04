@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T04:52:13Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T05:39:34Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -89,7 +89,7 @@ Every `interval_seconds` the planner:
    - a choice that waits for hands does not hold back the needs after it: the planner goes down the list to the next it can act on, and says what it waits for only when nothing can go ahead. A town waiting for a miner for its five smithies left its bread short by half.
 4. **Confirms**: the same blueprint must top `confirm_cycles` looks in a row.
 5. **Checks the cost** against its own settlement's free supply, after its open sites' outstanding needs. If short, and nothing makes the missing good or the settlement has been short of it for more than `save_patience_seconds` (whatever it was saving for), it plans that good's maker instead; otherwise it says what it is saving for. What it is thinking about or saving for counts as use, so the settlement does not [forget](/systems/knowledge.md) it meanwhile.
-6. **Places** it by scoring every spot within `search_radius` beyond the settlement's farthest building from the storage yard (at most `search_radius_max` from it) that leaves a `gap`-tile ring of open land (buildings never wall each other in) and can be walked to from storage. Lower is better:
+6. **Places** it by scoring every spot within `search_radius` beyond the settlement's farthest building from the storage yard (at most `search_radius_max` from it) that leaves a `gap`-tile ring of open land (buildings never wall each other in; the ring may be a planned [road](/systems/roads.md), never a path, except beside a dock) and can be walked to from storage. Lower is better:
    - `store_weight` × distance to storage, to keep the town compact;
    - harvesters: minus `tree_weight` × grown trees in range, trees already in another harvester's range at `shared_tree_weight`; spots under `min_trees` are skipped;
    - everything else: +1 per grown tree it would clear and `forest_penalty` inside a forester's ground;

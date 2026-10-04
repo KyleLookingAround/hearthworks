@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
 import { bp, createState, ctr, door, findPath, loadGame, placeBuilding, runFor, saveGame, villagers } from '../src/sim/index.ts';
 import { bestRoad, layRoad, planRoads, roadByCentre, traffic } from '../src/sim/roads.ts';
+import { fits } from '../src/sim/place.ts';
+import { centre, findSpot } from '../src/gates/kit.ts';
 
 const content = loadContent();
 const L = content.tuning.logistics;
@@ -99,4 +101,17 @@ test('a game with roads saves and loads and plays on the same', () => {
   assert.equal(JSON.stringify(saveGame(L2)), JSON.stringify(saveGame(S)));
   const d = door(S.bmap.get(t.store)!);
   assert.ok(findPath(S.world, d.x, d.y + 1, d.x, d.y + 2) !== null);
+});
+
+test('a door may open straight onto a planned road, never onto a worn path, and nothing stands on either', () => {
+  const S = createState(content, 1847, { planner: true, plannedRoads: true });
+  const W = S.world, at = findSpot(S, 'sawmill', centre(S), 20)!;
+  const B = content.blueprints.sawmill, front = (at.y + B.h) * W.w + at.x + Math.floor(B.w / 2);
+  assert.ok(fits(S, 'sawmill', at.x, at.y));
+  W.road[front] = 2;
+  assert.ok(fits(S, 'sawmill', at.x, at.y), 'a road in its ring');
+  W.road[front] = 1;
+  assert.ok(!fits(S, 'sawmill', at.x, at.y), 'a path in its ring');
+  W.road[front] = 0; W.road[at.y * W.w + at.x] = 2;
+  assert.ok(!fits(S, 'sawmill', at.x, at.y), 'a road under it');
 });

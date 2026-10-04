@@ -4,7 +4,7 @@ title: Roads
 description: Paths are worn where people walk; roads are planned as long straight strips that cut through what stands, and the town is then built along them.
 tags: [roads, logistics, planner]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-03T21:35:39Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T05:39:27Z }
 tuning:
   traffic_from: 8
   traffic_span: 8
@@ -19,6 +19,8 @@ tuning:
   front_weight: 6
   near_weight: 2
   near_tiles: 3
+  district_weight: 10
+  district_reach: 3
 ---
 
 # Idea
@@ -41,7 +43,7 @@ The best run that scores above nothing is laid if the settlement can pay `cost` 
 
 # Planned around
 
-Once roads are laid, the planner sites buildings along them: a spot whose door opens onto a road (its front tile on the road or beside it) gains `front_weight`, and one whose door looks down a straight run of at most `near_tiles` to a road gains `near_weight`. What a road cleared away comes back along it, as the planner sees the shortage again.
+Once roads are laid, the planner sites buildings along them: a spot whose door opens onto a road (its front tile on the road or beside it) gains `front_weight`, and one whose door looks down a straight run of at most `near_tiles` to a road gains `near_weight`. The ring of open land every building keeps ([planner](/systems/planner.md)) may be road, so a door can open straight onto one (never a path, and nothing stands on a road). A new district's heart goes beside a road where one passes within `district_reach` tiles of a candidate (worth `district_weight` tiles of its spacing), so districts grow along their roads. What a road cleared away comes back along it, as the planner sees the shortage again.
 
 # Kyle's call
 

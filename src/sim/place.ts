@@ -14,12 +14,20 @@ export function clear(S: State, x: number, y: number, w: number, h: number, path
 }
 
 /**
- * Free for `type` with a `gap`-tile ring of open land, so buildings never wall each other in. A building on the shore
- * may stand on and beside worn paths: the shore is where feet wear them, and there is little of it.
+ * Free for `type` with a `gap`-tile ring of open land, so buildings never wall each other in. The ring may be a planned
+ * road (open ground, and a door is meant to open onto a road), never a path, and the building never stands on either;
+ * except that a building on the shore may stand on and beside worn paths: the shore is where feet wear them, and there
+ * is little of it.
  */
 export const fits = (S: State, type: string, x: number, y: number, gap = 1) => {
-  const B = S.content.blueprints[type];
-  return canPlace(S, type, x, y) && clear(S, x - gap, y - gap, B.w + 2 * gap, B.h + 2 * gap, !!B.shore);
+  const B = S.content.blueprints[type], W = S.world;
+  if (!canPlace(S, type, x, y) || !clear(S, x, y, B.w, B.h, !!B.shore)) return false;
+  for (let j = y - gap; j < y + B.h + gap; j++) for (let k = x - gap; k < x + B.w + gap; k++) {
+    if (k < 0 || j < 0 || k >= W.w || j >= W.h) return false;
+    const i = j * W.w + k;
+    if (W.bgrid[i] !== -1 || (W.road[i] === 1 && !B.shore)) return false;
+  }
+  return true;
 };
 
 /** Grown trees within `r` tiles of the tile at (x, y). */

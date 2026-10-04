@@ -164,7 +164,7 @@ export interface Tuning {
     memorySeconds: number; guardWeight: number;
     rationFactor: number; rationMood: number; longPace: number; longMood: number; shortPace: number; shortMood: number; stayMood: number; starveFactor: number;
   };
-  roads: { trafficFrom: number; trafficSpan: number; villagersPerRoad: number; lookEverySeconds: number; minTraffic: number; margin: number; minLength: number; demolishWeight: number; homeWeight: number; spacing: number; frontWeight: number; nearWeight: number; nearTiles: number };
+  roads: { trafficFrom: number; trafficSpan: number; villagersPerRoad: number; lookEverySeconds: number; minTraffic: number; margin: number; minLength: number; demolishWeight: number; homeWeight: number; spacing: number; frontWeight: number; nearWeight: number; nearTiles: number; districtWeight: number; districtReach: number };
   knowledge: {
     haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number; encourageFactor: number; encourageThreshold: number;
     verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number; visitMinVillagers: number;

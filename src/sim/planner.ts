@@ -426,7 +426,7 @@ function reachOf(S: State, town: Town, hub: Building): number {
 function foundDistrict(S: State, town: Town): boolean {
   const P = T(S), W = S.world, hs = hubs(S, town), newest = hs[hs.length - 1];
   if (!newest || newest.site || members(S, town, newest).length < P.districtBuildings) return false;
-  const B = S.content.blueprints.storage, first = door(hs[0]), reach = reachable(W, first.x, first.y), c = ctr(newest);
+  const B = S.content.blueprints.storage, first = door(hs[0]), reach = reachable(W, first.x, first.y), c = ctr(newest), RD = S.content.tuning.roads;
   const R = P.districtSpacing + 8;
   const cands: { x: number; y: number; s: number }[] = [];
   for (let y = Math.floor(c.y - R); y <= Math.ceil(c.y + R); y++) for (let x = Math.floor(c.x - R); x <= Math.ceil(c.x + R); x++) {
@@ -437,9 +437,10 @@ function foundDistrict(S: State, town: Town): boolean {
     if (!fits(S, 'storage', x, y, P.gap) || onNoBuild(W, x, y, B.w, B.h)) continue;
     const dr = door({ x, y, w: B.w, h: B.h });
     if (!reach[(dr.y + 1) * W.w + dr.x]) continue;
-    let grass = 0;
-    for (let j = -8; j <= 8; j++) for (let k = -8; k <= 8; k++) { const xx = Math.round(p.x) + k, yy = Math.round(p.y) + j; if (xx >= 0 && yy >= 0 && xx < W.w && yy < W.h && W.ground[yy * W.w + xx] === 2 && W.bgrid[yy * W.w + xx] === -1) grass++; }
-    cands.push({ x, y, s: Math.abs(d - P.districtSpacing) - P.districtRoomWeight * grass });
+    let grass = 0, road = 0;
+    for (let j = -8; j <= 8; j++) for (let k = -8; k <= 8; k++) { const xx = Math.round(p.x) + k, yy = Math.round(p.y) + j; if (xx >= 0 && yy >= 0 && xx < W.w && yy < W.h) { const i = yy * W.w + xx; if (W.ground[i] === 2 && W.bgrid[i] === -1) grass++; if (W.road[i] === 2 && Math.abs(j) <= RD.districtReach && Math.abs(k) <= RD.districtReach) road++; } }
+    // a new district grows along a road: its heart beside one, where the road runs on through open land
+    cands.push({ x, y, s: Math.abs(d - P.districtSpacing) - P.districtRoomWeight * grass - (road ? RD.districtWeight : 0) });
   }
   cands.sort((a, b) => a.s - b.s);
   const best = cands.slice(0, 8).find(p => !cutsOff(S, town, 'storage', p.x, p.y));
