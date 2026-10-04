@@ -70,8 +70,9 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
     if (seen[ni] !== gen || ng < g[ni]) { seen[ni] = gen; closed[ni] = 0; g[ni] = ng; came[ni] = cur; push(ni, ng + h(ni)); }
   };
   const isWater = (i: number) => w.ground[i] === 0;
-  // node = tile on foot, or tile + N afloat
-  g[s] = 0; seen[s] = gen; came[s] = -1; push(s, h(s));
+  // node = tile on foot, or tile + N afloat; someone out on open water (their trip cut short mid-row) is afloat
+  const start = !w.ground[s] && !w.bridge[s] ? s + N : s;
+  g[start] = 0; seen[start] = gen; came[start] = -1; push(start, h(start));
   let guard = 0;
   // long trips on big maps need room to search: at least the whole map once, on foot
   const limit = Math.max(rowing ? 80000 : 40000, rowing ? 2 * N : N);
@@ -82,7 +83,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
     w.work.pathNodes++;
     if (cur === goal) {
       const out: [number, number][] = [];
-      for (let c = goal; c !== s; c = came[c]) { const t = c % N; out.push([t % W, (t / W) | 0]); }
+      for (let c = goal; c !== start; c = came[c]) { const t = c % N; out.push([t % W, (t / W) | 0]); }
       return out.reverse();
     }
     const afloat = cur >= N, t = cur % N, cx = t % W, cy = (t / W) | 0;

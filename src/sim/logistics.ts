@@ -201,7 +201,8 @@ const loadOf = (t: Task) => t.n + t.round.reduce((s, r) => s + r.n, 0);
 export function blame(S: State, a: Agent, b: Building) {
   const store = S.bmap.get(S.towns[b.town]?.store ?? -1), d = door(b);
   const from = store ? door(store) : null;
-  if (!from || store === b || !findPath(S.world, from.x, from.y, d.x, d.y)) b.noWay = S.t;
+  // (nobody blames the storage yard itself: everyone else walks from it, so the one who failed is the one cut off)
+  if (!from || (store !== b && !findPath(S.world, from.x, from.y, d.x, d.y))) b.noWay = S.t;
   else a.cool = S.content.tuning.logistics.noWayRetrySeconds;
 }
 

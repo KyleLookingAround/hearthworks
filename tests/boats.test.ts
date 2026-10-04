@@ -65,3 +65,19 @@ test('neighbours across water invent the dock, build it, and their visitors cros
   assert.equal(S.stats.departures, 0);
   for (const t of S.towns) assert.ok(villagers(S).filter(v => v.home?.town === t.id).length >= 9, `${t.name} grew`);
 });
+
+test('someone left out on open water rows on to shore, and a carrier cut off from its storage yard does not close the yard', async () => {
+  const { blame } = await import('../src/sim/logistics.ts');
+  const S = createState(content, 4, { map: 'islands', size: 'm' });
+  const W = S.world, yard = S.bmap.get(S.towns[0].store)!, d = door(yard);
+  // open water far from any dock, with no docks at all
+  let at = -1;
+  for (let i = 0; i < W.ground.length && at < 0; i++) { const x = i % W.w, y = (i / W.w) | 0; if (!W.ground[i] && x > 2 && y > 2 && x < W.w - 3 && y < W.h - 3 && Math.hypot(x - d.x, y - d.y) < 40) at = i; }
+  assert.ok(at >= 0 && W.docks === 0);
+  const sx = at % W.w, sy = (at / W.w) | 0;
+  assert.ok(findPath(W, sx, sy, d.x, d.y), 'afloat, they row to land and walk on');
+  const a = S.agents.find(v => v.kind === 'villager')!;
+  a.x = sx + 0.5; a.y = sy + 0.5;
+  blame(S, a, yard);
+  assert.equal(yard.noWay, null, 'the yard stays open to everyone else');
+});
