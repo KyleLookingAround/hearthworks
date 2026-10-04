@@ -4,7 +4,7 @@ title: Settling
 description: A crowded settlement sends a founding party off to found a daughter town, with villagers, stores, the knowledge it practises and its custom.
 tags: [settlement, people, knowledge]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T00:02:17Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T04:52:13Z }
 tuning:
   check_every_seconds: 60
   min_villagers: 70
@@ -28,7 +28,7 @@ The party looks for a site as the world's first neighbours were placed ([settlem
 
 # Across the water
 
-The party must be able to reach its site: on foot, or rowing from a [dock](/blueprints/dock.md). A settlement with no such site left but land across the water feels the need to cross it, so it comes up with the dock and builds one, and its next party sails: the daughter is a colony (`overseas`), and the chronicle says so.
+The party must be able to reach its site: on foot, or rowing from a [dock](/blueprints/dock.md). A settlement with no such site left but land across the water feels the need to cross it, so it comes up with the dock and builds one (clearing a workshop from its shore if it has built along every shore: [planner](/systems/planner.md)), and its next party sails: the daughter is a colony (`overseas`), and the chronicle says so.
 
 # Who and what
 

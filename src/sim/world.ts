@@ -433,6 +433,22 @@ function setDoor(S: State, b: Building, on: boolean) {
 }
 
 /** Place a building (or a road tile). New buildings start as construction sites unless `complete`. */
+/**
+ * Lift a building off the map for a moment, as if it were gone (its tiles, door and place in the lists), and return
+ * a function that puts it back exactly: for asking where something could go if this building came down.
+ */
+export function lift(S: State, b: Building): () => void {
+  const w = S.world, at = S.buildings.indexOf(b);
+  for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) w.bgrid[j * w.w + k] = -1;
+  setDoor(S, b, false);
+  S.buildings.splice(at, 1); S.bmap.delete(b.id);
+  return () => {
+    for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) w.bgrid[j * w.w + k] = b.id;
+    setDoor(S, b, true);
+    S.buildings.splice(at, 0, b); S.bmap.set(b.id, b);
+  };
+}
+
 export function placeBuilding(S: State, type: string, x: number, y: number, complete: boolean): Building | null {
   const B = S.content.blueprints[type], w = S.world;
   if (B.paves) { const i = y * w.w + x; if (B.road && w.road[i] !== 2) w.roads++; else if (!B.road && w.road[i] === 2) w.roads--; w.road[i] = B.road ? 2 : 1; w.tree[i] = 0; return null; }

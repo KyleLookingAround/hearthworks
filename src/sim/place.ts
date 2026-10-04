@@ -2,21 +2,24 @@
 import { canPlace } from './world.ts';
 import type { State } from './types.ts';
 
-/** No buildings or roads in the rectangle (roads are kept, not built over). */
-export function clear(S: State, x: number, y: number, w: number, h: number): boolean {
+/** No buildings or roads in the rectangle (roads are kept, not built over; with `paths`, worn paths may be). */
+export function clear(S: State, x: number, y: number, w: number, h: number, paths = false): boolean {
   const W = S.world;
   for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) {
     if (k < 0 || j < 0 || k >= W.w || j >= W.h) return false;
     const i = j * W.w + k;
-    if (W.bgrid[i] !== -1 || W.road[i]) return false;
+    if (W.bgrid[i] !== -1 || (W.road[i] && !(paths && W.road[i] === 1))) return false;
   }
   return true;
 }
 
-/** Free for `type` with a `gap`-tile ring of open land, so buildings never wall each other in. */
+/**
+ * Free for `type` with a `gap`-tile ring of open land, so buildings never wall each other in. A building on the shore
+ * may stand on and beside worn paths: the shore is where feet wear them, and there is little of it.
+ */
 export const fits = (S: State, type: string, x: number, y: number, gap = 1) => {
   const B = S.content.blueprints[type];
-  return canPlace(S, type, x, y) && clear(S, x - gap, y - gap, B.w + 2 * gap, B.h + 2 * gap);
+  return canPlace(S, type, x, y) && clear(S, x - gap, y - gap, B.w + 2 * gap, B.h + 2 * gap, !!B.shore);
 };
 
 /** Grown trees within `r` tiles of the tile at (x, y). */

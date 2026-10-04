@@ -8,11 +8,11 @@
  * Deterministic: no randomness at all, ties break by scan order.
  */
 import { findPath, reachable } from './path.ts';
-import { supplyOf } from './logistics.ts';
+import { cancelTask, supplyOf, touches } from './logistics.ts';
 import { fits } from './place.ts';
 import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
-import { bp, chronicle, ctr, demolish, door, emit, nearestTown, placeBridge, placeBuilding, seasonOf, storesOnTrack, villagers } from './world.ts';
+import { add, bp, chronicle, ctr, demolish, door, emit, lift, nearestTown, placeBridge, placeBuilding, seasonOf, storesOnTrack, villagers } from './world.ts';
 import { hasPlace } from './people.ts';
 import { reserve } from './agents.ts';
 import { enoughInStore, foodChainOf, plentyInStore } from './production.ts';
@@ -456,10 +456,10 @@ function foundDistrict(S: State, town: Town): boolean {
 }
 
 /** Place: score every free spot near the town for this blueprint; lower is better. */
-export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZone = false): { x: number; y: number } | null {
+export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZone = false, hub?: Building): { x: number; y: number } | null {
   const P = T(S), B = S.content.blueprints[type], W = S.world;
-  // a settlement grows in its newest district: search around that district's centre
-  const hs = hubs(S, town), store = hs[hs.length - 1] ?? S.bmap.get(town.store);
+  // a settlement grows in its newest district: search around that district's centre (or the one asked for)
+  const hs = hubs(S, town), store = hub ?? hs[hs.length - 1] ?? S.bmap.get(town.store);
   if (!store) return null;
   const home = ctr(store), mine = mineOf(S, town);
   const harvesters = S.buildings.filter(b => bp(S, b).harvest);
@@ -570,7 +570,7 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     scored.push({ x, y, s });
   }
   // a zone with no spot that fits: fall back to unzoned land rather than build nothing
-  if (zoned && !scored.length) return chooseSpot(S, type, town, true);
+  if (zoned && !scored.length) return chooseSpot(S, type, town, true, hub);
   scored.sort((a, b) => a.s - b.s);
   // doors that can be reached now must stay reachable: a new building never seals off another's way in.
   // Judged from the settlement's first storage yard, which every district centre can reach.
@@ -584,6 +584,39 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     const front = B.shore ? d.y * W.w + d.x + 1 : (d.y + 1) * W.w + d.x;
     if (sealsOff(W, c.x, c.y, B.w, B.h, root, doors, rootReach[front] ? front : -1)) continue;
     return { x: c.x, y: c.y };
+  }
+  return null;
+}
+
+/**
+ * Room on the shore for a dock where there is none: one of the settlement's finished workshops within `clear_reach`
+ * tiles of water, cheapest first (up to `clear_tries` of them; never a home, a storage yard, a workplace of the food
+ * chain, a bridge or a place of rites), whose ground would take the dock if it came down. It comes down, its carriers'
+ * jobs cancelled and `salvage_share` of its cost back in storage, and the spot is returned.
+ */
+export function clearShore(S: State, town: Town, B: BlueprintDef): { spot: { x: number; y: number }; cut: Building } | null {
+  const P = T(S), W = S.world, chain = foodChainOf(S), store = S.bmap.get(town.store);
+  if (!store) return null;
+  const nearWater = (b: Building) => {
+    for (let j = b.y - P.clearReach; j < b.y + b.h + P.clearReach; j++) for (let k = b.x - P.clearReach; k < b.x + b.w + P.clearReach; k++)
+      if (k >= 0 && j >= 0 && k < W.w && j < W.h && W.ground[j * W.w + k] === 0) return true;
+    return false;
+  };
+  const cost = (b: Building) => Object.values(bp(S, b).cost).reduce((s, n) => s + n, 0);
+  const cands = mineOf(S, town).filter(b => {
+    const O = bp(S, b);
+    return !b.site && !O.homes && !O.storage && !O.bridge && !O.shore && !O.rite && !O.learning && !Object.keys(O.output).some(g => chain.has(g)) && nearWater(b);
+  }).sort((a, b) => cost(a) - cost(b) || a.id - b.id).slice(0, P.clearTries);
+  for (const b of cands) {
+    const back = lift(S, b);
+    let spot: { x: number; y: number } | null = null;
+    for (const h of hubs(S, town).reverse()) spot ??= chooseSpot(S, B.id, town, false, h);
+    back();
+    if (!spot) continue;
+    for (const a of S.agents) if (touches(a, b)) cancelTask(a);
+    demolish(S, b);
+    for (const [k, n] of Object.entries(bp(S, b).cost)) { const m = Math.floor(n * P.salvageShare); if (m > 0) add(store.inv, k, m); }
+    return { spot, cut: b };
   }
   return null;
 }
@@ -965,7 +998,17 @@ function planTown(S: State, town: Town, dt: number) {
     emit(S, 'info', S.towns.length > 1 ? `${town.name}: ${Q.status}` : Q.status, true);
     return;
   }
-  const spot = chooseSpot(S, c.B.id, town);
+  let spot = chooseSpot(S, c.B.id, town);
+  // a dock looks along the shores of every district, newest first
+  if (c.B.shore) for (const h of hubs(S, town).reverse()) spot ??= chooseSpot(S, c.B.id, town, false, h);
+  // a dock with no shore left clears one: a workshop on the shore comes down for it, as roads clear their line
+  if (!spot && c.B.shore) {
+    const cleared = clearShore(S, town, c.B);
+    if (cleared) {
+      spot = cleared.spot;
+      chronicle(S, town.id, 'dock', `${town.name} cleared ${article(bp(S, cleared.cut).name)} ${bp(S, cleared.cut).name.toLowerCase()} from its shore for a dock`);
+    }
+  }
   if (!spot) { Q.noRoom[c.B.id] = S.t; Q.streak = { type: '', n: 0 }; Q.status = `No room for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
   delete Q.noRoom[c.B.id];
   const b = placeBuilding(S, c.B.id, spot.x, spot.y, false)!;

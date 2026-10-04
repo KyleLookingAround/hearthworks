@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T04:16:45Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T04:52:13Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -17,6 +17,8 @@ tuning:
   district_room_weight: 0.05
   replan_every_seconds: 240
   salvage_share: 0.5
+  clear_reach: 3
+  clear_tries: 6
   village_at: 40
   town_at: 90
   row_weight: 1
@@ -78,7 +80,7 @@ Every `interval_seconds` the planner:
 2. **Senses** each shortage as a severity from 0 to 1:
    - *A good*: the rate it is made against the rate it is used. Producers count at the share their trees (`min_trees` grown trees in range for full rate) and inputs allow; sites count already. Bread is wanted for everyone housed plus everyone the free beds will bring, times `food_headroom`. Planks are wanted at `planks_per_villager_minute` per villager. Recipe inputs are wanted at what their consumers can use.
    - *Beds*: fewer than `growth_beds` free beds, halved while mood is below the newcomer threshold, and zero while bread is short: the village does not invite people it cannot feed. Growth is a want, not a need, so this is scaled by `growth_weight`.
-   - *Crossing*: the neighbours are across water nobody can cross, times `crossing_weight`. Relieved by a blueprint with `shore` (the dock) while the settlement has none; the dock goes on a shore whose water reaches the nearest neighbour's land.
+   - *Crossing*: the neighbours are across water nobody can cross, times `crossing_weight`. Relieved by a blueprint with `shore` (the dock) while the settlement has none; the dock goes on a shore whose water reaches the nearest neighbour's land, looked for around every district, newest first, and it may stand on and beside worn paths. A settlement with no such shore left clears one: of its finished workshops within `clear_reach` tiles of water (never a home, a storage yard, a workplace of the food chain, a bridge, a place of rites or of learning), the cheapest of the first `clear_tries` whose ground would take the dock comes down, its carriers' jobs cancelled and `salvage_share` of its cost back in storage, and the chronicle says so.
    - *Hauling*: the settlement's hauling pressure ([knowledge](/systems/knowledge.md)) times `haul_weight`. Relieved by a blueprint with `couriers`, in proportion to the share of the settlement's buildings no bots reach yet (ignored below `min_severity`).
    - *Hands*: a finished workplace with no worker and no free bed to bring one is a beds shortage at full severity, except while bread is short (newcomers would not come). A workplace resting (fields in winter, or with [enough in store](/systems/production.md)) needs no hands, and its worker counts as a spare one.
 3. **Proposes** for the worst shortage that something it knows can relieve (going down the list) the blueprint with the best `severity × relief − cost_weight × cost`, where relief is the share of the gap it closes. Two follow-ups make chains work:
@@ -181,7 +183,7 @@ Under the `detours` shortage (water keeps the village from grass close by, or tr
 - One planned site open at a time, and a settle pause after it finishes.
 - A choice must win `confirm_cycles` looks running before it is built.
 - Capacity already on the way (sites, unstaffed workplaces) counts as relief.
-- The planner never cancels or demolishes; it only adds.
+- The planner never cancels a site, and demolishes only to renew a block of homes, to lay a road, or to clear a shore for its first dock.
 
 # Player
 

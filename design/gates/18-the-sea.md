@@ -4,7 +4,7 @@ title: "Gate 18: the sea"
 description: On an islands map a settlement founds a colony on another island unscripted; the colony lasts thirty minutes and trades back with its mother town.
 tags: [gate, roadmap, settlement, water]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-03T20:14:26Z }
+generated: { by: claude/opus-5.5, at: 2026-10-04T04:52:13Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/sea.ts
 parameters:
@@ -14,7 +14,7 @@ parameters:
   - { name: map, type: string, required: true }
   - { name: size, type: string, required: true }
 defaults: { seed: 1847, seconds: 3600, survive_seconds: 1800, map: islands, size: m }
-pass_when: { min_colonies: 1, min_colony_survived_seconds: 1800, min_porter_trips_with_mother: 1 }
+pass_when: { min_colonies: 1, min_colony_survived_seconds: 1800, min_porter_trips_with_mother: 5 }
 executor:
   resource: ../references/skills/run-gate.md
   receipt: [gate, params, ticks, scenario_sha256, content_hash, metrics]
@@ -29,3 +29,7 @@ The sanctioned scenario is [sea.ts](/references/scenarios/sea.ts). One settlemen
 # Proves
 
 Phase 18 of the [roadmap](/roadmap.md), as proposed: a colony is founded on a second island unscripted, survives 30 game minutes, and trades back to its mother town.
+
+# Revisions
+
+- 2026-10-04: tightened in place (the second pass): `min_porter_trips_with_mother` 1 to 5. With a dock looked for around every district, standing beside worn paths, and a shore cleared when none is left, seeds 31337 and 99 (whose islands had filled before the dock was thought of) now found colonies at 27 and 29 minutes; on seeds 1847, 42, 99, 2026 and 31337 the first colony lives its half hour with 84 to 96 people and 10 to 14 porter trips with its mother. Seed 7 still founds late (at 51 minutes): it has room at home for longer, so its first daughter stays on its own island. Same scenario and intent.
