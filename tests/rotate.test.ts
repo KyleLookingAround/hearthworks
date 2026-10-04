@@ -78,3 +78,17 @@ test('a turned building is saved and loaded facing the same way', () => {
   assert.equal(b.rot, 2);
   assert.deepEqual(front(b), front(S.buildings.find(o => o.id === b.id)!));
 });
+
+test('turned about its centre, a building keeps its door where its south door went, on odd and even sides alike', () => {
+  for (const id of ['bakery', 'family_house', 'terrace', 'farm']) {
+    const B = content.blueprints[id];
+    const south = door({ x: 0, y: 0, w: B.w, h: B.h, rot: 0 }), u = south.x + 0.5 - B.w / 2, v = south.y + 0.5 - B.h / 2;
+    for (let r = 1; r < 4; r++) {
+      const at = { x: 0, y: 0, ...dims(B, r), rot: r }, d = door(at);
+      // turn the south door's tile centre a quarter clockwise r times about the centre
+      let [px, py] = [u, v];
+      for (let k = 0; k < r; k++) [px, py] = [-py, px];
+      assert.deepEqual({ x: d.x, y: d.y }, { x: Math.floor(px + at.w / 2), y: Math.floor(py + at.h / 2) }, `${id} facing ${r}`);
+    }
+  }
+});

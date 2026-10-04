@@ -291,7 +291,8 @@ export class Renderer {
     c.fillStyle = wall; this.rr(px + 4, py + ph * 0.42, pw - 8, ph * 0.52, 3); c.fill();
     c.fillStyle = roof; this.rr(px + 2, py + 3, pw - 4, ph * 0.46, 4); c.fill();
     c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(px + 5, py + ph * 0.24, pw - 10, 2);
-    c.fillStyle = '#5c3f2b'; c.fillRect(px + pw / 2 - 3.5, py + ph - 13, 7, 10);
+    // the door on its tile: the middle tile of the bottom row (the right-hand one of the middle two on an even width)
+    c.fillStyle = '#5c3f2b'; c.fillRect(px + (Math.floor(Math.round(pw / TS) / 2) + 0.5) * TS - 3.5, py + ph - 13, 7, 10);
   }
   private gear(x: number, y: number, r: number, rot: number, col: string) {
     const c = this.ctx;

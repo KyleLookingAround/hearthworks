@@ -28,13 +28,17 @@ export const FACING: readonly (readonly [number, number])[] = [[0, 1], [-1, 0], 
 /** A blueprint's footprint turned to a facing: a quarter turn swaps its width and height. */
 export const dims = (B: { w: number; h: number }, rot = 0) => (rot % 2 ? { w: B.h, h: B.w } : { w: B.w, h: B.h });
 type Placed = { x: number; y: number; w: number; h: number; rot?: number; doorAt?: { x: number; y: number } | null };
-/** The door: the middle of the side the building faces (the bottom row, facing south). The tile beyond it (the door front) must stay open. */
+/**
+ * The door: the middle of the side the building faces (the bottom row, facing south), where the south door lands when
+ * the building is turned about its centre. The tile beyond it (the door front) must stay open.
+ */
 export const door = (b: Placed) => {
   if (b.doorAt) return b.doorAt;
   switch (b.rot ?? 0) {
     case 1: return { x: b.x, y: b.y + Math.floor(b.h / 2) };
-    case 2: return { x: b.x + Math.floor(b.w / 2), y: b.y };
-    case 3: return { x: b.x + b.w - 1, y: b.y + Math.floor(b.h / 2) };
+    // turned half way or three quarters, the door stays where the turned building's south door was (mirrored on an even side)
+    case 2: return { x: b.x + b.w - 1 - Math.floor(b.w / 2), y: b.y };
+    case 3: return { x: b.x + b.w - 1, y: b.y + b.h - 1 - Math.floor(b.h / 2) };
     default: return { x: b.x + Math.floor(b.w / 2), y: b.y + b.h - 1 };
   }
 };
