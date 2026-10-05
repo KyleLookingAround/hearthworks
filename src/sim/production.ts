@@ -1,6 +1,6 @@
 import { rand } from './rng.ts';
 import { release, removeAgent } from './agents.ts';
-import { skillPace } from './people.ts';
+import { feastStock, skillPace } from './people.ts';
 import { add, bp, completeSite, ctr, emit, foodsOf, inB, plant, seasonOf } from './world.ts';
 import { capOf, crew, dietOf, mealOf, places, unripe } from './farms.ts';
 import { fleetText, launch, wantsBoat } from './ships.ts';
@@ -151,7 +151,7 @@ export function enough(S: State, town: Town, g: ItemId): boolean {
   // while the yards are nearly full (`store_full_share`), what lies outside the food chain needs only `surplus_full_seconds`:
   // logs and planks must not take the room the harvest needs
   const full = !food && st.room > 0 && st.held >= st.room * S.content.tuning.planner.storeFullShare;
-  if ((st.goods[g] || 0) < Math.max(P.surplusMin, (Q.use[g] || 0) * (full ? P.surplusFullSeconds : stockSeconds(S, g)))) return false;
+  if ((st.goods[g] || 0) < Math.max(P.surplusMin, (Q.use[g] || 0) * (full ? P.surplusFullSeconds : stockSeconds(S, g))) + feastStock(S, town, g, st.pop)) return false;
   return winterStored(S, g, st);
 }
 
@@ -184,7 +184,7 @@ function stocks(S: State, town: number): { goods: Stock; pop: number; beds: numb
  */
 export function plentyInStore(S: State, town: Town, g: ItemId, use: number): boolean {
   const P = S.content.tuning.production, st = stocks(S, town.id);
-  if ((st.goods[g] || 0) < Math.max(P.surplusMin, use * stockSeconds(S, g))) return false;
+  if ((st.goods[g] || 0) < Math.max(P.surplusMin, use * stockSeconds(S, g)) + feastStock(S, town, g, st.pop)) return false;
   return winterStored(S, g, st);
 }
 

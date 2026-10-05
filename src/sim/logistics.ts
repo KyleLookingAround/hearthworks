@@ -4,10 +4,10 @@
  * An idle carrier claims the cheapest request/offer pair and reserves the
  * goods at both ends, so two carriers never fetch the same stack.
  */
-import { add, bp, ctr, distAB, distBB, door, seasonOf } from './world.ts';
+import { add, bp, ctr, distAB, distBB, door, seasonOf, storesOnTrack } from './world.ts';
 import { findPath } from './path.ts';
 import { goToBuilding } from './agents.ts';
-import { wants } from './production.ts';
+import { foodChainOf, wants } from './production.ts';
 import type { Agent, Building, ItemId, State, Task } from './types.ts';
 
 export interface Request { dst: Building; item: ItemId; need: number; pri: number; /** not worth a trip of its own: only topped up on a cart's round */ topUp?: boolean }
@@ -216,8 +216,11 @@ export function findTask(S: State, a: Agent): boolean {
       if (score < bestScore) { bestScore = score; best = { src: s, dst: r.dst, item: r.item, n: Math.min(capFor(tiles), r.need, av) }; }
     }
   }
-  // surplus goes to the nearest storage yard so producers don't stall
+  // surplus goes to the nearest storage yard so producers don't stall, at `surplus_penalty` tiles behind a request;
+  // with the winter store fallen behind in summer or autumn, the harvest (what keeps of the food chain) comes in as
+  // readily as a home's food (`harvest_priority`): grain left standing at the farms is no store for the winter
   const stores = S.buildings.filter(b => bp(S, b).storage && !b.site && inRange(b));
+  const reap = harvestBehind(S, town);
   // a store takes a good if it keeps that kind and has room left
   const room = (st: Building, item: ItemId) => roomFor(S, st, item) > 0;
   if (stores.length) for (const s of S.buildings) {
@@ -228,11 +231,12 @@ export function findTask(S: State, a: Agent): boolean {
       if (av < L.dumpAt || !inRange(s)) continue;
       // the walk to the source alone already scores no better: no storage yard can win it
       if (da < 0) da = distAB(a, s);
-      if (da + 12 >= bestScore) continue;
+      const extra = reap !== null && reap.has(item) && reap.behind(s.town) ? -L.harvestPriority : L.surplusPenalty;
+      if (da + extra >= bestScore) continue;
       let st: Building | null = null, sd = Infinity;
       for (const d of stores) { if (d === s || !room(d, item)) continue; const dd = distBB(s, d); if (dd < sd) { sd = dd; st = d; } }
       if (!st) continue;
-      const score = da + sd + 12;
+      const score = da + sd + extra;
       if (score < bestScore) { bestScore = score; best = { src: s, dst: st, item, n: Math.min(capFor(da + sd), av) }; }
     }
   }
@@ -275,6 +279,23 @@ export function findTask(S: State, a: Agent): boolean {
     return false;
   }
   return true;
+}
+
+/**
+ * With seasons, in summer and autumn: the goods of the food chain that keep (the harvest), and whether a settlement's
+ * winter store has fallen behind (worked out once a tick for each), else null.
+ */
+const behindAt = new WeakMap<State, { t: number; by: Map<number, boolean> }>();
+function harvestBehind(S: State, town: number | null): { has: (g: ItemId) => boolean; behind: (t: number) => boolean } | null {
+  const s = seasonOf(S);
+  if (s !== 'summer' && s !== 'autumn') return null;
+  let c = behindAt.get(S);
+  if (!c || c.t !== S.t) { c = { t: S.t, by: new Map() }; behindAt.set(S, c); }
+  const by = c.by, chain = foodChainOf(S);
+  return {
+    has: g => chain.has(g) && !S.content.goods[g]?.spoils,
+    behind: t => { if (town !== null && t !== town) return false; let v = by.get(t); if (v === undefined) { v = !!S.towns[t]?.planner.on && !storesOnTrack(S, S.towns[t]); by.set(t, v); } return v; },
+  };
 }
 
 /** Everything a task still carries or will pick up: the first drop and the rest of its round. */
