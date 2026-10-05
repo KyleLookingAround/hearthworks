@@ -208,6 +208,19 @@ function offerersOf(S: State, town: number | null): Building[] {
   return owned.by.get(town) ?? [];
 }
 
+/** The requests of one settlement's buildings, in board order, sorted out once for each gathering of the board (all of them for none). */
+const asked = new WeakMap<Request[], Map<number, Request[]>>();
+function askedOf(all: Request[], town: number | null): Request[] {
+  if (town === null) return all;
+  let by = asked.get(all);
+  if (!by) {
+    by = new Map();
+    for (const r of all) { let l = by.get(r.dst.town); if (!l) by.set(r.dst.town, l = []); l.push(r); }
+    asked.set(all, by);
+  }
+  return by.get(town) ?? [];
+}
+
 export function requestsNow(S: State): Request[] {
   if (open !== S) return collectRequests(S);
   if (board && board.S === S && board.t === S.t) {
@@ -319,7 +332,7 @@ export function findTask(S: State, a: Agent): boolean {
   const held = !p && open === S && board ? looks.get(town) : undefined;
   let seen = held && held.board === board && (board!.dirty.get(town) ?? -1) <= held.at ? held.seen : undefined;
   if (!seen) {
-    seen = lookOver(S, all, offerersOf(S, town), inRange);
+    seen = lookOver(S, askedOf(all, town), offerersOf(S, town), inRange);
     if (!p && open === S && board) looks.set(town, { board, at: stamps, seen });
   }
   const { reqs, pairs, dumps } = seen;
