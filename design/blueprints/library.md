@@ -16,7 +16,7 @@ discovery: { need: forgetting, mean_seconds: 120 }
 
 # Role
 
-While a library stands, its settlement forgets nothing it knows ([knowledge](/systems/knowledge.md)). With a scribe at work it sends a copy of every record beyond founding knowledge to each neighbour every `copy_every_seconds`, as a visitor would. Its shelves are the settlement's knowledge bundle, browsable in its inspector. Villagers schooled to read ([School](/blueprints/school.md)) read from it: their settlement takes in what every other library holds, without a visitor, and a reader at work learns a trade written down here as from a master.
+While a library stands, its settlement forgets nothing it knows ([knowledge](/systems/knowledge.md)). With a scribe at work it sends a copy of every record beyond founding knowledge to each neighbour every `copy_every_seconds`, as a visitor would. Its shelves are the settlement's knowledge bundle, browsable in its inspector. Villagers schooled to read ([School](/blueprints/school.md)), or given books by a [Printing House](/blueprints/printing_house.md), read from it: their settlement takes in what every other library holds, without a visitor, and a reader at work learns a trade written down here as from a master.
 
 # Discovery
 

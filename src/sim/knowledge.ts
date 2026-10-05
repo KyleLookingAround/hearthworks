@@ -17,11 +17,12 @@ import { goToBuilding } from './agents.ts';
 import { cancelTask } from './logistics.ts';
 import { barter, homecoming } from './trade.ts';
 import { bringFeast } from './people.ts';
-import { bp, chronicle, door, emit, learningAt, villagers } from './world.ts';
+import { bp, chronicle, door, emit, learningAt, reads, villagers } from './world.ts';
 import { reachable } from './path.ts';
 import { struckLately } from './hardship.ts';
 import { traffic } from './roads.ts';
 import { swapCharts } from './sea.ts';
+import { offered } from './farms.ts';
 import { setOff } from './ships.ts';
 import type { Agent, BlueprintDef, Content, Knowledge, State, Town } from './types.ts';
 
@@ -55,6 +56,14 @@ export function pressure(S: State, town: Town, need: string): number {
   // hardship: struck within `memory_seconds`
   if (need === 'fire' || need === 'flood' || need === 'sickness' || need === 'raids') return struckLately(S, town, need) ? 1 : 0;
   if (need === 'traffic') return traffic(S, town);
+  // reading (with people on): in a settlement with a library, the share of its grown villagers who cannot read it
+  if (need === 'reading') {
+    if (!S.people || !learningAt(S, town.id, 'library', false)) return 0;
+    const printed = learningAt(S, town.id, 'press');
+    let grown = 0, readers = 0;
+    for (const a of villagers(S)) if (a.home?.town === town.id && a.role !== 'child') { grown++; if (reads(S, a, printed)) readers++; }
+    return grown ? 1 - readers / grown : 0;
+  }
   // conveying: carriers run off their feet although its depots' bots are winding about: hauling beyond the bots' reach
   if (need === 'conveying') return S.buildings.some(b => b.town === town.id && !b.site && bp(S, b).couriers) ? pressure(S, town, 'hauling') : 0;
   if (need === 'distance') return S.carts ? clamp01((town.reach - K(S).distanceFrom) / K(S).distanceSpan) : 0;
@@ -62,13 +71,14 @@ export function pressure(S: State, town: Town, need: string): number {
   if (need === 'inquiry') {
     if (!S.people) return 0;
     let p = 0;
-    for (const B of Object.values(S.content.blueprints)) if (B.discovery && B.discovery.need !== 'inquiry' && !knows(town, B.id) && ageNeeded(S, B.id) <= town.age) p = Math.max(p, pressure(S, town, B.discovery.need));
+    // (ideas only scholars find do not count: a settlement cannot think of them, and the university is what opens them)
+    for (const B of Object.values(S.content.blueprints)) if (B.discovery && B.discovery.need !== 'inquiry' && !B.discovery.university && !knows(town, B.id) && ageNeeded(S, B.id) <= town.age) p = Math.max(p, pressure(S, town, B.discovery.need));
     return p;
   }
   return 0;
 }
 
-export const NEED_TEXT: Record<string, string> = { bread: 'its bakers cannot keep up', distance: 'its goods travel a long way', long_hauls: 'its carts go a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it has needs that nothing it knows can meet', hauling: 'carriers are run off their feet', conveying: 'its carriers are run off their feet where its bots cannot reach', crossing: 'the neighbours are across water nobody can cross', boats: 'its people wait ashore for a free boat', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths' };
+export const NEED_TEXT: Record<string, string> = { bread: 'its bakers cannot keep up', distance: 'its goods travel a long way', long_hauls: 'its carts go a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it has needs that nothing it knows can meet', hauling: 'carriers are run off their feet', conveying: 'its carriers are run off their feet where its bots cannot reach', crossing: 'the neighbours are across water nobody can cross', boats: 'its people wait ashore for a free boat', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths', reading: 'few of its people can read what its library holds' };
 
 /** A settlement's age: the latest era it has reached, knowing each era's `share` of its discoveries and every earlier era's. */
 export function ageOf(S: State, town: Town): number {
@@ -82,7 +92,22 @@ export function ageOf(S: State, town: Town): number {
 }
 
 /** Can this settlement read from libraries: one of its own standing, and a grown villager schooled as a child to read in it? */
-export const readsAt = (S: State, town: Town) => learningAt(S, town.id, 'library', false) && villagers(S).some(a => a.schooled && a.role !== 'child' && a.home?.town === town.id);
+export const readsAt = (S: State, town: Town) => learningAt(S, town.id, 'library', false) && (learningAt(S, town.id, 'press') || villagers(S).some(a => a.schooled && a.role !== 'child' && a.home?.town === town.id));
+
+/**
+ * The discoveries only scholars think of (a university at work) that a settlement does not yet know, each with what it
+ * waits on: `university` (none at work here), `after` (a blueprint it must know first), `age` (a later age), or `need`
+ * (not pressed hard enough yet); `ready` when its scholars could think of it now.
+ */
+export function scholarly(S: State, town: Town): { B: BlueprintDef; waits: 'university' | 'after' | 'age' | 'need' | 'ready'; missing: string[] }[] {
+  const P = K(S), university = learningAt(S, town.id, 'university');
+  return Object.values(S.content.blueprints).filter(B => B.discovery?.university && !knows(town, B.id) && offered(S, B)).sort((a, b) => a.order - b.order).map(B => {
+    const missing = B.discovery!.after.filter(id => !knows(town, id));
+    const waits = !university ? 'university' : missing.length ? 'after' : town.age < ageNeeded(S, B.id) ? 'age'
+      : pressure(S, town, B.discovery!.need) < P.struggleSeverity * P.universityThreshold * (town.levers.encourage === B.id ? P.encourageThreshold : 1) ? 'need' : 'ready';
+    return { B, waits, missing };
+  });
+}
 
 /** The age a settlement must have reached to think of a blueprint: the era that unlocks it, else the first. */
 export const ageNeeded = (S: State, id: string) => Math.max(0, S.content.eras.findIndex(E => E.unlocks.includes(id)));
@@ -124,6 +149,10 @@ function teach(S: State, town: Town, recs: Record<string, Knowledge>, from: stri
   }
 }
 
+/** Settlements whose university has had scholars at work (read once from the chronicle, so a loaded game knows too). */
+const OPENED = new WeakMap<State, Set<number>>();
+const opened = (S: State) => { let o = OPENED.get(S); if (!o) OPENED.set(S, o = new Set(S.chronicle.filter(c => c.kind === 'scholars').map(c => c.town))); return o; };
+
 /** Once a second: pressures, invention, verification, learning by hand, forgetting and visits. */
 export function updateKnowledge(S: State, dt: number) {
   const P = K(S);
@@ -152,6 +181,16 @@ export function updateKnowledge(S: State, dt: number) {
       }
     }
 
+    // a university's first scholars at work open lines of inquiry no village of hands alone takes up: the chronicle says which
+    if (learningAt(S, town.id, 'university') && !opened(S).has(town.id)) {
+      opened(S).add(town.id);
+      const ideas = Object.values(S.content.blueprints).filter(B => B.discovery?.university && offered(S, B)).sort((a, b) => a.order - b.order).map(B => `the ${B.name}`);
+      const list = ideas.length > 1 ? `${ideas.slice(0, -1).join(', ')} and ${ideas[ideas.length - 1]}` : ideas[0];
+      const text = `Scholars took up their inquiries at the university of ${town.name}` + (list ? `: only they may think of ${list}` : '');
+      chronicle(S, town.id, 'scholars', text);
+      emit(S, 'good', text);
+    }
+
     for (const B of Object.values(S.content.blueprints)) {
       if (!B.discovery || knows(town, B.id) || B.discovery.after.some(id => !knows(town, id))) continue;
       // some discoveries need scholars at work: a settlement without a university never comes up with them
@@ -166,9 +205,11 @@ export function updateKnowledge(S: State, dt: number) {
       if (rand(S.krng) >= dt / (B.discovery.meanSeconds / (backed ? P.encourageFactor : 1) / scholars)) continue;
       town.knows[B.id] = { by: town.name, at: S.t, verified: [], from: null, learned: S.t, used: S.t };
       S.stats.invented++;
-      chronicle(S, town.id, 'invented', `${town.name} came up with the ${B.name}: ${NEED_TEXT[B.discovery.need] ?? B.discovery.need}`);
+      // a discovery only scholars make says so
+      const text = B.discovery.university ? `The scholars of ${town.name} came up with the ${B.name}, an idea only a university finds: ${NEED_TEXT[B.discovery.need] ?? B.discovery.need}` : `${town.name} came up with the ${B.name}: ${NEED_TEXT[B.discovery.need] ?? B.discovery.need}`;
+      chronicle(S, town.id, 'invented', text);
       if (town.levers.encourage === B.id) town.levers.encourage = null;
-      emit(S, 'good', `${town.name} came up with the ${B.name}: ${NEED_TEXT[B.discovery.need] ?? B.discovery.need}`);
+      emit(S, 'good', text);
     }
 
     if (town.planner.want && town.knows[town.planner.want]) town.knows[town.planner.want].used = S.t;

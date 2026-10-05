@@ -10,7 +10,7 @@ order: 13.5
 size: [2, 2]
 cost: { planks: 12 }
 workers: 1
-mills: { types: [bakery], radius: 12, factor: 1.5 }
+mills: { types: [bakery], radius: 12, factor: 1.5, boon: milled grain }
 discovery: { need: bread, mean_seconds: 300 }
 ---
 

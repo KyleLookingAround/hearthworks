@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T07:30:58Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T15:16:12Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -21,6 +21,7 @@ tuning:
   school_factor: 2
   forgetting_memory_seconds: 600
   learning_weight: 0.35
+  university_villagers: 60
   school_children: 3
   distance_from: 12
   distance_span: 12
@@ -49,15 +50,26 @@ Three buildings keep and grow knowledge (Phase 15):
 
 - A [Library](/blueprints/library.md) keeps what its settlement knows: nothing is forgotten while one stands. With a scribe at work it sends a copy of its records to every neighbour each `copy_every_seconds` (the chronicle says a scribe copied it, no longer that a visitor taught it). A village thinks of one after it forgets something (the need `forgetting`, full for `forgetting_memory_seconds` after a loss).
 - A [School](/blueprints/school.md) with a teacher schools the settlement's children: grown up, they learn trades `school_factor` times as fast ([people](/systems/people.md)), and they read. A settlement with a library of its own and a grown villager who reads takes in what every other settlement's library holds each `copy_every_seconds`, without a visitor, and whether or not that library has a scribe at work; the chronicle says its readers learned it from those shelves. A worker who reads, in a settlement with a library, learns a trade written down there (any it knows that someone has proven in use) as from a master.
-- A [University](/blueprints/university.md) with a scholar makes invention `university_factor` times as fast, on top of the steward's encouragement, and its scholars take up a line of inquiry at `university_threshold` of the strain anyone else needs: they think ahead of need, where a settlement without one waits until the strain is pressing. It is thought of under `inquiry`: the settlement's strongest strain on the need of a blueprint it does not know.
+- A [University](/blueprints/university.md) with a scholar makes invention `university_factor` times as fast, on top of the steward's encouragement, and its scholars take up a line of inquiry at `university_threshold` of the strain anyone else needs: they think ahead of need, where a settlement without one waits until the strain is pressing. It is thought of under `inquiry`: the settlement's strongest strain on the need of a blueprint it does not know and could think of itself (ideas only scholars find do not count: the seed garden's need, `bread`, would otherwise bring every settlement the University in its first second).
+- A [Printing House](/blueprints/printing_house.md) with a printer makes a reader of every grown villager of its settlement, schooled or not.
 
-The planner wants a library while it holds knowledge beyond its founders', a school once there are `school_children` children, and a university in a town that knows of one, each at `learning_weight`.
+The planner wants a library while it holds knowledge beyond its founders', a school once there are `school_children` children, a university in a village of `university_villagers` or more that keeps a library and makes every good it is built of, or in any town, that knows of one, and a printing house in a village or town that keeps a library and knows one, each at `learning_weight`.
+
+# Ideas only scholars find
+
+Some discoveries are marked `university`: a settlement thinks of them only while its own University has a scholar at work. A village of hands alone never comes up with them, whatever its strain; learning opens them. Once thought of, they travel as any knowledge does, by visitors, scribes and readers, so a neighbour without a university may still learn them and build them. Three so far:
+
+- the [Bathhouse](/blueprints/bathhouse.md), under `sickness`, once the Healer's House is known: homes kept clean;
+- the [Seed Garden](/blueprints/seed_garden.md), under `bread`: seed bred for the farms, gardens and orchards around it, which bear a quarter more;
+- the [Printing House](/blueprints/printing_house.md), under the need `reading` (in a settlement with a library, the share of its grown villagers who cannot read), once the Library is known: books that make readers of the grown.
+
+The game says what waits on a university. The chronicle notes the day a settlement's university first has scholars at work, and names the ideas only they may find; an idea of theirs is told as the scholars' own. The **Knowledge** panel marks each such idea "only scholars think of it", and whether it waits on a university there; the advisor names the idea a settlement's strain calls for and what it lacks to find it (a scholar at work, a university, or the idea of one); the university's inspector lists every such idea with what it waits on: a scholar at work, a blueprint to know first, a later age, the strain, or nothing (its scholars are on it).
 
 With [hardship](/systems/hardship.md) on, the needs `fire`, `flood`, `sickness` and `raids` are full for `memory_seconds` after the hazard last struck the settlement, and lead to its counters: the [Well](/blueprints/well.md), [Levee](/blueprints/levee.md), [Healer's House](/blueprints/healer.md), [Watchtower](/blueprints/watchtower.md) and [Palisade](/blueprints/palisade.md).
 
 With planned [roads](/systems/roads.md) on, the need `traffic` of a village or town grows from 0 when its deliveries average `traffic_from` tiles to 1 at `traffic_span` more, and leads to the [Road](/blueprints/road.md).
 
-The need `distance` (with carts on) grows from 0 when a settlement's deliveries average `distance_from` tiles to 1 at `distance_span` more, the average smoothed over about `reach_smoothing` deliveries. The need `long_hauls` ([Ox Barn](/blueprints/ox_barn.md)) grows the same way from `long_haul_from` tiles, over the same span. The need `boats` ([Shipyard](/blueprints/shipyard.md), with ships on) is 1 while a settlement's people have stayed ashore for want of a free boat within `boatless_memory_seconds` ([the sea](/systems/sea.md)), else 0. The need `conveying` ([Conveyor](/blueprints/conveyor.md)) is `hauling` in a settlement where a Courier Depot stands: its bots are winding about, and its carriers are still run off their feet beyond their reach. A blueprint whose `discovery` lists blueprints `after` is thought of only by a settlement that knows them all, and one marked `university` only while the settlement's [University](/blueprints/university.md) has a scholar at work (the [Bathhouse](/blueprints/bathhouse.md)): some discoveries need scholars at all.
+The need `distance` (with carts on) grows from 0 when a settlement's deliveries average `distance_from` tiles to 1 at `distance_span` more, the average smoothed over about `reach_smoothing` deliveries. The need `long_hauls` ([Ox Barn](/blueprints/ox_barn.md)) grows the same way from `long_haul_from` tiles, over the same span. The need `boats` ([Shipyard](/blueprints/shipyard.md), with ships on) is 1 while a settlement's people have stayed ashore for want of a free boat within `boatless_memory_seconds` ([the sea](/systems/sea.md)), else 0. The need `conveying` ([Conveyor](/blueprints/conveyor.md)) is `hauling` in a settlement where a Courier Depot stands: its bots are winding about, and its carriers are still run off their feet beyond their reach. A blueprint whose `discovery` lists blueprints `after` is thought of only by a settlement that knows them all, and one marked `university` only while the settlement's [University](/blueprints/university.md) has a scholar at work (see above): some discoveries need scholars at all.
 
 # Founding
 
