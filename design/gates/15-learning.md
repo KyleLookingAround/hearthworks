@@ -4,7 +4,7 @@ title: "Gate 15: learning"
 description: A library keeps a craft its settlement would otherwise forget, a university brings a discovery sooner on at least five of six seeds, some discoveries come only with a university (and do, unscripted, in a new game), and readers learn from libraries without a visitor.
 tags: [gate, roadmap, learning, knowledge]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T15:16:12Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T21:56:14Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/learning.ts
 parameters:
@@ -43,6 +43,7 @@ Phase 15 of the [roadmap](/roadmap.md), as proposed: with a library a settlement
 
 # Revisions
 
+- 2026-10-05: the fifth part measured again with universities of planks for villages of 60 with stores to spare: on seeds 1847, 7 and 42 the planner raised 2 universities each within `scholars_seconds` 5400, whose scholars thought of all three ideas; at an hour seed 1847 still misses (5 of 6 seeds hold), so the 90 minutes stay. Nothing changed in the gate.
 - 2026-10-05: a fifth part, scholars unscripted (the second pass, with the Seed Garden and the Printing House), with three added checks: `min_universities_unscripted` 1, `min_scholars_ideas` 1 and `max_ideas_without_scholars` 0, on Landmass L with one settlement for `scholars_seconds` 5400. On main at d5d04ae with seeds 1847, 7, 42, 99, 2026 and 31337: a university raised by the planner on each (the first at 2954 to 3994 seconds), and all three ideas only scholars find on each, none without; the other parts as before. An hour was tried first: seed 1847's settlement forgot the University before it was a town and thought of it again only at 3574 seconds.
 
 - 2026-10-05: a fourth part, reading (the second pass), with three added checks: `min_read_with_readers` 1, `max_read_without_readers` 0 and `min_reader_skill_ratio` 2. And the third part's run without a university is now kept from knowing one: on seed 1847, once readers learned trades from its library, the settlement there thought of a university, built it, and with its scholar at work thought of the Bathhouse at 1788 seconds of 1800, as the game should; the check means without a university. On seeds 1847, 7, 42 and 99: read with readers, not without, skill ratio 2.46 to 2.53; the other parts as before.

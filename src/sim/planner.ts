@@ -676,7 +676,14 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
  * chain, a bridge or a place of rites), whose ground would take the dock if it came down. It comes down, its carriers'
  * jobs cancelled and `salvage_share` of its cost back in storage, and the spot is returned.
  */
-export function clearShore(S: State, town: Town, B: BlueprintDef): { spot: { x: number; y: number; rot: number }; cut: Building } | null {
+/** Room for a university: a workshop resting with enough in store comes down for it, and the chronicle says so. */
+function clearFor(S: State, town: Town, B: BlueprintDef): boolean {
+  const cleared = clearShore(S, town, B, true);
+  if (cleared) chronicle(S, town.id, 'replanned', `${town.name} cleared ${article(bp(S, cleared.cut).name)} ${bp(S, cleared.cut).name.toLowerCase()}, with enough in store, to make room for ${article(B.name)} ${B.name}`);
+  return !!cleared;
+}
+
+export function clearShore(S: State, town: Town, B: BlueprintDef, idle = false): { spot: { x: number; y: number; rot: number }; cut: Building } | null {
   const P = T(S), W = S.world, chain = foodChainOf(S), store = S.bmap.get(town.store);
   if (!store) return null;
   const nearWater = (b: Building) => {
@@ -687,7 +694,8 @@ export function clearShore(S: State, town: Town, B: BlueprintDef): { spot: { x: 
   const cost = (b: Building) => Object.values(bp(S, b).cost).reduce((s, n) => s + n, 0);
   const cands = mineOf(S, town).filter(b => {
     const O = bp(S, b);
-    return !b.site && !O.homes && !O.storage && !O.bridge && !O.shore && !O.rite && !O.learning && !Object.keys(O.output).some(g => chain.has(g)) && nearWater(b);
+    // (for a university: any workshop resting with enough of its goods in store, wherever it stands)
+    return !b.site && !O.homes && !O.storage && !O.bridge && !O.shore && !O.rite && !O.learning && !Object.keys(O.output).some(g => chain.has(g)) && (idle ? O.workers > 0 && Object.keys(O.output).length > 0 && enoughInStore(S, b) : nearWater(b));
   }).sort((a, b) => cost(a) - cost(b) || a.id - b.id).slice(0, P.clearTries);
   for (const b of cands) {
     const back = lift(S, b);
@@ -1054,7 +1062,8 @@ function planTown(S: State, town: Town, dt: number) {
     c = propose(S, L, sh);
     // a university is wanted, not needed: with no room for one, the next need goes ahead in the same look, and the
     // planner does not say the land is full (which would send settlers off)
-    if (c && c.B.learning === 'university' && (roomless(c.B.id) || !chooseSpot(S, c.B.id, town))) { if (!roomless(c.B.id)) Q.noRoom[c.B.id] = S.t; c = null; continue; }
+    // (with no room it clears a workshop resting with enough in store, as a dock clears the shore)
+    if (c && c.B.learning === 'university' && (roomless(c.B.id) || (!hubs(S, town).some(h => chooseSpot(S, c!.B.id, town, false, h)) && !chooseSpot(S, c.B.id, town) && !clearFor(S, town, c.B)))) { if (!roomless(c.B.id)) Q.noRoom[c.B.id] = S.t; c = null; continue; }
     if (c && roomless(c.B.id)) { blocked ??= c; c = null; continue; }
     if (c?.wait) { waiting ??= c; c = null; continue; }
     // short of a good whose maker it has just found no room for: saving would wait for good, so the next need goes ahead
@@ -1120,7 +1129,8 @@ function planTown(S: State, town: Town, dt: number) {
   }
   let spot = chooseSpot(S, c.B.id, town);
   // a dock looks along the shores of every district, newest first
-  if (c.B.shore) for (const h of hubs(S, town).reverse()) spot ??= chooseSpot(S, c.B.id, town, false, h);
+  // (and a university, where a workshop was cleared for it)
+  if (c.B.shore || c.B.learning === 'university') for (const h of hubs(S, town).reverse()) spot ??= chooseSpot(S, c.B.id, town, false, h);
   // a dock with no shore left clears one: a workshop on the shore comes down for it, as roads clear their line
   if (!spot && c.B.shore) {
     const cleared = clearShore(S, town, c.B);

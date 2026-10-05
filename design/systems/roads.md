@@ -4,7 +4,7 @@ title: Roads
 description: Paths are worn where people walk; roads are planned as long straight strips that cut through what stands, and the town is then built along them.
 tags: [roads, logistics, planner]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-04T12:49:27Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T21:56:14Z }
 tuning:
   traffic_from: 8
   traffic_span: 8
@@ -36,7 +36,7 @@ A village or town strains under `traffic` while its deliveries run long: none at
 Every `look_every_seconds` a self-planning village or town that knows the road, with fewer roads than one and another for every `villagers_per_road` people (main roads only), looks at every row and column of tiles across its extent (its buildings, `margin` tiles around) and scores each straight run that could be a road:
 
 - **Traffic.** The footsteps worn on its tiles: a road goes where people already walk. A run worn less than `min_traffic` footsteps a tile on average, or shorter than `min_length`, is not worth laying.
-- **What stands in its line.** A road cuts through what stands, as long as the strip stays straight: each workplace or site it would clear costs `demolish_weight`, each home `home_weight`. Storage yards, bridges, docks and the like it cannot cross; the run stops at them, and at water and rock. With [seasons](/systems/seasons.md), from autumn to the end of winter or while the winter store is behind, it cannot cross the workplaces of the food chain either: a settlement cannot spare its bread then.
+- **What stands in its line.** A road cuts through what stands, as long as the strip stays straight: each workplace or site it would clear costs `demolish_weight`, each home `home_weight`. Storage yards, bridges, docks and the like, and universities, it cannot cross; the run stops at them, and at water and rock. With [seasons](/systems/seasons.md), from autumn to the end of winter or while the winter store is behind, it cannot cross the workplaces of the food chain either: a settlement cannot spare its bread then.
 - **Through the centre.** The first road must pass by the first storage yard's door (within two tiles); later ones must be at least `spacing` tiles from a road of the same settlement running the same way.
 
 The best run that scores above nothing is laid if the settlement can pay `cost` a tile from its stores. Everyone living in a home in its line moves first, to free beds elsewhere (a run that would leave anyone homeless is passed over); then the buildings come down, salvaging `salvage_share` of their cost as replanning does ([planner](/systems/planner.md)), and the strip is paved. The chronicle records it. Desire paths keep being worn and paved around roads.
