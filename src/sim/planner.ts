@@ -23,7 +23,7 @@ import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type For
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
 
-interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: 'library' | 'school' | 'university'; /** traded for from this neighbour rather than made */ from?: Town }
+interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: 'library' | 'school' | 'university'; hall?: boolean; /** traded for from this neighbour rather than made */ from?: Town }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
 interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; coming: boolean; foodShort: boolean; movable: boolean; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
@@ -242,6 +242,8 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     if (!has('school') && kids >= K.schoolChildren) shortages.push({ key: 'learning', learn: 'school', sev: K.learningWeight, why: `${kids} children have no school` });
     if ('university' in town.knows && !has('university') && formOf(S, town) === 'town') shortages.push({ key: 'learning', learn: 'university', sev: K.learningWeight, why: 'scholars would find new ways sooner' });
   }
+  // planners as people (with people on): a village wants a town hall for its planner
+  if (S.people && formOf(S, town) !== 'hamlet' && !mine.some(b => bp(S, b).hall)) shortages.push({ key: 'hall', hall: true, sev: P.hallWeight, why: 'its planner needs a hall to keep up with a village' });
   // carts: a shed where its deliveries run long and it has none near the busiest district
   if (S.carts && 'cart_shed' in town.knows) {
     const sheds = mine.filter(b => bp(S, b).carts).length, want = Math.max(1, Math.floor(pop / P.villagersPerCartShed));
@@ -364,6 +366,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.oxen) return B.oxen ? 1 : 0;
     if (sh.rite) return B.rite === L.town.custom ? 1 : 0;
     if (sh.learn) return B.learning === sh.learn ? 1 : 0;
+    if (sh.hall) return B.hall ? 1 : 0;
     if (sh.guard) return B.guards?.hazard === sh.guard ? 1 : 0;
     if (sh.clean) return B.sanitation ? 1 : 0;
     if (sh.store) return B.storage && (!B.keeps || B.keeps.includes('wheat')) ? clamp01((B.capacity || 300) / Math.max(1, L.storeNeed - L.storeRoom)) : 0;
@@ -951,6 +954,24 @@ function pave(S: State, town: Town) {
   for (const i of worn.slice(0, P.pavePerLook)) { W.road[i] = 1; W.tree[i] = 0; }
 }
 
+/** The settlement's own sites still being built: those its planner placed (with a reason), not the player's. */
+export const openSites = (S: State, town: Town) => S.buildings.filter(b => b.town === town.id && b.site && b.reason).length;
+
+/**
+ * How many of its own sites a settlement keeps open at once: one, and with its town hall's planner at their desk
+ * `hall_sites` more, and `hall_master_sites` more again from a planner whose skill has reached `expert_at`.
+ */
+export function atOnce(S: State, town: Town): number {
+  const P = T(S);
+  for (const b of S.buildings) {
+    if (b.town !== town.id || b.site || !bp(S, b).hall || b.worker === null) continue;
+    const w = S.amap.get(b.worker);
+    if (!w || w.state !== 'working') continue;
+    return 1 + P.hallSites + ((w.skill[b.type] || 0) >= S.content.tuning.people.expertAt ? P.hallMasterSites : 0);
+  }
+  return 1;
+}
+
 /** Advance every settlement's planner by dt. Called from tick(). */
 export function plan(S: State, dt: number) {
   for (const town of S.towns) planTown(S, town, dt);
@@ -968,9 +989,11 @@ function planTown(S: State, town: Town, dt: number) {
   if (planRoads(S, town, T(S).intervalSeconds / town.levers.pace)) return;
 
   const mine = Q.site !== null ? S.bmap.get(Q.site) : undefined;
-  // a site waits its turn, unless it has waited `site_patience_seconds` for a good nobody has: then plan around it
-  if (mine?.site && !starved(S, mine, town)) { Q.status = `Building ${article(bp(S, mine).name)} ${bp(S, mine).name}: ${mine.reason}`; return; }
-  if (Q.site !== null) { Q.site = null; Q.settle = T(S).settleSeconds / town.levers.pace; }
+  // a site waits its turn, unless it has waited `site_patience_seconds` for a good nobody has: then plan around it;
+  // with a planner at their desk in the town hall, it plans on while fewer than `atOnce` of its own sites are open
+  const open = mine?.site && !starved(S, mine, town);
+  if (open && openSites(S, town) >= atOnce(S, town)) { Q.status = `Building ${article(bp(S, mine).name)} ${bp(S, mine).name}: ${mine.reason}`; return; }
+  if (Q.site !== null && !open) { Q.site = null; Q.settle = T(S).settleSeconds / town.levers.pace; }
   if (Q.settle > 0) { Q.settle -= T(S).intervalSeconds / town.levers.pace; return; }
 
   // the worst shortage something known can relieve

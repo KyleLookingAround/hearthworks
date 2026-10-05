@@ -4,7 +4,7 @@ title: People
 description: Villagers as individuals; names, ages, births and deaths, skills that grow with practice and pass from master to apprentice, each village's custom for its dead, its naming custom, and its feasts through the year.
 tags: [people, customs, settlement]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T00:44:47Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T01:44:50Z }
 tuning:
   adult_seconds: 600
   elder_seconds: 6000
@@ -80,7 +80,7 @@ Every villager has a given name, taken from their settlement's naming custom. A 
 
 # Not yet
 
-Planners as people (a town hall and district halls, planners with a planning skill) come later.
+The planner is a villager too: a [Town Hall](/blueprints/town_hall.md)'s planner learns the trade like any other and, at their desk, lets the settlement build more at once ([planner](/systems/planner.md)). District halls, a planner for each district, come later.
 
 # Kyle's call
 

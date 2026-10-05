@@ -69,6 +69,8 @@ export interface BlueprintDef {
   rite: Custom | null;
   /** A place of learning: a library keeps knowledge, a school schools children, a university speeds invention. */
   learning: 'library' | 'school' | 'university' | null;
+  /** A town hall: its planner at work lets the settlement keep more of its own sites open at once. */
+  hall: boolean;
   /** Handcarts it keeps for long hauls (a cart shed). */
   carts: number;
   /** Ox carts it keeps for the longest hauls (an ox barn); each trip eats `ox_feed` of what it keeps stocked. */
@@ -192,7 +194,7 @@ export interface Tuning {
 }
 
 export interface PlannerTuning {
-  intervalSeconds: number; sitePatienceSeconds: number; buildGoods: ItemId[]; comfortWeight: number; depositWeight: number; replanMinAge: number; districtBuildings: number; districtSpacing: number; districtRoomWeight: number; replanEverySeconds: number; salvageShare: number; clearReach: number; clearTries: number; villageAt: number; townAt: number; rowWeight: number; streetWeight: number; streetEveryRows: number; streetEveryCols: number; streetRadius: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number;
+  intervalSeconds: number; sitePatienceSeconds: number; buildGoods: ItemId[]; comfortWeight: number; depositWeight: number; replanMinAge: number; districtBuildings: number; districtSpacing: number; districtRoomWeight: number; replanEverySeconds: number; salvageShare: number; clearReach: number; clearTries: number; villageAt: number; townAt: number; rowWeight: number; streetWeight: number; streetEveryRows: number; streetEveryCols: number; streetRadius: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number; hallWeight: number; hallSites: number; hallMasterSites: number;
   foodHeadroom: number; newcomerFoodShare: number; growthBeds: number; storeFullShare: number; villagersPerCartShed: number; villagersPerOxBarn: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
   costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; noRoomRetrySeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; searchRadiusMax: number; gap: number; minTrees: number;

@@ -40,6 +40,7 @@
 * [Stone Road](stone_road.md) - A road paved in stone, the fastest ground there is; a settlement repaves its busiest road in stone it can spare.
 * [Storage Yard](storage.md) - Holds surplus goods. Carriers fetch from here when nothing nearer has what they need.
 * [Terrace](terrace.md) - A row of small homes for twelve villagers on a 4 by 2 plot, built facing a street; towns build them in rows.
+* [Town Hall](town_hall.md) (draft) - Where a planner works; with one at their desk the settlement builds more than one thing at a time, and a master planner more still.
 * [University](university.md) - Scholars pursue lines of inquiry, so a town comes up with new ideas faster under strain.
 * [Warehouse](warehouse.md) - A brick store with room for six hundred goods.
 * [Watchtower](watchtower.md) (draft) - A lookout on watch sees raiders coming, so the whole militia musters to meet them.

@@ -2,7 +2,7 @@
 import { surroundings } from '../sim/surroundings.ts';
 import { homeTier } from '../sim/production.ts';
 import { FEAST, NAMING, called } from '../sim/people.ts';
-import { formOf, hubs } from '../sim/planner.ts';
+import { atOnce, formOf, hubs, openSites } from '../sim/planner.ts';
 import { capOf, crew, foodsEaten, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
 import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
@@ -673,6 +673,12 @@ export class App {
         rows += row('On the shelves', shelf.length ? '' : 'nothing yet beyond what the founders knew');
         for (const [id, k] of shelf) rows += row(this.content.blueprints[id]?.name ?? id, `by ${k.by}` + (k.from ? `, from ${k.from}` : '') + `; proven by ${k.verified.length}`);
       } else if (B.learning) rows += row('Work', B.learning === 'school' ? 'Teaching the children' : 'Pursuing lines of inquiry');
+      else if (B.hall) {
+        // the planner at their desk: how skilled, and how many of the settlement's own sites it keeps open at once
+        const t = S.towns[b.town], skill = w ? Math.round((w.skill[b.type] || 0) * 100) : 0;
+        rows += row('Planner', w ? `${w.name || 'a villager'}, ${skill >= Math.round(T.people.expertAt * 100) ? 'a master planner' : `skill ${skill}%`}` : 'none at the desk');
+        if (t) rows += row('Building at once', `${openSites(S, t)} of ${atOnce(S, t)} sites`);
+      }
       else if (!B.guards) rows += row('Cycle', `${B.seconds}s each`);
       if (B.tools) rows += row('Tools', (b.inv.tools || 0) >= 1 ? `${n0(b.inv.tools)}: working ${B.tools.speedup}× as fast` : 'none: slower work');
       progress = B.seconds ? b.timer / B.seconds : 0;

@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T12:40:00Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T01:44:50Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -37,6 +37,9 @@ tuning:
   settle_seconds: 6
   confirm_cycles: 2
   min_severity: 0.15
+  hall_weight: 0.3
+  hall_sites: 1
+  hall_master_sites: 1
   food_headroom: 1.3
   newcomer_food_share: 0.85
   growth_beds: 3
@@ -153,6 +156,10 @@ With planned [roads](/systems/roads.md) on, a village or town that knows the [Ro
 # Hardship
 
 With [hardship](/systems/hardship.md) on, a settlement struck by a hazard within `memory_seconds` that knows a counter for it wants one while anything the hazard threatens stands unguarded: severity `guard_weight` times the unguarded share, zero while bread is short (food first, as for comforts). It sites the counter where it guards the most unguarded buildings at risk, as it sites a depot where its bots reach the most. Each hazard is also a priority in the Steward panel.
+
+# Planners as people
+
+The planner is a villager. With [people](/systems/people.md) on, a village wants a [Town Hall](/blueprints/town_hall.md) at `hall_weight`, and its planner works there like any worker, learning the trade with practice. Without a hall, or while its planner is away from the desk, a settlement plans one building of its own at a time, waiting for each site to finish (step 1 of the loop). With the planner at work it plans on while fewer than `1 + hall_sites` of its own sites are open, and `hall_master_sites` more once the planner's skill reaches `expert_at`. Sites the player places never count. On a roomy world (Landmass L, one settlement, people, seasons and farms on, an hour; seeds 1847, 7 and 42) a hall brought 90, 110 and 133 villagers against 84, 96 and 100, fed as well; on the Islands, where land runs out first, it made no difference ([log](/log.md), 2026-10-05).
 
 # Learning
 

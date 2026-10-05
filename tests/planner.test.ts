@@ -79,3 +79,32 @@ test('switching the planner off stops new plans and leaves hand placement alone'
   assert.equal(mine?.reason, '');
   assert.ok(villagers(S).length >= 5);
 });
+
+test('planners as people: a town hall with its planner at work lets a settlement build more at once, a master planner more still', async () => {
+  const { atOnce, openSites } = await import('../src/sim/planner.ts');
+  const { findSpot } = await import('../src/sim/index.ts');
+  const P = content.tuning.planner;
+  const S = createState(content, 1847, { planner: true, people: true, map: 'landmass', size: 'l' });
+  const t = S.towns[0];
+  assert.equal(atOnce(S, t), 1, 'one site at a time without a hall');
+  const at = findSpot(S, 'town_hall', centre(S), 30)!;
+  const hall = placeBuilding(S, 'town_hall', at.x, at.y, true)!;
+  let most = 0, staffed = false;
+  runFor(S, 900, s => {
+    const w = hall.worker !== null ? s.amap.get(hall.worker) : undefined;
+    if (w?.state === 'working') staffed = true;
+    most = Math.max(most, openSites(s, t));
+  });
+  assert.ok(staffed, 'a planner sat at the desk');
+  const w = S.amap.get(hall.worker!)!;
+  assert.equal(atOnce(S, t), 1 + P.hallSites + ((w.skill.town_hall || 0) >= content.tuning.people.expertAt ? P.hallMasterSites : 0));
+  w.skill.town_hall = 1;
+  assert.equal(atOnce(S, t), 1 + P.hallSites + P.hallMasterSites, 'a master planner keeps more open');
+  assert.ok(most >= 2, `kept ${most} of its own sites open at once`);
+});
+
+test('without people there are no planners as people: no hall is wanted', () => {
+  const S = createState(content, 1847, { planner: true, map: 'landmass', size: 'l' });
+  runFor(S, 1800);
+  assert.ok(!S.buildings.some(b => content.blueprints[b.type].hall));
+});
