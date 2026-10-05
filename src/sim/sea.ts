@@ -2,6 +2,7 @@ import { goToBuilding, moveTo } from './agents.ts';
 import { cancelTask } from './logistics.ts';
 import { makeRng, valueNoise } from './rng.ts';
 import { bp, chronicle, door, villagers } from './world.ts';
+import { setOff } from './ships.ts';
 import type { Agent, MapDef, State, Town, World } from './types.ts';
 
 /**
@@ -196,7 +197,8 @@ export function sendExplorer(S: State, t: Town): Agent | null {
   cancelTask(a);
   a.visit = { from: t.id, to: t.id, back: false, carry: {}, boat: true, seen: [], explore: [tx, ty] };
   a.state = 'visit';
-  if (!moveTo(S, a, tx, ty)) { a.visit = null; a.state = 'idle'; return null; }
+  // with ships on, in a boat of its own: with none free, the explorer waits ashore
+  if (!setOff(S, a, t, () => moveTo(S, a, tx, ty))) { a.visit = null; a.state = 'idle'; return null; }
   S.stats.voyages++;
   return a;
 }

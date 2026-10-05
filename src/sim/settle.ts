@@ -1,6 +1,8 @@
 import { goToBuilding } from './agents.ts';
 import { cancelTask } from './logistics.ts';
-import { add, bp, chronicle, clearSite, emit, foundTown, neighbourSite, seasonOf, storesOnTrack, villagers } from './world.ts';
+import { add, bp, chronicle, clearSite, door, emit, foundTown, neighbourSite, seasonOf, storesOnTrack, villagers } from './world.ts';
+import { reachable } from './path.ts';
+import { embark, launch, partyDock } from './ships.ts';
 import type { Agent, State, Stock, Town } from './types.ts';
 
 /**
@@ -68,6 +70,12 @@ export function sendParty(S: State, mother: Town): Town | null {
   // the founding cost may be gathered from the whole settlement (bread seldom rests in a yard, nor logs beside a busy sawmill);
   // the share of the rest comes from the stores
   const have = stock(S, mother), cost = foundingCost(S), round = stock(S, mother, true);
+  // with ships on, a party bound over the water builds a boat of its own at its settlement's dock, from planks it takes
+  const yard0 = S.bmap.get(mother.store), y0 = yard0 ? door(yard0) : null;
+  const dock = S.ships && y0 ? partyDock(S, mother, site, reachable(S.world, y0.x, y0.y)) : undefined;
+  if (dock === null) return null;
+  const boatPlanks = dock ? S.content.tuning.sea.partyBoatPlanks : 0;
+  if (boatPlanks) add(cost, 'planks', boatPlanks);
   if (Object.keys(cost).some(k => (round[k] || 0) < cost[k])) return null;
   // the party: villagers not at a workplace or on an errand away, adults if people are on
   const P = S.content.tuning.people;
@@ -85,6 +93,9 @@ export function sendParty(S: State, mother: Town): Town | null {
   // the yard and cottages are what they carried for them; the rest goes into the yard
   const rest: Stock = { ...carried };
   for (const id of ['storage', 'house', 'house']) for (const k in S.content.blueprints[id].cost) add(rest, k, -S.content.blueprints[id].cost[k]);
+  // (and their boat, if they built one)
+  if (boatPlanks) add(rest, 'planks', -boatPlanks);
+  const boat = dock ? launch(S, dock, true) : null;
   yard.inv = {};
   for (const k in rest) if (rest[k] > 0) yard.inv[k] = rest[k];
   // knowledge: what the founders knew, and everything the mother has proven in use; its custom
@@ -102,7 +113,9 @@ export function sendParty(S: State, mother: Town): Town | null {
   d.levers = { priority: { ...mother.levers.priority }, encourage: null, pace: mother.levers.pace };
   d.laws = { ...mother.laws };
   mother.sentAt = S.t;
+  if (boat) boat.crew = party.map(a => a.id);
   for (const a of party) { a.path = []; a.state = 'idle'; goToBuilding(S, a, yard); }
+  if (boat) embark(S, boat, party, d);
   // across the water: a colony
   const W = S.world, overseas = party.some(a => a.path.some(([x, y]) => !W.ground[y * W.w + x] && !W.bridge[y * W.w + x]));
   d.overseas = overseas;

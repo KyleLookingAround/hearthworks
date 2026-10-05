@@ -7,6 +7,7 @@ import { joinFields, offered } from './farms.ts';
 import { setBelt, turned } from './belts.ts';
 import { findPath, reachable } from './path.ts';
 import { islesOf, shapeSea } from './sea.ts';
+import { launch } from './ships.ts';
 import type { Agent, BlueprintDef, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
 
 /**
@@ -270,14 +271,14 @@ function firstSite(S: State): { x: number; y: number } {
  * `settlements` above 1 founds neighbours the same way, as far apart as the land allows.
  * The village planner is off unless `planner` is set, so scripted scenarios stay scripted.
  */
-export interface WorldOptions { /** the year turns (default off, for scenarios that predate seasons) */ seasons?: boolean; /** neighbours trade (default off, for scenarios that predate it) */ trade?: boolean; /** villagers age, are born and die, learn, and honour their dead (default off) */ people?: boolean; /** cart sheds and handcarts (default off) */ carts?: boolean; /** crowded settlements found daughter towns (default off) */ settlers?: boolean; /** settlements know only the islands they have charted, and send explorers (default off) */ charts?: boolean; /** fire, flood, sickness and barbarians (default off) */ hardship?: boolean; /** settlements think of roads and lay them in straight strips (default off) */ plannedRoads?: boolean; /** newcomers arrive (default on) */ newcomers?: boolean; /** farms grow fields and hands, and homes eat a varied diet (default off) */ farms?: boolean; /** planners pave worn paths (default on) */ roads?: boolean; planner?: boolean; settlements?: number; map?: string; size?: string }
+export interface WorldOptions { /** the year turns (default off, for scenarios that predate seasons) */ seasons?: boolean; /** neighbours trade (default off, for scenarios that predate it) */ trade?: boolean; /** villagers age, are born and die, learn, and honour their dead (default off) */ people?: boolean; /** cart sheds and handcarts (default off) */ carts?: boolean; /** crowded settlements found daughter towns (default off) */ settlers?: boolean; /** settlements know only the islands they have charted, and send explorers (default off) */ charts?: boolean; /** fire, flood, sickness and barbarians (default off) */ hardship?: boolean; /** settlements think of roads and lay them in straight strips (default off) */ plannedRoads?: boolean; /** newcomers arrive (default on) */ newcomers?: boolean; /** farms grow fields and hands, and homes eat a varied diet (default off) */ farms?: boolean; /** boats belong to settlements, one with each dock and more from shipyards (default off) */ ships?: boolean; /** planners pave worn paths (default on) */ roads?: boolean; planner?: boolean; settlements?: number; map?: string; size?: string }
 
 export function createState(content: Content, seed: number, opts: WorldOptions = {}): State {
   const S = {
     content, seed, rng: makeRng(seed), krng: makeRng(seed ^ 0x6b6e6f77), t: 0, buildings: [], agents: [], bmap: new Map(), amap: new Map(), nextId: 1,
     mood: 1, fed: 1, migT: 0, secT: 0, events: [], towns: [], chronicle: [], seasons: false, trade: false,
-    stats: { made: {}, trades: 0, births: 0, deaths: 0, honoured: 0, riteWaitMax: 0, feasts: 0, feastsMissed: 0, cartDeliveries: 0, goodsDelivered: 0, longGoods: 0, longGoodsByCart: 0, longFootSeconds: 0, longCartSeconds: 0, longDeliveries: 0, longByCart: 0, oxTrips: 0, longGoodsByOx: 0, longOxSeconds: 0, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, spoiled: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, eaten: {}, grown: 0, invented: 0, taught: 0, forgotten: 0, fires: 0, burnt: 0, floods: 0, outbreaks: 0, raids: 0, repelled: 0, looted: 0, sickDeaths: 0, starved: 0, camps: 0, gifts: 0, campsSettled: 0, barbariansSettled: 0, voyages: 0, charted: 0, roadsLaid: 0, roadTiles: 0, roadCut: 0, roadMoved: 0, roadDeliveries: 0, roadDeliverySeconds: 0, roadDeliveryTiles: 0, pathDeliveries: 0, pathDeliverySeconds: 0, pathDeliveryTiles: 0, beltsLaid: 0, beltTiles: 0, beltLoads: 0, beltGoods: 0, beltSeconds: 0 },
-    parcels: [],
+    stats: { made: {}, trades: 0, births: 0, deaths: 0, honoured: 0, riteWaitMax: 0, feasts: 0, feastsMissed: 0, cartDeliveries: 0, goodsDelivered: 0, longGoods: 0, longGoodsByCart: 0, longFootSeconds: 0, longCartSeconds: 0, longDeliveries: 0, longByCart: 0, oxTrips: 0, longGoodsByOx: 0, longOxSeconds: 0, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, spoiled: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, eaten: {}, grown: 0, invented: 0, taught: 0, forgotten: 0, fires: 0, burnt: 0, floods: 0, outbreaks: 0, raids: 0, repelled: 0, looted: 0, sickDeaths: 0, starved: 0, camps: 0, gifts: 0, campsSettled: 0, barbariansSettled: 0, voyages: 0, charted: 0, roadsLaid: 0, roadTiles: 0, roadCut: 0, roadMoved: 0, roadDeliveries: 0, roadDeliverySeconds: 0, roadDeliveryTiles: 0, pathDeliveries: 0, pathDeliverySeconds: 0, pathDeliveryTiles: 0, beltsLaid: 0, beltTiles: 0, beltLoads: 0, beltGoods: 0, beltSeconds: 0, boatsBuilt: 0, boatTrips: 0, ashore: 0 },
+    parcels: [], boats: [],
   } as unknown as State;
   const mt = content.tuning.map;
   const mapId = opts.map ?? mt.standardType, sizeId = opts.size ?? mt.standardSize;
@@ -297,6 +298,7 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   S.hardship = opts.hardship ?? false;
   S.plannedRoads = opts.plannedRoads ?? false;
   S.farms = opts.farms ?? false;
+  S.ships = opts.ships ?? false;
   S.hrng = makeRng(seed ^ 0x68617264);
   S.camps = []; S.campT = 0;
   S.world = generateWorld(M, size.width, size.height, S);
@@ -325,7 +327,7 @@ export function foundTown(S: State, cx: number, cy: number, planner: boolean, ro
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content, B => offered(S, B)), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', naming: 'fields', rites: [], feasts: [], feastUntil: -1e9, graves: {}, copyT: 0, reach: 0, mother: null, overseas: false, age: 0, laws: { rationing: false, hours: 'normal', leave: true }, struck: {}, roadT: 0, roads: [], beltT: 0, belts: [], sentAt: -1e9, settleT: 0, charted: [], lookT: 1e9, explore: false, voyageAt: -1e9 };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content, B => offered(S, B)), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', naming: 'fields', rites: [], feasts: [], feastUntil: -1e9, graves: {}, copyT: 0, reach: 0, mother: null, overseas: false, age: 0, laws: { rationing: false, hours: 'normal', leave: true }, struck: {}, roadT: 0, roads: [], beltT: 0, belts: [], sentAt: -1e9, settleT: 0, charted: [], lookT: 1e9, explore: false, voyageAt: -1e9, boatless: -1e9 };
   S.towns.push(town);
   if (!party) chronicle(S, id, 'founded', `${town.name} was founded with ${t.villagers} villagers`);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;
@@ -386,11 +388,13 @@ export function neighbourSite(S: State, from: Town = S.towns[0], reach = false, 
   // that fails covers the whole map, so without them the sites out of reach are never searched for
   const foot = test ? reachable(w, home.x, home.y) : null;
   const walks = (p: { x: number; y: number }) => !!foot && foot[(p.y + 1) * w.w + p.x] === 1;
-  const left = test && !w.docks ? good.filter(walks) : good;
+  // with ships on, only the settlement's own docks launch its boats
+  const docks = S.ships ? S.buildings.some(b => b.town === from.id && !b.site && bp(S, b).shore) : w.docks > 0;
+  const left = test && !docks ? good.filter(walks) : good;
   while (left.length) {
     const k = Math.floor(rand(S.rng) * left.length), p = left[k];
     // with `reach`, the site must be reachable from `from`: on foot, or rowing from a dock
-    if (!test || walks(p) || findPath(w, home.x, home.y, p.x, p.y + 1)) return { x: p.x, y: p.y };
+    if (!test || walks(p) || findPath(w, home.x, home.y, p.x, p.y + 1, S.ships ? { fleet: from.id } : {})) return { x: p.x, y: p.y };
     left.splice(k, 1);
   }
   return null;
@@ -469,7 +473,7 @@ function stepOut(S: State, b: Building) {
 function setDoor(S: State, b: Building, on: boolean) {
   const w = S.world, d = door(b), i = d.y * w.w + d.x, o = bp(S, b).shore ? beside(b) : front(b), f = inB(w, o.x, o.y) ? o.y * w.w + o.x : -1;
   w.door[i] = on ? 1 : 0;
-  if (bp(S, b).shore) { w.dock[i] = on ? 1 : 0; w.docks += on ? 1 : -1; }
+  if (bp(S, b).shore) { w.dock[i] = on ? b.town + 1 : 0; w.docks += on ? 1 : -1; }
   if (f >= 0 && f < w.front.length) w.front[f] = Math.max(0, w.front[f] + (on ? 1 : -1));
 }
 
@@ -570,6 +574,9 @@ export function completeSite(S: State, b: Building, announce: boolean) {
     // the long ways round it remembered were measured before this bridge stood
     if (S.towns[b.town]) S.towns[b.town].detours = [];
   }
+  // a dock launches its own settlement's boats (whose it is is settled once it stands), and with ships on comes with one
+  if (B.shore) { const d = door(b), i = d.y * S.world.w + d.x; if (S.world.dock[i]) S.world.dock[i] = b.town + 1; }
+  if (B.shore && S.ships) for (let k = 0; k < S.content.tuning.sea.dockBoats; k++) launch(S, b);
   if (B.couriers) {
     const d = door(b);
     for (let k = 0; k < B.couriers.count; k++) {

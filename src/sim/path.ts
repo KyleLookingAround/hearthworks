@@ -26,12 +26,18 @@ function cost(w: World, i: number, inside: number): number {
 export interface PathOptions {
   /** The traveller has a boat with them (they landed here by boat), so they can launch from any shore. */
   launchAnywhere?: boolean;
+  /**
+   * With ships on: the settlement whose docks the traveller may launch from (they have one of its boats), or -1
+   * for none (they have no boat, so they walk). Left out, any dock will do, as before ships.
+   */
+  fleet?: number;
 }
 
 /**
  * Two travel modes: on foot, and rowing. Boats are launched from a dock's door (or from any shore
  * by someone who has one with them) and can land on any shore. Without docks nobody rows, so a world
- * with none gets exactly the routes it always did.
+ * with none gets exactly the routes it always did. With ships on, only a traveller with a boat of their
+ * settlement's fleet rows, from that settlement's own docks (`fleet`).
  */
 export function findPath(w: World, sx: number, sy: number, gx: number, gy: number, opts: PathOptions = {}): [number, number][] | null {
   const W = w.w, H = w.h, N = W * H, inB = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H;
@@ -39,7 +45,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   if (!inB(gx, gy) || !inB(sx, sy) || (!w.ground[gy * W + gx] && !w.bridge[gy * W + gx])) { w.work.pathFails++; return null; }
   const s = sy * W + sx, goal = gy * W + gx;
   if (s === goal) return [];
-  const rowing = w.docks > 0 || !!opts.launchAnywhere, water = w.waterCost;
+  const fleet = opts.fleet, rowing = (w.docks > 0 && fleet !== -1) || !!opts.launchAnywhere, water = w.waterCost;
   let b = buffers.get(w);
   if (!b || b.g.length < 2 * N) { const n = 2 * N; b = { g: new Float32Array(n), came: new Int32Array(n), seen: new Uint32Array(n), closed: new Uint32Array(n), gen: 0 }; buffers.set(w, b); }
   // only someone trapped on a wall tile (not standing in a doorway) may cross that building to get out
@@ -110,7 +116,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
       }
       if (rowing && isWater(ni) && !w.bridge[ni]) {
         // launch from a dock's door, or anywhere if a boat is already with us
-        if (!diag && (w.dock[t] || opts.launchAnywhere)) relax(cur, ni + N, w.sea[ni] === 1 ? shallow : water);
+        if (!diag && ((w.dock[t] && (fleet === undefined || w.dock[t] === fleet + 1)) || opts.launchAnywhere)) relax(cur, ni + N, w.sea[ni] === 1 ? shallow : water);
         continue;
       }
       const c = cost(w, ni, inside);

@@ -2,8 +2,8 @@
  * Gate 18 scenario: one self-planning settlement on Islands at size M, with settling and trade on, for
  * `seconds`. No build calls. Its first colony (a daughter founded across water) is followed: does it
  * last `survive_seconds` with people in it, and do porters cross between it and its mother?
- * Then the same world again with charts on, as in new games: do explorers come home with islands charted,
- * and is a colony founded on charted land?
+ * Then the same world again with charts and ships on, as in new games: do explorers come home with islands
+ * charted, is a colony founded on charted land, and does it keep the boat its settlers came in?
  */
 import { start, worldOf, type Scenario } from '../../../src/gates/kit.ts';
 import { runFor, villagers } from '../../../src/sim/index.ts';
@@ -23,8 +23,8 @@ export const run: Scenario = (content, params) => {
     for (const a of S.agents) if (a.visit?.trade && ((a.visit.from === colony && a.visit.to === mother) || (a.visit.from === mother && a.visit.to === colony))) trips.add(a.id * 100000 + Math.floor(a.visit.from));
     if (S.t - foundedAt <= survive) alive = villagers(S).some(a => a.home?.town === colony) ? Math.min(survive, S.t - foundedAt) : alive;
   }
-  // with charts: each colony is checked against its mother's charts as it is founded
-  const C = start(content, seed, { planner: true, settlers: true, trade: true, charts: true, ...worldOf(params) });
+  // with charts (and ships): each colony is checked against its mother's charts as it is founded
+  const C = start(content, seed, { planner: true, settlers: true, trade: true, charts: true, ships: true, ...worldOf(params) });
   let onCharted = 0, offCharted = 0;
   for (let t = 0; t < seconds; t++) {
     const before = C.towns.length, charts = C.towns.map(w => [...w.charted]);
@@ -51,6 +51,10 @@ export const run: Scenario = (content, params) => {
       charts_colonies: onCharted,
       charts_colonies_uncharted: offCharted,
       charts_villagers: villagers(C).length,
+      ships_boats: C.boats.length,
+      ships_boat_trips: C.stats.boatTrips,
+      ships_colony_boats: C.towns.filter(w => w.overseas && C.boats.some(b => b.town === w.id)).length,
+      ships_ashore: C.stats.ashore,
     },
   };
 };

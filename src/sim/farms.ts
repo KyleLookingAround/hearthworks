@@ -12,7 +12,7 @@ const NOBUILD = 1 + ZONES.indexOf('nobuild'), FARMS = 1 + ZONES.indexOf('farms')
 const article = (name: string) => (/^[aeiou]/i.test(name) ? 'an' : 'a');
 
 /** Does this blueprint exist in this world? Those of an option (farms that grow) only with it on. */
-export const offered = (S: State, B: BlueprintDef) => !B.option || (B.option === 'farms' && S.farms);
+export const offered = (S: State, B: BlueprintDef) => !B.option || (B.option === 'farms' && S.farms) || (B.option === 'ships' && S.ships);
 
 /** The largest size a blueprint grows to (0 for one that does not grow). */
 export const maxSize = (B: BlueprintDef) => (B.grows ? B.grows.names.length - 1 : 0);

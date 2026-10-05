@@ -1,10 +1,10 @@
 ---
 type: System
 title: The sea
-description: Shallows along every shore and reefs out at sea on the sea maps, and charts - a settlement knows only the islands it has seen, settles only on charted land, and sends explorers out for the rest.
+description: Shallows along every shore and reefs out at sea on the sea maps; charts - a settlement knows only the islands it has seen, settles only on charted land, and sends explorers out for the rest; and ships - every boat belongs to a settlement's fleet, built at its docks and shipyard, and a crossing takes one.
 tags: [water, settlement, map]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-05T02:33:02Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T07:30:58Z }
 tuning:
   shallow_tiles: 2
   shallow_speed: 0.6
@@ -14,6 +14,13 @@ tuning:
   sight_tiles: 16
   look_every_seconds: 60
   explore_every_seconds: 240
+  dock_boats: 1
+  party_boat_planks: 6
+  villagers_per_boat: 20
+  fleet_max: 4
+  boatless_memory_seconds: 300
+  shipyard_weight: 0.4
+  boat_names: [Heron, Gull, Tern, Otter, Kingfisher, Puffin, Seal, Minnow, Swallow, Plover, Curlew, Dipper, Cormorant, Wren, Mallard, Grebe]
 ---
 
 # Idea
@@ -38,6 +45,18 @@ Charts are on in new games (with settling: the new-game screen's settling box tu
 - **Explorers.** Every `explore_every_seconds` at most, a settlement with a dock of its own sends a grown carrier (never its last) to row for the nearest land it has not charted (following the birds): at once if it wants land to settle, otherwise once it has people to spare for visits (`visit_min_villagers` in [knowledge](/systems/knowledge.md)). They land, turn for home, and when they get there the settlement charts the island and everything they saw on the way, into the chronicle. One explorer is out at a time. The Steward panel shows how many islands a settlement has charted and whether an explorer is at sea.
 - A daughter keeps her mother's charts.
 
+# Ships
+
+Ships are on in new games (with settling and charts: the new-game screen's settling box turns all three on) and off in older scenarios (`ships`), where anyone rows from any dock as before. Code: `src/sim/ships.ts`. With ships on:
+
+- **A fleet.** Every boat belongs to a settlement. A [Dock](/blueprints/dock.md) is built with `dock_boats` of them; the [Shipyard](/blueprints/shipyard.md) builds more from planks while the settlement has fewer than it wants: one for every `villagers_per_boat` people, at least one, at most `fleet_max`. Each boat has a name from `boat_names`, picked by its number and the world's seed (never a random stream), one its fleet does not already have. The first boat and every launch go into the chronicle.
+- **Crews.** Only someone crewing a boat of their settlement's rows, launching from that settlement's own docks, or from any shore once they are away from its island (the boat is pulled up beside them). A visitor, a porter or an explorer setting out takes a free boat if their way crosses water, and crews it until their visit is over; with none free they go only if they can walk, and otherwise stay ashore. Carriers, builders and newcomers never row.
+- **Settlers.** A founding party bound over the water builds a boat of its own at its settlement's dock from `party_boat_planks` planks it takes with the rest of its founding cost, and goes all in it; the boat stays with the daughter once they land, so a colony has a boat from its first day, to row home in once it has a dock. The mother keeps its fleet: a settlement that sends settlers because its island is full has no room left for a shipyard.
+- **Wanting boats.** A settlement with a dock whose people stayed ashore for want of a boat within `boatless_memory_seconds` feels the need `boats`: it comes up with the shipyard, and its planner builds one (`shipyard_weight`) while its fleet wants boats.
+- The dock's inspector names the boats moored and how many are out, and the Steward panel lists the fleet.
+
+A boat is a thing a settlement owns, with a crew and a home port. Cargo boats on sea routes, a boatman with a schedule and a dozen goods aboard ([roadmap](/roadmap.md) Phase 23, Leagues), are boats of this fleet given a route; this pass leaves them for Leagues.
+
 # Not yet
 
-Shipyards that build boats (rowing is still free for everyone with a dock), crewed ships for the open sea, and sea routes for goods: cargo boats come with the [roadmap](/roadmap.md)'s Leagues.
+Crewed ships for the open sea (bigger boats, longer voyages) and sea routes for goods: cargo boats come with the [roadmap](/roadmap.md)'s Leagues, on this fleet.

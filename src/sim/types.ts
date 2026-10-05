@@ -99,8 +99,10 @@ export interface BlueprintDef {
   grows: { names: string[] } | null;
   /** New fields: a strip laid behind a farm that grows, which becomes part of it when finished. */
   field: boolean;
-  /** Exists only with this option of the world on (farms that grow). */
-  option: 'farms' | null;
+  /** Exists only with this option of the world on (farms that grow, ships). */
+  option: 'farms' | 'ships' | null;
+  /** Builds boats for its settlement's fleet (a shipyard): each batch of its recipe launches one, while the fleet wants one. */
+  shipyard: boolean;
   /** Seconds after it is built before it yields anything (an orchard's young trees). */
   ripens: number;
 }
@@ -171,7 +173,7 @@ export interface Tuning {
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
   settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; crowdedMinVillagers: number; storesShare: number; maxSettlements: number };
-  sea: { shallowTiles: number; shallowSpeed: number; reefFromTiles: number; reefToTiles: number; reefCell: number; sightTiles: number; lookEverySeconds: number; exploreEverySeconds: number };
+  sea: { shallowTiles: number; shallowSpeed: number; reefFromTiles: number; reefToTiles: number; reefCell: number; sightTiles: number; lookEverySeconds: number; exploreEverySeconds: number; dockBoats: number; partyBoatPlanks: number; villagersPerBoat: number; fleetMax: number; boatlessMemorySeconds: number; shipyardWeight: number; boatNames: string[] };
   people: {
     adultSeconds: number; elderSeconds: number; lifespanSeconds: number; lifespanJitterSeconds: number; founderAgeMaxSeconds: number; birthEverySeconds: number;
     practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
@@ -443,7 +445,16 @@ export interface Town {
   lookT: number;
   explore: boolean;
   voyageAt: number;
+  /** With ships on: when one of its people last stayed ashore for want of a free boat (game time). */
+  boatless: number;
 }
+
+/**
+ * A boat of a settlement's fleet (with ships on): moored at its docks, or out with its crew, the people rowing it
+ * (a visitor, a porter, an explorer, or a founding party all in one boat). `bound` is the settlement a founding
+ * party's boat stays with once they land. Boats are never lost, so a boat's id is its place in `S.boats`.
+ */
+export interface Boat { id: number; name: string; town: number; crew: number[]; bound: number | null; built: number; trips: number }
 
 export interface World {
   w: number; h: number;
@@ -468,7 +479,7 @@ export interface World {
   sea: Uint8Array;
   /** cost of a tile of shallows relative to open water */
   shallowCost: number;
-  /** 1 on a dock's door: where boats are launched */
+  /** On a dock's door: where boats are launched; its settlement's id + 1 (older saves: 1) */
   dock: Uint8Array;
   /** how many docks stand (or are being built); with none, nobody rows */
   docks: number;
@@ -566,6 +577,8 @@ export interface Stats {
   fires: number; burnt: number; floods: number; outbreaks: number; raids: number; repelled: number; looted: number; sickDeaths: number; starved: number; camps: number; gifts: number; campsSettled: number; barbariansSettled: number;
   /** With charts on: explorers' voyages, and islands charted by settlements (each settlement counts its own). */
   voyages: number; charted: number;
+  /** With ships on: boats built (docks' own and shipyards'), trips that took a boat out, and trips not made for want of a free one. */
+  boatsBuilt: number; boatTrips: number; ashore: number;
 }
 
 /**
@@ -630,4 +643,8 @@ export interface State {
   parcels: Parcel[];
   /** Farms that grow on: farms grow fields and hands, and homes eat a varied diet of the foods they grow. */
   farms: boolean;
+  /** Ships on: boats belong to a settlement (one with each dock, more from a shipyard), and a crossing takes one of them. */
+  ships: boolean;
+  /** Every boat of every settlement's fleet. */
+  boats: Boat[];
 }
