@@ -251,6 +251,7 @@ export function buildContent(files: SourceFile[]): Content {
       costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), crossingWeight: q('crossing_weight'), savePatienceSeconds: q('save_patience_seconds'), noRoomRetrySeconds: q('no_room_retry_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
       searchRadius: q('search_radius'), searchRadiusMax: q('search_radius_max'), gap: q('gap'), minTrees: q('min_trees'),
       treeWeight: q('tree_weight'), sharedTreeWeight: q('shared_tree_weight'), linkWeight: q('link_weight'), storeWeight: q('store_weight'), forestPenalty: q('forest_penalty'),
+      renewEverySeconds: q('renew_every_seconds'), idleSeconds: q('idle_seconds'), keepCover: q('keep_cover'), centreRadius: q('centre_radius'), moveMaxSize: q('move_max_size'), yardWeight: q('yard_weight'), packedHomes: q('packed_homes'),
     },
     hardship: (() => { const g = (k: string) => num(hd, ht[k], `tuning.${k}`); return {
       fireEverySeconds: g('fire_every_seconds'), spreadGap: g('spread_gap'), spreadChance: g('spread_chance'), burnSeconds: g('burn_seconds'), douseSeconds: g('douse_seconds'), rebuildShare: g('rebuild_share'), fireLoss: g('fire_loss'), fireproof: Array.isArray(ht.fireproof) ? ht.fireproof.map(String) : [],

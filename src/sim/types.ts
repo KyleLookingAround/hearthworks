@@ -211,6 +211,8 @@ export interface PlannerTuning {
   costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; noRoomRetrySeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; searchRadiusMax: number; gap: number; minTrees: number;
   treeWeight: number; sharedTreeWeight: number; linkWeight: number; storeWeight: number; forestPenalty: number;
+  /** Renewal: pulling down what no longer pays, and moving land and noise out of the district centres. */
+  renewEverySeconds: number; idleSeconds: number; keepCover: number; centreRadius: number; moveMaxSize: number; yardWeight: number; packedHomes: number;
 }
 
 /** What the village planner is doing. Off unless the game or a scenario turns it on. */
@@ -235,6 +237,8 @@ export interface PlannerState {
   roads: boolean;
   /** When it last replanned a block. */
   replanAt: number;
+  /** When it last looked over what it has built, to pull down what no longer pays or move it out of a centre. */
+  renewAt: number;
   /** When it first planned a building for each need, by shortage key. */
   firstFor: Record<string, number>;
   /** Blueprints it last found no room for, and when: it plans something else for `no_room_retry_seconds`. */
@@ -316,6 +320,10 @@ export interface Building {
   of: number | null;
   /** Everything it has made, counted one by one. */
   made: number;
+  /** A workplace: seconds it has stood without work (no worker, no inputs, or resting with enough in store); 0 once it works again. */
+  idle: number;
+  /** A site its planner builds to take over from a building in a district centre, which comes down when this is done. */
+  replaces: number | null;
   /** A home: when it last ate each food (game time). */
   ate: Stock;
 }
@@ -535,6 +543,9 @@ export interface Stats {
   spoiled: number;
   /** Blocks replanned, and people who left because their home came down. */
   replanned: number;
+  /** Buildings a planner pulled down because they no longer paid, and moved out of a district centre. */
+  pulledDown: number;
+  movedOut: number;
   demolitionDepartures: number;
   deliveries: { villager: number; bot: number };
   arrivals: number;
