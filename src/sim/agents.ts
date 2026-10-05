@@ -1,6 +1,6 @@
 import { rand } from './rng.ts';
 import { findPath, type PathOptions } from './path.ts';
-import { bp, distAB, door, inB, seasonOf, storesOnTrack } from './world.ts';
+import { bp, distAB, door, inB, seasonOf, storesOnTrack, tread } from './world.ts';
 import { blame, cancelTask, drop, findTask, pickup, staleBoard, staleTask } from './logistics.ts';
 import { arrive } from './knowledge.ts';
 import { explorerArrives, sight } from './sea.ts';
@@ -95,7 +95,7 @@ export function updateAgent(S: State, a: Agent, dt: number) {
     if (d <= step) {
       a.x = gx; a.y = gy; a.path.shift();
       const j = ty * w.w + tx;
-      if (w.ground[j]) w.wear[j] += 1;
+      if (w.ground[j]) tread(w, j);
       else if (S.charts && a.visit && !w.bridge[j]) sight(S, a, tx, ty);
       if (a.task) { a.task.steps++; if (w.road[j] >= 2) a.task.road++; else if (w.road[j] || w.bridge[j]) a.task.path++; }
     } else { a.x += (dx / d) * step; a.y += (dy / d) * step; }

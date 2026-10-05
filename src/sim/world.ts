@@ -617,6 +617,19 @@ export function saplings(w: World): Set<number> {
 }
 export function plant(w: World, i: number) { w.tree[i] = 1; w.grow[i] = 0; saplings(w).add(i); }
 
+/**
+ * The tiles feet have worn and that have not yet faded back, kept beside the world so fading them does not scan every
+ * tile. Derived, never saved: rebuilt from the wear grid when missing. Each tile fades on its own.
+ */
+const wornSets = new WeakMap<World, Set<number>>();
+export function worn(w: World): Set<number> {
+  let s = wornSets.get(w);
+  if (!s) { s = new Set(); for (let i = 0; i < w.wear.length; i++) if (w.wear[i] > 0) s.add(i); wornSets.set(w, s); }
+  return s;
+}
+/** A footstep on a tile. */
+export function tread(w: World, i: number) { w.wear[i] += 1; worn(w).add(i); }
+
 /** What a paving blueprint lays: 1 a path, 2 a road, 3 a road of stone. */
 export const paveLevel = (B: BlueprintDef) => (B.stone ? 3 : B.road ? 2 : 1);
 

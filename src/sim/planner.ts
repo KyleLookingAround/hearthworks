@@ -43,6 +43,8 @@ const covered = (S: State, p: { x: number; y: number }) => S.buildings.some(d =>
 function treeScore(S: State, cx: number, cy: number, r: number, others: Building[], shared: number, memo?: Uint8Array): number {
   const W = S.world;
   let n = 0;
+  // (only harvesters whose ground can overlap this circle can take a tree in it)
+  if (!memo) others = others.filter(o => { const c = ctr(o); return Math.hypot(c.x - cx, c.y - cy) <= bp(S, o).harvest!.radius + r + 1; });
   for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) {
     if (x < 0 || y < 0 || x >= W.w || y >= W.h || W.tree[y * W.w + x] !== 2) continue;
     if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) > r) continue;
