@@ -6,7 +6,7 @@
  */
 import type { World } from './types.ts';
 
-interface Buffers { g: Float32Array; came: Int32Array; seen: Uint32Array; closed: Uint32Array; gen: number; hi: Int32Array; hf: Float64Array }
+interface Buffers { g: Float32Array; came: Int32Array; seen: Uint32Array; closed: Uint32Array; gen: number; hi: Int32Array; hf: Float64Array; len: number }
 const buffers = new WeakMap<World, Buffers>();
 
 const DIRS: [number, number, number][] = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
@@ -52,7 +52,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   if (s === goal) return [];
   const launch = !!opts.launchAnywhere, rowing = w.docks > 0 || launch, water = w.waterCost;
   let b = buffers.get(w);
-  if (!b || b.g.length < 2 * N) { const n = 2 * N; b = { g: new Float32Array(n), came: new Int32Array(n), seen: new Uint32Array(n), closed: new Uint32Array(n), gen: 0, hi: new Int32Array(1024), hf: new Float64Array(1024) }; buffers.set(w, b); }
+  if (!b || b.g.length < 2 * N) { const n = 2 * N; b = { g: new Float32Array(n), came: new Int32Array(n), seen: new Uint32Array(n), closed: new Uint32Array(n), gen: 0, hi: new Int32Array(1024), hf: new Float64Array(1024), len: 0 }; buffers.set(w, b); }
   // only someone trapped on a wall tile (not standing in a doorway) may cross that building to get out
   const gen = ++b.gen, { g, came, seen, closed } = b, inside = w.door[s] ? -1 : w.bgrid[s];
   // node = tile on foot, or tile + N afloat; someone out on open water (their trip cut short mid-row) is afloat
@@ -62,38 +62,34 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   if (known) for (const k of known) if (k.launch === launch && k.reach[start] && !k.reach[goal]) { w.work.pathFails++; return null; }
   // the cheapest tile there is, so the estimate never overshoots: a stone road or a road once any is laid, else a path
   const best = w.stone > 0 ? Math.min(w.stoneCost, w.roadCost, w.pathCost) : w.roads > 0 ? Math.min(w.roadCost, w.pathCost) : w.pathCost, unit = rowing ? Math.min(best, water) : best;
-  // the open list: a binary heap of nodes by estimated cost
-  let hi = b.hi, hf = b.hf, len = 0;
+  // the open list: a binary heap of nodes by estimated cost (in `b`, grown as needed)
+  const H0 = b;
+  H0.len = 0;
   const ground = w.ground, bridge = w.bridge, sea = w.sea, bgrid = w.bgrid, door = w.door, road = w.road, tree = w.tree, height = w.height, dock = w.dock;
-  const slope = w.slopeCost, shallow = water * w.shallowCost;
-  const push = (i: number, f: number) => {
-    if (len === hi.length) { const ni = new Int32Array(len * 2), nf = new Float64Array(len * 2); ni.set(hi); nf.set(hf); b!.hi = hi = ni; b!.hf = hf = nf; }
-    let n = len++;
-    while (n > 0) { const p = (n - 1) >> 1, pf = hf[p]; if (pf <= f) break; hi[n] = hi[p]; hf[n] = pf; n = p; }
-    hi[n] = i; hf[n] = f;
-  };
-  const relax = (cur: number, ni: number, c: number) => {
-    const ng = g[cur] + c;
+  const slope = w.slopeCost, shallow = water * w.shallowCost, pathCost = w.pathCost, roadCost = w.roadCost, stoneCost = w.stoneCost, rockCost = w.rockCost, forestCost = w.forestCost;
+  // step to node `ni` (tile at nx, ny) from a node `gc` away from the start, at cost `c`
+  const relax = (cur: number, gc: number, ni: number, nx: number, ny: number, c: number) => {
+    const ng = gc + c;
     if (seen[ni] !== gen || ng < g[ni]) {
       seen[ni] = gen; closed[ni] = 0; g[ni] = ng; came[ni] = cur;
-      const t = ni % N, dx = Math.abs(t % W - gx), dy = Math.abs(((t / W) | 0) - gy);
-      push(ni, ng + unit * (Math.max(dx, dy) + 0.414 * Math.min(dx, dy)));
+      const dx = Math.abs(nx - gx), dy = Math.abs(ny - gy), f = ng + unit * (Math.max(dx, dy) + 0.414 * Math.min(dx, dy));
+      let hi = H0.hi, hf = H0.hf, n = H0.len++;
+      if (n === hi.length) { const xi = new Int32Array(n * 2), xf = new Float64Array(n * 2); xi.set(hi); xf.set(hf); H0.hi = hi = xi; H0.hf = hf = xf; }
+      while (n > 0) { const p = (n - 1) >> 1, pf = hf[p]; if (pf <= f) break; hi[n] = hi[p]; hf[n] = pf; n = p; }
+      hi[n] = ni; hf[n] = f;
     }
   };
-  // reefs are never rowed over; shallows are rowed slowly
-  const isWater = (i: number) => ground[i] === 0 && sea[i] !== 2;
-  g[start] = 0; seen[start] = gen; came[start] = -1;
   {
+    g[start] = 0; seen[start] = gen; came[start] = -1;
     const t = start % N, dx = Math.abs(t % W - gx), dy = Math.abs(((t / W) | 0) - gy);
-    push(start, unit * (Math.max(dx, dy) + 0.414 * Math.min(dx, dy)));
+    H0.hi[0] = start; H0.hf[0] = unit * (Math.max(dx, dy) + 0.414 * Math.min(dx, dy)); H0.len = 1;
   }
   let guard = 0;
   // long trips on big maps need room to search: at least the whole map once, on foot
   const limit = Math.max(rowing ? 80000 : 40000, rowing ? 2 * N : N);
-  while (len && guard++ < limit) {
+  while (H0.len && guard++ < limit) {
     // take the cheapest off the heap: the last moves to the top and sinks
-    const cur = hi[0];
-    len--;
+    const hi = H0.hi, hf = H0.hf, cur = hi[0], len = --H0.len;
     if (len) {
       const li = hi[len], lf = hf[len];
       let n = 0;
@@ -115,48 +111,53 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
       for (let c = goal; c !== start; c = came[c]) { const t = c % N; out.push([t % W, (t / W) | 0]); }
       return out.reverse();
     }
-    const afloat = cur >= N, t = afloat ? cur - N : cur, cx = t % W, cy = (t / W) | 0;
+    const afloat = cur >= N, t = afloat ? cur - N : cur, cx = t % W, cy = (t / W) | 0, gc = g[cur], ht = height[t];
+    // which of the four sides can be stood on (bit k for side k), found as they are stepped to: the corners of the diagonal steps
+    let sides = 0;
     for (let k = 0; k < 8; k++) {
-      const dx = DX[k], dy = DY[k], m = DM[k];
+      const dx = DX[k], dy = DY[k];
       const nx = cx + dx, ny = cy + dy;
       if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-      const ni = ny * W + nx, diag = dx !== 0 && dy !== 0;
+      const ni = ny * W + nx, diag = k >= 4;
       if (afloat) {
-        if (isWater(ni)) {
+        // reefs are never rowed over; shallows are rowed slowly
+        if (ground[ni] === 0 && sea[ni] !== 2) {
           // row on, without cutting a corner of land
-          if (diag && (!isWater(cy * W + nx) || !isWater(ny * W + cx))) continue;
-          relax(cur, ni + N, (sea[ni] === 1 ? shallow : water) * m);
+          if (diag && (ground[cy * W + nx] !== 0 || sea[cy * W + nx] === 2 || ground[ny * W + cx] !== 0 || sea[ny * W + cx] === 2)) continue;
+          relax(cur, gc, ni + N, nx, ny, (sea[ni] === 1 ? shallow : water) * DM[k]);
         } else if (!diag) {
           // land on any shore that can be stood on
           const c = cost(w, ni, inside);
-          if (c !== Infinity) relax(cur, ni, c);
+          if (c !== Infinity) relax(cur, gc, ni, nx, ny, c);
         }
         continue;
       }
-      if (rowing && ground[ni] === 0 && sea[ni] !== 2 && !bridge[ni]) {
+      // no cutting corners past water or walls
+      if (diag && (!(sides & (dx > 0 ? 1 : 2)) || !(sides & (dy > 0 ? 4 : 8)))) continue;
+      const gr = ground[ni];
+      if (rowing && gr === 0 && sea[ni] !== 2 && !bridge[ni]) {
         // launch from a dock's door, or anywhere if a boat is already with us
-        if (!diag && (dock[t] || launch)) relax(cur, ni + N, sea[ni] === 1 ? shallow : water);
+        if (!diag && (dock[t] || launch)) relax(cur, gc, ni + N, nx, ny, sea[ni] === 1 ? shallow : water);
         continue;
       }
       // (the cost of the tile, as cost() gives it)
       let c: number;
-      if (!ground[ni]) { if (!bridge[ni]) continue; c = w.pathCost; }
-      else if (ground[ni] === 3) c = w.rockCost;
+      if (!gr) { if (!bridge[ni]) continue; c = pathCost; }
+      else if (gr === 3) c = rockCost;
       else {
         const o = bgrid[ni];
         if (o !== -1 && !door[ni] && o !== inside) continue;
         const r = road[ni];
-        c = r ? (r === 3 ? w.stoneCost : r === 2 ? w.roadCost : w.pathCost) : tree[ni] === 2 ? w.forestCost : 1;
+        c = r ? (r === 3 ? stoneCost : r === 2 ? roadCost : pathCost) : tree[ni] === 2 ? forestCost : 1;
       }
-      // no cutting corners past water or walls
-      if (diag && (cost(w, cy * W + nx, inside) === Infinity || cost(w, ny * W + cx, inside) === Infinity)) continue;
+      if (!diag) sides |= 1 << k;
       // climbing or descending costs time
-      relax(cur, ni, c * m + slope * Math.abs(height[ni] - height[t]));
+      relax(cur, gc, ni, nx, ny, c * DM[k] + slope * Math.abs(height[ni] - ht));
     }
   }
   w.work.pathFails++;
   // ran out of tiles: everything reachable from here was searched, and remembered
-  if (!len && inside === -1) {
+  if (!H0.len && inside === -1) {
     const reach = new Uint8Array(2 * N);
     for (let i = 0; i < 2 * N; i++) if (closed[i] === gen) reach[i] = 1;
     const list = cutOff.get(w) ?? [];
