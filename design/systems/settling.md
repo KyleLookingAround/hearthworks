@@ -4,7 +4,7 @@ title: Settling
 description: A crowded settlement, or one whose land is full, sends a founding party off to found a daughter town, with villagers, stores, the knowledge it practises and its custom.
 tags: [settlement, people, knowledge]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T00:46:23Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T01:36:51Z }
 tuning:
   check_every_seconds: 60
   min_villagers: 70
