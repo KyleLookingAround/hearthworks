@@ -321,9 +321,11 @@ export function shortOfFood(S: State, town: Town): boolean {
   // out of land for food: it found no room for a workplace of the food chain lately (bread's chain: an orchard
   // with no fertile land in reach is no reason to stop growing)
   const chain = foodChainOf(S), F = S.content.tuning.farms;
-  for (const id in town.planner.noRoom) if (S.t - town.planner.noRoom[id] < T(S).noRoomRetrySeconds * 2 && Object.keys(S.content.blueprints[id]?.output ?? {}).some(g => chain.has(g) && !F.diet.includes(g))) return true;
-  // bread made against bread eaten only with seasons: without them a shortfall shows at once as hunger, which keeps newcomers away by itself
-  if (!S.seasons) return false;
+  let landless = false;
+  for (const id in town.planner.noRoom) if (S.t - town.planner.noRoom[id] < T(S).noRoomRetrySeconds * 2 && Object.keys(S.content.blueprints[id]?.output ?? {}).some(g => chain.has(g) && !F.diet.includes(g))) landless = true;
+  // bread made against bread eaten only with seasons, or out of land: without them a shortfall shows at once as hunger,
+  // which keeps newcomers away by itself
+  if (!S.seasons && !landless) return false;
   const food = Object.values(S.content.blueprints).find(B => B.homes)?.keepStocked;
   const g = food ? Object.keys(food)[0] : undefined;
   if (!g || !(g in town.planner.use)) return false;
@@ -333,7 +335,8 @@ export function shortOfFood(S: State, town: Town): boolean {
   if (S.farms) for (const d of F.diet) made += (town.planner.use[d] || 0) * (1 - Math.min(1, (town.planner.wants[d] || 0) / F.dietWeight));
   let pop = 1;
   for (const a of S.agents) if (a.kind === 'villager' && a.home?.town === town.id) pop++;
-  return made < (pop / S.content.tuning.needs.eatEverySeconds) * T(S).newcomerFoodShare;
+  // out of land for food, a newcomer comes only while the food made feeds everyone and them in full
+  return made < (pop / S.content.tuning.needs.eatEverySeconds) * (landless ? 1 : T(S).newcomerFoodShare);
 }
 
 const FORMS: Form[] = ['hamlet', 'village', 'town'];

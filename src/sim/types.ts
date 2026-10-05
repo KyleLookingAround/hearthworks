@@ -182,7 +182,7 @@ export interface Tuning {
   farms: { diet: ItemId[]; dietShare: number; dietStock: number; dietSeconds: number; dietFull: number; dietBonus: number; dietWeight: number; growRoomWeight: number };
   seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[] };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
-  production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number; surplusSeconds: number; surplusMin: number; surplusFullSeconds: number };
+  production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number; surplusSeconds: number; surplusMin: number; surplusFullSeconds: number; freshSeconds: number };
   planner: PlannerTuning;
   hardship: {
     fireEverySeconds: number; spreadGap: number; spreadChance: number; burnSeconds: number; douseSeconds: number; rebuildShare: number; fireLoss: number; fireproof: ItemId[];
