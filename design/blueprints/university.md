@@ -7,8 +7,8 @@ status: stable
 generated: { by: claude/opus-5.5, at: 2026-10-03T19:02:52Z }
 color: "#4a5a7a"
 order: 26
-size: [4, 3]
-cost: { planks: 20, cut_stone: 8 }
+size: [3, 3]
+cost: { planks: 28 }
 workers: 1
 learning: university
 discovery: { need: inquiry, mean_seconds: 300 }

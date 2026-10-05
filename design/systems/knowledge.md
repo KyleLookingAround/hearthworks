@@ -22,6 +22,7 @@ tuning:
   forgetting_memory_seconds: 600
   learning_weight: 0.35
   university_villagers: 60
+  university_spare: 2
   school_children: 3
   distance_from: 12
   distance_span: 12

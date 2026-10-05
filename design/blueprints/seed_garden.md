@@ -8,7 +8,7 @@ generated: { by: claude/opus-5.5, at: 2026-10-05T15:16:12Z }
 color: "#7fa65a"
 order: 4.4
 size: [3, 2]
-cost: { planks: 10, stone: 4 }
+cost: { planks: 12 }
 workers: 1
 mills: { types: [farm, garden, orchard], radius: 12, factor: 1.25, boon: better seed }
 discovery: { need: bread, mean_seconds: 300, university: true }

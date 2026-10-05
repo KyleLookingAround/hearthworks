@@ -248,10 +248,11 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     const kids = people.filter(a => a.role === 'child').length;
     if ('library' in town.knows && !has('library') && Object.values(town.knows).some(k => k.by !== 'founders')) shortages.push({ key: 'learning', learn: 'library', sev: K.learningWeight, why: 'what it has learned should be kept' });
     if (!has('school') && kids >= K.schoolChildren) shortages.push({ key: 'learning', learn: 'school', sev: K.learningWeight, why: `${kids} children have no school` });
-    // a university in a village of `university_villagers` that keeps a library and makes everything a university is built of
-    // (it does not open a quarry and a mason's yard for one), or in any town: learning builds on learning
-    const U = S.content.blueprints.university, makes = new Set(mine.filter(b => !b.site).flatMap(b => Object.keys(bp(S, b).output)));
-    const village = formOf(S, town) === 'village' && has('library') && pop >= K.universityVillagers && !!U && Object.keys(U.cost).every(g => makes.has(g));
+    // a university in a village of `university_villagers` that keeps a library, once everyone is fed, its winter store is on track and its stores hold
+    // `university_spare` times what one costs (it waits for spare stores, and never saves or opens a quarry for one), or in any town
+    const U = S.content.blueprints.university;
+    const spare = !!U && !affordable(S, { ...U, cost: Object.fromEntries(Object.entries(U.cost).map(([g, n]) => [g, n * K.universitySpare])) }, town);
+    const village = formOf(S, town) === 'village' && has('library') && pop >= K.universityVillagers && town.fed >= 1 && storesOnTrack(S, town) && spare;
     if ('university' in town.knows && !has('university') && (formOf(S, town) === 'town' || village)) shortages.push({ key: 'learning', learn: 'university', sev: K.learningWeight, why: 'scholars would find new ways sooner' });
     // a printing house beside its library in a village or town that knows one: books make readers of the grown
     if (Object.keys(town.knows).some(id => S.content.blueprints[id]?.learning === 'press') && !has('press') && has('library') && formOf(S, town) !== 'hamlet') shortages.push({ key: 'learning', learn: 'press', sev: K.learningWeight, why: 'books would let everyone read' });
@@ -1051,6 +1052,9 @@ function planTown(S: State, town: Town, dt: number) {
     // what it trades for from a neighbour that makes it, it does not make
     if (sh.from) { trading ??= sh; continue; }
     c = propose(S, L, sh);
+    // a university is wanted, not needed: with no room for one, the next need goes ahead in the same look, and the
+    // planner does not say the land is full (which would send settlers off)
+    if (c && c.B.learning === 'university' && (roomless(c.B.id) || !chooseSpot(S, c.B.id, town))) { if (!roomless(c.B.id)) Q.noRoom[c.B.id] = S.t; c = null; continue; }
     if (c && roomless(c.B.id)) { blocked ??= c; c = null; continue; }
     if (c?.wait) { waiting ??= c; c = null; continue; }
     // short of a good whose maker it has just found no room for: saving would wait for good, so the next need goes ahead

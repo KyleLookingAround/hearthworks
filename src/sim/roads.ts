@@ -23,13 +23,13 @@ export function traffic(S: State, town: Town): number {
 interface Run { x0: number; y0: number; x1: number; y1: number; tiles: number[]; cut: Building[]; homes: Building[]; worn: number; s: number }
 
 /**
- * What a road may not cut through: storage, bridges, docks and anything else on the shore; and, while the settlement
+ * What a road may not cut through: storage, bridges, docks and anything else on the shore, a university; and, while the settlement
  * can least spare its bread (with seasons, from autumn to the end of winter or while its winter store is behind), the
  * workplaces of its food chain: a village of 48 lost its bakery and two farms to a road in late winter.
  */
 const solid = (S: State, b: Building, lean: boolean) => {
   const B = bp(S, b);
-  return B.storage || !!B.bridge || B.shore || (lean && Object.keys(B.output).some(g => foodChainOf(S).has(g)));
+  return B.storage || !!B.bridge || B.shore || B.learning === 'university' || (lean && Object.keys(B.output).some(g => foodChainOf(S).has(g)));
 };
 
 /** With seasons, can the settlement least spare its bread now? Autumn or winter, or its winter store behind. */
