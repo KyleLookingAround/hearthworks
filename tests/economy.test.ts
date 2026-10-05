@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
-import { createState, placeBuilding, runFor, ctr } from '../src/sim/index.ts';
-import { homeTier, wants } from '../src/sim/production.ts';
+import { createState, placeBuilding, runFor, ctr, bp } from '../src/sim/index.ts';
+import { enough, homeTier, wants } from '../src/sim/production.ts';
+import { shortOfFood } from '../src/sim/planner.ts';
 import { findSpot } from '../src/gates/kit.ts';
 
 const content = loadContent();
@@ -79,4 +80,43 @@ test('a bakery by a windmill whose miller is at work gets half as much bread aga
   assert.equal(plain.milled, 1);
   assert.equal(milled.milled, content.blueprints.windmill.mills!.factor);
   assert.ok(milled.made > plain.made * 1.3, `milled ${milled.made}, plain ${plain.made}`);
+});
+
+test('a settlement stocks the food chain for the days ahead, bakes ahead in autumn, and lays in grain for the winter', () => {
+  const S = createState(content, 1847, { planner: true, seasons: true }), town = S.towns[0], store = S.bmap.get(town.store)!;
+  const P = content.tuning.production, Z = content.tuning.seasons, Y = Z.yearSeconds;
+  town.planner.use = { bread: 1, planks: 1, wheat: 0.1 };
+  town.planner.wants = {};
+  for (const g in store.inv) store.inv[g] = 0;
+  // (the stores are counted once a tick: each look is at a later time)
+  const at = (t: number, g: string) => { S.t = t; return enough(S, town, g); };
+  store.inv.bread = P.freshSeconds + 1; store.inv.planks = P.freshSeconds + 1;
+  assert.ok(at(10, 'bread'), 'a week of bread is enough in spring');
+  assert.ok(!at(11, 'planks'), 'planks are stocked for the builds ahead');
+  assert.ok(!at(Y / 2 + 10, 'bread'), 'in autumn the bakeries bake ahead for the winter');
+  assert.ok(at(Y * 0.75 + 10, 'bread'), 'and in winter bake for the week again');
+  // grain keeps: outside winter it is enough only once the winter's meals are in, for everyone housed and the free beds
+  let pop = 0, beds = 0;
+  for (const b of S.buildings) if (b.town === town.id && bp(S, b).homes) { pop += b.residents.length; beds += bp(S, b).homes - b.residents.length; }
+  const winter = ((pop + beds) * Y / 4 / content.tuning.needs.eatEverySeconds) * Z.winterHeadroom;
+  store.inv.bread = 0; store.inv.wheat = Math.ceil(Math.max(P.surplusMin, 0.1 * P.freshSeconds)) + 1;
+  assert.ok(winter > store.inv.wheat, 'the test world winters on more grain than a week of use');
+  assert.ok(!at(20, 'wheat'), 'grain waits for the winter store');
+  store.inv.wheat = Math.ceil(winter);
+  assert.ok(at(21, 'wheat'));
+});
+
+test('a settlement out of land for food still takes newcomers while it feeds everyone', () => {
+  const S = createState(content, 1847, { planner: true }), town = S.towns[0];
+  const pop = S.agents.filter(a => a.kind === 'villager' && a.home?.town === town.id).length;
+  const need = (pop + 1) / content.tuning.needs.eatEverySeconds;
+  town.planner.use = { bread: need * 2 };
+  town.planner.wants = {};
+  assert.ok(!shortOfFood(S, town), 'room to grow and bread enough');
+  town.planner.noRoom = { bakery: S.t };
+  assert.ok(!shortOfFood(S, town), 'no room for another bakery, but the bread feeds everyone and a newcomer');
+  town.planner.wants = { bread: 0.6 };
+  assert.ok(shortOfFood(S, town), 'no room, and the bread falls short of everyone and a newcomer');
+  town.planner.noRoom = {};
+  assert.ok(!shortOfFood(S, town), 'without seasons, room to grow lets hunger speak for itself');
 });

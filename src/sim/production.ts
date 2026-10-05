@@ -117,9 +117,32 @@ export function foodChainOf(S: State): Set<string> {
 }
 
 /**
- * Enough of a good: a self-planning settlement's stores hold `surplus_seconds` of what its planner uses of it
- * (at least `surplus_min`), its planner wants no more of it, and, with seasons on, for a good of the food chain
- * outside winter, the stores already hold the coming winter's meals with `winter_headroom`.
+ * How many seconds of use a settlement's stores hold of a good: building goods and the rest `surplus_seconds`, for the
+ * builds ahead; the food chain `fresh_seconds`, for the days ahead, save in autumn, when bakeries bake ahead for the
+ * winter (in winter every hand is carrying, and a loaf in store is one leg from a home, grain two).
+ */
+export function stockSeconds(S: State, g: ItemId): number {
+  const P = S.content.tuning.production;
+  return foodChainOf(S).has(g) && seasonOf(S) !== 'autumn' ? P.freshSeconds : P.surplusSeconds;
+}
+
+/**
+ * The winter store, with seasons on, for a good of the food chain that keeps (grain, smoked fish; not bread or milk,
+ * which spoil): outside winter the stores hold the coming winter's meals with `winter_headroom`, for everyone housed
+ * and everyone the free beds will bring. The grain is the store.
+ */
+function winterStored(S: State, g: ItemId, st: { goods: Stock; pop: number; beds: number }): boolean {
+  if (!S.seasons || seasonOf(S) === 'winter' || !foodChainOf(S).has(g) || S.content.goods[g]?.spoils) return true;
+  const Z = S.content.tuning.seasons;
+  let food = 0;
+  for (const f of ['wheat', 'bread', ...Z.preserved]) food += st.goods[f] || 0;
+  return food >= ((st.pop + st.beds) * Z.yearSeconds / 4 / S.content.tuning.needs.eatEverySeconds) * Z.winterHeadroom;
+}
+
+/**
+ * Enough of a good: a self-planning settlement's stores hold its stock (`stockSeconds` of what its planner uses of
+ * it, at least `surplus_min`), its planner wants no more of it, and, with seasons on, for a good of the food chain
+ * that keeps, the winter store is laid in (`winterStored`).
  */
 export function enough(S: State, town: Town, g: ItemId): boolean {
   const P = S.content.tuning.production, Q = town.planner;
@@ -128,27 +151,22 @@ export function enough(S: State, town: Town, g: ItemId): boolean {
   // while the yards are nearly full (`store_full_share`), what lies outside the food chain needs only `surplus_full_seconds`:
   // logs and planks must not take the room the harvest needs
   const full = !food && st.room > 0 && st.held >= st.room * S.content.tuning.planner.storeFullShare;
-  if ((st.goods[g] || 0) < Math.max(P.surplusMin, (Q.use[g] || 0) * (full ? P.surplusFullSeconds : P.surplusSeconds))) return false;
-  if (S.seasons && seasonOf(S) !== 'winter' && food) {
-    const Z = S.content.tuning.seasons;
-    let food = 0;
-    for (const f of ['wheat', 'bread', ...Z.preserved]) food += st.goods[f] || 0;
-    if (food < (st.pop * Z.yearSeconds / 4 / S.content.tuning.needs.eatEverySeconds) * Z.winterHeadroom) return false;
-  }
-  return true;
+  if ((st.goods[g] || 0) < Math.max(P.surplusMin, (Q.use[g] || 0) * (full ? P.surplusFullSeconds : stockSeconds(S, g)))) return false;
+  return winterStored(S, g, st);
 }
 
 /** A settlement's stores and people, counted once a tick. */
-const counted = new WeakMap<State, { t: number; by: Map<number, { goods: Stock; pop: number; held: number; room: number }> }>();
-function stocks(S: State, town: number): { goods: Stock; pop: number; held: number; room: number } {
+const counted = new WeakMap<State, { t: number; by: Map<number, { goods: Stock; pop: number; beds: number; held: number; room: number }> }>();
+function stocks(S: State, town: number): { goods: Stock; pop: number; beds: number; held: number; room: number } {
   let c = counted.get(S);
   if (!c || c.t !== S.t) { c = { t: S.t, by: new Map() }; counted.set(S, c); }
   let out = c.by.get(town);
   if (out) return out;
-  out = { goods: {}, pop: 0, held: 0, room: 0 };
+  out = { goods: {}, pop: 0, beds: 0, held: 0, room: 0 };
   for (const o of S.buildings) {
     if (o.town !== town || o.site) continue;
     const O = bp(S, o);
+    if (O.homes) out.beds += Math.max(0, O.homes - o.residents.length);
     if (!O.storage) continue;
     for (const k in o.inv) out.goods[k] = (out.goods[k] || 0) + o.inv[k];
     // the room of open yards (not granaries and warehouses kept for some goods), as the planner counts it
@@ -160,20 +178,14 @@ function stocks(S: State, town: number): { goods: Stock; pop: number; held: numb
 }
 
 /**
- * Plenty in store: the settlement's stores hold `surplus_seconds` of `use` per second of a good (at least `surplus_min`),
- * and with seasons on, for a good of the food chain outside winter, the coming winter's meals as well. The planner
- * does not count a good it holds plenty of as short, whatever the rates.
+ * Plenty in store: the settlement's stores hold its stock of a good (`stockSeconds` of `use` per second, at least
+ * `surplus_min`) and, for a good of the food chain that keeps, the winter store (`winterStored`). The planner does not
+ * count a good it holds plenty of as short, whatever the rates.
  */
 export function plentyInStore(S: State, town: Town, g: ItemId, use: number): boolean {
   const P = S.content.tuning.production, st = stocks(S, town.id);
-  if ((st.goods[g] || 0) < Math.max(P.surplusMin, use * P.surplusSeconds)) return false;
-  if (S.seasons && seasonOf(S) !== 'winter' && foodChainOf(S).has(g)) {
-    const Z = S.content.tuning.seasons;
-    let food = 0;
-    for (const f of ['wheat', 'bread', ...Z.preserved]) food += st.goods[f] || 0;
-    if (food < (st.pop * Z.yearSeconds / 4 / S.content.tuning.needs.eatEverySeconds) * Z.winterHeadroom) return false;
-  }
-  return true;
+  if ((st.goods[g] || 0) < Math.max(P.surplusMin, use * stockSeconds(S, g))) return false;
+  return winterStored(S, g, st);
 }
 
 /** A workplace resting with enough in store: every good it makes is enough. Its worker goes carrying. */
