@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T12:49:27Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T03:56:02Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -82,6 +82,7 @@ A store holds at most its blueprint's `capacity` goods in all, and takes only th
 | --- | --- | --- | --- |
 | Villager | `villager_carry` | `villager_speed` | Slowed in forest, faster on roads |
 | Courier bot | `bot_carry` | `bot_speed` | Only jobs inside its [depot](/blueprints/depot.md) radius |
+| [Conveyor](/blueprints/conveyor.md) belt | [conveyors](/systems/conveyors.md) `carry` | `speed` | Only between buildings beside the same belt; served first each tick |
 
 # Code
 

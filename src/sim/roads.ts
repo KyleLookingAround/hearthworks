@@ -72,7 +72,7 @@ function spareBeds(S: State, town: Town, except: Set<Building>) {
 }
 
 /** Goods in its stores, and taking them. */
-function have(S: State, town: Town, g: string) {
+export function have(S: State, town: Town, g: string) {
   let n = 0;
   for (const b of S.buildings) if (b.town === town.id && !b.site && bp(S, b).storage) n += (b.inv[g] || 0) - (b.reserved[g] || 0);
   return n;

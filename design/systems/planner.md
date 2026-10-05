@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T02:41:56Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T03:56:02Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -205,7 +205,7 @@ The **Village plans** toggle in the HUD is on by default. Off, the planner stops
 
 # Limits
 
-- It plans the goods economy, housing and, once known, [Courier Depots](/blueprints/depot.md). [Storage](/blueprints/storage.md) and [roads](/blueprints/road.md) relieve nothing it measures yet, so they stay with the player.
+- It plans the goods economy, housing and, once known, [Courier Depots](/blueprints/depot.md) and [conveyors](/systems/conveyors.md) (laid along its lanes from a storage yard's door, like a road at a look of its own). [Storage](/blueprints/storage.md) and [roads](/blueprints/road.md) relieve nothing it measures yet, so they stay with the player.
 - Planks are counted island-wide when checking cost, so two settlements saving for a depot wait on the same pile.
 - It never stops growing while land and food allow. The search widens as the village spreads, up to `search_radius_max`; past that a village needs a second centre, which is [roadmap](/roadmap.md) Phase 9.
 
