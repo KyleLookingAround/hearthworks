@@ -5,7 +5,7 @@ import { homeTier } from '../sim/production.ts';
 import { FEAST, NAMING, called } from '../sim/people.ts';
 import { atOnce, formOf, hubs, openSites, renewalNote } from '../sim/planner.ts';
 import { capOf, crew, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
-import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, ageNeeded, beltBy, ctr, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { ZONES, advise, defence, scholarly, learningAt, reads, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, ageNeeded, beltBy, ctr, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
 
@@ -558,7 +558,7 @@ export class App {
   private renderKnowledge() {
     const S = this.S, bps = Object.values(this.content.blueprints).sort((a, b) => a.order - b.order);
     const discoverable = bps.filter(B => B.discovery);
-    const key = S.towns.map(t => villagers(S).filter(a => a.home?.town === t.id).length + ':' + Object.entries(t.knows).map(([id, k]) => id + k.verified.length).join()).join('|');
+    const key = S.towns.map(t => villagers(S).filter(a => a.home?.town === t.id).length + ':' + Object.entries(t.knows).map(([id, k]) => id + k.verified.length).join() + ':' + scholarly(S, t).map(x => x.waits[0]).join('')).join('|');
     if (key === this.knowKey) return;
     this.knowKey = key;
     let html = '', learned = 0;
@@ -572,9 +572,15 @@ export class App {
         const proven = verifiedHere(t, k) ? ' · <span class="ok">proven here</span>' : ' · not yet tried';
         html += `<li><b>${esc(B.name)}</b>: ${esc(originText(t, k))}${proven}</li>`;
       }
-      for (const B of discoverable) if (!t.knows[B.id]) {
+      const scholars = new Map(scholarly(S, t).map(x => [x.B.id, x]));
+      for (const B of discoverable) if (!t.knows[B.id] && offered(S, B)) {
         const age = ageNeeded(S, B.id), later = t.age < age ? `, once it has reached the Age of ${this.content.eras[age].name}` : '';
-        html += `<li class="unknown"><b>${esc(B.name)}</b>: not yet thought of. It comes when ${esc(NEED_TEXT[B.discovery!.need] ?? B.discovery!.need)}${esc(later)}.</li>`;
+        const first = B.discovery!.after.filter(id => !t.knows[id]).map(id => `the ${this.content.blueprints[id]?.name ?? id}`);
+        const after = first.length ? `, once it knows ${first.join(' and ')}` : '';
+        const sc = scholars.get(B.id);
+        // a discovery only scholars make: say so, and whether this settlement has a university at work to make it
+        if (sc) html += `<li class="unknown"><b>${esc(B.name)}</b>: not yet thought of, and only scholars think of it. It comes when ${esc(NEED_TEXT[B.discovery!.need] ?? B.discovery!.need)}${esc(after + later)}, while a university has a scholar at work. ${sc.waits === 'university' ? `<span class="warn">Waits on a university: ${esc(t.name)} has none at work.</span>` : sc.waits === 'ready' ? '<span class="ok">Its scholars are on it.</span>' : 'Its scholars are ready for it.'}</li>`;
+        else html += `<li class="unknown"><b>${esc(B.name)}</b>: not yet thought of. It comes when ${esc(NEED_TEXT[B.discovery!.need] ?? B.discovery!.need)}${esc(after + later)}.</li>`;
       }
       html += '</ul>';
     }
@@ -724,7 +730,7 @@ export class App {
         // the shelves: every record its settlement holds beyond founding knowledge, with who thought of it
         const t = S.towns[b.town], shelf = t ? Object.entries(t.knows).filter(([, k]) => k.by !== 'founders') : [];
         // its readers: grown villagers schooled to read, who learn from it and from other libraries
-        if (S.people && t) { const readers = villagers(S).filter(a => a.schooled && a.role !== 'child' && a.home?.town === t.id).length; rows += row('Readers', readers ? `${readers}, reading ${S.towns.length > 1 ? 'what other libraries hold, and ' : ''}the trades written down here` : 'none yet: a school teaches the children to read'); }
+        if (S.people && t) { const printed = learningAt(S, t.id, 'press'), readers = villagers(S).filter(a => a.home?.town === t.id && reads(S, a, printed)).length; rows += row('Readers', readers ? `${readers}, reading ${S.towns.length > 1 ? 'what other libraries hold, and ' : ''}the trades written down here` : 'none yet: a school teaches the children to read'); }
         rows += row('On the shelves', shelf.length ? '' : 'nothing yet beyond what the founders knew');
         for (const [id, k] of shelf) rows += row(this.content.blueprints[id]?.name ?? id, `${originText(t!, k)}; ` + (k.verified.length ? `proven in ${k.verified.length === 1 ? 'one settlement' : `${k.verified.length} settlements`}` : 'not yet proven'));
       } else if (B.learning === 'school') {
@@ -732,11 +738,31 @@ export class App {
         const t = S.towns[b.town], ppl = t ? villagers(S).filter(a => a.home?.town === t.id) : [];
         const kids = ppl.filter(a => a.role === 'child').length, readers = ppl.filter(a => a.schooled && a.role !== 'child').length;
         rows += row('Pupils', kids ? `${kids} ${kids > 1 ? 'children' : 'child'} of ${t!.name}` : 'no children yet') + row('Grown readers', readers || 'none yet');
-      } else if (B.learning) rows += row('Work', 'Pursuing lines of inquiry');
+      } else if (B.learning === 'university') {
+        // its scholars: invention under strain comes faster, and the ideas only scholars find, with what each waits on
+        const t = S.towns[b.town], K = T.knowledge, at = w?.state === 'working';
+        rows += row('Work', at ? `Pursuing lines of inquiry: ideas come ${K.universityFactor}× as fast, at ${Math.round(K.universityThreshold * 100)}% of the strain` : 'Its scholar is away: no inquiries');
+        if (t) {
+          const ideas = Object.values(this.content.blueprints).filter(D => D.discovery?.university && offered(S, D)).sort((a, c) => a.order - c.order), waits = new Map(scholarly(S, t).map(x => [x.B.id, x]));
+          rows += row('Only scholars find', ideas.length ? '' : 'nothing yet');
+          for (const D of ideas) {
+            const x = waits.get(D.id), need = NEED_TEXT[D.discovery!.need] ?? D.discovery!.need;
+            rows += row(D.name, !x ? (t.knows[D.id]?.by === t.name ? 'thought of here' : 'known') : x.waits === 'university' ? 'waits on a scholar at work'
+              : x.waits === 'after' ? `waits on the ${x.missing.map(id => this.content.blueprints[id]?.name ?? id).join(' and ')}` : x.waits === 'age' ? `waits on the Age of ${this.content.eras[ageNeeded(S, D.id)].name}`
+              : x.waits === 'need' ? `comes when ${need}` : `on it: ${need}`);
+          }
+        }
+      } else if (B.learning === 'press') {
+        // its readers: every grown villager, while the printer is at work
+        const t = S.towns[b.town], grown = t ? villagers(S).filter(a => a.home?.town === t.id && a.role !== 'child').length : 0;
+        rows += row('Readers', w?.state === 'working' ? `all ${grown} grown villagers of ${t?.name ?? 'its settlement'}` : 'only the schooled, while its printer is away');
+        rows += row('Library', t && learningAt(S, t.id, 'library', false) ? 'its books reach every home' : 'none: there is nothing to read without one');
+      }
       else if (B.mills) {
         // a mill: the workplaces it mills within reach
         const near = S.buildings.filter(o => o.town === b.town && !o.site && B.mills!.types.includes(o.type) && Math.hypot(ctr(o).x - ctr(b).x, ctr(o).y - ctr(b).y) <= B.mills!.radius).length;
-        rows += row('Work', `${near} ${B.mills.types.map(k => this.content.blueprints[k]?.name.toLowerCase() ?? k).join(' and ')}${near === 1 ? '' : 's'} within ${B.mills.radius} tiles, ${B.mills.factor}× the bread from their wheat` + (w?.state === 'working' ? '' : ' while its miller is in'));
+        const kinds = B.mills.types.map(k => (this.content.blueprints[k]?.name.toLowerCase() ?? k).replace(/([^aeiou])y$/, '$1ie') + 's'), names = kinds.length > 1 ? `${kinds.slice(0, -1).join(', ')} or ${kinds[kinds.length - 1]}` : kinds[0];
+        rows += row('Work', `${near} ${names} within ${B.mills.radius} tiles work with ${B.mills.boon}: ${B.mills.factor}× what each batch yields` + (w?.state === 'working' ? '' : `, while its worker is in`));
       }
       else if (B.hall) {
         // the planner at their desk: how skilled, and how many of the settlement's own sites it keeps open at once

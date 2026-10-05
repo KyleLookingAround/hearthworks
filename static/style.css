@@ -67,7 +67,7 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--brass-hi);out
 .knowledge li{display:block;font-size:13.5px;color:var(--ink-2)}
 .knowledge li::before{display:none}
 .knowledge li b{color:var(--ink);font-weight:700}
-.knowledge li .ok{color:var(--good)}
+.knowledge li .ok{color:var(--good)} .knowledge li .warn{color:var(--warn)}
 .knowledge li.unknown b{color:var(--ink-2)}
 .knowledge .founding{font-size:12.5px;color:var(--ink-2);margin:4px 0 0}
 .goals .hint{margin:9px 0 0;font-size:12.5px;color:var(--ink-2)}
