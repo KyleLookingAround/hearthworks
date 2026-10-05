@@ -4,10 +4,10 @@
  * An idle carrier claims the cheapest request/offer pair and reserves the
  * goods at both ends, so two carriers never fetch the same stack.
  */
-import { add, bp, ctr, distAB, distBB, door, seasonOf } from './world.ts';
+import { add, bp, ctr, distAB, distBB, door, seasonOf, storesOnTrack } from './world.ts';
 import { findPath } from './path.ts';
 import { goToBuilding } from './agents.ts';
-import { wants } from './production.ts';
+import { foodChainOf, wants } from './production.ts';
 import type { Agent, Building, ItemId, State, Task } from './types.ts';
 
 export interface Request { dst: Building; item: ItemId; need: number; pri: number; /** not worth a trip of its own: only topped up on a cart's round */ topUp?: boolean }
@@ -253,7 +253,7 @@ interface Seen {
   pairs: { r: Request; o: { b: Building; av: number; extra: number } }[];
   stores: Building[];
   /** surplus enough to clear, in building order, and (once first weighed) the nearest storage yard with room for it */
-  dumps: { s: Building; item: ItemId; av: number; st?: Building | null; sd: number }[];
+  dumps: { s: Building; item: ItemId; av: number; extra: number; st?: Building | null; sd: number }[];
 }
 /**
  * Each settlement's look, while the board stands and none of its buildings has been touched since: another settlement's
@@ -262,7 +262,7 @@ interface Seen {
 const looks = new Map<number | null, { board: Board; at: number; seen: Seen }>();
 
 /** Look over the board: `mine` are the buildings in reach that can offer goods. */
-function lookOver(S: State, all: Request[], mine: Building[], inRange: (b: Building) => boolean): Seen {
+function lookOver(S: State, town: number | null, all: Request[], mine: Building[], inRange: (b: Building) => boolean): Seen {
   const L = S.content.tuning.logistics;
   // offers indexed by good, in building order, so only real source/request pairs are scored
   const reqs = all.filter(r => inRange(r.dst));
@@ -281,12 +281,16 @@ function lookOver(S: State, all: Request[], mine: Building[], inRange: (b: Build
     }
   }
   const stores = mine.filter(b => bp(S, b).storage && !b.site && inRange(b)), dumps: Seen['dumps'] = [];
+  // surplus is scored `surplus_penalty` tiles behind a request; with the winter store fallen behind in summer or autumn,
+  // the harvest (what keeps of the food chain) comes in as readily as a home's food (`harvest_priority`): grain left
+  // standing at the farms is no store for the winter
+  const reap = harvestBehind(S, town);
   if (stores.length) for (const s of mine) {
     if (s.site) continue;
     for (const item in bp(S, s).output) {
       const av = available(S, s, item);
       if (av < L.dumpAt || !inRange(s)) continue;
-      dumps.push({ s, item, av, sd: Infinity });
+      dumps.push({ s, item, av, extra: reap !== null && reap.has(item) && reap.behind(s.town) ? -L.harvestPriority : L.surplusPenalty, sd: Infinity });
     }
   }
   // every request with each offer of its good, in turn
@@ -332,7 +336,7 @@ export function findTask(S: State, a: Agent): boolean {
   const held = !p && open === S && board ? looks.get(town) : undefined;
   let seen = held && held.board === board && (board!.dirty.get(town) ?? -1) <= held.at ? held.seen : undefined;
   if (!seen) {
-    seen = lookOver(S, askedOf(all, town), offerersOf(S, town), inRange);
+    seen = lookOver(S, town, askedOf(all, town), offerersOf(S, town), inRange);
     if (!p && open === S && board) looks.set(town, { board, at: stamps, seen });
   }
   const { reqs, pairs, dumps } = seen;
@@ -344,14 +348,15 @@ export function findTask(S: State, a: Agent): boolean {
     const tiles = da + distBB(s, r.dst), score = tiles + r.pri + extra;
     if (score < bestScore) { bestScore = score; best = { src: s, dst: r.dst, item: r.item, n: Math.min(capFor(tiles), r.need, av) }; }
   }
-  // surplus goes to the nearest storage yard so producers don't stall
+  // surplus goes to the nearest storage yard so producers don't stall, at `surplus_penalty` tiles behind a request
+  // (or the harvest as readily as a home's food: see lookOver)
   for (const d of dumps) {
     const da = distAB(a, d.s);
     // the walk to the source alone already scores no better: no storage yard can win it
-    if (da + 12 >= bestScore) continue;
+    if (da + d.extra >= bestScore) continue;
     if (d.st === undefined) nearestRoom(S, d, seen.stores);
     if (!d.st) continue;
-    const score = da + d.sd + 12;
+    const score = da + d.sd + d.extra;
     if (score < bestScore) { bestScore = score; best = { src: d.s, dst: d.st, item: d.item, n: Math.min(capFor(da + d.sd), d.av) }; }
   }
   if (!best) return false;
@@ -396,6 +401,23 @@ export function findTask(S: State, a: Agent): boolean {
   return true;
 }
 
+/**
+ * With seasons, in summer and autumn: the goods of the food chain that keep (the harvest), and whether a settlement's
+ * winter store has fallen behind (worked out once a tick for each), else null.
+ */
+const behindAt = new WeakMap<State, { t: number; by: Map<number, boolean> }>();
+function harvestBehind(S: State, town: number | null): { has: (g: ItemId) => boolean; behind: (t: number) => boolean } | null {
+  const s = seasonOf(S);
+  if (s !== 'summer' && s !== 'autumn') return null;
+  let c = behindAt.get(S);
+  if (!c || c.t !== S.t) { c = { t: S.t, by: new Map() }; behindAt.set(S, c); }
+  const by = c.by, chain = foodChainOf(S);
+  return {
+    has: g => chain.has(g) && !S.content.goods[g]?.spoils,
+    behind: t => { if (town !== null && t !== town) return false; let v = by.get(t); if (v === undefined) { v = !!S.towns[t]?.planner.on && !storesOnTrack(S, S.towns[t]); by.set(t, v); } return v; },
+  };
+}
+
 /** Everything a task still carries or will pick up: the first drop and the rest of its round. */
 const loadOf = (t: Task) => t.n + t.round.reduce((s, r) => s + r.n, 0);
 
@@ -407,7 +429,7 @@ export function blame(S: State, a: Agent, b: Building) {
   const store = S.bmap.get(S.towns[b.town]?.store ?? -1), d = door(b);
   const from = store ? door(store) : null;
   // (nobody blames the storage yard itself: everyone else walks from it, so the one who failed is the one cut off)
-  if (!from || (store !== b && !findPath(S.world, from.x, from.y, d.x, d.y))) b.noWay = S.t;
+  if (!from || (store !== b && !findPath(S.world, from.x, from.y, d.x, d.y, S.ships ? { fleet: -1 } : {}))) b.noWay = S.t;
   else a.cool = S.content.tuning.logistics.noWayRetrySeconds;
 }
 

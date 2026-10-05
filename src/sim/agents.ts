@@ -4,6 +4,7 @@ import { bp, distAB, door, inB, seasonOf, storesOnTrack, tread, hypot } from './
 import { blame, cancelTask, drop, findTask, pickup, staleBoard, staleTask } from './logistics.ts';
 import { arrive } from './knowledge.ts';
 import { explorerArrives, sight } from './sea.ts';
+import { rowing } from './ships.ts';
 import { enoughInStore, foodChainOf } from './production.ts';
 import { capOf, crew, leave, places, unripe } from './farms.ts';
 import type { Agent, Building, State } from './types.ts';
@@ -27,7 +28,8 @@ export function removeAgent(S: State, a: Agent) {
 
 export function moveTo(S: State, a: Agent, tx: number, ty: number, opts?: PathOptions): boolean {
   const sx = Math.floor(a.x), sy = Math.floor(a.y);
-  const p = findPath(S.world, sx, sy, tx, ty, opts);
+  // with ships on, only someone crewing a boat of their settlement's rows
+  const p = findPath(S.world, sx, sy, tx, ty, S.ships ? rowing(S, a, opts) : opts);
   if (!p) return false;
   a.path = p;
   // a trip on foot that goes the long way round water is remembered by the villager's settlement, for bridges

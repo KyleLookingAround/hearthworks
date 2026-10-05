@@ -1,8 +1,9 @@
 import { rand } from './rng.ts';
 import { release, removeAgent } from './agents.ts';
-import { skillPace } from './people.ts';
+import { feastStock, skillPace } from './people.ts';
 import { add, bp, completeSite, ctr, emit, foodsOf, inB, plant, seasonOf, hypot } from './world.ts';
 import { capOf, crew, dietOf, mealOf, places, unripe } from './farms.ts';
+import { fleetText, launch, wantsBoat } from './ships.ts';
 import type { Agent, Building, ItemId, Level, State, Stock, Town } from './types.ts';
 
 const setStatus = (b: Building, t: string, l: Level) => { b.status.t = t; b.status.l = l; };
@@ -17,7 +18,7 @@ function idleText(S: State, b: Building): string {
     const kind = B.oxen ? 'ox cart' : 'handcart', ready = n - out;
     return out >= n ? `Every ${kind} is out` : `${ready} ${kind}${ready > 1 ? 's' : ''} ready${out ? `, ${out} out` : ''}`;
   }
-  if (B.shore) return 'Boats ready at the jetty';
+  if (B.shore) return fleetText(S, S.towns[b.town]) ?? 'Boats ready at the jetty';
   if (B.bridge) return 'Open to walkers';
   return 'Open';
 }
@@ -150,7 +151,7 @@ export function enough(S: State, town: Town, g: ItemId): boolean {
   // while the yards are nearly full (`store_full_share`), what lies outside the food chain needs only `surplus_full_seconds`:
   // logs and planks must not take the room the harvest needs
   const full = !food && st.room > 0 && st.held >= st.room * S.content.tuning.planner.storeFullShare;
-  if ((st.goods[g] || 0) < Math.max(P.surplusMin, (Q.use[g] || 0) * (full ? P.surplusFullSeconds : stockSeconds(S, g)))) return false;
+  if ((st.goods[g] || 0) < Math.max(P.surplusMin, (Q.use[g] || 0) * (full ? P.surplusFullSeconds : stockSeconds(S, g))) + feastStock(S, town, g, st.pop)) return false;
   return winterStored(S, g, st);
 }
 
@@ -183,13 +184,15 @@ function stocks(S: State, town: number): { goods: Stock; pop: number; beds: numb
  */
 export function plentyInStore(S: State, town: Town, g: ItemId, use: number): boolean {
   const P = S.content.tuning.production, st = stocks(S, town.id);
-  if ((st.goods[g] || 0) < Math.max(P.surplusMin, use * stockSeconds(S, g))) return false;
+  if ((st.goods[g] || 0) < Math.max(P.surplusMin, use * stockSeconds(S, g)) + feastStock(S, town, g, st.pop)) return false;
   return winterStored(S, g, st);
 }
 
 /** A workplace resting with enough in store: every good it makes is enough. Its worker goes carrying. */
 export function enoughInStore(S: State, b: Building): boolean {
   const town = S.towns[b.town], outs = Object.keys(bp(S, b).output);
+  // a shipyard rests while its settlement's fleet has the boats it wants
+  if (bp(S, b).shipyard) return !wantsBoat(S, town);
   return !!town && outs.length > 0 && outs.every(g => enough(S, town, g));
 }
 
@@ -312,7 +315,7 @@ function run(S: State, b: Building, dt: number) {
   if (b.timer === 0 && enoughInStore(S, b)) {
     b.stall += dt;
     if (b.stall >= T.logistics.releaseAfterSeconds) { b.stall = 0; release(S, b); }
-    setStatus(b, 'Enough in store: resting', 'wait'); return;
+    setStatus(b, B.shipyard ? 'The fleet has the boats it needs: resting' : 'Enough in store: resting', 'wait'); return;
   }
   b.stall = 0;
   let tree = -1;
@@ -338,5 +341,7 @@ function run(S: State, b: Building, dt: number) {
       if (mill > 1) { b.extra += n * (mill - 1); const more = Math.floor(b.extra + 1e-9); b.extra -= more; n += more; }
       add(b.inv, k, n); add(S.stats.made, k, n); if (S.towns[b.town]) add(S.towns[b.town].trade.made, k, n); b.made += n;
     }
+    // a shipyard's batch is a boat for its settlement's fleet
+    if (B.shipyard && S.towns[b.town]) { launch(S, b); b.made++; }
   }
 }

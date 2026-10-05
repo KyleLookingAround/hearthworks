@@ -59,7 +59,7 @@ export class App {
   }
 
   newGame(c: GameChoice) {
-    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, trade: c.trade !== false, people: c.people !== false, carts: c.carts !== false, settlers: c.settlers !== false, charts: c.settlers !== false, hardship: c.hardship !== false, plannedRoads: c.roads !== false, farms: c.farms !== false, settlements: c.settlements, map: c.map, size: c.size }));
+    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, trade: c.trade !== false, people: c.people !== false, carts: c.carts !== false, settlers: c.settlers !== false, charts: c.settlers !== false, ships: c.settlers !== false, hardship: c.hardship !== false, plannedRoads: c.roads !== false, farms: c.farms !== false, settlements: c.settlements, map: c.map, size: c.size }));
     this.save();
   }
 
@@ -490,6 +490,11 @@ export class App {
     if (S.charts) {
       const out = S.agents.some(a => a.visit?.explore && a.visit.from === t.id);
       html += `<div class="steward-grid"><span>Charts</span><span>${t.charted.length === 1 ? 'its own island' : `${t.charted.length} islands`}${out ? ', an explorer at sea' : ''}</span></div>`;
+    }
+    // its boats, moored and out
+    if (S.ships) {
+      const fleet = S.boats.filter(b => b.town === t.id), out = fleet.filter(b => b.crew.length).length;
+      html += `<div class="steward-grid"><span>Boats</span><span>${fleet.length ? `${esc(fleet.map(b => b.name).join(', '))}${out ? ` (${out} out)` : ''}` : 'none yet'}</span></div>`;
     }
     // its age, and what the next one would let it think of
     const next = this.content.eras[t.age + 1], opens = next?.unlocks.map(id => this.content.blueprints[id]?.name ?? id).join(', ');

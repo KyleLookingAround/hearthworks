@@ -26,7 +26,7 @@ export function fnv1a(s: string): string {
 
 const isMap = (v: YamlValue | undefined): v is YamlMap => !!v && typeof v === 'object' && !Array.isArray(v);
 /** Pressures a village can struggle with, and so invent its way out of. */
-const NEEDS = ['bread', 'hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'long_hauls', 'traffic', 'conveying', 'fire', 'flood', 'sickness', 'raids'];
+const NEEDS = ['bread', 'hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'long_hauls', 'traffic', 'conveying', 'boats', 'fire', 'flood', 'sickness', 'raids'];
 const HAZARDS = ['fire', 'flood', 'sickness', 'raids'];
 const slug = (path: string) => path.replace(/^.*\//, '').replace(/\.md$/, '');
 
@@ -127,12 +127,14 @@ export function buildContent(files: SourceFile[]): Content {
       discovery: discovery ? { need: str(d, discovery.need, 'discovery.need'), meanSeconds: num(d, discovery.mean_seconds, 'discovery.mean_seconds'), after: Array.isArray(discovery.after) ? discovery.after.map(String) : [], university: discovery.university === true } : null,
       grows: isMap(f.grows) ? { names: Array.isArray(f.grows.names) ? f.grows.names.map(String) : [] } : null,
       field: f.field === true,
-      option: f.option === 'farms' ? 'farms' : null,
+      option: f.option === 'farms' || f.option === 'ships' ? f.option : null,
+      shipyard: f.shipyard === true,
       ripens: num(d, f.ripens, 'ripens', 0),
     };
     if (bp.belt && !bp.paves) problems.push(`${d.path}: a belt is laid tile by tile: it needs paves: true`);
     if (bp.grows && bp.grows.names.length < 2) problems.push(`${d.path}: grows.names must name at least two sizes`);
-    if (f.option !== undefined && f.option !== 'farms') problems.push(`${d.path}: option "${String(f.option)}" is not farms`);
+    if (f.option !== undefined && f.option !== 'farms' && f.option !== 'ships') problems.push(`${d.path}: option "${String(f.option)}" is not farms or ships`);
+    if (bp.shipyard && (bp.seconds <= 0 || !bp.workers)) problems.push(`${d.path}: a shipyard needs workers and recipe.seconds above 0`);
     if (bp.discovery && !NEEDS.includes(bp.discovery.need)) problems.push(`${d.path}: discovery.need "${bp.discovery.need}" is not one of ${NEEDS.join(', ')}`);
     if (bp.guards && !HAZARDS.includes(bp.guards.hazard)) problems.push(`${d.path}: guards.hazard "${bp.guards.hazard}" is not one of ${HAZARDS.join(', ')}`);
     if (Object.keys(bp.output).length && bp.seconds <= 0) problems.push(`${d.path}: recipe.seconds must be above 0 when there is an output`);
@@ -205,7 +207,7 @@ export function buildContent(files: SourceFile[]): Content {
       villagerCarry: num(ld, lt.villager_carry, 'tuning.villager_carry'), botCarry: num(ld, lt.bot_carry, 'tuning.bot_carry'),
       villagerSpeed: num(ld, lt.villager_speed, 'tuning.villager_speed'), botSpeed: num(ld, lt.bot_speed, 'tuning.bot_speed'),
       pathSpeed: num(ld, lt.path_speed, 'tuning.path_speed'), roadSpeed: num(ld, lt.road_speed, 'tuning.road_speed'), boatSpeed: num(ld, lt.boat_speed, 'tuning.boat_speed'), forestSpeed: num(ld, lt.forest_speed, 'tuning.forest_speed'),
-      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), releaseAfterSeconds: num(ld, lt.release_after_seconds, 'tuning.release_after_seconds'), cartCarry: num(ld, lt.cart_carry, 'tuning.cart_carry'), cartPathSpeed: num(ld, lt.cart_path_speed, 'tuning.cart_path_speed'), cartRoadSpeed: num(ld, lt.cart_road_speed, 'tuning.cart_road_speed'), cartRoughSpeed: num(ld, lt.cart_rough_speed, 'tuning.cart_rough_speed'), cartMinTiles: num(ld, lt.cart_min_tiles, 'tuning.cart_min_tiles'), roundTiles: num(ld, lt.round_tiles, 'tuning.round_tiles'), cartReach: num(ld, lt.cart_reach, 'tuning.cart_reach'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'), noWayRetrySeconds: num(ld, lt.no_way_retry_seconds, 'tuning.no_way_retry_seconds'), slopeCost: num(ld, lt.slope_cost, 'tuning.slope_cost'), rockCost: num(ld, lt.rock_cost, 'tuning.rock_cost'), stoneRoadSpeed: num(ld, lt.stone_road_speed, 'tuning.stone_road_speed'),
+      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), releaseAfterSeconds: num(ld, lt.release_after_seconds, 'tuning.release_after_seconds'), cartCarry: num(ld, lt.cart_carry, 'tuning.cart_carry'), cartPathSpeed: num(ld, lt.cart_path_speed, 'tuning.cart_path_speed'), cartRoadSpeed: num(ld, lt.cart_road_speed, 'tuning.cart_road_speed'), cartRoughSpeed: num(ld, lt.cart_rough_speed, 'tuning.cart_rough_speed'), cartMinTiles: num(ld, lt.cart_min_tiles, 'tuning.cart_min_tiles'), roundTiles: num(ld, lt.round_tiles, 'tuning.round_tiles'), cartReach: num(ld, lt.cart_reach, 'tuning.cart_reach'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'), noWayRetrySeconds: num(ld, lt.no_way_retry_seconds, 'tuning.no_way_retry_seconds'), surplusPenalty: num(ld, lt.surplus_penalty, 'tuning.surplus_penalty'), harvestPriority: num(ld, lt.harvest_priority, 'tuning.harvest_priority'), slopeCost: num(ld, lt.slope_cost, 'tuning.slope_cost'), rockCost: num(ld, lt.rock_cost, 'tuning.rock_cost'), stoneRoadSpeed: num(ld, lt.stone_road_speed, 'tuning.stone_road_speed'),
       oxCarry: num(ld, lt.ox_carry, 'tuning.ox_carry'), oxPathSpeed: num(ld, lt.ox_path_speed, 'tuning.ox_path_speed'), oxRoadSpeed: num(ld, lt.ox_road_speed, 'tuning.ox_road_speed'), oxRoughSpeed: num(ld, lt.ox_rough_speed, 'tuning.ox_rough_speed'), oxMinTiles: num(ld, lt.ox_min_tiles, 'tuning.ox_min_tiles'), oxFeed: num(ld, lt.ox_feed, 'tuning.ox_feed'),
     },
     needs: {
@@ -214,12 +216,12 @@ export function buildContent(files: SourceFile[]): Content {
       tierTwo: Array.isArray(nt.tier_two) ? nt.tier_two.map(String) : [], tierThree: Array.isArray(nt.tier_three) ? nt.tier_three.map(String) : [],
       extrasEverySeconds: num(nd, nt.extras_every_seconds, 'tuning.extras_every_seconds'), extrasStock: num(nd, nt.extras_stock, 'tuning.extras_stock'), varietyBonus: num(nd, nt.variety_bonus, 'tuning.variety_bonus'),
     },
-    sea: (() => { const g = (k: string) => num(ad, zt[k], `tuning.${k}`); return { shallowTiles: g('shallow_tiles'), shallowSpeed: g('shallow_speed'), reefFromTiles: g('reef_from_tiles'), reefToTiles: g('reef_to_tiles'), reefCell: g('reef_cell'), sightTiles: g('sight_tiles'), lookEverySeconds: g('look_every_seconds'), exploreEverySeconds: g('explore_every_seconds') }; })(),
-    settling: (() => { const g = (k: string) => num(ld2, lt2[k], `tuning.${k}`); return { checkEverySeconds: g('check_every_seconds'), minVillagers: g('min_villagers'), cooldownSeconds: g('cooldown_seconds'), partySize: g('party_size'), crowdedMinVillagers: g('crowded_min_villagers'), storesShare: g('stores_share'), maxSettlements: g('max_settlements') }; })(),
+    sea: (() => { const g = (k: string) => num(ad, zt[k], `tuning.${k}`); return { shallowTiles: g('shallow_tiles'), shallowSpeed: g('shallow_speed'), reefFromTiles: g('reef_from_tiles'), reefToTiles: g('reef_to_tiles'), reefCell: g('reef_cell'), sightTiles: g('sight_tiles'), lookEverySeconds: g('look_every_seconds'), exploreEverySeconds: g('explore_every_seconds'), dockBoats: g('dock_boats'), partyBoatPlanks: g('party_boat_planks'), villagersPerBoat: g('villagers_per_boat'), fleetMax: g('fleet_max'), boatlessMemorySeconds: g('boatless_memory_seconds'), shipyardWeight: g('shipyard_weight'), boatNames: Array.isArray(zt.boat_names) && zt.boat_names.length ? zt.boat_names.map(String) : (problems.push(`${ad.path}: "tuning.boat_names" must be a list of names`), ['']) }; })(),
+    settling: (() => { const g = (k: string) => num(ld2, lt2[k], `tuning.${k}`); return { checkEverySeconds: g('check_every_seconds'), minVillagers: g('min_villagers'), cooldownSeconds: g('cooldown_seconds'), partySize: g('party_size'), crowdedMinVillagers: g('crowded_min_villagers'), storesShare: g('stores_share'), maxSettlements: g('max_settlements'), firstHarvestSeconds: g('first_harvest_seconds'), provisionHeadroom: g('provision_headroom') }; })(),
     people: (() => { const g = (k: string) => num(od, ot[k], `tuning.${k}`); return {
       adultSeconds: g('adult_seconds'), elderSeconds: g('elder_seconds'), lifespanSeconds: g('lifespan_seconds'), lifespanJitterSeconds: g('lifespan_jitter_seconds'), founderAgeMaxSeconds: g('founder_age_max_seconds'), birthEverySeconds: g('birth_every_seconds'),
       practiceSeconds: g('practice_seconds'), apprenticeFactor: g('apprentice_factor'), expertAt: g('expert_at'), skillSpeedup: g('skill_speedup'), riteGraceSeconds: g('rite_grace_seconds'), ritePenalty: g('rite_penalty'),
-      changeCustomAfterSeconds: g('change_custom_after_seconds'), pyreLogs: g('pyre_logs'), shipPlanks: g('ship_planks'), customRadius: g('custom_radius'), woodForPyre: g('wood_for_pyre'), waterForShip: g('water_for_ship'), feastSeconds: g('feast_seconds'), feastMood: g('feast_mood'), harvestBread: g('harvest_bread'), fireLogs: g('fire_logs'), woodForFire: g('wood_for_fire'), feastSpread: g('feast_spread'),
+      changeCustomAfterSeconds: g('change_custom_after_seconds'), pyreLogs: g('pyre_logs'), shipPlanks: g('ship_planks'), customRadius: g('custom_radius'), woodForPyre: g('wood_for_pyre'), waterForShip: g('water_for_ship'), feastSeconds: g('feast_seconds'), feastMood: g('feast_mood'), harvestBread: g('harvest_bread'), fireLogs: g('fire_logs'), woodForFire: g('wood_for_fire'), feastSpread: g('feast_spread'), feastLayIn: g('feast_lay_in'), feastRetrySeconds: g('feast_retry_seconds'),
       names: (() => { const l = (k: string) => Array.isArray(ot[k]) && ot[k].length ? ot[k].map(String) : (problems.push(`${od.path}: "tuning.${k}" must be a list of names`), ['']); return { sea: l('names_sea'), trees: l('names_trees'), fields: l('names_fields') }; })(),
     }; })(),
     trade: {

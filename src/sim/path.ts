@@ -26,6 +26,11 @@ function cost(w: World, i: number, inside: number): number {
 export interface PathOptions {
   /** The traveller has a boat with them (they landed here by boat), so they can launch from any shore. */
   launchAnywhere?: boolean;
+  /**
+   * With ships on: the settlement whose docks the traveller may launch from (they have one of its boats), or -1
+   * for none (they have no boat, so they walk). Left out, any dock will do, as before ships.
+   */
+  fleet?: number;
 }
 
 /**
@@ -35,14 +40,15 @@ export interface PathOptions {
  * trapped in a building (which may walk out through its own walls). Cleared whenever the ground, a building's
  * footprint, a door, a dock or a bridge changes. Derived, never saved.
  */
-const cutOff = new WeakMap<World, { launch: boolean; reach: Uint8Array }[]>();
+const cutOff = new WeakMap<World, { launch: boolean; fleet: number | undefined; reach: Uint8Array }[]>();
 /** The tiles anyone may walk, row or land on have changed: forget every search that found no way. */
 export function reshaped(w: World) { cutOff.delete(w); }
 
 /**
  * Two travel modes: on foot, and rowing. Boats are launched from a dock's door (or from any shore
  * by someone who has one with them) and can land on any shore. Without docks nobody rows, so a world
- * with none gets exactly the routes it always did.
+ * with none gets exactly the routes it always did. With ships on, only a traveller with a boat of their
+ * settlement's fleet rows, from that settlement's own docks (`fleet`).
  */
 export function findPath(w: World, sx: number, sy: number, gx: number, gy: number, opts: PathOptions = {}): [number, number][] | null {
   const W = w.w, H = w.h, N = W * H;
@@ -50,7 +56,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   if (gx < 0 || gy < 0 || gx >= W || gy >= H || sx < 0 || sy < 0 || sx >= W || sy >= H || (!w.ground[gy * W + gx] && !w.bridge[gy * W + gx])) { w.work.pathFails++; return null; }
   const s = sy * W + sx, goal = gy * W + gx;
   if (s === goal) return [];
-  const launch = !!opts.launchAnywhere, rowing = w.docks > 0 || launch, water = w.waterCost;
+  const launch = !!opts.launchAnywhere, fleet = opts.fleet, rowing = (w.docks > 0 && fleet !== -1) || launch, water = w.waterCost;
   let b = buffers.get(w);
   if (!b || b.g.length < 2 * N) { const n = 2 * N; b = { g: new Float32Array(n), came: new Int32Array(n), seen: new Uint32Array(n), closed: new Uint32Array(n), gen: 0, hi: new Int32Array(1024), hf: new Float64Array(1024), len: 0 }; buffers.set(w, b); }
   // only someone trapped on a wall tile (not standing in a doorway) may cross that building to get out
@@ -59,7 +65,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   const start = !w.ground[s] && !w.bridge[s] ? s + N : s;
   // a search already known to find no way from here
   const known = inside === -1 ? cutOff.get(w) : undefined;
-  if (known) for (const k of known) if (k.launch === launch && k.reach[start] && !k.reach[goal]) { w.work.pathFails++; return null; }
+  if (known) for (const k of known) if (k.launch === launch && k.fleet === fleet && k.reach[start] && !k.reach[goal]) { w.work.pathFails++; return null; }
   // the cheapest tile there is, so the estimate never overshoots: a stone road or a road once any is laid, else a path
   const best = w.stone > 0 ? Math.min(w.stoneCost, w.roadCost, w.pathCost) : w.roads > 0 ? Math.min(w.roadCost, w.pathCost) : w.pathCost, unit = rowing ? Math.min(best, water) : best;
   // the open list: a binary heap of nodes by estimated cost (in `b`, grown as needed)
@@ -137,7 +143,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
       const gr = ground[ni];
       if (rowing && gr === 0 && sea[ni] !== 2 && !bridge[ni]) {
         // launch from a dock's door, or anywhere if a boat is already with us
-        if (!diag && (dock[t] || launch)) relax(cur, gc, ni + N, nx, ny, sea[ni] === 1 ? shallow : water);
+        if (!diag && ((dock[t] && (fleet === undefined || dock[t] === fleet + 1)) || launch)) relax(cur, gc, ni + N, nx, ny, sea[ni] === 1 ? shallow : water);
         continue;
       }
       // (the cost of the tile, as cost() gives it)
@@ -161,7 +167,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
     const reach = new Uint8Array(2 * N);
     for (let i = 0; i < 2 * N; i++) if (closed[i] === gen) reach[i] = 1;
     const list = cutOff.get(w) ?? [];
-    list.push({ launch, reach });
+    list.push({ launch, fleet, reach });
     if (list.length > 4) list.shift();
     cutOff.set(w, list);
   }
