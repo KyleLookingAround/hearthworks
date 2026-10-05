@@ -53,7 +53,7 @@ Each villager has a skill for each kind of workplace, from 0 to 1. Working one r
 
 # School
 
-A child who grows up while their settlement's [School](/blueprints/school.md) has a teacher at work is schooled, and learns every trade `school_factor` times as fast ([knowledge](/systems/knowledge.md)). A schooled villager reads: with a [Library](/blueprints/library.md) in their settlement, they learn a trade it knows that someone has proven in use as though a master lived there, so a trade whose last master dies is not lost where there is a library and someone to read it.
+A child who grows up while their settlement's [School](/blueprints/school.md) has a teacher at work is schooled, and learns every trade `school_factor` times as fast ([knowledge](/systems/knowledge.md)). A schooled villager reads: with a [Library](/blueprints/library.md) in their settlement, they learn a trade it knows that someone has proven in use as though a master lived there, so a trade whose last master dies is not lost where there is a library and someone to read it. A grown villager also reads, schooled or not, while their settlement's [Printing House](/blueprints/printing_house.md) has its printer at work; only schooling makes them learn faster.
 
 # Honouring the dead
 

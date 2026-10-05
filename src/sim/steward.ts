@@ -3,15 +3,15 @@
  * chronicle and the planners to point the player at a lever. Pure reads of the state.
  */
 import { homesInNuisance } from './surroundings.ts';
-import { NEED_TEXT, ageNeeded, knows, pressure } from './knowledge.ts';
+import { NEED_TEXT, ageNeeded, knows, pressure, scholarly } from './knowledge.ts';
 import { dietOf } from './farms.ts';
 import { defence } from './hardship.ts';
-import { seasonOf, storesOnTrack } from './world.ts';
+import { learningAt, seasonOf, storesOnTrack } from './world.ts';
 import type { State, Town } from './types.ts';
 
 /** OKF log labels for each kind of chronicle line. */
 const LABEL: Record<string, string> = {
-  founded: 'Creation', invented: 'Creation', district: 'Creation', bridge: 'Creation',
+  founded: 'Creation', invented: 'Creation', scholars: 'Creation', district: 'Creation', bridge: 'Creation',
   form: 'Update', replanned: 'Update', taught: 'Update', learned: 'Update', proven: 'Update', season: 'Update', trade: 'Creation', birth: 'Creation', custom: 'Update', settled: 'Creation', age: 'Update',
   forgotten: 'Deprecation',
   fire: 'Finding', flood: 'Finding', sickness: 'Finding', raids: 'Finding', road: 'Creation', belt: 'Creation', dock: 'Creation', farm: 'Update', feast: 'Update', naming: 'Update', peace: 'Creation',
@@ -35,9 +35,16 @@ export function chronicleLog(S: State, town?: number): string {
   return out;
 }
 
+/** What a settlement lacks for scholars at work: a scholar at its university, the university itself, or the idea of one. */
+function universityHint(S: State, town: Town): string {
+  if (S.buildings.some(b => b.town === town.id && !b.site && S.content.blueprints[b.type].learning === 'university')) return 'its University needs a scholar at work';
+  if (knows(town, 'university')) return 'build a University (its planner builds one in a village with a library, or in a town)';
+  return 'encourage the University';
+}
+
 /**
  * Up to `n` suggestions for one settlement, most pressing first: hunger, a need nothing known answers
- * (encourage the blueprint that would), no room (zones), raiders who outnumber the defence, a winter store
+ * (encourage the blueprint that would), an idea only scholars find with no university at work, no room (zones), raiders who outnumber the defence, a winter store
  * fallen behind (ration), the hungry kept from leaving, long hauls with no carts thought of or oxen without feed,
  * a diet of bread alone, noisy homes, then the latest page of history.
  */
@@ -50,9 +57,13 @@ export function advise(S: State, town: Town, n = 3): string[] {
     // an answer it can think of at its age first; one a later age opens says which
     const answers = need ? Object.values(S.content.blueprints).filter(B => B.discovery?.need === need && !knows(town, B.id)) : [];
     const answer = answers.find(B => ageNeeded(S, B.id) <= town.age) ?? answers[0];
-    if (answer && ageNeeded(S, answer.id) > town.age) out.push(`Nobody in ${town.name} has an answer to "${stuck[1]}": the ${answer.name} comes to a settlement of the Age of ${S.content.eras[ageNeeded(S, answer.id)].name}, or from a neighbour who knows it.`);
+    if (answer?.discovery?.university && !learningAt(S, town.id, 'university')) out.push(`Nobody in ${town.name} has an answer to "${stuck[1]}": only scholars think of the ${answer.name}, ${universityHint(S, town)}.`);
+    else if (answer && ageNeeded(S, answer.id) > town.age) out.push(`Nobody in ${town.name} has an answer to "${stuck[1]}": the ${answer.name} comes to a settlement of the Age of ${S.content.eras[ageNeeded(S, answer.id)].name}, or from a neighbour who knows it.`);
     else if (answer) out.push(`Nobody in ${town.name} has an answer to "${stuck[1]}": encourage them to think of the ${answer.name}.`);
   }
+  // an idea only scholars find, pressing here, with no university at work to find it
+  const K = S.content.tuning.knowledge, waiting = !stuck && scholarly(S, town).find(x => x.waits === 'university' && !x.missing.length && pressure(S, town, x.B.discovery!.need) >= K.struggleSeverity * K.universityThreshold);
+  if (waiting) out.push(`Scholars would think of the ${waiting.B.name} for ${town.name}, as ${NEED_TEXT[waiting.B.discovery!.need] ?? waiting.B.discovery!.need}: ${universityHint(S, town)}.`);
   const room = /^No (room|place) for (.*?): (.*)$/.exec(status);
   if (room) out.push(`${town.name} has no ${room[1]} for ${room[2]} (${room[3]}): paint a zone where there is room, or lift no-build land.`);
   // hard times: raiders who outnumber the defence (a camp it sends bread to leaves it be), a winter store fallen behind, the hungry kept from leaving

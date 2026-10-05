@@ -31,18 +31,20 @@
 * [Palisade](palisade.md) (draft) - A stake wall and gate that guards the stores against raiders.
 * [Pasture](pasture.md) - A herd on open grass giving milk and meat all year round; needs more room than a field.
 * [Path](path.md) - Paved footpath. Villagers walk faster on paths; planners pave the ones their people wear.
+* [Printing House](printing_house.md) (draft) - Prints the books of its settlement's library for every home, so every grown villager there reads. Only scholars think of it.
 * [Pyre](pyre.md) - Where a village that cremates its dead burns them. Every farewell burns logs, so a timber-poor village feels it.
 * [Quarry](quarry.md) - Cuts rough stone from a stone deposit within three tiles.
 * [Road](road.md) - A planned road, laid as a long straight strip through a settlement; faster than paths, most of all for carts.
 * [Sawmill](sawmill.md) - Cuts one log into one plank. Planks build everything.
 * [School](school.md) - Where children learn to read and to learn; those who went to school pick up a trade faster, and read from libraries.
+* [Seed Garden](seed_garden.md) (draft) - Scholars' beds where the best plants are bred for seed, so the farms, gardens and orchards around it bear a quarter more. Only scholars think of it.
 * [Smithy](smithy.md) - Forges iron ore with logs into tools: a two-input recipe.
 * [Smokehouse](smokehouse.md) - Smokes fish over a log fire into food that keeps all winter.
 * [Stone Road](stone_road.md) - A road paved in stone, the fastest ground there is; a settlement repaves its busiest road in stone it can spare.
 * [Storage Yard](storage.md) - Holds surplus goods. Carriers fetch from here when nothing nearer has what they need.
 * [Terrace](terrace.md) - A row of small homes for twelve villagers on a 4 by 2 plot, built facing a street; towns build them in rows.
 * [Town Hall](town_hall.md) (draft) - Where a planner works; with one at their desk the settlement builds more than one thing at a time, and a master planner more still.
-* [University](university.md) - Scholars pursue lines of inquiry, so a town comes up with new ideas faster under strain.
+* [University](university.md) - Scholars pursue lines of inquiry, so a settlement comes up with new ideas faster under strain, and with ideas no village of hands alone finds.
 * [Warehouse](warehouse.md) - A brick store with room for six hundred goods.
 * [Watchtower](watchtower.md) (draft) - A lookout on watch sees raiders coming, so the whole militia musters to meet them.
 * [Weaver](weaver.md) - Weaves two bundles of flax into a bolt of cloth.

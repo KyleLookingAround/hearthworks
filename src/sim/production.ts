@@ -198,17 +198,20 @@ const MILLED = new WeakMap<object, Set<string>>();
 const milledKinds = (S: State) => { let k = MILLED.get(S.content); if (!k) MILLED.set(S.content, k = new Set(Object.values(S.content.blueprints).flatMap(B => B.mills?.types ?? []))); return k; };
 
 /** How much more a workplace yields for a building of its settlement within reach whose worker is at work (a windmill by a bakery): the best such factor, else 1. */
-export function milledBy(S: State, b: Building): number {
-  if (!milledKinds(S).has(b.type)) return 1;
-  let f = 1;
+export const milledBy = (S: State, b: Building): number => bestMill(S, b).factor;
+
+/** The best mill at work for a workplace: its factor, and what it gives (milled grain, better seed) for the workplace's status. */
+function bestMill(S: State, b: Building): { factor: number; boon: string } {
+  const out = { factor: 1, boon: '' };
+  if (!milledKinds(S).has(b.type)) return out;
   const p = ctr(b);
   for (const c of S.buildings) {
     const C = bp(S, c).mills;
-    if (!C || c.town !== b.town || c.site || !C.types.includes(b.type) || C.factor <= f || c.worker === null) continue;
+    if (!C || c.town !== b.town || c.site || !C.types.includes(b.type) || C.factor <= out.factor || c.worker === null) continue;
     if (S.amap.get(c.worker)?.state !== 'working' || Math.hypot(ctr(c).x - p.x, ctr(c).y - p.y) > C.radius) continue;
-    f = C.factor;
+    out.factor = C.factor; out.boon = C.boon;
   }
-  return f;
+  return out;
 }
 
 const itemsText = (S: State, items: string[]) => items.map(k => S.content.goods[k]?.name.toLowerCase() ?? k).join(' and ');
@@ -299,7 +302,7 @@ function run(S: State, b: Building, dt: number) {
   // counters have no recipe: their worker stands ready
   if (B.guards) { setStatus(b, { fire: 'The fire crew stands ready', flood: 'Holding the water back', sickness: 'The healer is in', raids: 'A lookout on watch' }[B.guards.hazard], 'ok'); return; }
   // places of learning have no recipe: their worker keeps, teaches or studies
-  if (B.learning) { setStatus(b, { library: 'A scribe at work', school: 'Lessons under way', university: 'Scholars at their inquiries' }[B.learning], 'ok'); return; }
+  if (B.learning) { setStatus(b, { library: 'A scribe at work', school: 'Lessons under way', university: 'Scholars at their inquiries', press: 'Printing books for every home' }[B.learning], 'ok'); return; }
   const lacking = Object.keys(B.input).filter(k => (b.inv[k] || 0) < B.input[k]);
   if (lacking.length) { setStatus(b, `Needs ${itemsText(S, lacking)}`, 'bad'); return; }
   if (Object.keys(B.output).some(k => (b.inv[k] || 0) >= capOf(S, b))) {
@@ -321,8 +324,8 @@ function run(S: State, b: Building, dt: number) {
     if (tree < 0) { setStatus(b, 'No grown trees nearby', 'bad'); return; }
   }
   // tools speed the work up, and wear out; a mill at work nearby makes each batch yield more
-  const tooled = !!B.tools && (b.inv.tools || 0) >= 1, n = places(S, b), mill = milledBy(S, b);
-  setStatus(b, (tooled ? 'Working, with tools' : 'Working') + (mill > 1 ? (tooled ? ' and milled grain' : ', with milled grain') : '') + (n > 1 ? `: ${team?.length ?? 1} of ${n} hands` : ''), 'ok');
+  const tooled = !!B.tools && (b.inv.tools || 0) >= 1, n = places(S, b), milled = bestMill(S, b), mill = milled.factor;
+  setStatus(b, (tooled ? 'Working, with tools' : 'Working') + (mill > 1 ? `${tooled ? ' and' : ', with'} ${milled.boon}` : '') + (n > 1 ? `: ${team?.length ?? 1} of ${n} hands` : ''), 'ok');
   // working hours, by law
   const hours = S.towns[b.town]?.laws.hours, pace = hours === 'long' ? T.hardship.longPace : hours === 'short' ? T.hardship.shortPace : 1;
   // every hand at work adds their own pace

@@ -69,8 +69,8 @@ export interface BlueprintDef {
   seasonal: boolean;
   /** The custom for the dead it serves (burial, cremation, ship), if any. */
   rite: Custom | null;
-  /** A place of learning: a library keeps knowledge, a school schools children, a university mills invention. */
-  learning: 'library' | 'school' | 'university' | null;
+  /** A place of learning: a library keeps knowledge, a school schools children, a university mills invention, a printing house makes readers of the grown. */
+  learning: Learning | null;
   /** A town hall: its planner at work lets the settlement keep more of its own sites open at once. */
   hall: boolean;
   /** Handcarts it keeps for long hauls (a cart shed). */
@@ -92,7 +92,7 @@ export interface BlueprintDef {
   /** Keeps homes within `radius` clean while its worker is in: they fall sick, and catch sickness, `clean_factor` as often. */
   sanitation: { radius: number } | null;
   /** Mills for the workplaces of these kinds within `radius` while its worker is at work: each batch they make yields `factor` times as much (a windmill and its bakeries). */
-  mills: { types: string[]; radius: number; factor: number } | null;
+  mills: { types: string[]; radius: number; factor: number; /** what the workplaces it mills work with, in their status: milled grain, better seed */ boon: string } | null;
   /** Not known at the start: a village invents it while it struggles with `need`. Null for founding knowledge. */
   discovery: { need: string; meanSeconds: number; /** blueprints the settlement must know first */ after: string[]; /** thought of only with a university at work */ university: boolean } | null;
   /** Grows in steps, one per name (farms that grow): each step adds a row of fields behind it and a place for a hand. */
@@ -107,6 +107,8 @@ export interface BlueprintDef {
 
 /** The hardships a settlement can be struck by. */
 export type Hazard = 'fire' | 'flood' | 'sickness' | 'raids';
+/** Kinds of place of learning. */
+export type Learning = 'library' | 'school' | 'university' | 'press';
 export const HAZARDS: Hazard[] = ['fire', 'flood', 'sickness', 'raids'];
 
 /** The steward's laws for one settlement: rationing, working hours, and whether the hungry may leave. */
