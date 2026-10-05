@@ -80,7 +80,7 @@ Every villager has a given name, taken from their settlement's naming custom. A 
 
 # Not yet
 
-The planner is a villager too: a [Town Hall](/blueprints/town_hall.md)'s planner learns the trade like any other and, at their desk, lets the settlement build more at once ([planner](/systems/planner.md)). District halls, a planner for each district, come later.
+The planner is a villager too: a [Town Hall](/blueprints/town_hall.md)'s planner learns the trade like any other and, at their desk, lets the settlement build more at once ([planner](/systems/planner.md)). District halls, a planner for each district, were tried and gave nothing more ([log](/log.md), 2026-10-05).
 
 # Kyle's call
 
