@@ -214,6 +214,7 @@ export function buildContent(files: SourceFile[]): Content {
       adultSeconds: g('adult_seconds'), elderSeconds: g('elder_seconds'), lifespanSeconds: g('lifespan_seconds'), lifespanJitterSeconds: g('lifespan_jitter_seconds'), founderAgeMaxSeconds: g('founder_age_max_seconds'), birthEverySeconds: g('birth_every_seconds'),
       practiceSeconds: g('practice_seconds'), apprenticeFactor: g('apprentice_factor'), expertAt: g('expert_at'), skillSpeedup: g('skill_speedup'), riteGraceSeconds: g('rite_grace_seconds'), ritePenalty: g('rite_penalty'),
       changeCustomAfterSeconds: g('change_custom_after_seconds'), pyreLogs: g('pyre_logs'), shipPlanks: g('ship_planks'), customRadius: g('custom_radius'), woodForPyre: g('wood_for_pyre'), waterForShip: g('water_for_ship'), feastSeconds: g('feast_seconds'), feastMood: g('feast_mood'), harvestBread: g('harvest_bread'), fireLogs: g('fire_logs'), woodForFire: g('wood_for_fire'), feastSpread: g('feast_spread'),
+      names: (() => { const l = (k: string) => Array.isArray(ot[k]) && ot[k].length ? ot[k].map(String) : (problems.push(`${od.path}: "tuning.${k}" must be a list of names`), ['']); return { sea: l('names_sea'), trees: l('names_trees'), fields: l('names_fields') }; })(),
     }; })(),
     trade: {
       everySeconds: num(td, tt.every_seconds, 'tuning.every_seconds'), load: num(td, tt.load, 'tuning.load'), keep: num(td, tt.keep, 'tuning.keep'), minVillagers: num(td, tt.min_villagers, 'tuning.min_villagers'),

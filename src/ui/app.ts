@@ -1,7 +1,7 @@
 /** Browser shell: HUD, build bar, inspector, toasts, pointer input and the frame loop. */
 import { surroundings } from '../sim/surroundings.ts';
 import { homeTier } from '../sim/production.ts';
-import { FEAST } from '../sim/people.ts';
+import { FEAST, NAMING, called } from '../sim/people.ts';
 import { formOf, hubs } from '../sim/planner.ts';
 import { capOf, crew, foodsEaten, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
 import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
@@ -450,7 +450,7 @@ export class App {
     // hardship: the defence at its first yard against raiders, and camps in reach
     const D = S.hardship ? defence(S, t) : null, near = S.hardship ? S.camps.filter(c => { const y = S.bmap.get(t.store); return !!y && Math.hypot(c.x - y.x, c.y - y.y) <= this.content.tuning.hardship.raidReach; }).length : 0;
     const guard = D ? [Math.round(D.total), D.warned, near] : null;
-    const key = JSON.stringify([t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil]);
+    const key = JSON.stringify([t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.naming, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil]);
     if (!force && key === this.stewardKey) return;
     this.stewardKey = key;
     const needs: [string, string][] = [
@@ -476,6 +476,7 @@ export class App {
       const word = { burial: 'Burial', cremation: 'Cremation', ship: 'Ship burial' }[t.custom];
       html += `<div class="steward-grid"><span>Custom for the dead</span><span>${word}${t.rites.length ? `, ${t.rites.length} waiting` : ''}</span>`;
       // the feasts it keeps through the year, and whether one lately held lifts its mood
+      html += `<span>Names</span><span>${esc(NAMING[t.naming] ?? '')}</span>`;
       if (S.seasons) html += `<span>Feasts</span><span>${t.feasts.length ? t.feasts.map(f => FEAST[f].name).join(', ') : 'none'}${S.t < t.feastUntil ? ' (feasting now)' : ''}</span>`;
       html += '</div>';
     }
@@ -623,6 +624,9 @@ export class App {
         const P = T.people, ppl = b.residents.map(id => S.amap.get(id)).filter(a => !!a);
         const kids = ppl.filter(a => a!.role === 'child').length, old = ppl.filter(a => S.t - a!.born >= P.elderSeconds).length;
         rows += row('Household', `${ppl.length - kids - old} adults` + (kids ? `, ${kids} ${kids > 1 ? 'children' : 'child'}` : '') + (old ? `, ${old} retired` : ''));
+        // by name: grown-ups first, then the children
+        const named = [...ppl].sort((x, y) => x!.born - y!.born).map(a => a!.role === 'child' ? `${called(a!)} (a child)` : S.t - a!.born >= P.elderSeconds ? `${called(a!)} (retired)` : called(a!));
+        if (named.length) rows += row('Names', named.join(', '));
       }
       for (const k in B.keepStocked) rows += row(`${G[k].name} at home`, `${n0(b.inv[k])} / ${B.keepStocked[k]}`) + row('On the way', n0(b.incoming[k]));
       const su = surroundings(S, b), good = [su.trees > 0 && 'trees', su.water > 0 && 'water'].filter(Boolean), bad = [su.noise > 0 && 'noise', su.crowd > 0 && 'crowding', su.sites > 0 && 'building work'].filter(Boolean);

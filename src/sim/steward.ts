@@ -14,7 +14,7 @@ const LABEL: Record<string, string> = {
   founded: 'Creation', invented: 'Creation', district: 'Creation', bridge: 'Creation',
   form: 'Update', replanned: 'Update', taught: 'Update', learned: 'Update', proven: 'Update', season: 'Update', trade: 'Creation', birth: 'Creation', custom: 'Update', settled: 'Creation', age: 'Update',
   forgotten: 'Deprecation',
-  fire: 'Finding', flood: 'Finding', sickness: 'Finding', raids: 'Finding', road: 'Creation', dock: 'Creation', farm: 'Update', feast: 'Update',
+  fire: 'Finding', flood: 'Finding', sickness: 'Finding', raids: 'Finding', road: 'Creation', dock: 'Creation', farm: 'Update', feast: 'Update', naming: 'Update',
 };
 
 /**

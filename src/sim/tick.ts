@@ -76,8 +76,8 @@ function migrate(S: State) {
     if (!house) continue;
     const from = nearestStore(S, house) ?? house, d = door(from);
     const a = makeAgent(S, 'villager', d.x + 0.5, d.y + 0.5);
-    if (S.people) newcomer(S, a);
     a.home = house; house.residents.push(a.id);
+    if (S.people) newcomer(S, a, t);
     S.stats.arrivals++;
     emit(S, 'good', `A newcomer moved to ${t.name}`, true);
   }

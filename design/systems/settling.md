@@ -4,7 +4,7 @@ title: Settling
 description: A crowded settlement sends a founding party off to found a daughter town, with villagers, stores, the knowledge it practises and its custom.
 tags: [settlement, people, knowledge]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T10:49:33Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T00:46:23Z }
 tuning:
   check_every_seconds: 60
   min_villagers: 70
@@ -35,6 +35,6 @@ The party must be able to reach its site: on foot, or rowing from a [dock](/blue
 - **People.** `party_size` villagers who are not working (carriers first; with [people](/systems/people.md) on, adults and not elders), who leave their homes and walk to the new yard.
 - **Goods.** What the new yard and cottages cost, a new game's starting stores, and `stores_share` of every good left in the mother's stores. The founding cost is gathered from the yards first and then from the settlement's other buildings (bread from the homes' shelves, logs from a sawmill's pile): in a town whose bakeries just keep pace bread never rests in a yard, nor logs beside busy sawmills, and a town of 126 with a dock and 41 idle carriers sent nobody for want of 12 loaves and 4 logs. A crowded settlement feels the need to cross the water as soon as it sees no land left, before its party is ready.
 - **Knowledge.** What the founders knew, and every blueprint the mother has proven in use; crafts it never practised stay behind ([knowledge](/systems/knowledge.md)).
-- **Custom.** The mother's custom for the dead. A daughter's land may suggest another; it keeps its mother's until it cannot, and then the custom drifts.
+- **Custom.** The mother's custom for the dead. A daughter's land may suggest another; it keeps its mother's until it cannot, and then the custom drifts. It keeps its mother's naming custom too, and its settlers their names ([people](/systems/people.md)).
 
 A daughter whose name the world has used already is "New" that name. The daughter plans for itself, keeps visiting and trading with its mother and the others, and the chronicle records the founding in both.

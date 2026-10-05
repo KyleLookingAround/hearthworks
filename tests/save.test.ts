@@ -212,3 +212,14 @@ test('a version 23 save is upgraded to version 24: no road of stone yet, stone w
   runFor(S, 60);
   assert.equal(text(loadGame(content, text(S))), text(S));
 });
+
+test('a version 24 save is upgraded to version 25: each settlement takes a naming custom from its land and its people their names, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v24.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 24);
+  const S = loadGame(content, file);
+  assert.ok(S.people);
+  const people = S.agents.filter(a => a.kind === 'villager');
+  assert.ok(people.length > 0 && people.every(a => a.name && content.tuning.people.names[S.towns[a.home!.town].naming].includes(a.name)));
+  runFor(S, 60);
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});

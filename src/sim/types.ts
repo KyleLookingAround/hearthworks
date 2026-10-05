@@ -162,7 +162,7 @@ export interface Tuning {
   people: {
     adultSeconds: number; elderSeconds: number; lifespanSeconds: number; lifespanJitterSeconds: number; founderAgeMaxSeconds: number; birthEverySeconds: number;
     practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
-    changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number; feastSeconds: number; feastMood: number; harvestBread: number; fireLogs: number; woodForFire: number; feastSpread: number;
+    changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number; feastSeconds: number; feastMood: number; harvestBread: number; fireLogs: number; woodForFire: number; feastSpread: number; names: Record<Naming, string[]>;
   };
   trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number };
   farms: { diet: ItemId[]; dietShare: number; dietStock: number; dietSeconds: number; dietFull: number; dietBonus: number; dietWeight: number; growRoomWeight: number };
@@ -328,13 +328,17 @@ export interface Agent {
   born: number;
   dies: number;
   skill: Record<string, number>;
-  /** Went to school as a child: learns trades faster. */
+  /** Went to school as a child: learns trades faster, and reads. */
   schooled: boolean;
+  /** With people on: their given name, by their settlement's naming custom ('' for a bot). */
+  name: string;
   /** The cart shed whose cart they have out, if any. */
   cart: number | null;
 }
 
 export type Custom = 'burial' | 'cremation' | 'ship';
+/** Where a settlement takes its children's names from: the sea, the trees, or the fields. */
+export type Naming = 'sea' | 'trees' | 'fields';
 /** The feasts a settlement may keep: a harvest festival as autumn comes, a fire as winter comes. */
 export type Feast = 'harvest' | 'midwinter';
 
@@ -395,6 +399,8 @@ export interface Town {
   rites: number[];
   /** The feasts it keeps through the year (with people and seasons on), and until when the last one lifts its mood. */
   feasts: Feast[];
+  /** Its naming custom, from its land (with people on). */
+  naming: Naming;
   feastUntil: number;
   graves: Record<number, number>;
   /** Seconds since its library's scribe last copied records for the neighbours. */

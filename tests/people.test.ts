@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
 import { createState, runFor, villagers, bp } from '../src/sim/index.ts';
-import { ageOf, bringFeast, customFor, FEAST, feastFor, feastMood, holdFeasts, skillPace } from '../src/sim/people.ts';
+import { ageOf, bringFeast, customFor, FEAST, feastFor, feastMood, holdFeasts, nameFor, namingFor, skillPace } from '../src/sim/people.ts';
 import { computeMood } from '../src/sim/index.ts';
 
 const content = loadContent();
@@ -92,4 +92,27 @@ test('without seasons there are no feasts, and a visitor may bring a neighbour\'
   for (let k = 0; k < 200 && !a.feasts.includes('midwinter'); k++) bringFeast(S, a, b);
   assert.deepEqual(a.feasts, ['harvest', 'midwinter']);
   assert.ok(S.chronicle.some(c => c.town === a.id && c.kind === 'feast' && c.text.includes('took up')));
+});
+
+test('naming customs: each settlement names its people from its land, by seed and id alone, drawing from no random stream', () => {
+  const S = createState(content, 1847, { planner: true, people: true, settlements: 2 });
+  for (const t of S.towns) {
+    assert.equal(t.naming, namingFor(S, t));
+    // the same lines as the custom for the dead
+    assert.equal(t.naming, ({ ship: 'sea', cremation: 'trees', burial: 'fields' } as const)[customFor(S, t)]);
+    assert.ok(S.chronicle.some(c => c.town === t.id && c.kind === 'naming'));
+  }
+  for (const a of villagers(S)) assert.ok(P.names[S.towns[a.home!.town].naming].includes(a.name), `${a.name} is a name of its settlement's custom`);
+  // the same seed names everyone the same way
+  const again = createState(content, 1847, { planner: true, people: true, settlements: 2 });
+  assert.deepEqual(villagers(again).map(a => a.name), villagers(S).map(a => a.name));
+  const t = S.towns[0], a = villagers(S)[0];
+  const streams = JSON.stringify([S.rng, S.prng, S.krng, S.hrng]);
+  assert.equal(nameFor(S, a, t), nameFor(S, a, t));
+  assert.equal(JSON.stringify([S.rng, S.prng, S.krng, S.hrng]), streams, 'naming draws from no random stream');
+  // children born are named by the custom of the settlement they are born in
+  runFor(S, 1800);
+  const kids = villagers(S).filter(v => S.t - v.born < 1800);
+  assert.ok(kids.length > 0 && kids.every(k => P.names[S.towns[k.home!.town].naming].includes(k.name)));
+  assert.ok(S.chronicle.some(c => c.kind === 'birth' && /^The first child, \w+, was born in /.test(c.text)));
 });

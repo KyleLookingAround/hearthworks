@@ -9,8 +9,9 @@
  * fixture saved at the old version.
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
+import { nameFor, namingFor } from './people.ts';
 
-export const SAVE_VERSION = 24;
+export const SAVE_VERSION = 25;
 
 type Json = Record<string, unknown>;
 
@@ -176,6 +177,12 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     const w = state.world as Json; w.stoneCost ??= null; w.stone ??= 0;
     return state;
   },
+  // 24 to 25: naming customs. Settlements take theirs from their land and villagers their names when the game loads (see loadGame)
+  24: state => {
+    for (const t of state.towns as Json[]) t.naming ??= null;
+    for (const a of state.agents as Json[]) a.name ??= '';
+    return state;
+  },
 };
 
 /** Run-length encoding for tile grids: [value, count, value, count, ...]. */
@@ -266,5 +273,8 @@ export function loadGame(content: Content, input: SaveFile | string): State {
     world, buildings, agents, bmap, amap: new Map(agents.map(a => [a.id, a])),
   } as State;
   S.planner = S.towns[0].planner;
+  // a save from before naming customs: each settlement takes one from its land, and its people their names
+  for (const t of S.towns) t.naming ??= namingFor(S, t);
+  if (S.people) for (const a of S.agents) if (a.kind === 'villager' && !a.name && a.home) a.name = nameFor(S, a, S.towns[a.home.town]);
   return S;
 }

@@ -1,9 +1,9 @@
-import { rand } from './rng.ts';
+import { hash01, rand } from './rng.ts';
 import { makeAgent, quit, removeAgent } from './agents.ts';
 import { foodChainOf } from './production.ts';
 import { shortOfFood } from './planner.ts';
 import { add, bp, chronicle, door, emit, foodsOf, learningAt, villagers } from './world.ts';
-import type { Agent, Building, Custom, Feast, ItemId, State, Town } from './types.ts';
+import type { Agent, Building, Custom, Feast, ItemId, Naming, State, Town } from './types.ts';
 
 /**
  * People (Phase 14): villagers age, are born and die, learn their trades, and their settlements honour
@@ -23,15 +23,35 @@ export function initPeople(S: State) {
   }
   const word = { burial: 'buries', cremation: 'cremates', ship: 'sets out to sea' };
   for (const t of S.towns) { t.custom = customFor(S, t); chronicle(S, t.id, 'custom', `${t.name} ${word[t.custom]} its dead`); }
+  // and names its people as its land suggests: the founders too
+  for (const t of S.towns) { t.naming = namingFor(S, t); chronicle(S, t.id, 'naming', `${t.name} names its children ${NAMING[t.naming]}`); }
+  for (const a of villagers(S)) if (a.home) a.name = nameFor(S, a, S.towns[a.home.town]);
   // with the year turning, each keeps a feast its land suggests
   if (S.seasons) for (const t of S.towns) { t.feasts = [feastFor(S, t)]; chronicle(S, t.id, 'feast', `${t.name} keeps ${FEAST[t.feasts[0]].text}`); }
 }
 
-/** A newcomer is a young adult. */
-export function newcomer(S: State, a: Agent) {
+/** A newcomer is a young adult, who goes by a name of the settlement they come to. */
+export function newcomer(S: State, a: Agent, town: Town) {
   a.born = S.t - P(S).adultSeconds - rand(S.prng) * P(S).adultSeconds;
   a.dies = lifespan(S);
+  a.name = nameFor(S, a, town);
 }
+
+/** The naming customs: where a settlement takes its children's names from. */
+export const NAMING: Record<Naming, string> = { sea: 'for the sea', trees: 'for the trees', fields: 'for the fields and their birds' };
+
+/** The naming custom a settlement's land suggests, by the same lines as its custom for the dead: much water, the sea; well wooded, the trees; else the fields. */
+export function namingFor(S: State, t: Town): Naming {
+  if (!S.bmap.get(t.store)) return 'fields';
+  const l = landOf(S, t);
+  return l.water >= P(S).waterForShip ? 'sea' : l.wood >= P(S).woodForPyre ? 'trees' : 'fields';
+}
+
+/** A villager's given name: from their settlement's custom, picked by their id and the world's seed, never by a random stream. */
+export const nameFor = (S: State, a: Agent, t: Town) => { const list = P(S).names[t.naming]; return list[Math.floor(hash01(a.id * 7919 + (S.seed >>> 0)) * list.length)]; };
+
+/** A villager's name for the player: their given name, or a word for them before names (an older save's founders). */
+export const called = (a: Agent) => a.name || 'a villager';
 
 /** The land within `custom_radius` of a settlement's storage yard: its share of water, and of its land in grown trees. */
 export function landOf(S: State, t: Town): { water: number; wood: number } {
@@ -161,7 +181,7 @@ function die(S: State, a: Agent) {
   if (!town) return;
   town.rites.push(S.t);
   const how = { burial: 'to be laid to rest', cremation: 'for the pyre', ship: 'to be set out to sea' }[town.custom];
-  emit(S, 'info', `An elder of ${town.name} died, old and content; they wait ${how}`, true);
+  emit(S, 'info', `${a.name ? `${a.name}, an elder of ${town.name},` : `An elder of ${town.name}`} died, old and content; they wait ${how}`, true);
 }
 
 /** A fed home with two adults has a child now and then, while its settlement has a bed for one and its food is not short. */
@@ -183,8 +203,9 @@ function births(S: State, dt: number) {
     S.stats.births++;
     const town = S.towns[bed.town];
     if (town) {
-      if (!S.chronicle.some(c => c.town === town.id && c.kind === 'birth')) chronicle(S, town.id, 'birth', `The first child was born in ${town.name}`);
-      emit(S, 'good', `A child was born in ${town.name}`, true);
+      c.name = nameFor(S, c, town);
+      if (!S.chronicle.some(c => c.town === town.id && c.kind === 'birth')) chronicle(S, town.id, 'birth', `The first child, ${c.name}, was born in ${town.name}`);
+      emit(S, 'good', `${c.name} was born in ${town.name}`, true);
     }
   }
 }

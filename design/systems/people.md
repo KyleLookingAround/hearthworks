@@ -1,10 +1,10 @@
 ---
 type: System
 title: People
-description: Villagers as individuals; ages, births and deaths, skills that grow with practice and pass from master to apprentice, each village's custom for its dead, and its feasts through the year.
+description: Villagers as individuals; names, ages, births and deaths, skills that grow with practice and pass from master to apprentice, each village's custom for its dead, its naming custom, and its feasts through the year.
 tags: [people, customs, settlement]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T00:41:01Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T00:44:47Z }
 tuning:
   adult_seconds: 600
   elder_seconds: 6000
@@ -30,6 +30,9 @@ tuning:
   fire_logs: 0.25
   wood_for_fire: 0.45
   feast_spread: 0.1
+  names_sea: [Marin, Coral, Gull, Tide, Cove, Pearl, Wave, Kelp, Skerry, Shell, Tern, Brine, Selkie, Harbour, Sandy, Oyster]
+  names_trees: [Ash, Rowan, Hazel, Alder, Birch, Holly, Elm, Willow, Linden, Hawthorn, Oak, Yew, Aspen, Juniper, Laurel, Briar]
+  names_fields: [Barley, Clover, Meadow, Heath, Wren, Lark, Poppy, Sorrel, Thyme, Bramble, Fern, Teasel, Linnet, Daisy, Sedge, Robin]
 ---
 
 # Idea
@@ -71,9 +74,13 @@ With seasons on as well (every new game), each settlement keeps feasts through t
 
 A settlement starts out keeping the feast its land suggests: one whose land within `custom_radius` is at least `wood_for_fire` grown trees lights the fire, others hold the festival. A feast held lifts the settlement's mood by `feast_mood` for `feast_seconds`, on top of everything else and against the winter's cold; a feast whose stores fall short is not held, and the chronicle says so. A visitor home from a neighbour that keeps a feast their own settlement does not brings it home with a chance of `feast_spread`, so over the years each settlement's mix of feasts comes from its land and its neighbours. Daughter settlements keep their mother's feasts. Code: `holdFeasts` and `bringFeast` in `src/sim/people.ts`.
 
+# Names
+
+Every villager has a given name, taken from their settlement's naming custom. A settlement takes its custom from its land as it does its custom for the dead (`water_for_ship`, `wood_for_pyre` within `custom_radius`): a people by much water name their children for the sea (`names_sea`), a well-wooded one for the trees (`names_trees`), and others for the fields and their birds (`names_fields`). Founders and newcomers go by a name of the settlement they live in or come to; a daughter settlement keeps its mother's custom, and those who settle it keep their names. The name is picked by the villager and the world's seed, not drawn from any random stream, so names change nothing else in the world. Names show in a home's household, and in the news of births and deaths; the first child of a settlement goes into the chronicle by name. The custom does not change or spread: it keeps neighbouring villages apart, where feasts converge. A save from before names (version 24) gives each settlement its custom from its land and its people their names when it loads. Code: `namingFor` and `nameFor` in `src/sim/people.ts`.
+
 # Not yet
 
-Planners as people (a town hall and district halls, planners with a planning skill), and naming customs and other traditions, come later.
+Planners as people (a town hall and district halls, planners with a planning skill) come later.
 
 # Kyle's call
 
