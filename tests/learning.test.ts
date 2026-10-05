@@ -48,3 +48,35 @@ test('children of a settlement with a school at work grow up schooled', () => {
   runFor(S, 5);
   assert.equal(kid.schooled, true);
 });
+
+test('readers: a settlement with a library and someone schooled to read takes in what other libraries hold, without a visitor', () => {
+  const read = (reader: boolean) => {
+    const S = createState(content, 1847, { people: true, settlements: 2 });
+    const [a, b] = S.towns;
+    b.knows.depot = { by: b.name, at: 0, verified: [], from: null, learned: 0, used: 0 };
+    const near = (t: typeof a, type: string) => { const y = S.bmap.get(t.store)!, at = findSpot(S, type, { x: y.x, y: y.y }, 30)!; const L = placeBuilding(S, type, at.x, at.y, true)!; L.town = t.id; return L; };
+    near(a, 'library'); near(b, 'library');
+    if (reader) villagers(S).find(v => v.home?.town === a.id)!.schooled = true;
+    runFor(S, content.tuning.knowledge.copyEverySeconds + 2, s => { s.towns[0].visitT = 0; s.towns[1].visitT = 0; });
+    return { learned: 'depot' in a.knows, read: S.chronicle.some(c => c.town === a.id && /^Readers in .* learned the Courier Depot from the shelves of /.test(c.text)) };
+  };
+  assert.deepEqual(read(true), { learned: true, read: true });
+  assert.equal(read(false).read, false, 'nobody to read it');
+});
+
+test('a worker schooled to read learns a trade from the library as from a master', () => {
+  const learn = (library: boolean) => {
+    const S = createState(content, 1847, { people: true });
+    if (library) stand(S, 'library');
+    const farm = stand(S, 'farm');
+    runFor(S, 2);
+    const w = villagers(S).find(v => v.work === farm) ?? villagers(S).find(v => v.role === 'worker' && v.work)!;
+    for (const v of villagers(S)) v.skill = {};
+    w.schooled = true;
+    runFor(S, 30, () => { for (const v of villagers(S)) if (v !== w) v.skill = {}; });
+    return w.skill[w.work!.type] || 0;
+  };
+  const shelved = learn(true), bare = learn(false);
+  // (the apprentice's factor of 3 compounds less as the skill nears 1)
+  assert.ok(shelved > bare * 2, `with a library ${shelved}, without ${bare}`);
+});

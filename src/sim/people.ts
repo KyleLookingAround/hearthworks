@@ -129,7 +129,8 @@ export const hasExpert = (S: State, town: number, type: string, but?: Agent) => 
 
 /** Once a second: growing up, retiring, dying, births, practice, and farewells. */
 export function updatePeople(S: State, dt: number) {
-  const T = P(S);
+  const T = P(S), shelves = new Map<number, boolean>();
+  const shelved = (town: number) => { let v = shelves.get(town); if (v === undefined) shelves.set(town, v = learningAt(S, town, 'library', false)); return v; };
   for (const a of villagers(S)) {
     const age = ageOf(S, a);
     if (a.dies && age >= a.dies) { die(S, a); continue; }
@@ -140,9 +141,11 @@ export function updatePeople(S: State, dt: number) {
     }
     // the old retire from their workplace, and lend a hand carrying
     else if (a.role === 'worker' && age >= T.elderSeconds && a.work) quit(a);
-    // practice: a worker at work learns the trade, faster with a master in the settlement
+    // practice: a worker at work learns the trade, faster with a master in the settlement, or,
+    // for one who can read, from the trade written down in its library once someone somewhere has proven it in use
     if (a.role === 'worker' && a.work && a.state === 'working') {
-      const k = a.work.type, s = a.skill[k] || 0, master = a.home ? hasExpert(S, a.home.town, k, a) : false;
+      const k = a.work.type, s = a.skill[k] || 0, town = a.home ? S.towns[a.home.town] : undefined;
+      const master = !!town && (hasExpert(S, town.id, k, a) || (a.schooled && !!town.knows[k]?.verified.length && shelved(town.id)));
       const K = S.content.tuning.knowledge;
       a.skill[k] = Math.min(1, s + (1 - s) * (dt / T.practiceSeconds) * (master ? T.apprenticeFactor : 1) * (a.schooled ? K.schoolFactor : 1));
     }

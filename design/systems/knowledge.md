@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T13:07:27Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T00:41:01Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -47,8 +47,8 @@ Porters on [trade](/systems/trade.md) errands gossip as visitors do: they carry 
 
 Three buildings keep and grow knowledge (Phase 15):
 
-- A [Library](/blueprints/library.md) keeps what its settlement knows: nothing is forgotten while one stands. With a scribe at work it sends a copy of its records to every neighbour each `copy_every_seconds`. A village thinks of one after it forgets something (the need `forgetting`, full for `forgetting_memory_seconds` after a loss).
-- A [School](/blueprints/school.md) with a teacher schools the settlement's children: grown up, they learn trades `school_factor` times as fast ([people](/systems/people.md)).
+- A [Library](/blueprints/library.md) keeps what its settlement knows: nothing is forgotten while one stands. With a scribe at work it sends a copy of its records to every neighbour each `copy_every_seconds` (the chronicle says a scribe copied it, no longer that a visitor taught it). A village thinks of one after it forgets something (the need `forgetting`, full for `forgetting_memory_seconds` after a loss).
+- A [School](/blueprints/school.md) with a teacher schools the settlement's children: grown up, they learn trades `school_factor` times as fast ([people](/systems/people.md)), and they read. A settlement with a library of its own and a grown villager who reads takes in what every other settlement's library holds each `copy_every_seconds`, without a visitor, and whether or not that library has a scribe at work; the chronicle says its readers learned it from those shelves. A worker who reads, in a settlement with a library, learns a trade written down there (any it knows that someone has proven in use) as from a master.
 - A [University](/blueprints/university.md) with a scholar makes invention `university_factor` times as fast, on top of the steward's encouragement, and its scholars take up a line of inquiry at `university_threshold` of the strain anyone else needs: they think ahead of need, where a settlement without one waits until the strain is pressing. It is thought of under `inquiry`: the settlement's strongest strain on the need of a blueprint it does not know.
 
 The planner wants a library while it holds knowledge beyond its founders', a school once there are `school_children` children, and a university in a town that knows of one, each at `learning_weight`.

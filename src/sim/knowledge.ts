@@ -6,7 +6,8 @@
  *   invent    struggling with a need a blueprint answers, a village may think of it
  *   verify    a building that runs well for `verify_seconds` proves its blueprint here
  *   learn     building something the village doesn't know (the player's hand) teaches it
- *   share     a visitor tells a neighbour what home has learned, with its verifications, and brings news back
+ *   share     a visitor tells a neighbour what home has learned, with its verifications, and brings news back;
+ *             a library's scribe copies its records for the neighbours, and readers take in what other libraries hold
  *   forget    discovered knowledge with nothing built from it for `forget_after_seconds` is lost
  *
  * Invention draws from S.krng, never S.rng, so knowledge cannot shift the rest of the sim.
@@ -72,6 +73,9 @@ export function ageOf(S: State, town: Town): number {
   return age;
 }
 
+/** Can this settlement read from libraries: one of its own standing, and a grown villager schooled as a child to read in it? */
+export const readsAt = (S: State, town: Town) => learningAt(S, town.id, 'library', false) && villagers(S).some(a => a.schooled && a.role !== 'child' && a.home?.town === town.id);
+
 /** Has this settlement proven the blueprint in use itself? Founders' knowledge counts. */
 const provenHere = (town: Town, k: Knowledge) => k.verified.some(v => v.by === town.name || v.by === 'founders');
 
@@ -85,8 +89,16 @@ export function shareable(town: Town): Record<string, Knowledge> {
   return out;
 }
 
-/** Learn what a visitor brought, keeping the original inventor and every verification. */
-function teach(S: State, town: Town, recs: Record<string, Knowledge>, from: string) {
+/** How a record reached a settlement: by a visitor, a scribe's copy, or its readers at a library. */
+type Way = 'visit' | 'copy' | 'read';
+const HOW: Record<Way, (from: string, town: string, what: string) => string> = {
+  visit: (from, town, what) => `A visitor from ${from} taught ${town} the ${what}`,
+  copy: (from, town, what) => `A scribe in ${from} copied the ${what} for ${town}`,
+  read: (from, town, what) => `Readers in ${town} learned the ${what} from the shelves of ${from}`,
+};
+
+/** Learn what a visitor (or a scribe, or a book) brought, keeping the original inventor and every verification. */
+function teach(S: State, town: Town, recs: Record<string, Knowledge>, from: string, how: Way = 'visit') {
   for (const id in recs) {
     const r = recs[id], mine = town.knows[id];
     if (mine) {
@@ -95,8 +107,9 @@ function teach(S: State, town: Town, recs: Record<string, Knowledge>, from: stri
     }
     town.knows[id] = { by: r.by, at: r.at, verified: r.verified.map(v => ({ ...v })), from, learned: S.t, used: S.t };
     S.stats.taught++;
-    chronicle(S, town.id, 'taught', `A visitor from ${from} taught ${town.name} the ${name(S, id)}`);
-    emit(S, 'good', `A visitor from ${from} taught ${town.name} the ${name(S, id)}`);
+    const text = HOW[how](from, town.name, name(S, id));
+    chronicle(S, town.id, 'taught', text);
+    emit(S, 'good', text);
   }
 }
 
@@ -174,7 +187,9 @@ export function updateKnowledge(S: State, dt: number) {
     town.copyT += dt;
     if (town.copyT >= P.copyEverySeconds) {
       town.copyT = 0;
-      if (S.towns.length > 1 && learningAt(S, town.id, 'library', true)) for (const o of S.towns) if (o !== town) teach(S, o, shareable(town), town.name);
+      if (S.towns.length > 1 && learningAt(S, town.id, 'library', true)) for (const o of S.towns) if (o !== town) teach(S, o, shareable(town), town.name, 'copy');
+      // and a settlement with a library of its own and people who can read takes in what every other library holds
+      if (S.towns.length > 1 && readsAt(S, town)) for (const o of S.towns) if (o !== town && learningAt(S, o.id, 'library', false)) teach(S, town, shareable(o), o.name, 'read');
     }
 
     town.visitT += dt;

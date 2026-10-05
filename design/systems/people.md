@@ -4,7 +4,7 @@ title: People
 description: Villagers as individuals; ages, births and deaths, skills that grow with practice and pass from master to apprentice, each village's custom for its dead, and its feasts through the year.
 tags: [people, customs, settlement]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T12:46:04Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T00:41:01Z }
 tuning:
   adult_seconds: 600
   elder_seconds: 6000
@@ -50,7 +50,7 @@ Each villager has a skill for each kind of workplace, from 0 to 1. Working one r
 
 # School
 
-A child who grows up while their settlement's [School](/blueprints/school.md) has a teacher at work is schooled, and learns every trade `school_factor` times as fast ([knowledge](/systems/knowledge.md)).
+A child who grows up while their settlement's [School](/blueprints/school.md) has a teacher at work is schooled, and learns every trade `school_factor` times as fast ([knowledge](/systems/knowledge.md)). A schooled villager reads: with a [Library](/blueprints/library.md) in their settlement, they learn a trade it knows that someone has proven in use as though a master lived there, so a trade whose last master dies is not lost where there is a library and someone to read it.
 
 # Honouring the dead
 
