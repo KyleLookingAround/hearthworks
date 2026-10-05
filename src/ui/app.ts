@@ -4,7 +4,7 @@ import { homeTier } from '../sim/production.ts';
 import { FEAST, NAMING, called } from '../sim/people.ts';
 import { atOnce, formOf, hubs, openSites } from '../sim/planner.ts';
 import { capOf, crew, foodsEaten, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
-import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, ageNeeded, ctr, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
 
@@ -472,7 +472,9 @@ export class App {
     html += `<span>The hungry</span><select data-law="leave"><option value="1"${t.laws.leave ? ' selected' : ''}>May leave</option><option value="0"${t.laws.leave ? '' : ' selected'}>Must stay</option></select></div>`;
     if (S.plannedRoads) html += `<div class="steward-grid"><span>Roads</span><span>${t.roads.length ? `${t.roads.length} laid` : 'road' in t.knows ? 'none laid yet' : 'not thought of yet'}</span></div>`;
     if (guard) html += `<div class="steward-grid"><span>Defence</span><span>${guard[0]}${guard[1] ? ', a lookout on watch' : ', no lookout'}</span><span>Camps in reach</span><span>${guard[2] || 'none'}</span>${guard[3] ? `<span>At peace</span><span>${guard[3] === 1 ? 'a camp it sends bread to' : `${guard[3]} camps it sends bread to`}</span>` : ''}</div>`;
-    html += `<div class="steward-grid"><span>Age</span><span>${esc(this.content.eras[t.age]?.name ?? '')}</span></div>`;
+    // its age, and what the next one would let it think of
+    const next = this.content.eras[t.age + 1], opens = next?.unlocks.map(id => this.content.blueprints[id]?.name ?? id).join(', ');
+    html += `<div class="steward-grid"><span>Age</span><span>${esc(this.content.eras[t.age]?.name ?? '')}</span>${opens ? `<span>The next age opens</span><span>${esc(opens)}</span>` : ''}</div>`;
     if (S.people) {
       const word = { burial: 'Burial', cremation: 'Cremation', ship: 'Ship burial' }[t.custom];
       html += `<div class="steward-grid"><span>Custom for the dead</span><span>${word}${t.rites.length ? `, ${t.rites.length} waiting` : ''}</span>`;
@@ -531,7 +533,8 @@ export class App {
         html += `<li><b>${esc(B.name)}</b>: ${esc(originText(t, k))}${proven}</li>`;
       }
       for (const B of discoverable) if (!t.knows[B.id]) {
-        html += `<li class="unknown"><b>${esc(B.name)}</b>: not yet thought of. It comes when ${esc(NEED_TEXT[B.discovery!.need] ?? B.discovery!.need)}.</li>`;
+        const age = ageNeeded(S, B.id), later = t.age < age ? `, once it has reached the Age of ${this.content.eras[age].name}` : '';
+        html += `<li class="unknown"><b>${esc(B.name)}</b>: not yet thought of. It comes when ${esc(NEED_TEXT[B.discovery!.need] ?? B.discovery!.need)}${esc(later)}.</li>`;
       }
       html += '</ul>';
     }
@@ -673,6 +676,11 @@ export class App {
         rows += row('On the shelves', shelf.length ? '' : 'nothing yet beyond what the founders knew');
         for (const [id, k] of shelf) rows += row(this.content.blueprints[id]?.name ?? id, `by ${k.by}` + (k.from ? `, from ${k.from}` : '') + `; proven by ${k.verified.length}`);
       } else if (B.learning) rows += row('Work', B.learning === 'school' ? 'Teaching the children' : 'Pursuing lines of inquiry');
+      else if (B.speeds) {
+        // a mill: the workplaces it speeds within reach
+        const near = S.buildings.filter(o => o.town === b.town && !o.site && B.speeds!.types.includes(o.type) && Math.hypot(ctr(o).x - ctr(b).x, ctr(o).y - ctr(b).y) <= B.speeds!.radius).length;
+        rows += row('Work', `${near} ${B.speeds.types.map(k => this.content.blueprints[k]?.name.toLowerCase() ?? k).join(' and ')}${near === 1 ? '' : 's'} within ${B.speeds.radius} tiles, ${B.speeds.factor}× as fast` + (w?.state === 'working' ? '' : ' while its worker is in'));
+      }
       else if (B.hall) {
         // the planner at their desk: how skilled, and how many of the settlement's own sites it keeps open at once
         const t = S.towns[b.town], skill = w ? Math.round((w.skill[b.type] || 0) * 100) : 0;

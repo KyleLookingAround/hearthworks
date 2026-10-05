@@ -3,7 +3,7 @@
  * chronicle and the planners to point the player at a lever. Pure reads of the state.
  */
 import { homesInNuisance } from './surroundings.ts';
-import { NEED_TEXT, knows, pressure } from './knowledge.ts';
+import { NEED_TEXT, ageNeeded, knows, pressure } from './knowledge.ts';
 import { dietOf } from './farms.ts';
 import { defence } from './hardship.ts';
 import { seasonOf, storesOnTrack } from './world.ts';
@@ -47,8 +47,11 @@ export function advise(S: State, town: Town, n = 3): string[] {
   const stuck = /^Nothing the \w+ knows would help: (.*)$/.exec(status);
   if (stuck) {
     const need = Object.entries(NEED_TEXT).find(([, text]) => text === stuck[1])?.[0];
-    const answer = need && Object.values(S.content.blueprints).find(B => B.discovery?.need === need && !knows(town, B.id));
-    if (answer) out.push(`Nobody in ${town.name} has an answer to "${stuck[1]}": encourage them to think of the ${answer.name}.`);
+    // an answer it can think of at its age first; one a later age opens says which
+    const answers = need ? Object.values(S.content.blueprints).filter(B => B.discovery?.need === need && !knows(town, B.id)) : [];
+    const answer = answers.find(B => ageNeeded(S, B.id) <= town.age) ?? answers[0];
+    if (answer && ageNeeded(S, answer.id) > town.age) out.push(`Nobody in ${town.name} has an answer to "${stuck[1]}": the ${answer.name} comes to a settlement of the Age of ${S.content.eras[ageNeeded(S, answer.id)].name}, or from a neighbour who knows it.`);
+    else if (answer) out.push(`Nobody in ${town.name} has an answer to "${stuck[1]}": encourage them to think of the ${answer.name}.`);
   }
   if (/^No (room|place) for/.test(status)) out.push(`${town.name} ${status.charAt(0).toLowerCase()}${status.slice(1)}: paint a zone where there is room, or lift no-build land.`);
   // hard times: raiders who outnumber the defence, a winter store fallen behind, the hungry kept from leaving

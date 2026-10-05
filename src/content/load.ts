@@ -26,7 +26,7 @@ export function fnv1a(s: string): string {
 
 const isMap = (v: YamlValue | undefined): v is YamlMap => !!v && typeof v === 'object' && !Array.isArray(v);
 /** Pressures a village can struggle with, and so invent its way out of. */
-const NEEDS = ['hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'long_hauls', 'traffic', 'fire', 'flood', 'sickness', 'raids'];
+const NEEDS = ['bread', 'hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'long_hauls', 'traffic', 'fire', 'flood', 'sickness', 'raids'];
 const HAZARDS = ['fire', 'flood', 'sickness', 'raids'];
 const slug = (path: string) => path.replace(/^.*\//, '').replace(/\.md$/, '');
 
@@ -121,6 +121,7 @@ export function buildContent(files: SourceFile[]): Content {
       bridge: bridge ? { maxSpan: num(d, bridge.max_span, 'bridge.max_span') } : null,
       nuisance: nuisance ? { radius: num(d, nuisance.radius, 'nuisance.radius'), amount: num(d, nuisance.amount, 'nuisance.amount') } : null,
       sanitation: isMap(f.sanitation) ? { radius: num(d, f.sanitation.radius, 'sanitation.radius') } : null,
+      speeds: isMap(f.speeds) ? { types: Array.isArray(f.speeds.types) ? f.speeds.types.map(String) : [], radius: num(d, f.speeds.radius, 'speeds.radius'), factor: num(d, f.speeds.factor, 'speeds.factor') } : null,
       guards: guards ? { hazard: str(d, guards.hazard, 'guards.hazard') as Hazard, radius: num(d, guards.radius, 'guards.radius'), defence: num(d, guards.defence, 'guards.defence', 0) } : null,
       discovery: discovery ? { need: str(d, discovery.need, 'discovery.need'), meanSeconds: num(d, discovery.mean_seconds, 'discovery.mean_seconds'), after: Array.isArray(discovery.after) ? discovery.after.map(String) : [], university: discovery.university === true } : null,
       grows: isMap(f.grows) ? { names: Array.isArray(f.grows.names) ? f.grows.names.map(String) : [] } : null,
@@ -145,8 +146,8 @@ export function buildContent(files: SourceFile[]): Content {
   const eras: EraDef[] = [];
   for (const d of docs.filter(d => d.path.startsWith('eras/'))) {
     if (d.data.type !== 'Era') continue;
-    const f = d.data, list = Array.isArray(f.discoveries) ? f.discoveries.map(String) : [];
-    eras.push({ id: slug(d.path), name: String(f.title ?? slug(d.path)).replace(/^The Age of /, ''), order: num(d, f.order, 'order'), discoveries: list, share: num(d, f.share, 'share') });
+    const f = d.data, list = Array.isArray(f.discoveries) ? f.discoveries.map(String) : [], unlocks = Array.isArray(f.unlocks) ? f.unlocks.map(String) : [];
+    eras.push({ id: slug(d.path), name: String(f.title ?? slug(d.path)).replace(/^The Age of /, ''), order: num(d, f.order, 'order'), discoveries: list, share: num(d, f.share, 'share'), unlocks });
   }
   eras.sort((a, b) => a.order - b.order);
   for (const d of docs.filter(d => d.path.startsWith('maps/'))) {
@@ -238,7 +239,7 @@ export function buildContent(files: SourceFile[]): Content {
       surplusSeconds: num(pd, pt.surplus_seconds, 'tuning.surplus_seconds'), surplusMin: num(pd, pt.surplus_min, 'tuning.surplus_min'), surplusFullSeconds: num(pd, pt.surplus_full_seconds, 'tuning.surplus_full_seconds'),
     },
     planner: {
-      intervalSeconds: q('interval_seconds'), sitePatienceSeconds: q('site_patience_seconds'), buildGoods: Array.isArray(qt.build_goods) ? qt.build_goods.map(String) : ['planks'], comfortWeight: q('comfort_weight'), depositWeight: q('deposit_weight'), replanMinAge: q('replan_min_age'), districtBuildings: q('district_buildings'), districtSpacing: q('district_spacing'), districtRoomWeight: q('district_room_weight'), replanEverySeconds: q('replan_every_seconds'), salvageShare: q('salvage_share'), clearReach: q('clear_reach'), clearTries: q('clear_tries'), villageAt: q('village_at'), townAt: q('town_at'), rowWeight: q('row_weight'), streetWeight: q('street_weight'), streetEveryRows: q('street_every_rows'), streetEveryCols: q('street_every_cols'), streetRadius: q('street_radius'), detourRatio: q('detour_ratio'), detourWeight: q('detour_weight'), bridgeReachWeight: q('bridge_reach_weight'), bridgeMinGain: q('bridge_min_gain'), bridgeSpacing: q('bridge_spacing'), paveWear: q('pave_wear'), pavePerLook: q('pave_per_look'), wearHalfLifeSeconds: q('wear_half_life_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'), hallWeight: q('hall_weight'), hallSites: q('hall_sites'), hallMasterSites: q('hall_master_sites'),
+      intervalSeconds: q('interval_seconds'), sitePatienceSeconds: q('site_patience_seconds'), buildGoods: Array.isArray(qt.build_goods) ? qt.build_goods.map(String) : ['planks'], comfortWeight: q('comfort_weight'), depositWeight: q('deposit_weight'), replanMinAge: q('replan_min_age'), districtBuildings: q('district_buildings'), districtSpacing: q('district_spacing'), districtRoomWeight: q('district_room_weight'), replanEverySeconds: q('replan_every_seconds'), salvageShare: q('salvage_share'), clearReach: q('clear_reach'), clearTries: q('clear_tries'), villageAt: q('village_at'), townAt: q('town_at'), rowWeight: q('row_weight'), streetWeight: q('street_weight'), streetEveryRows: q('street_every_rows'), streetEveryCols: q('street_every_cols'), streetRadius: q('street_radius'), detourRatio: q('detour_ratio'), detourWeight: q('detour_weight'), bridgeReachWeight: q('bridge_reach_weight'), bridgeMinGain: q('bridge_min_gain'), bridgeSpacing: q('bridge_spacing'), paveWear: q('pave_wear'), pavePerLook: q('pave_per_look'), wearHalfLifeSeconds: q('wear_half_life_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'), hallWeight: q('hall_weight'), hallSites: q('hall_sites'), hallMasterSites: q('hall_master_sites'), millWeight: q('mill_weight'), millMin: q('mill_min'),
       foodHeadroom: q('food_headroom'), newcomerFoodShare: q('newcomer_food_share'), growthBeds: q('growth_beds'), storeFullShare: q('store_full_share'), villagersPerCartShed: q('villagers_per_cart_shed'), villagersPerOxBarn: q('villagers_per_ox_barn'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
       costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), crossingWeight: q('crossing_weight'), savePatienceSeconds: q('save_patience_seconds'), noRoomRetrySeconds: q('no_room_retry_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
       searchRadius: q('search_radius'), searchRadiusMax: q('search_radius_max'), gap: q('gap'), minTrees: q('min_trees'),
@@ -265,6 +266,12 @@ export function buildContent(files: SourceFile[]): Content {
 
   for (const B of Object.values(blueprints)) for (const id of B.discovery?.after ?? []) if (!blueprints[id]) problems.push(`blueprints/${B.id}.md: discovery.after names "${id}", which is not a blueprint`);
   for (const e of eras) for (const id of e.discoveries) if (!blueprints[id]?.discovery) problems.push(`eras/${e.id}.md: discovery "${id}" is not a blueprint that must be thought of`);
+  for (const e of eras) for (const id of e.unlocks) {
+    if (!blueprints[id]?.discovery) problems.push(`eras/${e.id}.md: unlocks "${id}", which is not a blueprint that must be thought of`);
+    if (eras.some(o => o !== e && o.unlocks.includes(id))) problems.push(`eras/${e.id}.md: "${id}" is unlocked by more than one era`);
+    if (e === eras[0]) problems.push(`eras/${e.id}.md: the first age unlocks nothing; every settlement starts in it`);
+  }
+  for (const B of Object.values(blueprints)) for (const k of B.speeds?.types ?? []) if (!blueprints[k]) problems.push(`blueprints/${B.id}.md: speeds.types names "${k}", which is not a blueprint`);
   if (problems.length) throw new ContentError(problems);
   return { goods, blueprints, maps, eras, tuning, hash };
 }

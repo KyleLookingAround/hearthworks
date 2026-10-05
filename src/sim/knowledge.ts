@@ -43,6 +43,8 @@ export const knows = (town: Town, id: string) => id in town.knows;
 export function pressure(S: State, town: Town, need: string): number {
   if (need === 'hauling') { const t = K(S).haulTarget; return clamp01((town.haul - t) / (1 - t)); }
   if (need === 'crossing') return town.cut;
+  // bread: how badly its planner is short of bread
+  if (need === 'bread') return clamp01(town.planner.wants.bread ?? 0);
   if (need === 'detours') return town.detour;
   // learning (with people on): a loss still fresh in memory, and the strain of needs nothing known meets
   if (need === 'forgetting') return S.people && S.chronicle.some(c => c.town === town.id && c.kind === 'forgotten' && S.t - c.t <= K(S).forgettingMemorySeconds) ? 1 : 0;
@@ -60,7 +62,7 @@ export function pressure(S: State, town: Town, need: string): number {
   return 0;
 }
 
-export const NEED_TEXT: Record<string, string> = { distance: 'its goods travel a long way', long_hauls: 'its carts go a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it strains at needs nothing it knows can meet', hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths' };
+export const NEED_TEXT: Record<string, string> = { bread: 'its bakers cannot keep up', distance: 'its goods travel a long way', long_hauls: 'its carts go a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it strains at needs nothing it knows can meet', hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths' };
 
 /** A settlement's age: the latest era it has reached, knowing each era's `share` of its discoveries and every earlier era's. */
 export function ageOf(S: State, town: Town): number {
@@ -75,6 +77,9 @@ export function ageOf(S: State, town: Town): number {
 
 /** Can this settlement read from libraries: one of its own standing, and a grown villager schooled as a child to read in it? */
 export const readsAt = (S: State, town: Town) => learningAt(S, town.id, 'library', false) && villagers(S).some(a => a.schooled && a.role !== 'child' && a.home?.town === town.id);
+
+/** The age a settlement must have reached to think of a blueprint: the era that unlocks it, else the first. */
+export const ageNeeded = (S: State, id: string) => Math.max(0, S.content.eras.findIndex(E => E.unlocks.includes(id)));
 
 /** Has this settlement proven the blueprint in use itself? Founders' knowledge counts. */
 const provenHere = (town: Town, k: Knowledge) => k.verified.some(v => v.by === town.name || v.by === 'founders');
@@ -145,6 +150,8 @@ export function updateKnowledge(S: State, dt: number) {
       if (!B.discovery || knows(town, B.id) || B.discovery.after.some(id => !knows(town, id))) continue;
       // some discoveries need scholars at work: a settlement without a university never comes up with them
       if (B.discovery.university && !learningAt(S, town.id, 'university')) continue;
+      // and blueprints of a later age's own come only to a settlement of that age
+      if (town.age < ageNeeded(S, B.id)) continue;
       // encouragement: the player backs this line of thought, so it comes at less strain and sooner
       const backed = town.levers.encourage === B.id;
       // scholars at a university take up every line of inquiry sooner, at less strain, and pursue it faster

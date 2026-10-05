@@ -166,6 +166,24 @@ export function enoughInStore(S: State, b: Building): boolean {
   return !!town && outs.length > 0 && outs.every(g => enough(S, town, g));
 }
 
+/** The kinds of workplace something speeds (a windmill its bakeries), worked out once per content. */
+const SPED = new WeakMap<object, Set<string>>();
+const spedKinds = (S: State) => { let k = SPED.get(S.content); if (!k) SPED.set(S.content, k = new Set(Object.values(S.content.blueprints).flatMap(B => B.speeds?.types ?? []))); return k; };
+
+/** How much faster a workplace works for a building of its settlement within reach whose worker is at work (a windmill by a bakery): the best such factor, else 1. */
+export function spedBy(S: State, b: Building): number {
+  if (!spedKinds(S).has(b.type)) return 1;
+  let f = 1;
+  const p = ctr(b);
+  for (const c of S.buildings) {
+    const C = bp(S, c).speeds;
+    if (!C || c.town !== b.town || c.site || !C.types.includes(b.type) || C.factor <= f || c.worker === null) continue;
+    if (S.amap.get(c.worker)?.state !== 'working' || Math.hypot(ctr(c).x - p.x, ctr(c).y - p.y) > C.radius) continue;
+    f = C.factor;
+  }
+  return f;
+}
+
 const itemsText = (S: State, items: string[]) => items.map(k => S.content.goods[k]?.name.toLowerCase() ?? k).join(' and ');
 
 export function updateBuilding(S: State, b: Building, dt: number) {
@@ -275,13 +293,13 @@ function run(S: State, b: Building, dt: number) {
     tree = nearestGrownTree(S, b, B.harvest.radius);
     if (tree < 0) { setStatus(b, 'No grown trees nearby', 'bad'); return; }
   }
-  // tools speed the work up, and wear out
-  const tooled = !!B.tools && (b.inv.tools || 0) >= 1, n = places(S, b);
-  setStatus(b, (tooled ? 'Working, with tools' : 'Working') + (n > 1 ? `: ${team?.length ?? 1} of ${n} hands` : ''), 'ok');
+  // tools speed the work up, and wear out; a mill at work nearby speeds it too
+  const tooled = !!B.tools && (b.inv.tools || 0) >= 1, n = places(S, b), mill = spedBy(S, b);
+  setStatus(b, (tooled ? 'Working, with tools' : 'Working') + (mill > 1 ? (tooled ? ' and a mill' : ', with a mill') : '') + (n > 1 ? `: ${team?.length ?? 1} of ${n} hands` : ''), 'ok');
   // working hours, by law
   const hours = S.towns[b.town]?.laws.hours, pace = hours === 'long' ? T.hardship.longPace : hours === 'short' ? T.hardship.shortPace : 1;
   // every hand at work adds their own pace
-  b.timer += dt * (tooled ? B.tools!.speedup : 1) * (team ? team.reduce((s, a) => s + skillPace(S, a, b), 0) : skillPace(S, w!, b)) * pace;
+  b.timer += dt * (tooled ? B.tools!.speedup : 1) * mill * (team ? team.reduce((s, a) => s + skillPace(S, a, b), 0) : skillPace(S, w!, b)) * pace;
   if (b.timer >= B.seconds) {
     b.timer = 0;
     if (tooled && ++b.wear >= B.tools!.wearCycles) { b.wear = 0; add(b.inv, 'tools', -1); }

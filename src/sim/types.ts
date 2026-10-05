@@ -89,6 +89,8 @@ export interface BlueprintDef {
   guards: { hazard: Hazard; radius: number; defence: number } | null;
   /** Keeps homes within `radius` clean while its worker is in: they fall sick, and catch sickness, `clean_factor` as often. */
   sanitation: { radius: number } | null;
+  /** Speeds the workplaces of these kinds within `radius` by `factor` while its worker is at work (a windmill and its bakeries). */
+  speeds: { types: string[]; radius: number; factor: number } | null;
   /** Not known at the start: a village invents it while it struggles with `need`. Null for founding knowledge. */
   discovery: { need: string; meanSeconds: number; /** blueprints the settlement must know first */ after: string[]; /** thought of only with a university at work */ university: boolean } | null;
   /** Grows in steps, one per name (farms that grow): each step adds a row of fields behind it and a place for a hand. */
@@ -194,7 +196,7 @@ export interface Tuning {
 }
 
 export interface PlannerTuning {
-  intervalSeconds: number; sitePatienceSeconds: number; buildGoods: ItemId[]; comfortWeight: number; depositWeight: number; replanMinAge: number; districtBuildings: number; districtSpacing: number; districtRoomWeight: number; replanEverySeconds: number; salvageShare: number; clearReach: number; clearTries: number; villageAt: number; townAt: number; rowWeight: number; streetWeight: number; streetEveryRows: number; streetEveryCols: number; streetRadius: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number; hallWeight: number; hallSites: number; hallMasterSites: number;
+  intervalSeconds: number; sitePatienceSeconds: number; buildGoods: ItemId[]; comfortWeight: number; depositWeight: number; replanMinAge: number; districtBuildings: number; districtSpacing: number; districtRoomWeight: number; replanEverySeconds: number; salvageShare: number; clearReach: number; clearTries: number; villageAt: number; townAt: number; rowWeight: number; streetWeight: number; streetEveryRows: number; streetEveryCols: number; streetRadius: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number; hallWeight: number; hallSites: number; hallMasterSites: number; millWeight: number; millMin: number;
   foodHeadroom: number; newcomerFoodShare: number; growthBeds: number; storeFullShare: number; villagersPerCartShed: number; villagersPerOxBarn: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
   costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; noRoomRetrySeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; searchRadiusMax: number; gap: number; minTrees: number;
@@ -234,7 +236,7 @@ export interface PlannerState {
 }
 
 /** An era: a group of discoveries; a settlement knowing `share` of them (and every earlier era) is in its age. */
-export interface EraDef { id: string; name: string; order: number; discoveries: string[]; share: number }
+export interface EraDef { id: string; name: string; order: number; discoveries: string[]; share: number; /** blueprints of its own: thought of only by a settlement of this age or later */ unlocks: string[] }
 
 export interface Content {
   goods: Record<ItemId, GoodDef>;

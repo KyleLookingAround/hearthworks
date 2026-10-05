@@ -23,7 +23,7 @@ import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type For
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
 
-interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: 'library' | 'school' | 'university'; hall?: boolean; /** traded for from this neighbour rather than made */ from?: Town }
+interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: 'library' | 'school' | 'university'; hall?: boolean; mill?: boolean; /** traded for from this neighbour rather than made */ from?: Town }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
 interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; coming: boolean; foodShort: boolean; movable: boolean; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
@@ -263,6 +263,12 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     const open = unguarded(S, town, h);
     if (open > 0) shortages.push({ key: h, guard: h, sev: foodShort ? 0 : clamp01(open * S.content.tuning.hardship.guardWeight), why: NEED_TEXT[h] });
   }
+  // mills: a settlement that knows one wants it where `mill_min` of the workplaces it speeds stand with none in reach
+  for (const M of known(S, town).filter(B => B.speeds)) {
+    const near = (b: Building) => mine.some(c => c.type === M.id && Math.hypot(ctr(c).x - ctr(b).x, ctr(c).y - ctr(b).y) <= M.speeds!.radius);
+    const bare = mine.filter(b => !b.site && M.speeds!.types.includes(b.type) && !near(b)).length;
+    if (bare >= P.millMin) shortages.push({ key: 'mill', mill: true, sev: P.millWeight, why: `${bare} ${M.speeds!.types.map(k => S.content.blueprints[k]?.name.toLowerCase() ?? k).join(' and ')}s work without a ${M.name.toLowerCase()}` });
+  }
   // sanitation: a settlement struck by sickness that knows a bathhouse keeps its homes clean, once everyone is fed
   if (S.hardship && struckLately(S, town, 'sickness') && known(S, town).some(B => B.sanitation)) {
     const homes = mine.filter(b => atRisk(S, b, 'sickness')), dirty = homes.filter(b => !clean(S, b)).length;
@@ -367,6 +373,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.rite) return B.rite === L.town.custom ? 1 : 0;
     if (sh.learn) return B.learning === sh.learn ? 1 : 0;
     if (sh.hall) return B.hall ? 1 : 0;
+    if (sh.mill) return B.speeds ? 1 : 0;
     if (sh.guard) return B.guards?.hazard === sh.guard ? 1 : 0;
     if (sh.clean) return B.sanitation ? 1 : 0;
     if (sh.store) return B.storage && (!B.keeps || B.keeps.includes('wheat')) ? clamp01((B.capacity || 300) / Math.max(1, L.storeNeed - L.storeRoom)) : 0;
@@ -504,7 +511,8 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
   const houses = mine.filter(b => bp(S, b).homes);
   const unreached = B.couriers ? mine.filter(b => !b.site && !covered(S, ctr(b))) : [];
   // a counter goes where it guards buildings at risk that nothing guards yet
-  const exposed = B.guards ? mine.filter(b => atRisk(S, b, B.guards!.hazard) && !guarded(S, b, B.guards!.hazard)) : B.sanitation ? mine.filter(b => atRisk(S, b, 'sickness') && !clean(S, b)) : [];
+  const exposed = B.guards ? mine.filter(b => atRisk(S, b, B.guards!.hazard) && !guarded(S, b, B.guards!.hazard)) : B.sanitation ? mine.filter(b => atRisk(S, b, 'sickness') && !clean(S, b))
+    : B.speeds ? mine.filter(b => !b.site && B.speeds!.types.includes(b.type) && !mine.some(c => c.type === B.id && Math.hypot(ctr(c).x - ctr(b).x, ctr(c).y - ctr(b).y) <= B.speeds!.radius)) : [];
   // a dock has to face water that reaches the nearest neighbour's shore
   const facing = B.shore ? waterFacing(S, town) : null;
   const near = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((m, b) => Math.min(m, Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y)), Infinity);
@@ -612,8 +620,8 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
       if (!reach) continue;
       s -= P.coverWeight * reach;
     }
-    if (B.guards || B.sanitation) {
-      const n = exposed.filter(b => Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y) <= (B.guards ?? B.sanitation)!.radius).length;
+    if (B.guards || B.sanitation || B.speeds) {
+      const n = exposed.filter(b => Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y) <= (B.guards ?? B.sanitation ?? B.speeds)!.radius).length;
       if (!n) continue;
       s -= P.coverWeight * n;
     }

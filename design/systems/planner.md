@@ -40,6 +40,8 @@ tuning:
   hall_weight: 0.3
   hall_sites: 1
   hall_master_sites: 1
+  mill_weight: 0.3
+  mill_min: 2
   food_headroom: 1.3
   newcomer_food_share: 0.85
   growth_beds: 3
