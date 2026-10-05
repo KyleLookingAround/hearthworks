@@ -4,7 +4,7 @@ title: People
 description: Villagers as individuals; names, ages, births and deaths, skills that grow with practice and pass from master to apprentice, each village's custom for its dead, its naming custom, and its feasts through the year.
 tags: [people, customs, settlement]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T01:44:50Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T16:33:40Z }
 tuning:
   adult_seconds: 600
   elder_seconds: 6000
@@ -30,6 +30,8 @@ tuning:
   fire_logs: 0.25
   wood_for_fire: 0.45
   feast_spread: 0.1
+  feast_lay_in: 1.2
+  feast_retry_seconds: 10
   names_sea: [Marin, Coral, Gull, Tide, Cove, Pearl, Wave, Kelp, Skerry, Shell, Tern, Brine, Selkie, Harbour, Sandy, Oyster]
   names_trees: [Ash, Rowan, Hazel, Alder, Birch, Holly, Elm, Willow, Linden, Hawthorn, Oak, Yew, Aspen, Juniper, Laurel, Briar]
   names_fields: [Barley, Clover, Meadow, Heath, Wren, Lark, Poppy, Sorrel, Thyme, Bramble, Fern, Teasel, Linnet, Daisy, Sedge, Robin]
@@ -69,10 +71,10 @@ A new settlement takes up its custom from its land: within `custom_radius` of it
 
 With seasons on as well (every new game), each settlement keeps feasts through the year, each a practice with a cost and a lift:
 
-- **Harvest Festival**, as autumn comes: the stores give `harvest_bread` loaves for each villager.
-- **Midwinter Fire**, as winter comes: the stores give `fire_logs` logs for each villager to a bonfire.
+- **Harvest Festival**, in autumn: the stores give `harvest_bread` loaves for each villager.
+- **Midwinter Fire**, in winter: the stores give `fire_logs` logs for each villager to a bonfire.
 
-A settlement starts out keeping the feast its land suggests: one whose land within `custom_radius` is at least `wood_for_fire` grown trees lights the fire, others hold the festival. A feast held lifts the settlement's mood by `feast_mood` for `feast_seconds`, on top of everything else and against the winter's cold; a feast whose stores fall short is not held, and the chronicle says so. A visitor home from a neighbour that keeps a feast their own settlement does not brings it home with a chance of `feast_spread`, so over the years each settlement's mix of feasts comes from its land and its neighbours. Daughter settlements keep their mother's feasts. Code: `holdFeasts` and `bringFeast` in `src/sim/people.ts`.
+A settlement starts out keeping the feast its land suggests: one whose land within `custom_radius` is at least `wood_for_fire` grown trees lights the fire, others hold the festival. A feast held lifts the settlement's mood by `feast_mood` for `feast_seconds`, on top of everything else and against the winter's cold; a feast is held as its season comes if the stores allow, and otherwise put off, looked at again every `feast_retry_seconds` and held as soon as they do; one not held by the season's end is missed, and the chronicle says so. A settlement lays in for its feasts: in the season before each, and in its own until it is held, its stock of the feast's good (what workplaces rest at and the planner plans for) counts `feast_lay_in` times what the feast needs on top. Held only at the season's first moment, a harvest festival found the yards bare: with bread baked for the days ahead, a hamlet's yards hold a few loaves and its homes the rest. A visitor home from a neighbour that keeps a feast their own settlement does not brings it home with a chance of `feast_spread`, so over the years each settlement's mix of feasts comes from its land and its neighbours. Daughter settlements keep their mother's feasts. Code: `holdFeasts` and `bringFeast` in `src/sim/people.ts`.
 
 # Names
 

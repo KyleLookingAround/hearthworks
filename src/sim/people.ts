@@ -2,7 +2,7 @@ import { hash01, rand } from './rng.ts';
 import { makeAgent, quit, removeAgent } from './agents.ts';
 import { foodChainOf } from './production.ts';
 import { shortOfFood } from './planner.ts';
-import { add, bp, chronicle, door, emit, foodsOf, learningAt, reads, villagers } from './world.ts';
+import { add, bp, chronicle, door, emit, foodsOf, learningAt, reads, seasonOf, villagers } from './world.ts';
 import type { Agent, Building, Custom, Feast, ItemId, Naming, State, Town } from './types.ts';
 
 /**
@@ -93,20 +93,47 @@ export function feastFor(S: State, t: Town): Feast {
   return landOf(S, t).wood >= P(S).woodForFire ? 'midwinter' : 'harvest';
 }
 
-/** As a season comes: every settlement holds its feasts of that season, if its stores hold what each needs. */
-export function holdFeasts(S: State, season: string) {
+/** When this season began, in game seconds. */
+const seasonStart = (S: State) => { const q = S.content.tuning.seasons.yearSeconds / 4; return Math.floor(S.t / q + 1e-9) * q; };
+
+/** Has a settlement held a feast since this season began? (A season has one feast of its own, so this is that feast.) */
+const heldThisSeason = (S: State, t: Town) => t.feastUntil - P(S).feastSeconds >= seasonStart(S) - 1e-6;
+
+/**
+ * What a settlement lays in of a good for its feasts (`feast_lay_in` of what each needs, for everyone housed): in the
+ * season before a feast, and in its own season until it is held, so the bakeries bake for the festival in summer
+ * rather than find the yards bare as autumn comes.
+ */
+export function feastStock(S: State, t: Town, g: ItemId, pop: number): number {
+  if (!S.people || !S.seasons || !t.feasts?.length || !P(S).feastLayIn) return 0;
+  const s = seasonOf(S);
+  if (!s) return 0;
+  let n = 0;
+  for (const f of t.feasts) {
+    const F = FEAST[f];
+    if (F.item === g && (F.season === NEXT[s] || (F.season === s && !heldThisSeason(S, t)))) n += Math.ceil(pop * F.per(S) * P(S).feastLayIn);
+  }
+  return n;
+}
+const NEXT: Record<string, string> = { spring: 'summer', summer: 'autumn', autumn: 'winter', winter: 'spring' };
+
+/**
+ * Through a feast's season: every settlement holds its feast of that season as soon as its stores hold what it needs,
+ * as the season comes if they can (`first` says the season has just come: a feast put off is said so once). A feast
+ * not held by the season's end is missed (`missFeasts`).
+ */
+export function holdFeasts(S: State, season: string, first = true) {
   if (!S.people || !S.seasons) return;
   for (const t of S.towns) for (const f of t.feasts) {
     const F = FEAST[f];
-    if (F.season !== season) continue;
+    if (F.season !== season || heldThisSeason(S, t)) continue;
     const yards = S.buildings.filter(b => b.town === t.id && !b.site && bp(S, b).storage);
     const pop = villagers(S).filter(a => a.home?.town === t.id).length;
     if (!yards.length || !pop) continue;
     const need = Math.ceil(pop * F.per(S));
     const spare = (b: Building) => Math.max(0, Math.floor((b.inv[F.item] || 0) - (b.reserved[F.item] || 0)));
     if (yards.reduce((n, b) => n + spare(b), 0) < need) {
-      S.stats.feastsMissed++;
-      chronicle(S, t.id, 'feast', `${t.name} could not hold its ${F.name}: not enough ${S.content.goods[F.item]?.name.toLowerCase() ?? F.item} in store`);
+      if (first) chronicle(S, t.id, 'feast', `${t.name} put off its ${F.name}: not enough ${S.content.goods[F.item]?.name.toLowerCase() ?? F.item} in store yet`);
       continue;
     }
     let left = need;
@@ -115,6 +142,18 @@ export function holdFeasts(S: State, season: string) {
     S.stats.feasts++;
     chronicle(S, t.id, 'feast', `${t.name} held its ${F.name}`);
     emit(S, 'good', `${t.name} held its ${F.name}`);
+  }
+}
+
+/** As a season ends (called as the next comes, before its feasts): each feast of the season gone by that was not held is missed. */
+export function missFeasts(S: State, season: string) {
+  if (!S.people || !S.seasons) return;
+  const q = S.content.tuning.seasons.yearSeconds / 4, from = seasonStart(S) - q;
+  for (const t of S.towns) for (const f of t.feasts) {
+    const F = FEAST[f];
+    if (F.season !== season || t.feastUntil - P(S).feastSeconds >= from - 1e-6) continue;
+    S.stats.feastsMissed++;
+    chronicle(S, t.id, 'feast', `${t.name} could not hold its ${F.name} this year: not enough ${S.content.goods[F.item]?.name.toLowerCase() ?? F.item} in store`);
   }
 }
 

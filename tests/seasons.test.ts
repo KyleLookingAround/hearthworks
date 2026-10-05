@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
 import { createState, placeBuilding, runFor, ctr, bp } from '../src/sim/index.ts';
-import { seasonOf, storesOnTrack } from '../src/sim/world.ts';
+import { door, seasonOf, storesOnTrack } from '../src/sim/world.ts';
+import { findTask } from '../src/sim/logistics.ts';
 import { wants } from '../src/sim/production.ts';
 import { computeMood } from '../src/sim/tick.ts';
 import { findSpot } from '../src/gates/kit.ts';
@@ -80,4 +81,28 @@ test('a workplace left standing full sends its worker carrying', () => {
   const w = f.worker;
   for (let k = 0; k < content.tuning.logistics.releaseAfterSeconds * 10 + 5 && f.worker === w; k++) { f.inv.wheat = content.tuning.logistics.outputCap; runFor(S, 0.1); }
   assert.notEqual(f.worker, w, 'the worker left a full farm');
+});
+
+test('while the winter store is behind in summer and autumn, the harvest comes in ahead of other hauling', () => {
+  const pick = (t: number) => {
+    const S = createState(content, 1847, { planner: true, seasons: true });
+    const store = S.bmap.get(S.towns[0].store)!;
+    for (const k in store.inv) store.inv[k] = 0;
+    store.inv.planks = 30;
+    const at = findSpot(S, 'farm', ctr(store))!;
+    const farm = placeBuilding(S, 'farm', at.x, at.y, true)!;
+    farm.inv.wheat = 6;
+    const hs = findSpot(S, 'house', ctr(store))!;
+    placeBuilding(S, 'house', hs.x, hs.y, false);
+    S.t = t;
+    const a = S.agents.find(v => v.kind === 'villager')!;
+    const d = door(farm);
+    a.x = d.x + 0.5; a.y = d.y + 0.5; a.task = null; a.role = 'carrier'; a.state = 'idle';
+    assert.ok(findTask(S, a));
+    return { item: a.task!.item, behind: !storesOnTrack(S, S.towns[0]) };
+  };
+  const spring = pick(10), autumn = pick(Y / 2 + 10);
+  assert.equal(spring.item, 'planks', 'in spring a site waiting for planks comes before surplus wheat');
+  assert.ok(autumn.behind);
+  assert.equal(autumn.item, 'wheat', 'in autumn, with the store behind, the wheat comes in first');
 });
