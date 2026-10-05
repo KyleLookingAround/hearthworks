@@ -60,7 +60,7 @@ export function pressure(S: State, town: Town, need: string): number {
   return 0;
 }
 
-export const NEED_TEXT: Record<string, string> = { distance: 'its goods travel a long way', long_hauls: 'its carts go a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it strains at needs nothing it knows can meet', hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths' };
+export const NEED_TEXT: Record<string, string> = { distance: 'its goods travel a long way', long_hauls: 'its carts go a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it has needs that nothing it knows can meet', hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths' };
 
 /** A settlement's age: the latest era it has reached, knowing each era's `share` of its discoveries and every earlier era's. */
 export function ageOf(S: State, town: Town): number {

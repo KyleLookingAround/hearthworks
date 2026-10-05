@@ -6,6 +6,21 @@ import { capOf, crew, dietOf, mealOf, places, unripe } from './farms.ts';
 import type { Agent, Building, ItemId, Level, State, Stock, Town } from './types.ts';
 
 const setStatus = (b: Building, t: string, l: Level) => { b.status.t = t; b.status.l = l; };
+/** What a building without workers says it is doing: carts ready in a shed or barn, boats at a dock, a bridge open to walkers. Words only. */
+function idleText(S: State, b: Building): string {
+  const B = bp(S, b), n = B.oxen || B.carts;
+  if (n) {
+    let out = 0;
+    for (const a of S.agents) if (a.cart === b.id) out++;
+    const feed = S.content.tuning.logistics.oxFeed;
+    if (B.oxen && Object.keys(B.keepStocked).some(g => (b.inv[g] || 0) < feed)) return 'The oxen wait for feed';
+    const kind = B.oxen ? 'ox cart' : 'handcart', ready = n - out;
+    return out >= n ? `Every ${kind} is out` : `${ready} ${kind}${ready > 1 ? 's' : ''} ready${out ? `, ${out} out` : ''}`;
+  }
+  if (B.shore) return 'Boats ready at the jetty';
+  if (B.bridge) return 'Open to walkers';
+  return 'Open';
+}
 
 function nearestGrownTree(S: State, b: Building, r: number): number {
   const w = S.world, c = ctr(b);
@@ -230,7 +245,7 @@ function run(S: State, b: Building, dt: number) {
   }
 
   if (!B.workers) {
-    setStatus(b, B.couriers ? `${b.bots.length} bots hauling` : B.guards ? ({ fire: 'Ready for fire', flood: 'Holding the water back', sickness: 'Keeping the sick apart', raids: 'Standing guard' })[B.guards.hazard] : 'Open', 'ok');
+    setStatus(b, B.couriers ? `${b.bots.length} bots hauling` : B.guards ? ({ fire: 'Ready for fire', flood: 'Holding the water back', sickness: 'Keeping the sick apart', raids: 'Standing guard' })[B.guards.hazard] : idleText(S, b), 'ok');
     return;
   }
   if (B.harvest?.replant && !b.paused) {
