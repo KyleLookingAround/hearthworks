@@ -1,7 +1,7 @@
 import { rand } from './rng.ts';
 import { release, removeAgent } from './agents.ts';
 import { feastStock, skillPace } from './people.ts';
-import { add, bp, completeSite, ctr, emit, foodsOf, inB, plant, seasonOf } from './world.ts';
+import { add, bp, completeSite, ctr, emit, foodsOf, inB, plant, seasonOf, hypot } from './world.ts';
 import { capOf, crew, dietOf, mealOf, places, unripe } from './farms.ts';
 import { fleetText, launch, wantsBoat } from './ships.ts';
 import type { Agent, Building, ItemId, Level, State, Stock, Town } from './types.ts';
@@ -30,7 +30,7 @@ function nearestGrownTree(S: State, b: Building, r: number): number {
     if (!inB(w, x, y)) continue;
     const i = y * w.w + x;
     if (w.tree[i] !== 2) continue;
-    const d = Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y);
+    const d = hypot(x + 0.5 - c.x, y + 0.5 - c.y);
     if (d <= r && d < bd) { bd = d; best = i; }
   }
   return best;
@@ -40,7 +40,7 @@ function replant(S: State, b: Building, r: number) {
   const w = S.world, c = ctr(b), spots: number[] = [];
   let trees = 0;
   for (let y = Math.floor(c.y - r); y <= c.y + r; y++) for (let x = Math.floor(c.x - r); x <= c.x + r; x++) {
-    if (!inB(w, x, y) || Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y) > r) continue;
+    if (!inB(w, x, y) || hypot(x + 0.5 - c.x, y + 0.5 - c.y) > r) continue;
     const i = y * w.w + x;
     if (w.tree[i]) trees++;
     else if (w.ground[i] === 2 && w.bgrid[i] === -1 && !w.road[i]) spots.push(i);
@@ -211,7 +211,7 @@ function bestMill(S: State, b: Building): { factor: number; boon: string } {
   for (const c of S.buildings) {
     const C = bp(S, c).mills;
     if (!C || c.town !== b.town || c.site || !C.types.includes(b.type) || C.factor <= out.factor || c.worker === null) continue;
-    if (S.amap.get(c.worker)?.state !== 'working' || Math.hypot(ctr(c).x - p.x, ctr(c).y - p.y) > C.radius) continue;
+    if (S.amap.get(c.worker)?.state !== 'working' || hypot(ctr(c).x - p.x, ctr(c).y - p.y) > C.radius) continue;
     out.factor = C.factor; out.boon = C.boon;
   }
   return out;

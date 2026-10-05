@@ -5,7 +5,7 @@ import { foundersKnowledge } from './knowledge.ts';
 import { initPeople } from './people.ts';
 import { joinFields, offered } from './farms.ts';
 import { setBelt, turned } from './belts.ts';
-import { findPath, reachable } from './path.ts';
+import { findPath, reachable, reshaped } from './path.ts';
 import { islesOf, shapeSea } from './sea.ts';
 import { launch } from './ships.ts';
 import type { Agent, BlueprintDef, Learning, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
@@ -53,9 +53,27 @@ export const door = (b: Placed) => {
 export const front = (b: Placed) => { const d = door(b), f = FACING[b.rot ?? 0]; return { x: d.x + f[0], y: d.y + f[1] }; };
 /** Beside the door, to its left as one looks out (east of a dock facing south): where people reach a dock that opens onto water. */
 export const beside = (b: Placed) => { const d = door(b), f = FACING[b.rot ?? 0]; return { x: d.x + f[1], y: d.y - f[0] }; };
+/**
+ * The length of (x, y), exactly as V8's Math.hypot gives it (the same scaling by the larger and Kahan sum of squares,
+ * step for step: tests/sim.test.ts checks every bit), without the array Math.hypot allocates for its arguments on every
+ * call. The sim measures many distances.
+ */
+export function hypot(x: number, y: number): number {
+  const ax = Math.abs(x), ay = Math.abs(y);
+  if (ax === Infinity || ay === Infinity) return Infinity;
+  if (ax !== ax || ay !== ay) return NaN;
+  const max = ax > ay ? ax : ay;
+  if (max === 0) return 0;
+  const a = ax / max, b = ay / max;
+  let sum = 0, comp = 0, s = a * a - comp, p = sum + s;
+  comp = (p - sum) - s; sum = p;
+  s = b * b - comp; p = sum + s;
+  comp = (p - sum) - s; sum = p;
+  return Math.sqrt(sum) * max;
+}
 export const ctr = (b: { x: number; y: number; w: number; h: number }) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
-export const distAB = (a: { x: number; y: number }, b: Building) => { const p = ctr(b); return Math.hypot(a.x - p.x, a.y - p.y); };
-export const distBB = (a: Building, b: Building) => { const p = ctr(a), q = ctr(b); return Math.hypot(p.x - q.x, p.y - q.y); };
+export const distAB = (a: { x: number; y: number }, b: Building) => { const p = ctr(b); return hypot(a.x - p.x, a.y - p.y); };
+export const distBB = (a: Building, b: Building) => { const p = ctr(a), q = ctr(b); return hypot(p.x - q.x, p.y - q.y); };
 export const add = (o: Record<string, number>, k: string, v: number) => { o[k] = (o[k] || 0) + v; if (Math.abs(o[k]) < 1e-9) o[k] = 0; };
 export const bp = (S: State, b: Building) => S.content.blueprints[b.type];
 export const villagers = (S: State): Agent[] => S.agents.filter(a => a.kind === 'villager');
@@ -126,7 +144,7 @@ function generateWorld(M: MapDef, W: number, H: number, S: State): World {
       const rad = Math.min(half - 3, Math.max(I.minTiles, scale * (I.radiusMin + rand(r) * (I.radiusMax - I.radiusMin))));
       const bx = rad + 2 + rand(r) * (W - 2 * rad - 4), by = rad + 2 + rand(r) * (H - 2 * rad - 4);
       // keep a channel of sea between islands
-      if (blobs.some(o => Math.hypot(o.x - bx, o.y - by) < (o.r + rad) * 1.05)) continue;
+      if (blobs.some(o => hypot(o.x - bx, o.y - by) < (o.r + rad) * 1.05)) continue;
       blobs.push({ x: bx, y: by, r: rad }); k++;
     }
   }
@@ -209,7 +227,7 @@ function carveRiver(w: World, r: Rng, width: number) {
 export function clearSite(S: State, M: MapDef, cx: number, cy: number) {
   const w = S.world, W = w.w;
   for (let y = Math.max(0, cy - 8); y <= Math.min(w.h - 1, cy + 8); y++) for (let x = Math.max(0, cx - 8); x <= Math.min(W - 1, cx + 8); x++) {
-    if (Math.hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
+    if (hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
   }
 }
 
@@ -220,7 +238,7 @@ function prepareSite(S: State, M: MapDef, cx: number, cy: number) {
     if (inB(w, x, y) && w.ground[i] === 2 && w.bgrid[i] === -1 && rand(S.rng) < M.forest.groveDensity) w.tree[i] = 2;
   }
   for (let y = Math.max(0, cy - 8); y <= Math.min(w.h - 1, cy + 8); y++) for (let x = Math.max(0, cx - 8); x <= Math.min(W - 1, cx + 8); x++) {
-    if (Math.hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
+    if (hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
   }
 }
 
@@ -373,7 +391,8 @@ export function neighbourSite(S: State, from: Town = S.towns[0], reach = false, 
   const { layoutFits, roomAround, woodAround } = siteTests(w);
   const spots: { x: number; y: number; spread: number; score: number }[] = [];
   for (let cy = 3; cy < w.h - 4; cy++) for (let cx = 7; cx < w.w - 6; cx++) {
-    const d = Math.min(...centres.map(c => Math.hypot(cx - c.x, cy - c.y)));
+    let d = Infinity;
+    for (const c of centres) d = Math.min(d, hypot(cx - c.x, cy - c.y));
     if (d < t.neighbourMinDistance || !layoutFits(cx, cy)) continue;
     const room = roomAround(cx, cy);
     // never found a village where it has no room to live
@@ -410,7 +429,7 @@ export function nearestTown(S: State, x: number, y: number): number {
   for (const tn of S.towns) {
     const s = S.bmap.get(tn.store);
     if (!s) continue;
-    const c = ctr(s), d = Math.hypot(c.x - x, c.y - y);
+    const c = ctr(s), d = hypot(c.x - x, c.y - y);
     if (d < bd) { bd = d; best = tn.id; }
   }
   return best;
@@ -479,6 +498,8 @@ function setDoor(S: State, b: Building, on: boolean) {
   w.door[i] = on ? 1 : 0;
   if (bp(S, b).shore) { w.dock[i] = on ? b.town + 1 : 0; w.docks += on ? 1 : -1; }
   if (f >= 0 && f < w.front.length) w.front[f] = Math.max(0, w.front[f] + (on ? 1 : -1));
+  // a new dock opens the water to rowers
+  if (on && bp(S, b).shore) reshaped(w);
 }
 
 /** Place a building (or a road tile). New buildings start as construction sites unless `complete`. */
@@ -489,6 +510,7 @@ function setDoor(S: State, b: Building, on: boolean) {
 export function lift(S: State, b: Building): () => void {
   const w = S.world, at = S.buildings.indexOf(b);
   for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) w.bgrid[j * w.w + k] = -1;
+  reshaped(w);
   setDoor(S, b, false);
   S.buildings.splice(at, 1); S.bmap.delete(b.id);
   return () => {
@@ -513,6 +535,7 @@ export function turnBuilding(S: State, b: Building, by = 1): boolean {
   back();
   if (!ok) return false;
   for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) w.bgrid[j * w.w + k] = -1;
+  reshaped(w);
   setDoor(S, b, false);
   b.x = x; b.y = y; b.w = d.w; b.h = d.h; b.rot = rot;
   turned(S);
@@ -575,11 +598,12 @@ export function completeSite(S: State, b: Building, announce: boolean) {
   }
   if (B.bridge) {
     for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) S.world.bridge[j * S.world.w + k] = 1;
+    reshaped(S.world);
     // the long ways round it remembered were measured before this bridge stood
     if (S.towns[b.town]) S.towns[b.town].detours = [];
   }
   // a dock launches its own settlement's boats (whose it is is settled once it stands), and with ships on comes with one
-  if (B.shore) { const d = door(b), i = d.y * S.world.w + d.x; if (S.world.dock[i]) S.world.dock[i] = b.town + 1; }
+  if (B.shore) { const d = door(b), i = d.y * S.world.w + d.x; if (S.world.dock[i]) { S.world.dock[i] = b.town + 1; reshaped(S.world); } }
   if (B.shore && S.ships) for (let k = 0; k < S.content.tuning.sea.dockBoats; k++) launch(S, b);
   if (B.couriers) {
     const d = door(b);
@@ -598,6 +622,7 @@ export function demolish(S: State, b: Building) {
   S.buildings = S.buildings.filter(o => o !== b); S.bmap.delete(b.id);
   const w = S.world;
   for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) { w.bgrid[j * w.w + k] = -1; w.bridge[j * w.w + k] = 0; }
+  reshaped(w);
   if (bp(S, b).bridge) for (const p of [door(b), farBank(b)]) w.front[p.y * w.w + p.x] = Math.max(0, w.front[p.y * w.w + p.x] - 1);
   else setDoor(S, b, false);
   for (const a of S.agents) if (a.work === b) { a.work = null; a.role = 'carrier'; a.state = 'idle'; a.path = []; }
@@ -620,6 +645,19 @@ export function saplings(w: World): Set<number> {
   return s;
 }
 export function plant(w: World, i: number) { w.tree[i] = 1; w.grow[i] = 0; saplings(w).add(i); }
+
+/**
+ * The tiles feet have worn and that have not yet faded back, kept beside the world so fading them does not scan every
+ * tile. Derived, never saved: rebuilt from the wear grid when missing. Each tile fades on its own.
+ */
+const wornSets = new WeakMap<World, Set<number>>();
+export function worn(w: World): Set<number> {
+  let s = wornSets.get(w);
+  if (!s) { s = new Set(); for (let i = 0; i < w.wear.length; i++) if (w.wear[i] > 0) s.add(i); wornSets.set(w, s); }
+  return s;
+}
+/** A footstep on a tile. */
+export function tread(w: World, i: number) { w.wear[i] += 1; worn(w).add(i); }
 
 /** What a paving blueprint lays: 1 a path, 2 a road, 3 a road of stone. */
 export const paveLevel = (B: BlueprintDef) => (B.stone ? 3 : B.road ? 2 : 1);
