@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T03:56:02Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T16:33:40Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -31,6 +31,8 @@ tuning:
   ox_feed: 1
   round_tiles: 8
   dump_at: 3
+  surplus_penalty: 12
+  harvest_priority: 4
   request_aging: 0.5
   no_way_retry_seconds: 30
   slope_cost: 0.006
@@ -44,6 +46,7 @@ tuning:
 3. Buildings post **offers**: a producer offers its outputs, a storage yard offers everything it holds.
 4. An idle carrier scores every request against every building offering that good (offers are indexed by good, so pairs that could never match are not scored) by walking distance (houses get a priority bonus; storage a small penalty) and claims the cheapest. A villager only takes jobs within their own settlement.
 6. **No way in.** When a carrier finds no way to a building's door, and its own settlement's storage cannot reach that door either, the building shows "No way in" and nobody is sent there for `no_way_retry_seconds`, so one cut-off building cannot keep every carrier searching. If storage can reach it, the carrier is the one cut off and waits out the same time. A storage yard is never closed so: everyone else walks from it, so the one who failed is the one cut off. Someone left out on open water (their row cut short) rows on from where they are. A worker who cannot walk to a workplace no longer works it from afar. Route searches may look at every tile of the map once on foot (twice when rowing), so long trips on big maps are found.
+5. **Surplus.** A workplace's output piling up (`dump_at` or more) goes to the nearest storage yard with room, scored `surplus_penalty` tiles behind a request so it never crowds out what someone is waiting for. With [seasons](/systems/seasons.md), in summer and autumn while a settlement's winter store has fallen behind, its harvest (the goods of the food chain that keep: grain, smoked fish) comes in as readily as a home's food (`harvest_priority` tiles ahead instead): on Gate 12's seed 1 the first frost found 59 wheat standing at full farms, three farms idle for it, and the yards with 0.82 of the winter's meals.
 5. **Waiting requests come closer.** A request nobody has started serving counts as `request_aging` tiles nearer for every second it waits, so a far forester's logs are fetched in the end even while short surplus runs keep coming up.
 6. Claiming **reserves** the goods at the source and marks them **incoming** at the destination, so no two carriers chase the same stack.
 7. A producer holding at least `dump_at` of an output nobody asked for sends it to the nearest [storage yard](/blueprints/storage.md).

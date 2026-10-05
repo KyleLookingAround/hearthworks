@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
 import { createState, runFor, villagers, bp } from '../src/sim/index.ts';
-import { ageOf, bringFeast, customFor, FEAST, feastFor, feastMood, holdFeasts, nameFor, namingFor, skillPace } from '../src/sim/people.ts';
+import { ageOf, bringFeast, customFor, FEAST, feastFor, feastMood, feastStock, holdFeasts, missFeasts, nameFor, namingFor, skillPace } from '../src/sim/people.ts';
 import { computeMood } from '../src/sim/index.ts';
 
 const content = loadContent();
@@ -60,21 +60,41 @@ test('with seasons, each settlement keeps a feast from its land, holds it when t
   assert.deepEqual(t.feasts, [feastFor(S, t)]);
   t.feasts = ['harvest'];
   const pop = villagers(S).length, need = Math.ceil(pop * P.harvestBread);
+  S.t = content.tuning.seasons.yearSeconds / 2 + 1; // autumn
   // not its season: nothing happens
   holdFeasts(S, 'winter');
   assert.equal(S.stats.feasts, 0);
-  // too little bread: missed, and nothing taken
+  // too little bread: put off, nothing taken, and missed only if the season ends without it
   store.inv.bread = need - 1;
   holdFeasts(S, FEAST.harvest.season);
-  assert.equal(S.stats.feastsMissed, 1);
+  assert.equal(S.stats.feasts, 0);
+  assert.equal(S.stats.feastsMissed, 0);
+  assert.ok(S.chronicle.some(c => c.town === t.id && c.text.includes('put off')));
   assert.equal(store.inv.bread, need - 1);
   assert.equal(feastMood(S, t), 0);
-  // enough: held, the bread eaten, and the mood lifted for a while
+  // the bakeries lay in for it: what the feast needs counts toward the stock of bread until it is held
+  assert.ok(feastStock(S, t, 'bread', pop) >= need);
+  // later in the season, enough: held, the bread eaten, and the mood lifted for a while
   store.inv.bread = need + 3;
-  holdFeasts(S, FEAST.harvest.season);
+  holdFeasts(S, FEAST.harvest.season, false);
   assert.equal(S.stats.feasts, 1);
   assert.equal(store.inv.bread, 3);
   assert.equal(feastMood(S, t), P.feastMood);
+  // held once a season: no second festival, and nothing laid in for it any more
+  store.inv.bread = need + 3;
+  holdFeasts(S, FEAST.harvest.season, false);
+  assert.equal(S.stats.feasts, 1);
+  assert.equal(feastStock(S, t, 'bread', pop), 0);
+  // a season gone by without its feast: missed
+  const other = S.towns[1] ?? t;
+  const until = t.feastUntil;
+  S.t += content.tuning.seasons.yearSeconds / 4;
+  t.feastUntil = 0;
+  missFeasts(S, FEAST.harvest.season);
+  assert.equal(S.stats.feastsMissed, S.towns.filter(o => o.feasts.includes('harvest')).length);
+  assert.ok(S.chronicle.some(c => c.town === other.id && c.text.includes('could not hold')));
+  S.t -= content.tuning.seasons.yearSeconds / 4;
+  t.feastUntil = until;
   for (const a of villagers(S)) if (a.home) a.home.inv = {};
   computeMood(S);
   const lifted = t.mood;

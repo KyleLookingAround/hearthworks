@@ -4,7 +4,7 @@ import { formOf } from './planner.ts';
 import { plan, shortOfFood } from './planner.ts';
 import { updateKnowledge } from './knowledge.ts';
 import { updateTrade } from './trade.ts';
-import { feastMood, holdFeasts, newcomer, riteMood, updatePeople } from './people.ts';
+import { feastMood, holdFeasts, missFeasts, newcomer, riteMood, updatePeople } from './people.ts';
 import { updateSettling } from './settle.ts';
 import { updateSea } from './sea.ts';
 import { moveRaids, sickShare, updateHardship } from './hardship.ts';
@@ -14,6 +14,9 @@ import { surroundings } from './surroundings.ts';
 import { closeBoard, openBoard } from './logistics.ts';
 import { runBelts } from './belts.ts';
 import { dietLift } from './farms.ts';
+
+/** The season before each: as one comes, the feasts of the one before that were not held are missed. */
+const PREV: Record<string, string> = { spring: 'winter', summer: 'spring', autumn: 'summer', winter: 'autumn' };
 
 /**
  * Mood per settlement: the share of its villagers living in a house with food on the shelf
@@ -109,8 +112,9 @@ export function tick(S: State, dt: number) {
       const s = seasonOf(S)!;
       emit(S, s === 'winter' ? 'bad' : 'info', s === 'winter' ? 'Winter has come: the fields rest and homes burn firewood' : `${s[0].toUpperCase()}${s.slice(1)} has come`);
       for (const t of S.towns) chronicle(S, t.id, 'season', `${s[0].toUpperCase()}${s.slice(1)} came to ${t.name} in year ${Math.floor(S.t / S.content.tuning.seasons.yearSeconds) + 1}`);
+      missFeasts(S, PREV[s]);
       holdFeasts(S, s);
-    }
+    } else if (S.seasons && S.people && Math.floor(S.t) % S.content.tuning.people.feastRetrySeconds === 0) holdFeasts(S, seasonOf(S)!, false);
     // once a minute, food left out in stores that do not keep it spoils: the whole units of `spoils` of the pile
     if (Math.floor(S.t) % 60 === 0) for (const b of S.buildings) {
       const B = bp(S, b);
