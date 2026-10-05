@@ -11,7 +11,7 @@
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 import { nameFor, namingFor } from './people.ts';
 
-export const SAVE_VERSION = 26;
+export const SAVE_VERSION = 27;
 
 type Json = Record<string, unknown>;
 
@@ -189,6 +189,14 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     const st = state.stats as Json; st.gifts ??= 0; st.campsSettled ??= 0; st.barbariansSettled ??= 0;
     return state;
   },
+  // 26 to 27: the sea's shallows and reefs (older worlds have none) and charts (off for older games)
+  26: state => {
+    const w = state.world as Json; w.sea ??= [0, (w.w as number) * (w.h as number)];
+    state.charts ??= false;
+    for (const t of state.towns as Json[]) { t.charted ??= []; t.lookT ??= 0; t.explore ??= false; t.voyageAt ??= -1e9; }
+    const st = state.stats as Json; st.voyages ??= 0; st.charted ??= 0;
+    return state;
+  },
 };
 
 /** Run-length encoding for tile grids: [value, count, value, count, ...]. */
@@ -210,7 +218,7 @@ function unrle<T extends Uint8Array | Int32Array | Float32Array>(runs: number[],
   return into;
 }
 
-const GRIDS = { ground: Uint8Array, height: Uint8Array, deposit: Uint8Array, wear: Float32Array, bridge: Uint8Array, zone: Uint8Array, tree: Uint8Array, grow: Float32Array, road: Uint8Array, bgrid: Int32Array, door: Uint8Array, front: Uint8Array, dock: Uint8Array } as const;
+const GRIDS = { ground: Uint8Array, height: Uint8Array, deposit: Uint8Array, wear: Float32Array, bridge: Uint8Array, zone: Uint8Array, tree: Uint8Array, grow: Float32Array, road: Uint8Array, bgrid: Int32Array, door: Uint8Array, front: Uint8Array, dock: Uint8Array, sea: Uint8Array } as const;
 type GridName = keyof typeof GRIDS;
 
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -233,7 +241,7 @@ export function saveGame(S: State): SaveFile {
     state: {
       seed: S.seed, setup: copy(S.setup), rng: S.rng.s, krng: S.krng.s, prng: S.prng.s, hrng: S.hrng.s, hardship: S.hardship, plannedRoads: S.plannedRoads, camps: copy(S.camps), campT: S.campT, t: S.t, nextId: S.nextId,
       mood: S.mood, fed: S.fed, migT: S.migT, secT: S.secT,
-      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns), chronicle: copy(S.chronicle), seasons: S.seasons, trade: S.trade, people: S.people, newcomers: S.newcomers, carts: S.carts, settlers: S.settlers, farms: S.farms,
+      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns), chronicle: copy(S.chronicle), seasons: S.seasons, trade: S.trade, people: S.people, newcomers: S.newcomers, carts: S.carts, settlers: S.settlers, charts: S.charts, farms: S.farms,
       world, buildings: copy(S.buildings), gone: copy([...gone.values()]), agents,
     },
   };
@@ -256,7 +264,7 @@ export function loadGame(content: Content, input: SaveFile | string): State {
   const file = migrate(typeof input === 'string' ? JSON.parse(input) as SaveFile : input);
   const d = copy(file.state) as any;
   const wd = d.world, N = wd.w * wd.h;
-  const world = { w: wd.w, h: wd.h, docks: wd.docks, waterCost: wd.waterCost, slopeCost: wd.slopeCost, rockCost: wd.rockCost, pathCost: wd.pathCost, roadCost: wd.roadCost ?? 1 / content.tuning.logistics.roadSpeed, stoneCost: wd.stoneCost ?? 1 / content.tuning.logistics.stoneRoadSpeed, roads: wd.roads, stone: wd.stone, forestCost: wd.forestCost, work: wd.work } as World;
+  const world = { w: wd.w, h: wd.h, docks: wd.docks, waterCost: wd.waterCost, slopeCost: wd.slopeCost, rockCost: wd.rockCost, pathCost: wd.pathCost, roadCost: wd.roadCost ?? 1 / content.tuning.logistics.roadSpeed, stoneCost: wd.stoneCost ?? 1 / content.tuning.logistics.stoneRoadSpeed, roads: wd.roads, stone: wd.stone, forestCost: wd.forestCost, shallowCost: 1 / content.tuning.sea.shallowSpeed, work: wd.work } as World;
   for (const g of Object.keys(GRIDS) as GridName[]) (world as any)[g] = unrle(wd[g], new GRIDS[g](N));
 
   const buildings = d.buildings as Building[];
@@ -275,7 +283,7 @@ export function loadGame(content: Content, input: SaveFile | string): State {
 
   const S = {
     content, seed: d.seed, setup: d.setup, rng: { s: d.rng }, krng: { s: d.krng }, prng: { s: d.prng }, hrng: { s: d.hrng }, hardship: d.hardship, plannedRoads: d.plannedRoads, camps: d.camps, campT: d.campT, t: d.t, nextId: d.nextId,
-    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns, chronicle: d.chronicle, seasons: d.seasons, trade: d.trade, people: d.people, newcomers: d.newcomers, carts: d.carts, settlers: d.settlers, farms: d.farms,
+    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns, chronicle: d.chronicle, seasons: d.seasons, trade: d.trade, people: d.people, newcomers: d.newcomers, carts: d.carts, settlers: d.settlers, charts: d.charts, farms: d.farms,
     world, buildings, agents, bmap, amap: new Map(agents.map(a => [a.id, a])),
   } as State;
   S.planner = S.towns[0].planner;

@@ -14,6 +14,7 @@
 * [Production and construction](production.md) - Construction sites and their priority queue, worker assignment and recipe cycles.
 * [Roads](roads.md) (draft) - Paths are worn where people walk; roads are planned as long straight strips that cut through what stands, and the town is then built along them.
 * [Saves](saves.md) - The whole game as versioned JSON; autosaved in the browser, downloadable, and loaded to play on exactly as if it never stopped.
+* [The sea](sea.md) (draft) - Shallows along every shore and reefs out at sea on the sea maps, and charts - a settlement knows only the islands it has seen, settles only on charted land, and sends explorers out for the rest.
 * [Seasons](seasons.md) - A year of spring, summer, autumn and winter; crops rest in winter, homes burn firewood, and settlements store food and fuel ahead.
 * [Starting settlement](settlement.md) - What a new game begins with, per settlement — a storage yard, two houses, a road and five villagers.
 * [Settling](settling.md) - A crowded settlement, or one whose land is full, sends a founding party off to found a daughter town, with villagers, stores, the knowledge it practises and its custom.
