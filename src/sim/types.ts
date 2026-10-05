@@ -147,6 +147,8 @@ export interface MapDef {
   shores: { grass: number; sand: number; seaBorder: boolean };
   start: { landRadius: number; clearRadius: number };
   forest: { cell: number; threshold: number; density: number; scatter: number; groveDensity: number };
+  /** Sea maps: shallows along every shore and reefs out at sea, on about `reefs` of the water where they may lie. Null for none. */
+  sea: { reefs: number } | null;
 }
 
 /** The world a game was made with. */
@@ -163,6 +165,7 @@ export interface Tuning {
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
   settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; storesShare: number; maxSettlements: number };
+  sea: { shallowTiles: number; shallowSpeed: number; reefFromTiles: number; reefToTiles: number; reefCell: number; sightTiles: number; lookEverySeconds: number; exploreEverySeconds: number };
   people: {
     adultSeconds: number; elderSeconds: number; lifespanSeconds: number; lifespanJitterSeconds: number; founderAgeMaxSeconds: number; birthEverySeconds: number;
     practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
@@ -346,7 +349,7 @@ export type Naming = 'sea' | 'trees' | 'fields';
 /** The feasts a settlement may keep: a harvest festival as autumn comes, a fire as winter comes. */
 export type Feast = 'harvest' | 'midwinter';
 
-export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge>; /** rowed there, so has a boat to row home in */ boat: boolean; /** a porter's errand: the good taken and the good wanted back */ trade?: { give: ItemId; want: ItemId } }
+export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge>; /** rowed there, so has a boat to row home in */ boat: boolean; /** a porter's errand: the good taken and the good wanted back */ trade?: { give: ItemId; want: ItemId }; /** with charts on: the islands seen from the boat on the way, to chart at the end of the leg */ seen?: number[]; /** an explorer's voyage: the shore tile they row for */ explore?: [number, number] }
 
 /** A settlement's trade: when it last sent a porter, smoothed imports per second, and running totals. */
 export interface Ledger { t: number; imports: Stock; made: Stock; exported: Stock; imported: Stock; /** when it first chose to trade for a good rather than make it */ waits: Stock }
@@ -425,6 +428,11 @@ export interface Town {
   roads: number[][];
   sentAt: number;
   settleT: number;
+  /** With charts on: the islands it has charted (ids from `islesOf`), seconds since it last looked out from its shores, whether it wants an explorer out, and when it last sent one. */
+  charted: number[];
+  lookT: number;
+  explore: boolean;
+  voyageAt: number;
 }
 
 export interface World {
@@ -446,6 +454,10 @@ export interface World {
   door: Uint8Array;
   /** how many doors open onto this tile; placement keeps these tiles open */
   front: Uint8Array;
+  /** the sea on sea maps: 0 open water (or land), 1 shallows (rowed slowly), 2 a reef (never rowed over) */
+  sea: Uint8Array;
+  /** cost of a tile of shallows relative to open water */
+  shallowCost: number;
   /** 1 on a dock's door: where boats are launched */
   dock: Uint8Array;
   /** how many docks stand (or are being built); with none, nobody rows */
@@ -536,6 +548,8 @@ export interface Stats {
   roadsLaid: number; roadTiles: number; roadCut: number; roadMoved: number;
   roadDeliveries: number; roadDeliverySeconds: number; roadDeliveryTiles: number; pathDeliveries: number; pathDeliverySeconds: number; pathDeliveryTiles: number;
   fires: number; burnt: number; floods: number; outbreaks: number; raids: number; repelled: number; looted: number; sickDeaths: number; starved: number; camps: number; gifts: number; campsSettled: number; barbariansSettled: number;
+  /** With charts on: explorers' voyages, and islands charted by settlements (each settlement counts its own). */
+  voyages: number; charted: number;
 }
 
 export interface State {
@@ -570,6 +584,8 @@ export interface State {
   carts: boolean;
   /** Settling on: crowded settlements send founding parties to found daughter towns. */
   settlers: boolean;
+  /** Charts on: a settlement knows only the islands it has seen, and settles only on charted land; explorers chart the rest. */
+  charts: boolean;
   /** Newcomers arrive (off to grow by births alone). */
   newcomers: boolean;
   /** Separate stream for births, lifespans and the like, so people never shift the rest of the world. */

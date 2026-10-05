@@ -58,7 +58,7 @@ export class App {
   }
 
   newGame(c: GameChoice) {
-    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, trade: c.trade !== false, people: c.people !== false, carts: c.carts !== false, settlers: c.settlers !== false, hardship: c.hardship !== false, plannedRoads: c.roads !== false, farms: c.farms !== false, settlements: c.settlements, map: c.map, size: c.size }));
+    this.adopt(createState(this.content, c.seed, { planner: c.plans, seasons: c.seasons !== false, trade: c.trade !== false, people: c.people !== false, carts: c.carts !== false, settlers: c.settlers !== false, charts: c.settlers !== false, hardship: c.hardship !== false, plannedRoads: c.roads !== false, farms: c.farms !== false, settlements: c.settlements, map: c.map, size: c.size }));
     this.save();
   }
 
@@ -451,7 +451,7 @@ export class App {
     const D = S.hardship ? defence(S, t) : null, near = S.hardship ? S.camps.filter(c => { const y = S.bmap.get(t.store); return !!y && Math.hypot(c.x - y.x, c.y - y.y) <= this.content.tuning.hardship.raidReach; }).length : 0;
     const peace = S.hardship ? S.camps.filter(c => c.friend === t.id && c.goodwill > 0).length : 0;
     const guard = D ? [Math.round(D.total), D.warned, near, peace] : null;
-    const key = JSON.stringify([t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.naming, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil]);
+    const key = JSON.stringify([t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.naming, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil, t.charted.length, S.agents.some(a => a.visit?.explore && a.visit.from === t.id)]);
     if (!force && key === this.stewardKey) return;
     this.stewardKey = key;
     const needs: [string, string][] = [
@@ -472,6 +472,11 @@ export class App {
     html += `<span>The hungry</span><select data-law="leave"><option value="1"${t.laws.leave ? ' selected' : ''}>May leave</option><option value="0"${t.laws.leave ? '' : ' selected'}>Must stay</option></select></div>`;
     if (S.plannedRoads) html += `<div class="steward-grid"><span>Roads</span><span>${t.roads.length ? `${t.roads.length} laid` : 'road' in t.knows ? 'none laid yet' : 'not thought of yet'}</span></div>`;
     if (guard) html += `<div class="steward-grid"><span>Defence</span><span>${guard[0]}${guard[1] ? ', a lookout on watch' : ', no lookout'}</span><span>Camps in reach</span><span>${guard[2] || 'none'}</span>${guard[3] ? `<span>At peace</span><span>${guard[3] === 1 ? 'a camp it sends bread to' : `${guard[3]} camps it sends bread to`}</span>` : ''}</div>`;
+    // the islands it has charted, and an explorer out at sea
+    if (S.charts) {
+      const out = S.agents.some(a => a.visit?.explore && a.visit.from === t.id);
+      html += `<div class="steward-grid"><span>Charts</span><span>${t.charted.length === 1 ? 'its own island' : `${t.charted.length} islands`}${out ? ', an explorer at sea' : ''}</span></div>`;
+    }
     html += `<div class="steward-grid"><span>Age</span><span>${esc(this.content.eras[t.age]?.name ?? '')}</span></div>`;
     if (S.people) {
       const word = { burial: 'Burial', cremation: 'Cremation', ship: 'Ship burial' }[t.custom];

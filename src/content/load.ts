@@ -170,6 +170,7 @@ export function buildContent(files: SourceFile[]): Content {
       shores: { grass: num(d, sh.grass, 'shores.grass'), sand: num(d, sh.sand, 'shores.sand'), seaBorder: sh.sea_border === true },
       start: { landRadius: num(d, st.land_radius, 'start.land_radius'), clearRadius: num(d, st.clear_radius, 'start.clear_radius') },
       forest: { cell: num(d, fo.cell, 'forest.cell'), threshold: num(d, fo.threshold, 'forest.threshold'), density: num(d, fo.density, 'forest.density'), scatter: num(d, fo.scatter, 'forest.scatter'), groveDensity: num(d, fo.grove_density, 'forest.grove_density') },
+      sea: isMap(f.sea) ? { reefs: num(d, f.sea.reefs, 'sea.reefs') } : null,
     };
   }
 
@@ -180,7 +181,7 @@ export function buildContent(files: SourceFile[]): Content {
     if (!isMap(d.data.tuning)) { problems.push(`${d.path}: needs a "tuning:" block`); return [d, {}]; }
     return [d, d.data.tuning];
   };
-  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people'), [ld2, lt2] = sys('settling'), [hd, ht] = sys('hardship'), [rd, rt] = sys('roads'), [fd, ft] = sys('farms');
+  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people'), [ld2, lt2] = sys('settling'), [hd, ht] = sys('hardship'), [rd, rt] = sys('roads'), [fd, ft] = sys('farms'), [ad, zt] = sys('sea');
   const sizes: Record<string, MapSize> = {};
   for (const [id, v] of Object.entries(isMap(mt.sizes) ? mt.sizes : {})) {
     const m = isMap(v) ? v : {};
@@ -209,6 +210,7 @@ export function buildContent(files: SourceFile[]): Content {
       tierTwo: Array.isArray(nt.tier_two) ? nt.tier_two.map(String) : [], tierThree: Array.isArray(nt.tier_three) ? nt.tier_three.map(String) : [],
       extrasEverySeconds: num(nd, nt.extras_every_seconds, 'tuning.extras_every_seconds'), extrasStock: num(nd, nt.extras_stock, 'tuning.extras_stock'), varietyBonus: num(nd, nt.variety_bonus, 'tuning.variety_bonus'),
     },
+    sea: (() => { const g = (k: string) => num(ad, zt[k], `tuning.${k}`); return { shallowTiles: g('shallow_tiles'), shallowSpeed: g('shallow_speed'), reefFromTiles: g('reef_from_tiles'), reefToTiles: g('reef_to_tiles'), reefCell: g('reef_cell'), sightTiles: g('sight_tiles'), lookEverySeconds: g('look_every_seconds'), exploreEverySeconds: g('explore_every_seconds') }; })(),
     settling: (() => { const g = (k: string) => num(ld2, lt2[k], `tuning.${k}`); return { checkEverySeconds: g('check_every_seconds'), minVillagers: g('min_villagers'), cooldownSeconds: g('cooldown_seconds'), partySize: g('party_size'), storesShare: g('stores_share'), maxSettlements: g('max_settlements') }; })(),
     people: (() => { const g = (k: string) => num(od, ot[k], `tuning.${k}`); return {
       adultSeconds: g('adult_seconds'), elderSeconds: g('elder_seconds'), lifespanSeconds: g('lifespan_seconds'), lifespanJitterSeconds: g('lifespan_jitter_seconds'), founderAgeMaxSeconds: g('founder_age_max_seconds'), birthEverySeconds: g('birth_every_seconds'),

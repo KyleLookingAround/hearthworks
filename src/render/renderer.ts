@@ -80,7 +80,7 @@ export class Renderer {
     };
     for (let y = cy * CHUNK; y < Math.min(w.h, (cy + 1) * CHUNK); y++) for (let x = cx * CHUNK; x < Math.min(w.w, (cx + 1) * CHUNK); x++) {
       const i = y * w.w + x, v = hash01(i), gr = w.ground[i];
-      g.fillStyle = !gr ? (near(x, y) ? '#2a6670' : '#1f5562') : gr === 1 ? (v < 0.5 ? '#d6c08a' : '#dcc794') : gr === 3 ? (v < 0.5 ? '#8c877c' : '#958f83') : v < 0.33 ? '#6c9850' : v < 0.66 ? '#719d54' : '#77a258';
+      g.fillStyle = !gr ? (w.sea[i] === 1 ? (v < 0.5 ? '#327a80' : '#347d82') : near(x, y) ? '#2a6670' : '#1f5562') : gr === 1 ? (v < 0.5 ? '#d6c08a' : '#dcc794') : gr === 3 ? (v < 0.5 ? '#8c877c' : '#958f83') : v < 0.33 ? '#6c9850' : v < 0.66 ? '#719d54' : '#77a258';
       g.fillRect(x * TS, y * TS, TS, TS);
       if (gr) {
         // hill shading: lit from the north-west, so slopes read as relief
@@ -100,6 +100,12 @@ export class Renderer {
         g.fillStyle = 'rgba(40,70,30,.22)';
         for (let k = 0; k < 3; k++) g.fillRect(x * TS + hash01(i * 7 + k) * 20 + 2, y * TS + hash01(i * 13 + k) * 20 + 2, 2, 2);
       }
+      // a reef: rocks just under the surface, with white water breaking over them
+      if (w.sea[i] === 2) {
+        g.fillStyle = '#2c6a70'; g.fillRect(x * TS, y * TS, TS, TS);
+        g.fillStyle = 'rgba(120,110,90,.55)'; for (let k = 0; k < 3; k++) g.fillRect(x * TS + 2 + hash01(i * 19 + k) * 16, y * TS + 2 + hash01(i * 23 + k) * 16, 4, 3);
+        g.fillStyle = 'rgba(240,245,240,.5)'; for (let k = 0; k < 2; k++) g.fillRect(x * TS + hash01(i * 29 + k) * 14, y * TS + 3 + hash01(i * 31 + k) * 16, 7, 1.5);
+      }
       if (!gr && near(x, y)) { g.fillStyle = 'rgba(236,240,226,.12)'; g.fillRect(x * TS + v * 12, y * TS + 6 + hash01(i + 3) * 10, 8, 1.5); }
     }
     this.chunks.set(key, cv);
@@ -115,7 +121,7 @@ export class Renderer {
       const g = ground.getContext('2d')!;
       for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) {
         const i = y * w.w + x, gr = w.ground[i];
-        g.fillStyle = !gr ? '#1f5562' : gr === 1 ? '#d8c38e' : gr === 3 ? '#8f8a7f' : '#719d54';
+        g.fillStyle = !gr ? (w.sea[i] === 1 ? '#327a80' : w.sea[i] === 2 ? '#6f9a98' : '#1f5562') : gr === 1 ? '#d8c38e' : gr === 3 ? '#8f8a7f' : '#719d54';
         g.fillRect(x * O, y * O, O, O);
       }
       this.overview = { ground, trees, at: -Infinity };

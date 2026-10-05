@@ -4,7 +4,7 @@ title: Settling
 description: A crowded settlement sends a founding party off to found a daughter town, with villagers, stores, the knowledge it practises and its custom.
 tags: [settlement, people, knowledge]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T00:46:23Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T02:15:02Z }
 tuning:
   check_every_seconds: 60
   min_villagers: 70
@@ -24,7 +24,7 @@ Every `check_every_seconds` a self-planning settlement with at least `min_villag
 
 # Where
 
-The party looks for a site as the world's first neighbours were placed ([settlement](/systems/settlement.md)): the whole starting layout on open grass, at least `neighbour_min_distance` from every settlement, with room to grow, scored for room and wood, reachable on foot from its mother unless the map allows neighbours across water.
+The party looks for a site as the world's first neighbours were placed ([settlement](/systems/settlement.md)): the whole starting layout on open grass, at least `neighbour_min_distance` from every settlement, with room to grow, scored for room and wood, reachable on foot from its mother unless the map allows neighbours across water. With charts on (every new game), only on islands its mother has charted ([the sea](/systems/sea.md)): a settlement with nowhere charted to go, but islands it has not charted, comes up with the dock and sends an explorer out first. A daughter keeps her mother's charts.
 
 # Across the water
 

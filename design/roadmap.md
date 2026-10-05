@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-04T13:08:53Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T02:33:02Z }
 ---
 
 # How to read this
@@ -287,9 +287,9 @@ Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to
 
 **Builds.** The archipelago map type (a concept in `design/maps/`, like the others), with shallows, reefs and open sea. Docks, shipyards, ships with crews, and sea routes. Explorers chart islands the settlements have not seen. Settlers, goods and knowledge cross water only by ship, and colonies are founded overseas.
 
-**Delivered, in part.** Colonies: a founding party must reach its site on foot or by boat; a settlement whose own land is full but sees land across the water comes up with the dock, builds one and sends its next party by sea, and the daughter is a colony. Kin (a daughter and her mother) favour each other in trade, so colonies trade back. The [Archipelago](/maps/archipelago.md) map type: many small islands. Saves go to version 14. **Phase 18 is done in part:** shallows and reefs, shipyards and crewed ships, sea routes and explorers charting unseen islands wait for a later phase; rowing boats carry everyone today.
+**Delivered, in part.** Colonies: a founding party must reach its site on foot or by boat; a settlement whose own land is full but sees land across the water comes up with the dock, builds one and sends its next party by sea, and the daughter is a colony. Kin (a daughter and her mother) favour each other in trade, so colonies trade back. The [Archipelago](/maps/archipelago.md) map type: many small islands. Saves go to version 14. **Phase 18 is done in part:** shallows and reefs, shipyards and crewed ships, sea routes and explorers charting unseen islands wait for a later phase; rowing boats carry everyone today. In the second pass, [the sea](/systems/sea.md) got a shape and a frontier: shallows along every shore (rowed slowly) and reefs out at sea (rowed round) on the sea maps; and charts, on in new games: a settlement knows only the islands on its horizon and those its boats have seen or been told of, a founding party goes only to charted land, and a settlement with a dock sends explorers to the nearest island it has not charted, sooner when it has nowhere charted left to settle. Saves go to version 27. Shipyards and crewed ships, and sea routes (with the Leagues, Phase 23), still wait; rowing boats carry everyone.
 
-**Gate 18 (stable)**, as proposed: Islands at size M, an hour: a colony founded on a second island unscripted, alive for 30 game minutes, with porters crossing between it and its mother.
+**Gate 18 (stable)**, as proposed: Islands at size M, an hour: a colony founded on a second island unscripted, alive for 30 game minutes, with porters crossing between it and its mother. A second part, with charts on: explorers come home with islands charted, and every colony is founded on charted land.
 
 **Gate 18 (proposed).** Islands map at size M: a colony is founded on a second island unscripted, survives 30 game minutes, and trades back to its mother town.
 

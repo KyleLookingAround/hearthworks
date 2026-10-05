@@ -21,6 +21,7 @@ import { chronicle, door, emit, learningAt, villagers } from './world.ts';
 import { reachable } from './path.ts';
 import { struckLately } from './hardship.ts';
 import { traffic } from './roads.ts';
+import { swapCharts } from './sea.ts';
 import type { Agent, BlueprintDef, Content, Knowledge, State, Town } from './types.ts';
 
 const K = (S: State) => S.content.tuning.knowledge;
@@ -241,6 +242,7 @@ export function arrive(S: State, a: Agent) {
   if (!v.back) {
     if (v.trade) barter(S, a);
     teach(S, to, v.carry, from.name);
+    swapCharts(S, a, to, from);
     v.carry = shareable(to); v.back = true;
     // whoever rowed over rows home from the shore they landed on
     const home = S.bmap.get(from.store);
@@ -248,7 +250,7 @@ export function arrive(S: State, a: Agent) {
     // a stranded porter's load still reaches home, as they do
     if (v.trade) homecoming(S, a);
     strand(S, a, from, to);
-  } else { teach(S, from, v.carry, to.name); bringFeast(S, from, to); if (v.trade) homecoming(S, a); }
+  } else { teach(S, from, v.carry, to.name); swapCharts(S, a, from, to); bringFeast(S, from, to); if (v.trade) homecoming(S, a); }
   a.visit = null; a.state = 'idle';
 }
 

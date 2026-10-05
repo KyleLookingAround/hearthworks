@@ -3,6 +3,7 @@ import { findPath, type PathOptions } from './path.ts';
 import { bp, distAB, door, inB, seasonOf, storesOnTrack } from './world.ts';
 import { blame, cancelTask, drop, findTask, pickup } from './logistics.ts';
 import { arrive } from './knowledge.ts';
+import { explorerArrives, sight } from './sea.ts';
 import { enoughInStore, foodChainOf } from './production.ts';
 import { capOf, crew, leave, places, unripe } from './farms.ts';
 import type { Agent, Building, State } from './types.ts';
@@ -78,7 +79,7 @@ export function updateAgent(S: State, a: Agent, dt: number) {
     const [tx, ty] = a.path[0], gx = tx + 0.5, gy = ty + 0.5;
     const i = Math.floor(a.y) * w.w + Math.floor(a.x);
     let sp = a.kind === 'bot' ? L.botSpeed : L.villagerSpeed;
-    if (!w.ground[i] && !w.bridge[i]) sp = L.boatSpeed;
+    if (!w.ground[i] && !w.bridge[i]) sp = w.sea[i] === 1 ? L.boatSpeed / w.shallowCost : L.boatSpeed;
     else if (w.bridge[i]) sp *= L.pathSpeed;
     else if (w.road[i]) sp *= w.road[i] === 3 ? L.stoneRoadSpeed : w.road[i] === 2 ? L.roadSpeed : L.pathSpeed;
     else if (w.ground[i] === 3) sp /= w.rockCost;
@@ -95,6 +96,7 @@ export function updateAgent(S: State, a: Agent, dt: number) {
       a.x = gx; a.y = gy; a.path.shift();
       const j = ty * w.w + tx;
       if (w.ground[j]) w.wear[j] += 1;
+      else if (S.charts && a.visit && !w.bridge[j]) sight(S, a, tx, ty);
       if (a.task) { a.task.steps++; if (w.road[j] >= 2) a.task.road++; else if (w.road[j] || w.bridge[j]) a.task.path++; }
     } else { a.x += (dx / d) * step; a.y += (dy / d) * step; }
   }
@@ -103,7 +105,7 @@ export function updateAgent(S: State, a: Agent, dt: number) {
     else if (a.state === 'toDst') drop(S, a);
     else if (a.state === 'toWork') a.state = 'working';
     else if (a.state === 'wander') a.state = 'idle';
-    else if (a.state === 'visit') arrive(S, a);
+    else if (a.state === 'visit') { if (a.visit?.explore) explorerArrives(S, a); else arrive(S, a); }
   }
 }
 

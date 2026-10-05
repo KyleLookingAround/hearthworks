@@ -236,3 +236,16 @@ test('a version 25 save is upgraded to version 26: its camps have had no gifts y
   runFor(S, 60);
   assert.equal(text(loadGame(content, text(S))), text(S));
 });
+
+test('a version 26 save is upgraded to version 27: its sea has no shallows or reefs, charts are off, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v26.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 26);
+  const S = loadGame(content, file);
+  assert.ok(S.world.docks > 0, 'the fixture has docks, so people row');
+  assert.ok(S.world.sea.every(v => v === 0));
+  assert.equal(S.charts, false);
+  assert.ok(S.towns.every(t => t.charted.length === 0 && !t.explore));
+  assert.equal(S.stats.voyages, 0);
+  runFor(S, 60);
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});
