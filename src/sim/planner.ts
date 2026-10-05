@@ -248,8 +248,11 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     const kids = people.filter(a => a.role === 'child').length;
     if ('library' in town.knows && !has('library') && Object.values(town.knows).some(k => k.by !== 'founders')) shortages.push({ key: 'learning', learn: 'library', sev: K.learningWeight, why: 'what it has learned should be kept' });
     if (!has('school') && kids >= K.schoolChildren) shortages.push({ key: 'learning', learn: 'school', sev: K.learningWeight, why: `${kids} children have no school` });
-    // a university in a village of `university_villagers` that keeps a library, or in any town: learning builds on learning
-    if ('university' in town.knows && !has('university') && (formOf(S, town) === 'town' || (formOf(S, town) === 'village' && has('library') && pop >= K.universityVillagers))) shortages.push({ key: 'learning', learn: 'university', sev: K.learningWeight, why: 'scholars would find new ways sooner' });
+    // a university in a village of `university_villagers` that keeps a library and makes everything a university is built of
+    // (it does not open a quarry and a mason's yard for one), or in any town: learning builds on learning
+    const U = S.content.blueprints.university, makes = new Set(mine.filter(b => !b.site).flatMap(b => Object.keys(bp(S, b).output)));
+    const village = formOf(S, town) === 'village' && has('library') && pop >= K.universityVillagers && !!U && Object.keys(U.cost).every(g => makes.has(g));
+    if ('university' in town.knows && !has('university') && (formOf(S, town) === 'town' || village)) shortages.push({ key: 'learning', learn: 'university', sev: K.learningWeight, why: 'scholars would find new ways sooner' });
     // a printing house beside its library in a village or town that knows one: books make readers of the grown
     if (Object.keys(town.knows).some(id => S.content.blueprints[id]?.learning === 'press') && !has('press') && has('library') && formOf(S, town) !== 'hamlet') shortages.push({ key: 'learning', learn: 'press', sev: K.learningWeight, why: 'books would let everyone read' });
   }

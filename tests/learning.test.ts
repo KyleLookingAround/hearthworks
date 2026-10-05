@@ -150,6 +150,14 @@ test('what waits on a university: each idea only scholars find, and what it wait
   assert.deepEqual(scholarly(S, t).find(x => x.B.id === 'printing_house')!.missing, ['library']);
 });
 
+test('ideas only scholars find do not count towards inquiry: a village cannot think of them', () => {
+  const S = createState(content, 1847, { planner: true, people: true });
+  const t = S.towns[0];
+  t.planner.wants.bread = 1;
+  // bread answers only the Windmill (a later age) and the Seed Garden (scholars'): no inquiry from it
+  assert.equal(pressure(S, t, 'inquiry'), 0);
+});
+
 test('the advisor names an idea only scholars find, and what the settlement lacks to find it', () => {
   const S = createState(content, 1847, { planner: true, people: true });
   const t = S.towns[0];
