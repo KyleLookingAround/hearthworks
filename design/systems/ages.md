@@ -4,7 +4,7 @@ title: Ages
 description: Eras group discoveries; a settlement's age is the latest era whose discoveries it mostly knows, and it falls back an age when it forgets them.
 tags: [ages, knowledge]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T02:21:49Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T03:56:02Z }
 ---
 
 # Eras
@@ -17,7 +17,7 @@ A settlement's age is the latest era it has reached together with every era befo
 
 # What an age unlocks
 
-An era may list blueprints of its own (`unlocks`): a settlement thinks of one only once it has reached that age, though a neighbour that knows it can teach it to anyone. The [Age of Clockwork](/eras/clockwork.md) unlocks the [Windmill](/blueprints/windmill.md). Discoveries already in the game are not locked behind ages: a world that never needs a bridge or a dock would never reach the age that holds them ([log](/log.md), 2026-10-05).
+An era may list blueprints of its own (`unlocks`): a settlement thinks of one only once it has reached that age, though a neighbour that knows it can teach it to anyone. The [Age of Clockwork](/eras/clockwork.md) unlocks the [Windmill](/blueprints/windmill.md) and the [Conveyor](/blueprints/conveyor.md), the machine tier after courier bots ([conveyors](/systems/conveyors.md)). Discoveries already in the game are not locked behind ages: a world that never needs a bridge or a dock would never reach the age that holds them ([log](/log.md), 2026-10-05).
 
 # Falling back
 
@@ -25,4 +25,4 @@ Knowledge not used is forgotten unless a [library](/blueprints/library.md) keeps
 
 # Not yet
 
-Eras do not yet unlock more than the windmill, and the machine tiers after courier bots (conveyors, rail) and the eras of iron, mills and steam come later.
+Eras do not yet unlock more than the windmill and the conveyor; rail, the machine tier after belts, and the eras of iron, mills and steam come later.

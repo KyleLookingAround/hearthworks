@@ -61,6 +61,8 @@ export interface BlueprintDef {
   road: boolean;
   /** Paves a road in stone (with `road`): planners repave their busiest roads with it from stone they can spare. */
   stone: boolean;
+  /** Lays a conveyor belt rather than paving (with `paves`): goods ride it between the buildings whose doors open beside it. */
+  belt: boolean;
   /** Built on the shore: its door opens onto water, and boats are launched from it. */
   shore: boolean;
   /** A crop: works from spring to autumn and rests in winter, when seasons are on. */
@@ -151,6 +153,8 @@ export interface MapDef {
   shores: { grass: number; sand: number; seaBorder: boolean };
   start: { landRadius: number; clearRadius: number };
   forest: { cell: number; threshold: number; density: number; scatter: number; groveDensity: number };
+  /** Sea maps: shallows along every shore and reefs out at sea, on about `reefs` of the water where they may lie. Null for none. */
+  sea: { reefs: number } | null;
 }
 
 /** The world a game was made with. */
@@ -167,12 +171,14 @@ export interface Tuning {
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
   settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; crowdedMinVillagers: number; storesShare: number; maxSettlements: number };
+  sea: { shallowTiles: number; shallowSpeed: number; reefFromTiles: number; reefToTiles: number; reefCell: number; sightTiles: number; lookEverySeconds: number; exploreEverySeconds: number };
   people: {
     adultSeconds: number; elderSeconds: number; lifespanSeconds: number; lifespanJitterSeconds: number; founderAgeMaxSeconds: number; birthEverySeconds: number;
     practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
     changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number; feastSeconds: number; feastMood: number; harvestBread: number; fireLogs: number; woodForFire: number; feastSpread: number; names: Record<Naming, string[]>;
   };
   trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number };
+  conveyors: { speed: number; carry: number; gapSeconds: number; reach: number; roughCost: number; lookEverySeconds: number; villagersPerBelt: number; minTiles: number; maxTiles: number; minStops: number };
   farms: { diet: ItemId[]; dietShare: number; dietStock: number; dietSeconds: number; dietFull: number; dietBonus: number; dietWeight: number; growRoomWeight: number };
   seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[] };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
@@ -350,7 +356,7 @@ export type Naming = 'sea' | 'trees' | 'fields';
 /** The feasts a settlement may keep: a harvest festival as autumn comes, a fire as winter comes. */
 export type Feast = 'harvest' | 'midwinter';
 
-export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge>; /** rowed there, so has a boat to row home in */ boat: boolean; /** a porter's errand: the good taken and the good wanted back */ trade?: { give: ItemId; want: ItemId } }
+export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge>; /** rowed there, so has a boat to row home in */ boat: boolean; /** a porter's errand: the good taken and the good wanted back */ trade?: { give: ItemId; want: ItemId }; /** with charts on: the islands seen from the boat on the way, to chart at the end of the leg */ seen?: number[]; /** an explorer's voyage: the shore tile they row for */ explore?: [number, number] }
 
 /** A settlement's trade: when it last sent a porter, smoothed imports per second, and running totals. */
 export interface Ledger { t: number; imports: Stock; made: Stock; exported: Stock; imported: Stock; /** when it first chose to trade for a good rather than make it */ waits: Stock }
@@ -427,8 +433,16 @@ export interface Town {
   /** Seconds since its planner last looked for a road to lay, and the roads it laid: [x0, y0, x1, y1, when]. */
   roadT: number;
   roads: number[][];
+  /** Seconds since its planner last looked for a conveyor to lay, and the belts it laid: [x0, y0, x1, y1, when]. */
+  beltT: number;
+  belts: number[][];
   sentAt: number;
   settleT: number;
+  /** With charts on: the islands it has charted (ids from `islesOf`), seconds since it last looked out from its shores, whether it wants an explorer out, and when it last sent one. */
+  charted: number[];
+  lookT: number;
+  explore: boolean;
+  voyageAt: number;
 }
 
 export interface World {
@@ -450,6 +464,10 @@ export interface World {
   door: Uint8Array;
   /** how many doors open onto this tile; placement keeps these tiles open */
   front: Uint8Array;
+  /** the sea on sea maps: 0 open water (or land), 1 shallows (rowed slowly), 2 a reef (never rowed over) */
+  sea: Uint8Array;
+  /** cost of a tile of shallows relative to open water */
+  shallowCost: number;
   /** 1 on a dock's door: where boats are launched */
   dock: Uint8Array;
   /** how many docks stand (or are being built); with none, nobody rows */
@@ -469,6 +487,10 @@ export interface World {
   /** how many road tiles are laid */
   roads: number;
   forestCost: number;
+  /** 1 where a conveyor belt runs (over open ground, a path or a road: people step across it) */
+  belt: Uint8Array;
+  /** how many belt tiles are laid */
+  belts: number;
   /** footsteps on each tile, fading over time: where people actually walk */
   wear: Float32Array;
   /** the player's zones: 0 none, then 1 + index in ZONES (homes, farms, workshops, no-build) */
@@ -539,8 +561,18 @@ export interface Stats {
   /** Roads: strips laid and their tiles, buildings they cut through and people moved for them; deliveries mostly along roads and mostly along paths (time and straight-line tiles). */
   roadsLaid: number; roadTiles: number; roadCut: number; roadMoved: number;
   roadDeliveries: number; roadDeliverySeconds: number; roadDeliveryTiles: number; pathDeliveries: number; pathDeliverySeconds: number; pathDeliveryTiles: number;
+  /** Conveyors: belts laid and their tiles; loads that rode them, the goods in them and their seconds on the belt. */
+  beltsLaid: number; beltTiles: number; beltLoads: number; beltGoods: number; beltSeconds: number;
   fires: number; burnt: number; floods: number; outbreaks: number; raids: number; repelled: number; looted: number; sickDeaths: number; starved: number; camps: number; gifts: number; campsSettled: number; barbariansSettled: number;
+  /** With charts on: explorers' voyages, and islands charted by settlements (each settlement counts its own). */
+  voyages: number; charted: number;
 }
+
+/**
+ * A load riding a conveyor belt from one building to another: it left `src` (by the belt tile `from`) at `at`
+ * and comes off at `dst` (by the tile `to`) `secs` later. Buildings are kept as ids: a load outlives neither end.
+ */
+export interface Parcel { item: ItemId; n: number; src: number; dst: number; from: number; to: number; at: number; secs: number }
 
 export interface State {
   content: Content;
@@ -574,6 +606,8 @@ export interface State {
   carts: boolean;
   /** Settling on: crowded settlements send founding parties to found daughter towns. */
   settlers: boolean;
+  /** Charts on: a settlement knows only the islands it has seen, and settles only on charted land; explorers chart the rest. */
+  charts: boolean;
   /** Newcomers arrive (off to grow by births alone). */
   newcomers: boolean;
   /** Separate stream for births, lifespans and the like, so people never shift the rest of the world. */
@@ -592,6 +626,8 @@ export interface State {
   chronicle: Chronicle[];
   /** Separate stream for discovery, so knowledge never shifts the main simulation's random numbers. */
   krng: Rng;
+  /** Loads riding the conveyor belts. */
+  parcels: Parcel[];
   /** Farms that grow on: farms grow fields and hands, and homes eat a varied diet of the foods they grow. */
   farms: boolean;
 }

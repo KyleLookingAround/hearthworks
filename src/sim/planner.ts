@@ -18,6 +18,7 @@ import { reserve } from './agents.ts';
 import { enoughInStore, foodChainOf, plentyInStore } from './production.ts';
 import { atRisk, clean, guarded, struckLately, unguarded } from './hardship.ts';
 import { planRoads } from './roads.ts';
+import { planBelts } from './belts.ts';
 import { crew, growFarm, maxSize, places, sizeName, toGrow, unripe } from './farms.ts';
 import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
 
@@ -1002,6 +1003,8 @@ function planTown(S: State, town: Town, dt: number) {
   if (formOf(S, town) === 'town') layStreets(S, town);
   // a village or town that knows the road lays one now and then
   if (planRoads(S, town, T(S).intervalSeconds / town.levers.pace)) return;
+  // and one that knows the conveyor lays a belt from a storage yard's door now and then
+  if (planBelts(S, town, T(S).intervalSeconds / town.levers.pace)) return;
 
   const mine = Q.site !== null ? S.bmap.get(Q.site) : undefined;
   // a site waits its turn, unless it has waited `site_patience_seconds` for a good nobody has: then plan around it;

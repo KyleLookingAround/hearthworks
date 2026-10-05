@@ -19,7 +19,7 @@
 * [Gate 15: learning](15-learning.md) - A library keeps a craft its settlement would otherwise forget, a university brings a discovery sooner on at least five of six seeds, some discoveries come only with a university, and readers learn from libraries without a visitor.
 * [Gate 16: ways to move](16-ways-to-move.md) - On the largest landmass a settlement thinks of carts itself, and long hauls go largely by cart, each good in well under the time on foot.
 * [Gate 17: new settlements](17-new-settlements.md) - On the largest landmass one settlement becomes at least four, unscripted, each fed and growing.
-* [Gate 18: the sea](18-the-sea.md) - On an islands map a settlement founds a colony on another island unscripted; the colony lasts thirty minutes and trades back with its mother town.
+* [Gate 18: the sea](18-the-sea.md) - On an islands map a settlement founds a colony on another island unscripted; the colony lasts thirty minutes and trades back with its mother town. With charts on, explorers chart unseen islands and colonies go only to charted land.
 * [Gate 19: ages](19-ages.md) - An age turns across at least half the settlements unscripted, and an isolated settlement without a library falls back an age when it stops practising its crafts.
 * [Gate 20: hardship](20-hardship.md) - A planned town weathers fire, flood, sickness and barbarian raids through three winters losing at most a tenth of its people, and rationing brings a town through a lean winter that costs more people without it.
 * [Gate 21: paths and roads](21-paths-and-roads.md) (deprecated) - A town on the standard map lays straight roads through its centre unscripted, nobody is left homeless by them, and deliveries along them are faster than along paths.

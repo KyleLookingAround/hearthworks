@@ -53,9 +53,12 @@ export function sendParty(S: State, mother: Town): Town | null {
   if (pop.length < (full ? Z(S).crowdedMinVillagers : Z(S).minVillagers) || S.towns.length >= Z(S).maxSettlements) return null;
   // a site the party can reach, on foot or by boat from a dock; with none, but land across the water, a crowded
   // settlement feels the need to cross it (and so comes up with the dock and builds one) before it is ready to send anyone
-  const site = neighbourSite(S, mother, true);
+  // (with charts on, only on charted land: a settlement that knows of none, but has not charted every island,
+  // wants to know what lies over the sea, so it comes up with the dock and sends an explorer out from it)
+  const site = neighbourSite(S, mother, true, S.charts);
   if (!site) {
-    if (neighbourSite(S, mother, false)) mother.cut = 1;
+    if (neighbourSite(S, mother, false, S.charts)) mother.cut = 1;
+    else if (S.charts && neighbourSite(S, mother, false)) { mother.cut = 1; mother.explore = true; }
     return null;
   }
   // nobody sets out from a hungry settlement, and with seasons on parties travel in spring and summer, as newcomers do,
@@ -94,6 +97,7 @@ export function sendParty(S: State, mother: Town): Town | null {
   d.custom = mother.custom;
   d.feasts = [...mother.feasts];
   d.naming = mother.naming;
+  d.charted = [...mother.charted];
   d.mother = mother.id;
   d.levers = { priority: { ...mother.levers.priority }, encourage: null, pace: mother.levers.pace };
   d.laws = { ...mother.laws };

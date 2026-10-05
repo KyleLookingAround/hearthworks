@@ -6,11 +6,13 @@ import { updateKnowledge } from './knowledge.ts';
 import { updateTrade } from './trade.ts';
 import { feastMood, holdFeasts, newcomer, riteMood, updatePeople } from './people.ts';
 import { updateSettling } from './settle.ts';
+import { updateSea } from './sea.ts';
 import { moveRaids, sickShare, updateHardship } from './hardship.ts';
 import { bp, chronicle, door, emit, foodsOf, saplings, seasonOf, storesOnTrack, villagers } from './world.ts';
 import type { State } from './types.ts';
 import { surroundings } from './surroundings.ts';
 import { closeBoard, openBoard } from './logistics.ts';
+import { runBelts } from './belts.ts';
 import { dietLift } from './farms.ts';
 
 /**
@@ -96,12 +98,13 @@ export function tick(S: State, dt: number) {
   }
   for (const b of [...S.buildings]) if (!b.dead) updateBuilding(S, b, dt);
   openBoard(S);
+  runBelts(S);
   for (const a of [...S.agents]) if (!a.dead) updateAgent(S, a, dt);
   closeBoard();
   moveRaids(S, dt);
   S.secT += dt;
   if (S.secT >= 1) {
-    S.secT -= 1; assignWorkers(S); computeMood(S); updateKnowledge(S, 1); updateTrade(S, 1); if (S.people) updatePeople(S, 1); updateSettling(S, 1); updateHardship(S, 1);
+    S.secT -= 1; assignWorkers(S); computeMood(S); updateKnowledge(S, 1); updateTrade(S, 1); if (S.people) updatePeople(S, 1); updateSea(S, 1); updateSettling(S, 1); updateHardship(S, 1);
     if (S.seasons && Math.floor(S.t) % Math.round(S.content.tuning.seasons.yearSeconds / 4) === 0 && Math.floor(S.t) > 0) {
       const s = seasonOf(S)!;
       emit(S, s === 'winter' ? 'bad' : 'info', s === 'winter' ? 'Winter has come: the fields rest and homes burn firewood' : `${s[0].toUpperCase()}${s.slice(1)} has come`);

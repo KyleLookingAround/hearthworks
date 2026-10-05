@@ -8,7 +8,7 @@ export function clear(S: State, x: number, y: number, w: number, h: number, path
   for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) {
     if (k < 0 || j < 0 || k >= W.w || j >= W.h) return false;
     const i = j * W.w + k;
-    if (W.bgrid[i] !== -1 || (W.road[i] && !(paths && W.road[i] === 1))) return false;
+    if (W.bgrid[i] !== -1 || W.belt[i] || (W.road[i] && !(paths && W.road[i] === 1))) return false;
   }
   return true;
 }

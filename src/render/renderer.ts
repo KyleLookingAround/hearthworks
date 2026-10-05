@@ -3,6 +3,7 @@ import { canPlace, ctr, hash01, type Agent, type Building, type State } from '..
 
 import { surroundings } from '../sim/surroundings.ts';
 import { dims, door, FACING, seasonOf } from '../sim/world.ts';
+import { beltRoute } from '../sim/belts.ts';
 
 export const TS = 24;
 /** Zone tints, in ZONES order: homes, farms, workshops, no-build. */
@@ -80,7 +81,7 @@ export class Renderer {
     };
     for (let y = cy * CHUNK; y < Math.min(w.h, (cy + 1) * CHUNK); y++) for (let x = cx * CHUNK; x < Math.min(w.w, (cx + 1) * CHUNK); x++) {
       const i = y * w.w + x, v = hash01(i), gr = w.ground[i];
-      g.fillStyle = !gr ? (near(x, y) ? '#2a6670' : '#1f5562') : gr === 1 ? (v < 0.5 ? '#d6c08a' : '#dcc794') : gr === 3 ? (v < 0.5 ? '#8c877c' : '#958f83') : v < 0.33 ? '#6c9850' : v < 0.66 ? '#719d54' : '#77a258';
+      g.fillStyle = !gr ? (w.sea[i] === 1 ? (v < 0.5 ? '#327a80' : '#347d82') : near(x, y) ? '#2a6670' : '#1f5562') : gr === 1 ? (v < 0.5 ? '#d6c08a' : '#dcc794') : gr === 3 ? (v < 0.5 ? '#8c877c' : '#958f83') : v < 0.33 ? '#6c9850' : v < 0.66 ? '#719d54' : '#77a258';
       g.fillRect(x * TS, y * TS, TS, TS);
       if (gr) {
         // hill shading: lit from the north-west, so slopes read as relief
@@ -100,6 +101,12 @@ export class Renderer {
         g.fillStyle = 'rgba(40,70,30,.22)';
         for (let k = 0; k < 3; k++) g.fillRect(x * TS + hash01(i * 7 + k) * 20 + 2, y * TS + hash01(i * 13 + k) * 20 + 2, 2, 2);
       }
+      // a reef: rocks just under the surface, with white water breaking over them
+      if (w.sea[i] === 2) {
+        g.fillStyle = '#2c6a70'; g.fillRect(x * TS, y * TS, TS, TS);
+        g.fillStyle = 'rgba(120,110,90,.55)'; for (let k = 0; k < 3; k++) g.fillRect(x * TS + 2 + hash01(i * 19 + k) * 16, y * TS + 2 + hash01(i * 23 + k) * 16, 4, 3);
+        g.fillStyle = 'rgba(240,245,240,.5)'; for (let k = 0; k < 2; k++) g.fillRect(x * TS + hash01(i * 29 + k) * 14, y * TS + 3 + hash01(i * 31 + k) * 16, 7, 1.5);
+      }
       if (!gr && near(x, y)) { g.fillStyle = 'rgba(236,240,226,.12)'; g.fillRect(x * TS + v * 12, y * TS + 6 + hash01(i + 3) * 10, 8, 1.5); }
     }
     this.chunks.set(key, cv);
@@ -115,7 +122,7 @@ export class Renderer {
       const g = ground.getContext('2d')!;
       for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) {
         const i = y * w.w + x, gr = w.ground[i];
-        g.fillStyle = !gr ? '#1f5562' : gr === 1 ? '#d8c38e' : gr === 3 ? '#8f8a7f' : '#719d54';
+        g.fillStyle = !gr ? (w.sea[i] === 1 ? '#327a80' : w.sea[i] === 2 ? '#6f9a98' : '#1f5562') : gr === 1 ? '#d8c38e' : gr === 3 ? '#8f8a7f' : '#719d54';
         g.fillRect(x * O, y * O, O, O);
       }
       this.overview = { ground, trees, at: -Infinity };
@@ -184,6 +191,7 @@ export class Renderer {
       c.fillStyle = '#a58b5f'; c.fillRect(x * TS, y * TS, TS, TS);
       c.fillStyle = '#c2a877'; c.fillRect(x * TS + 3, y * TS + 3, TS - 6, TS - 6);
     }
+    if (w.belts) this.belts(S, x0, x1, y0, y1, far);
     const grow = S.content.tuning.map.treeGrowSeconds;
     if (!far) for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const i = y * w.w + x, t = w.tree[i];
@@ -201,6 +209,7 @@ export class Renderer {
     if (season === 'winter' || season === 'autumn') { c.fillStyle = season === 'winter' ? 'rgba(235,242,248,.32)' : 'rgba(210,140,60,.10)'; c.fillRect(x0 * TS, y0 * TS, (x1 - x0 + 1) * TS, (y1 - y0 + 1) * TS); }
     this.zones(S, x0, x1, y0, y1);
     for (const b of [...S.buildings].sort((p, q) => p.y - q.y)) this.building(S, b);
+    if (S.parcels.length && !far) this.parcels(S);
     if (S.hardship) this.hardship(S);
     if (v.overlay !== 'none') this.overlay(S, v.overlay, x0, x1, y0, y1);
 
@@ -280,6 +289,44 @@ export class Renderer {
         c.fillStyle = '#b03a2e'; c.beginPath(); c.arc(r.x * TS + ox, r.y * TS + oy, 3.2, 0, 7); c.fill();
         c.strokeStyle = '#1b1210'; c.lineWidth = 1; c.stroke();
       }
+    }
+  }
+
+  /** Conveyor belts: a dark band joined to the belt tiles beside it, with rollers across it. */
+  private belts(S: State, x0: number, x1: number, y0: number, y1: number, far: boolean) {
+    const c = this.ctx, w = S.world, B = TS * 0.4;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const i = y * w.w + x;
+      if (!w.belt[i]) continue;
+      const cx = x * TS + TS / 2, cy = y * TS + TS / 2;
+      const l = x > 0 && w.belt[i - 1], r = x < w.w - 1 && w.belt[i + 1], u = y > 0 && w.belt[i - w.w], d = y < w.h - 1 && w.belt[i + w.w];
+      c.fillStyle = '#2f2823';
+      c.fillRect(cx - B / 2 - 1, cy - B / 2 - 1, B + 2, B + 2);
+      if (l) c.fillRect(x * TS, cy - B / 2 - 1, TS / 2, B + 2);
+      if (r) c.fillRect(cx, cy - B / 2 - 1, TS / 2, B + 2);
+      if (u) c.fillRect(cx - B / 2 - 1, y * TS, B + 2, TS / 2);
+      if (d) c.fillRect(cx - B / 2 - 1, cy, B + 2, TS / 2);
+      if (far) continue;
+      // rollers across the way the belt runs
+      c.fillStyle = '#6d5f50';
+      const h = l || r, v = u || d;
+      for (let k = 0; k < 4; k++) {
+        const o = (k + 0.5) * TS / 4;
+        if (h && !v) c.fillRect(x * TS + o - 0.6, cy - B / 2, 1.2, B);
+        else if (v && !h) c.fillRect(cx - B / 2, y * TS + o - 0.6, B, 1.2);
+      }
+    }
+  }
+
+  /** Loads riding the belts: a crate the colour of its good, partway along its way. */
+  private parcels(S: State) {
+    const c = this.ctx, w = S.world;
+    for (const p of S.parcels) {
+      const route = beltRoute(w, p.from, p.to), f = Math.max(0, Math.min(1, (S.t - p.at) / p.secs)) * (route.length - 1);
+      const k = Math.min(route.length - 1, Math.floor(f)), a = route[k], b = route[Math.min(route.length - 1, k + 1)], t = f - k;
+      const x = ((a % w.w) * (1 - t) + (b % w.w) * t + 0.5) * TS, y = (Math.floor(a / w.w) * (1 - t) + Math.floor(b / w.w) * t + 0.5) * TS;
+      c.fillStyle = '#1d1712'; c.fillRect(x - 3.5, y - 3.5, 7, 7);
+      c.fillStyle = S.content.goods[p.item]?.color ?? '#d8c7a0'; c.fillRect(x - 2.5, y - 2.5, 5, 5);
     }
   }
 

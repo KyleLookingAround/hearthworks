@@ -1,5 +1,6 @@
 /**
- * A* on the tile grid: 8 directions, roads and paths cheap, grown trees slow, buildings blocked, water only by boat.
+ * A* on the tile grid: 8 directions, roads and paths cheap, grown trees slow, buildings blocked, water only by boat
+ * (slowly through shallows, never over a reef).
  * A building is entered only by its door; someone standing inside one (caught by a new
  * footprint) may walk out through that building.
  */
@@ -71,7 +72,8 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
     const ng = g[cur] + c;
     if (seen[ni] !== gen || ng < g[ni]) { seen[ni] = gen; closed[ni] = 0; g[ni] = ng; came[ni] = cur; push(ni, ng + h(ni)); }
   };
-  const isWater = (i: number) => w.ground[i] === 0;
+  // reefs are never rowed over; shallows are rowed slowly
+  const isWater = (i: number) => w.ground[i] === 0 && w.sea[i] !== 2, shallow = water * w.shallowCost;
   // node = tile on foot, or tile + N afloat; someone out on open water (their trip cut short mid-row) is afloat
   const start = !w.ground[s] && !w.bridge[s] ? s + N : s;
   g[start] = 0; seen[start] = gen; came[start] = -1; push(start, h(start));
@@ -98,7 +100,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
         if (isWater(ni)) {
           // row on, without cutting a corner of land
           if (diag && (!isWater(cy * W + nx) || !isWater(ny * W + cx))) continue;
-          relax(cur, ni + N, water * m);
+          relax(cur, ni + N, (w.sea[ni] === 1 ? shallow : water) * m);
         } else if (!diag) {
           // land on any shore that can be stood on
           const c = cost(w, ni, inside);
@@ -108,7 +110,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
       }
       if (rowing && isWater(ni) && !w.bridge[ni]) {
         // launch from a dock's door, or anywhere if a boat is already with us
-        if (!diag && (w.dock[t] || opts.launchAnywhere)) relax(cur, ni + N, water);
+        if (!diag && (w.dock[t] || opts.launchAnywhere)) relax(cur, ni + N, w.sea[ni] === 1 ? shallow : water);
         continue;
       }
       const c = cost(w, ni, inside);

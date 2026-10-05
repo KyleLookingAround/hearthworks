@@ -114,7 +114,7 @@ export function collectRequests(S: State): Request[] {
 }
 
 /** How many more of a good a store takes: none if it does not keep that kind, else the room left (no limit: plenty). */
-function roomFor(S: State, st: Building, item: ItemId): number {
+export function roomFor(S: State, st: Building, item: ItemId): number {
   const B = bp(S, st);
   if (B.keeps && !B.keeps.includes(item)) return 0;
   if (!B.capacity) return Infinity;
@@ -158,7 +158,7 @@ export function closeBoard() { open = null; board = null; }
 /** Something the requests turn on changed: gather them again at the next look. */
 export function staleBoard() { board = null; }
 
-function requestsNow(S: State): Request[] {
+export function requestsNow(S: State): Request[] {
   if (open !== S) return collectRequests(S);
   if (board && board.S === S && board.t === S.t) return board.reqs;
   const reqs = collectRequests(S);

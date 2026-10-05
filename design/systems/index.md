@@ -3,6 +3,7 @@
 # Systems
 
 * [Ages](ages.md) - Eras group discoveries; a settlement's age is the latest era whose discoveries it mostly knows, and it falls back an age when it forgets them.
+* [Conveyors](conveyors.md) (draft) - Belts laid along the lanes from a storage yard's door; goods ride them between the buildings beside them with no hands.
 * [Farms that grow](farms.md) - Farms, gardens, orchards and pastures grow in steps, each adding fields and a hand; homes eat a varied diet of the foods they grow.
 * [Hardship](hardship.md) (draft) - Fire, flood, sickness and barbarian raids, the counters a settlement finds for each, gifts that bring barbarians in peace, and the steward's laws for hard times.
 * [Knowledge](knowledge.md) - Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
@@ -14,6 +15,7 @@
 * [Production and construction](production.md) - Construction sites and their priority queue, worker assignment and recipe cycles.
 * [Roads](roads.md) (draft) - Paths are worn where people walk; roads are planned as long straight strips that cut through what stands, and the town is then built along them.
 * [Saves](saves.md) - The whole game as versioned JSON; autosaved in the browser, downloadable, and loaded to play on exactly as if it never stopped.
+* [The sea](sea.md) (draft) - Shallows along every shore and reefs out at sea on the sea maps, and charts - a settlement knows only the islands it has seen, settles only on charted land, and sends explorers out for the rest.
 * [Seasons](seasons.md) - A year of spring, summer, autumn and winter; crops rest in winter, homes burn firewood, and settlements store food and fuel ahead.
 * [Starting settlement](settlement.md) - What a new game begins with, per settlement — a storage yard, two houses, a road and five villagers.
 * [Settling](settling.md) - A crowded settlement, or one whose land is full, sends a founding party off to found a daughter town, with villagers, stores, the knowledge it practises and its custom.
