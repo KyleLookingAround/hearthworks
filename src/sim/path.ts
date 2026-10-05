@@ -9,6 +9,8 @@ interface Buffers { g: Float32Array; came: Int32Array; seen: Uint32Array; closed
 const buffers = new WeakMap<World, Buffers>();
 
 const DIRS: [number, number, number][] = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
+// the same, flat, for the search's inner loop
+const DX = DIRS.map(d => d[0]), DY = DIRS.map(d => d[1]), DM = DIRS.map(d => d[2]);
 
 function cost(w: World, i: number, inside: number): number {
   if (!w.ground[i]) return w.bridge[i] ? w.pathCost : Infinity;
@@ -45,7 +47,7 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   const best = w.stone > 0 ? Math.min(w.stoneCost, w.roadCost, w.pathCost) : w.roads > 0 ? Math.min(w.roadCost, w.pathCost) : w.pathCost, unit = rowing ? Math.min(best, water) : best;
   const h = (n: number) => { const i = n % N, dx = Math.abs(i % W - gx), dy = Math.abs(((i / W) | 0) - gy); return unit * (Math.max(dx, dy) + 0.414 * Math.min(dx, dy)); };
   const hi: number[] = [], hf: number[] = [];
-  const swap = (a: number, c: number) => { [hi[a], hi[c]] = [hi[c], hi[a]]; [hf[a], hf[c]] = [hf[c], hf[a]]; };
+  const swap = (a: number, c: number) => { const i = hi[a], f = hf[a]; hi[a] = hi[c]; hf[a] = hf[c]; hi[c] = i; hf[c] = f; };
   const push = (i: number, f: number) => {
     let n = hi.length; hi.push(i); hf.push(f);
     while (n > 0) { const p = (n - 1) >> 1; if (hf[p] <= hf[n]) break; swap(p, n); n = p; }
@@ -87,7 +89,8 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
       return out.reverse();
     }
     const afloat = cur >= N, t = cur % N, cx = t % W, cy = (t / W) | 0;
-    for (const [dx, dy, m] of DIRS) {
+    for (let k = 0; k < 8; k++) {
+      const dx = DX[k], dy = DY[k], m = DM[k];
       const nx = cx + dx, ny = cy + dy;
       if (!inB(nx, ny)) continue;
       const ni = ny * W + nx, diag = dx !== 0 && dy !== 0;

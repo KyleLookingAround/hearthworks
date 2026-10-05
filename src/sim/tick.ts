@@ -10,6 +10,7 @@ import { moveRaids, sickShare, updateHardship } from './hardship.ts';
 import { bp, chronicle, door, emit, foodsOf, saplings, seasonOf, storesOnTrack, villagers } from './world.ts';
 import type { State } from './types.ts';
 import { surroundings } from './surroundings.ts';
+import { closeBoard, openBoard } from './logistics.ts';
 import { dietLift } from './farms.ts';
 
 /**
@@ -94,7 +95,9 @@ export function tick(S: State, dt: number) {
     if (w.grow[i] >= grow) { w.tree[i] = 2; young.delete(i); }
   }
   for (const b of [...S.buildings]) if (!b.dead) updateBuilding(S, b, dt);
+  openBoard(S);
   for (const a of [...S.agents]) if (!a.dead) updateAgent(S, a, dt);
+  closeBoard();
   moveRaids(S, dt);
   S.secT += dt;
   if (S.secT >= 1) {

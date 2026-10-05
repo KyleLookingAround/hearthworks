@@ -1,7 +1,7 @@
 import { rand } from './rng.ts';
 import { findPath, type PathOptions } from './path.ts';
 import { bp, distAB, door, inB, seasonOf, storesOnTrack } from './world.ts';
-import { blame, cancelTask, drop, findTask, pickup } from './logistics.ts';
+import { blame, cancelTask, drop, findTask, pickup, staleBoard } from './logistics.ts';
 import { arrive } from './knowledge.ts';
 import { enoughInStore, foodChainOf } from './production.ts';
 import { capOf, crew, leave, places, unripe } from './farms.ts';
@@ -99,11 +99,12 @@ export function updateAgent(S: State, a: Agent, dt: number) {
     } else { a.x += (dx / d) * step; a.y += (dy / d) * step; }
   }
   if (!a.path.length) {
-    if (a.state === 'toSrc') pickup(S, a);
-    else if (a.state === 'toDst') drop(S, a);
+    // goods picked up or dropped, or a visitor arriving, change what the job board holds
+    if (a.state === 'toSrc') { staleBoard(); pickup(S, a); }
+    else if (a.state === 'toDst') { staleBoard(); drop(S, a); }
     else if (a.state === 'toWork') a.state = 'working';
     else if (a.state === 'wander') a.state = 'idle';
-    else if (a.state === 'visit') arrive(S, a);
+    else if (a.state === 'visit') { staleBoard(); arrive(S, a); }
   }
 }
 
