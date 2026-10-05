@@ -1,3 +1,4 @@
+import { goToBuilding } from './agents.ts';
 import { hash01 } from './rng.ts';
 import { isleAt } from './sea.ts';
 import { bp, chronicle, emit, villagers } from './world.ts';
@@ -114,15 +115,25 @@ export function embark(S: State, boat: Boat, party: Agent[], daughter: Town) {
 }
 
 /**
- * Once a second, with ships on: a boat's crew are those still on their way (on a visit, or settlers with a route ahead);
+ * Once a second, with ships on: a boat's crew are those still on their way (on a visit, or settlers not yet on their new island);
  * once the last is home or landed, the boat is moored, with the settlement it is bound for if it carried settlers.
  */
 export function updateShips(S: State) {
   if (!S.ships) return;
   for (const boat of S.boats) {
     if (!boat.crew.length) continue;
-    // (a visitor, porter or explorer until their visit is over; a founding party until they have landed and walked on)
-    boat.crew = boat.crew.filter(id => { const a = S.amap.get(id); return !!a && !a.dead && (boat.bound !== null ? a.path.length > 0 : !!a.visit); });
+    // a visitor, porter or explorer until their visit is over
+    if (boat.bound === null) { boat.crew = boat.crew.filter(id => { const a = S.amap.get(id); return !!a && !a.dead && !!a.visit; }); continue; }
+    // a founding party until each of them stands on their new settlement's island; one whose way was cut short
+    // (a building put up across it) sets off for it again, in the boat
+    const yard = S.bmap.get(S.towns[boat.bound]?.store ?? -1), isle = yard ? isleAt(S, yard.x, yard.y) : -1;
+    boat.crew = boat.crew.filter(id => {
+      const a = S.amap.get(id);
+      if (!a || a.dead || !yard) return false;
+      if (S.world.ground[Math.floor(a.y) * S.world.w + Math.floor(a.x)] && isleAt(S, Math.floor(a.x), Math.floor(a.y)) === isle) return false;
+      if (!a.path.length) goToBuilding(S, a, yard);
+      return true;
+    });
     if (!boat.crew.length && boat.bound !== null) { boat.town = boat.bound; boat.bound = null; }
   }
 }

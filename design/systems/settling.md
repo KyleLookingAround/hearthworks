@@ -4,7 +4,7 @@ title: Settling
 description: A crowded settlement, or one whose land is full, sends a founding party off to found a daughter town, with villagers, stores, the knowledge it practises and its custom.
 tags: [settlement, people, knowledge]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T04:31:02Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T14:44:50Z }
 tuning:
   check_every_seconds: 60
   min_villagers: 70
@@ -13,6 +13,8 @@ tuning:
   party_size: 6
   max_settlements: 8
   stores_share: 0.25
+  first_harvest_seconds: 300
+  provision_headroom: 1.2
 ---
 
 # Idea
@@ -24,6 +26,10 @@ Settlements beget settlements. Settling is on in every new game and off in scena
 Every `check_every_seconds` a self-planning settlement with at least `min_villagers` people (or `crowded_min_villagers` while its planner finds no room for what it needs: its land is full), and none sent from it in the last `cooldown_seconds`, sends a founding party if it can pay for the new storage yard and two cottages, and the starting stores a new game begins with (`storage` in [settlement](/systems/settlement.md)), from its own stores, while the world has fewer than `max_settlements` settlements. Nobody sets out from a settlement that goes hungry; with [seasons](/systems/seasons.md) on, parties travel in spring and summer only, as newcomers do, and only while the winter store keeps pace (a party takes its share of it: a town that sent two in a late summer starved through the winter after).
 
 A settlement that has filled its land is crowded long before it is large: on the Islands at size M, two villages of 50 to 60 filled their islands within twenty minutes and stood still for the rest of the hour, never reaching `min_villagers` to send anyone ([log](/log.md), 2026-10-05). Settling for want of land lets them spill over the water instead.
+
+# Provisions
+
+With seasons on, a party weighs whether it can live through to its first harvest. It needs meals for `party_size` people for `first_harvest_seconds` of growing season after it lands (`eat_every_seconds` each, with `provision_headroom`): if less than that is left before the frost, it must also see itself through the winter to the spring. A party leaving in spring or early summer needs little more than its share of the stores; one leaving late in summer needs three times as much. Beyond its share, it takes the rest from its mother's stores (bread first, then preserved food, then grain), and only if the mother can spare it and still keep pace with its own winter store (counted without the party). Otherwise it waits, so a mother with too little sets out the next spring instead of sending a party to starve. Without seasons nothing changes. Code: `provisions` in `src/sim/settle.ts`.
 
 # Where
 

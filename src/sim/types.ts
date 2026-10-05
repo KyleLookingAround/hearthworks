@@ -172,7 +172,7 @@ export interface Tuning {
     pathSpeed: number; roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartPathSpeed: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; roundTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; slopeCost: number; rockCost: number; stoneRoadSpeed: number; oxCarry: number; oxPathSpeed: number; oxRoadSpeed: number; oxRoughSpeed: number; oxMinTiles: number; oxFeed: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
-  settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; crowdedMinVillagers: number; storesShare: number; maxSettlements: number };
+  settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; crowdedMinVillagers: number; storesShare: number; maxSettlements: number; firstHarvestSeconds: number; provisionHeadroom: number };
   sea: { shallowTiles: number; shallowSpeed: number; reefFromTiles: number; reefToTiles: number; reefCell: number; sightTiles: number; lookEverySeconds: number; exploreEverySeconds: number; dockBoats: number; partyBoatPlanks: number; villagersPerBoat: number; fleetMax: number; boatlessMemorySeconds: number; shipyardWeight: number; boatNames: string[] };
   people: {
     adultSeconds: number; elderSeconds: number; lifespanSeconds: number; lifespanJitterSeconds: number; founderAgeMaxSeconds: number; birthEverySeconds: number;

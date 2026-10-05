@@ -2,10 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadContent } from '../src/content/node.ts';
-import { createState, loadGame, placeBuilding, pressure, runFor, saveGame, type SaveFile, type State } from '../src/sim/index.ts';
+import { createState, door, loadGame, placeBuilding, pressure, runFor, saveGame, type SaveFile, type State } from '../src/sim/index.ts';
 import { goToBuilding, makeAgent } from '../src/sim/agents.ts';
 import { chooseSpot } from '../src/sim/planner.ts';
 import { enoughInStore } from '../src/sim/production.ts';
+import { isleAt } from '../src/sim/sea.ts';
+import { provisions } from '../src/sim/settle.ts';
 import { fleetOf, freeBoat, rows, setOff, wantsBoat } from '../src/sim/ships.ts';
 
 const content = loadContent();
@@ -89,6 +91,25 @@ test('a settlement whose island is full founds a colony whose settlers build a b
   assert.ok(S.boats.some(b => b.town === colony!.id), 'the boat they came in is the colony\'s');
   assert.ok(S.boats.some(b => b.town === colony!.mother), 'and the mother keeps its own');
   assert.ok(S.stats.boatTrips > 0);
+  // a settler whose way was cut short on the mother's island sets off again in the boat, and lands on the colony's
+  const mine = S.bmap.get(S.towns[colony!.mother!].store)!, yard = S.bmap.get(colony!.store)!;
+  const a = S.agents.find(v => v.kind === 'villager' && v.home?.town === colony!.id && !v.visit)!;
+  const boat = S.boats.find(b => b.town === colony!.id)!;
+  a.task = null; a.carry = null; a.state = 'idle'; a.path = []; a.x = door(mine).x + 0.5; a.y = door(mine).y + 0.5;
+  boat.town = colony!.mother!; boat.bound = colony!.id; boat.crew = [a.id];
+  runFor(S, 240);
+  assert.equal(isleAt(S, Math.floor(a.x), Math.floor(a.y)), isleAt(S, yard.x, yard.y), 'the settler reached the colony');
+  assert.equal(boat.town, colony!.id, 'and the boat is the colony\'s again');
+  assert.ok(!boat.crew.includes(a.id));
+});
+
+test('with seasons on, a founding party is provisioned to its first harvest, through the winter when it sets out late', () => {
+  const S = createState(content, 7, { seasons: true });
+  const Z = content.tuning.settling, Y = content.tuning.seasons.yearSeconds, meals = (s: number) => (Z.partySize * s / content.tuning.needs.eatEverySeconds) * Z.provisionHeadroom;
+  assert.equal(provisions(S), meals(Z.firstHarvestSeconds), 'in spring, to the first harvest');
+  S.t = 0.7 * Y;
+  assert.ok(Math.abs(provisions(S) - meals(0.3 * Y + Z.firstHarvestSeconds)) < 1e-6, 'late in summer, through the winter too');
+  assert.equal(provisions(createState(content, 7)), 0, 'without seasons, none');
 });
 
 test('a game with a boat out saves and loads, and plays on as if it had never stopped', () => {

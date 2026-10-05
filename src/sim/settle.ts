@@ -22,6 +22,18 @@ export function updateSettling(S: State, dt: number) {
   }
 }
 
+/**
+ * The food a founding party needs to see it to its first harvest (with seasons on): its meals for `first_harvest_seconds`
+ * of growing season after it lands, through the winter first if that is less than is left before the frost, with
+ * `provision_headroom`. Without seasons, none beyond its share of the stores.
+ */
+export function provisions(S: State): number {
+  if (!S.seasons) return 0;
+  const Y = S.content.tuning.seasons.yearSeconds, into = S.t % Y, frost = 0.75 * Y;
+  const wait = frost - into >= Z(S).firstHarvestSeconds ? Z(S).firstHarvestSeconds : Y - into + Z(S).firstHarvestSeconds;
+  return (Z(S).partySize * wait / S.content.tuning.needs.eatEverySeconds) * Z(S).provisionHeadroom;
+}
+
 /** What a new yard and two cottages cost, and the stores a new game starts with. */
 function foundingCost(S: State): Stock {
   const out: Stock = { ...S.content.tuning.start.storage };
@@ -77,6 +89,13 @@ export function sendParty(S: State, mother: Town): Town | null {
   const boatPlanks = dock ? S.content.tuning.sea.partyBoatPlanks : 0;
   if (boatPlanks) add(cost, 'planks', boatPlanks);
   if (Object.keys(cost).some(k => (round[k] || 0) < cost[k])) return null;
+  // with seasons on, the party takes provisions to see it to its first harvest: its own share of the stores, and as
+  // much more food as it needs, if its mother can spare that and still keep pace with its own winter
+  const food = S.seasons ? ['bread', ...S.content.tuning.seasons.preserved, 'wheat'] : [];
+  const share = (k: string) => (cost[k] || 0) + Math.max(0, Math.floor(((have[k] || 0) - (cost[k] || 0)) * Z(S).storesShare));
+  const carriedFood = food.reduce((n, k) => n + share(k), 0), costFood = food.reduce((n, k) => n + (cost[k] || 0), 0);
+  const extra = Math.max(0, Math.ceil(provisions(S) - carriedFood));
+  if (S.seasons && (food.reduce((n, k) => n + (have[k] || 0), 0) - (carriedFood - costFood) < extra || !storesOnTrack(S, mother, -Z(S).partySize, carriedFood + extra))) return null;
   // the party: villagers not at a workplace or on an errand away, adults if people are on
   const P = S.content.tuning.people;
   const free = pop.filter(a => a.role === 'carrier' && !a.visit && !a.carry && (!S.people || (S.t - a.born >= P.adultSeconds && S.t - a.born < P.elderSeconds)));
@@ -87,6 +106,8 @@ export function sendParty(S: State, mother: Town): Town | null {
   const carried: Stock = {};
   for (const k in cost) add(carried, k, take(S, mother, k, cost[k]));
   for (const k in have) { const n = Math.floor(((have[k] || 0) - (cost[k] || 0)) * Z(S).storesShare); if (n > 0) add(carried, k, take(S, mother, k, n)); }
+  // and the rest of their provisions, bread first
+  for (let k = 0, left = extra; k < food.length && left > 0; k++) { const got = take(S, mother, food[k], left); add(carried, food[k], got); left -= got; }
   clearSite(S, S.content.maps[S.setup.map], site.x, site.y);
   const d = foundTown(S, site.x, site.y, true, mother.planner.roads, party);
   const yard = S.bmap.get(d.store)!;
