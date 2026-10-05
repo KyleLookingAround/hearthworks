@@ -114,6 +114,10 @@ export interface Camp {
   /** Seconds until it next raids. */
   raidT: number;
   raid: { town: number; path: [number, number][]; x: number; y: number; n: number; back: boolean; loot: number } | null;
+  /** With trade on: the settlement that sends it gifts of bread, how far its goodwill has grown (1: they come in and settle), and seconds to the next gift. */
+  friend: number | null;
+  goodwill: number;
+  giftT: number;
 }
 
 /** A map size: `label` is what the player sees; sizes with `offered: false` exist for the gates only. */
@@ -174,7 +178,7 @@ export interface Tuning {
     fireEverySeconds: number; spreadGap: number; spreadChance: number; burnSeconds: number; douseSeconds: number; rebuildShare: number; fireLoss: number; fireproof: ItemId[];
     floodChance: number; floodReach: number; floodHeight: number; floodSeconds: number; floodLoss: number;
     sicknessEverySeconds: number; sickAt: number; sickSeconds: number; sickSpreadGap: number; sickSpreadChance: number; sickDeath: number; healedSeconds: number; healedDeath: number; sickMood: number;
-    wildDistance: number; wildTilesPerCamp: number; campEverySeconds: number; campStrength: number; campGrowSeconds: number; campMax: number; raidEverySeconds: number; raidReach: number; raidSpeed: number; raidTake: number; raidLoss: number;
+    wildDistance: number; wildTilesPerCamp: number; campEverySeconds: number; campStrength: number; campGrowSeconds: number; campMax: number; raidEverySeconds: number; raidReach: number; raidSpeed: number; raidTake: number; raidLoss: number; giftEverySeconds: number; giftBread: number; giftsToSettle: number;
     militiaShare: number; surprisedShare: number;
     memorySeconds: number; guardWeight: number; cleanFactor: number;
     rationFactor: number; rationMood: number; longPace: number; longMood: number; shortPace: number; shortMood: number; stayMood: number; starveFactor: number;
@@ -531,7 +535,7 @@ export interface Stats {
   /** Roads: strips laid and their tiles, buildings they cut through and people moved for them; deliveries mostly along roads and mostly along paths (time and straight-line tiles). */
   roadsLaid: number; roadTiles: number; roadCut: number; roadMoved: number;
   roadDeliveries: number; roadDeliverySeconds: number; roadDeliveryTiles: number; pathDeliveries: number; pathDeliverySeconds: number; pathDeliveryTiles: number;
-  fires: number; burnt: number; floods: number; outbreaks: number; raids: number; repelled: number; looted: number; sickDeaths: number; starved: number; camps: number;
+  fires: number; burnt: number; floods: number; outbreaks: number; raids: number; repelled: number; looted: number; sickDeaths: number; starved: number; camps: number; gifts: number; campsSettled: number; barbariansSettled: number;
 }
 
 export interface State {

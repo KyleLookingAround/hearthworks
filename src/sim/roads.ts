@@ -77,7 +77,7 @@ function have(S: State, town: Town, g: string) {
   for (const b of S.buildings) if (b.town === town.id && !b.site && bp(S, b).storage) n += (b.inv[g] || 0) - (b.reserved[g] || 0);
   return n;
 }
-function take(S: State, town: Town, g: string, n: number) {
+export function take(S: State, town: Town, g: string, n: number) {
   for (const b of S.buildings) {
     if (n <= 0) break;
     if (b.town !== town.id || b.site || !bp(S, b).storage) continue;

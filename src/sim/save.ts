@@ -11,7 +11,7 @@
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 import { nameFor, namingFor } from './people.ts';
 
-export const SAVE_VERSION = 25;
+export const SAVE_VERSION = 26;
 
 type Json = Record<string, unknown>;
 
@@ -181,6 +181,12 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
   24: state => {
     for (const t of state.towns as Json[]) t.naming ??= null;
     for (const a of state.agents as Json[]) a.name ??= '';
+    return state;
+  },
+  // 25 to 26: gifts of bread to the barbarians, who may settle
+  25: state => {
+    for (const c of (state.camps as Json[] | undefined) ?? []) { c.friend ??= null; c.goodwill ??= 0; c.giftT ??= 0; }
+    const st = state.stats as Json; st.gifts ??= 0; st.campsSettled ??= 0; st.barbariansSettled ??= 0;
     return state;
   },
 };

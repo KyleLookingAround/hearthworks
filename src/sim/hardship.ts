@@ -10,10 +10,13 @@
  *              palisades and a militia beat them off, and settling the wilds breaks the camps up
  */
 import { rand } from './rng.ts';
-import { release, removeAgent } from './agents.ts';
+import { makeAgent, release, removeAgent } from './agents.ts';
 import { cancelTask, touches } from './logistics.ts';
 import { findPath } from './path.ts';
-import { add, bp, chronicle, ctr, emit, front, nearestTown, villagers } from './world.ts';
+import { add, bp, chronicle, ctr, door, emit, front, nearestTown, villagers } from './world.ts';
+import { spareOf } from './trade.ts';
+import { take } from './roads.ts';
+import { newcomer } from './people.ts';
 import type { Building, Camp, Hazard, State, Town } from './types.ts';
 
 const H = (S: State) => S.content.tuning.hardship;
@@ -200,7 +203,7 @@ export function strike(S: State, town: Town, hazard: Hazard): boolean {
   if (!c) {
     const i = wildLand(S).sort((a, b) => dist(a % W.w, Math.floor(a / W.w)) - dist(b % W.w, Math.floor(b / W.w)))[0];
     if (i === undefined) return false;
-    c = { id: S.nextId++, x: (i % W.w) + 0.5, y: Math.floor(i / W.w) + 0.5, strength: H(S).campStrength, raidT: 0, raid: null };
+    c = { id: S.nextId++, x: (i % W.w) + 0.5, y: Math.floor(i / W.w) + 0.5, strength: H(S).campStrength, raidT: 0, raid: null, friend: null, goodwill: 0, giftT: 0 };
     S.camps.push(c); S.stats.camps++;
   }
   c.raidT = H(S).raidEverySeconds;
@@ -304,16 +307,18 @@ function camps(S: State, dt: number) {
       const near = wild.filter(i => stores.some(p => Math.hypot((i % W.w) + 0.5 - p.x, Math.floor(i / W.w) + 0.5 - p.y) <= Z.raidReach));
       const from = near.length ? near : wild;
       const i = from[Math.floor(rand(S.hrng) * from.length)];
-      const c: Camp = { id: S.nextId++, x: (i % W.w) + 0.5, y: Math.floor(i / W.w) + 0.5, strength: Z.campStrength, raidT: Z.raidEverySeconds * (0.5 + rand(S.hrng)), raid: null };
+      const c: Camp = { id: S.nextId++, x: (i % W.w) + 0.5, y: Math.floor(i / W.w) + 0.5, strength: Z.campStrength, raidT: Z.raidEverySeconds * (0.5 + rand(S.hrng)), raid: null, friend: null, goodwill: 0, giftT: 0 };
       S.camps.push(c);
       S.stats.camps++;
       emit(S, 'bad', 'Barbarians have made camp in the wilds');
     }
   }
-  for (const c of S.camps) {
+  for (const c of [...S.camps]) {
     // a camp grows as it is left alone
     c.strength = Math.min(Z.campMax, c.strength + dt / Z.campGrowSeconds);
     if (c.raid) continue;
+    // with trade on: gifts of bread from the nearest settlement that can spare it, and in the end they settle there
+    if (S.trade && gifts(S, c, dt)) continue;
     c.raidT -= dt;
     if (c.raidT > 0) continue;
     c.raidT = Z.raidEverySeconds * (0.75 + rand(S.hrng) * 0.5);
@@ -321,18 +326,74 @@ function camps(S: State, dt: number) {
   }
 }
 
-/** Send a camp's raiders at the nearest settlement within `raid_reach` they can walk to. */
-function raid(S: State, c: Camp) {
+/** The nearest settlement within `raid_reach` of a camp that `ok` allows and its people can walk to, with the way there. */
+function nearestInReach(S: State, c: Camp, ok: (t: Town) => boolean): { t: Town; path: [number, number][] } | null {
   const W = S.world, Z = H(S);
   const targets = S.towns.map(t => ({ t, s: S.bmap.get(t.store) })).filter(o => o.s).sort((a, b) => Math.hypot(ctr(a.s!).x - c.x, ctr(a.s!).y - c.y) - Math.hypot(ctr(b.s!).x - c.x, ctr(b.s!).y - c.y));
   for (const { t, s } of targets) {
     if (Math.hypot(ctr(s!).x - c.x, ctr(s!).y - c.y) > Z.raidReach) break;
+    if (!ok(t)) continue;
     const f = front(s!), p = findPath(W, Math.floor(c.x), Math.floor(c.y), f.x, f.y);
     if (!p || p.length > Z.raidReach * 1.5 || p.some(([x, y]) => !W.ground[y * W.w + x] && !W.bridge[y * W.w + x])) continue;
-    c.raid = { town: t.id, path: p, x: c.x, y: c.y, n: Math.floor(c.strength), back: false, loot: 0 };
-    emit(S, 'bad', `Raiders are on their way to ${t.name}`, true);
-    return;
+    return { t, path: p };
   }
+  return null;
+}
+
+/**
+ * Every `gift_every_seconds`, the nearest settlement the camp can walk to sends it `gift_bread` loaves a raider when its stores can
+ * spare them (as trade judges spare). The camp does not raid a settlement that has sent it gifts, and after `gifts_to_settle`
+ * gifts its people come in and settle there, as many as it has free beds for (the rest go their way), and the camp is gone.
+ * Returns true when the camp is gone.
+ */
+function gifts(S: State, c: Camp, dt: number): boolean {
+  const Z = H(S);
+  c.giftT += dt;
+  if (c.giftT < Z.giftEverySeconds) return false;
+  c.giftT = 0;
+  // the first settlement to send gifts keeps sending them; until one does, the nearest that can reach the camp on foot
+  const friend = c.friend !== null ? S.towns[c.friend] : nearestInReach(S, c, () => true)?.t;
+  if (!friend) return false;
+  if (c.goodwill >= 1) return settle(S, c, friend);
+  const n = Math.ceil(c.strength) * Z.giftBread;
+  if ((spareOf(S, friend).bread || 0) < n) return false;
+  take(S, friend, 'bread', n);
+  const first = c.goodwill === 0;
+  c.friend = friend.id;
+  c.goodwill = Math.min(1, c.goodwill + 1 / Z.giftsToSettle);
+  S.stats.gifts++;
+  if (first) { chronicle(S, friend.id, 'peace', `${friend.name} sent bread to the barbarians camped in the wilds, and they leave it in peace`); emit(S, 'good', `${friend.name} sent bread to the barbarians camped in the wilds, and they leave it in peace`); }
+  else emit(S, 'info', `${friend.name} sent ${n} loaves to the barbarians' camp`, true);
+  return c.goodwill >= 1 && settle(S, c, friend);
+}
+
+/** Barbarians who have had enough gifts come in and settle in the settlement that sent them, as beds allow. */
+function settle(S: State, c: Camp, t: Town): boolean {
+  const beds = S.buildings.filter(b => b.town === t.id && !b.site && (bp(S, b).homes ?? 0) > b.residents.length);
+  if (!beds.length) return false;
+  const yard = S.bmap.get(t.store);
+  if (!yard) return false;
+  const d = door(yard);
+  let n = 0;
+  for (const b of beds) while (n < Math.floor(c.strength) && (bp(S, b).homes ?? 0) > b.residents.length) {
+    const a = makeAgent(S, 'villager', d.x + 0.5, d.y + 0.5);
+    a.home = b; b.residents.push(a.id);
+    if (S.people) newcomer(S, a, t);
+    n++;
+  }
+  S.camps = S.camps.filter(o => o !== c);
+  S.stats.campsSettled++; S.stats.barbariansSettled += n;
+  chronicle(S, t.id, 'peace', `The barbarians ${t.name} had sent bread to came in peace, and ${n} of them settled in ${t.name}`);
+  emit(S, 'good', `${n} barbarians came in peace and settled in ${t.name}`);
+  return true;
+}
+
+/** Send a camp's raiders at the nearest settlement within `raid_reach` they can walk to, never one that has sent them gifts. */
+function raid(S: State, c: Camp) {
+  const to = nearestInReach(S, c, t => !(c.friend === t.id && c.goodwill > 0));
+  if (!to) return;
+  c.raid = { town: to.t.id, path: to.path, x: c.x, y: c.y, n: Math.floor(c.strength), back: false, loot: 0 };
+  emit(S, 'bad', `Raiders are on their way to ${to.t.name}`, true);
 }
 
 /** Every step: raiding parties walk at `raid_speed` tiles a second, and fall on the stores when they arrive. */

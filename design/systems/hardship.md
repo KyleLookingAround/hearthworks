@@ -1,10 +1,10 @@
 ---
 type: System
 title: Hardship
-description: Fire, flood, sickness and barbarian raids, the counters a settlement finds for each, and the steward's laws for hard times.
+description: Fire, flood, sickness and barbarian raids, the counters a settlement finds for each, gifts that bring barbarians in peace, and the steward's laws for hard times.
 tags: [hardship, hazards, laws, settlement]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-04T13:07:27Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T00:58:48Z }
 tuning:
   fire_every_seconds: 40000
   spread_gap: 0.5
@@ -40,6 +40,9 @@ tuning:
   raid_speed: 2
   raid_take: 0.25
   raid_loss: 0.5
+  gift_every_seconds: 120
+  gift_bread: 2
+  gifts_to_settle: 5
   militia_share: 0.2
   surprised_share: 0.3
   memory_seconds: 900
@@ -80,7 +83,9 @@ Kyle's idea. Wild land is open ground farther than `wild_distance` from every bu
 
 About every `raid_every_seconds` a camp sends its raiders on foot to the nearest settlement's first storage yard within `raid_reach`. There they meet its defence: the watchtowers and palisades guarding that yard, and a militia of `militia_share` of its grown villagers, all of them if a lookout on a watchtower saw the raiders coming, `surprised_share` of them otherwise. A defence at least as strong beats them off, and the camp loses `raid_loss` of the raiders it sent (a camp left with none breaks up); a weaker one loses `raid_take` of every good in its stores.
 
-The answers are the [Watchtower](/blueprints/watchtower.md), the [Palisade](/blueprints/palisade.md), the militia, and in the end [settling](/systems/settling.md): a camp the settlements grow up to breaks up, and as civilisation spreads the wild land where camps can appear shrinks. Whether barbarians can be traded with, or settle down, is Kyle's call.
+The answers are the [Watchtower](/blueprints/watchtower.md), the [Palisade](/blueprints/palisade.md), the militia, and in the end [settling](/systems/settling.md): a camp the settlements grow up to breaks up, and as civilisation spreads the wild land where camps can appear shrinks.
+
+With [trade](/systems/trade.md) on there is a gentler answer. Every `gift_every_seconds` a camp not out raiding is sent bread by the nearest settlement whose people can walk to it (within `raid_reach`), `gift_bread` loaves for each of its raiders, if its stores can spare that much as trade judges spare (the food chain keeps twice the cover and a meal a villager). The first settlement to send bread keeps sending it. A camp never raids a settlement that has sent it bread, though it may still raid others, and its pennant turns white. After `gifts_to_settle` gifts its people come in peace and settle there, as many as it has free beds for (newcomers like any other, named by its custom), the rest going their own way, and the camp is gone. Both go into the chronicle, and the Steward panel lists the camps a settlement sends bread to.
 
 # Laws
 

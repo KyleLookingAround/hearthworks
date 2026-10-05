@@ -182,7 +182,7 @@ test('the advisor warns of raiders who outnumber the defence, and of a winter st
   const { advise } = await import('../src/sim/index.ts');
   const S = createState(quiet, 1847, { hardship: true, seasons: true, planner: true });
   const t = S.towns[0], yard = S.bmap.get(t.store)!;
-  S.camps.push({ id: S.nextId++, x: yard.x + 20, y: yard.y, strength: 10, raidT: 1e9, raid: null });
+  S.camps.push({ id: S.nextId++, x: yard.x + 20, y: yard.y, strength: 10, raidT: 1e9, raid: null, friend: null, goodwill: 0, giftT: 0 });
   assert.ok(advise(S, t, 9).some(x => /outnumber its defence/.test(x)));
   runFor(S, content.tuning.seasons.yearSeconds * 0.6);
   for (const b of S.buildings) b.inv = {};
@@ -219,3 +219,38 @@ test('a bathhouse at work keeps the homes near it clean, and only scholars think
   assert.ok(!('bathhouse' in t.knows));
   assert.equal(content.blueprints.bathhouse.discovery?.university, true);
 });
+
+test('with trade on, a settlement that can spare bread sends it to a camp in reach; the camp leaves it in peace, and in the end settles there', () => {
+  const run = (trade: boolean) => {
+    const S = createState(quiet, 1847, { hardship: true, trade, planner: true, people: true, newcomers: false });
+    const t = S.towns[0], yard = S.bmap.get(t.store)!;
+    // beds for newcomers: two cottages standing empty
+    for (let k = 0; k < 2; k++) { const at = findSpot(S, 'house', ctr(yard), 30)!; placeBuilding(S, 'house', at.x, at.y, true); }
+    const camp = { id: S.nextId++, x: yard.x + 22.5, y: yard.y + 0.5, strength: 4, raidT: H.raidEverySeconds / 2, raid: null, friend: null, goodwill: 0, giftT: 0 };
+    S.camps.push(camp);
+    let raided = 0, peace = 0;
+    runFor(S, H.giftEverySeconds * (H.giftsToSettle + 1) + 2, s => {
+      yard.inv.bread = 400;
+      if (camp.raid) raided++;
+      if (camp.goodwill > 0 && !peace) peace = s.t;
+    });
+    return { S, camp, raided, peace };
+  };
+  const on = run(true);
+  assert.ok(on.peace > 0 && on.peace <= H.giftEverySeconds + 1, 'the first gift within a gift period');
+  assert.equal(on.raided, 0, 'never raided the settlement sending it bread');
+  assert.ok(!on.S.camps.includes(on.camp), 'the camp is gone');
+  assert.equal(on.S.stats.campsSettled, 1);
+  assert.equal(on.S.stats.gifts, H.giftsToSettle);
+  // the camp grew while the gifts came (a raider every `camp_grow_seconds`); as many as there were beds for came in
+  const n = on.S.stats.barbariansSettled;
+  assert.ok(n >= 4, `${n} settled`);
+  assert.ok(villagers(on.S).slice(-n).every(a => S0names(on.S).includes(a.name)), 'named by the settlement\'s custom like any newcomer');
+  assert.ok(on.S.chronicle.some(c => c.kind === 'peace' && c.text.includes(`came in peace, and ${n} of them settled`)));
+  // without trade, nothing is sent and the camp raids as before
+  const off = run(false);
+  assert.equal(off.S.stats.gifts, 0);
+  assert.ok(off.raided > 0);
+});
+
+const S0names = (S: State) => content.tuning.people.names[S.towns[0].naming];

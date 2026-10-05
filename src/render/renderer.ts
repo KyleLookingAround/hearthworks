@@ -265,7 +265,7 @@ export class Renderer {
     }
     for (const camp of S.camps) {
       const x = camp.x * TS, y = camp.y * TS;
-      // a tent for every few raiders, and a red pennant
+      // a tent for every few raiders, and a red pennant (white once a settlement sends them bread)
       const tents = Math.max(1, Math.min(4, Math.round(camp.strength / 2.5)));
       for (let k = 0; k < tents; k++) {
         const tx = x + (k - (tents - 1) / 2) * 14, ty = y + (k % 2) * 5;
@@ -273,7 +273,7 @@ export class Renderer {
         c.strokeStyle = '#2a2018'; c.lineWidth = 1; c.stroke();
       }
       c.strokeStyle = '#2a2018'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, y - 7); c.lineTo(x, y - 20); c.stroke();
-      c.fillStyle = '#c0392b'; c.beginPath(); c.moveTo(x, y - 20); c.lineTo(x + 10, y - 16); c.lineTo(x, y - 12); c.fill();
+      c.fillStyle = camp.goodwill > 0 ? '#f2efe6' : '#c0392b'; c.beginPath(); c.moveTo(x, y - 20); c.lineTo(x + 10, y - 16); c.lineTo(x, y - 12); c.fill();
       const r = camp.raid;
       if (r) for (let k = 0; k < r.n; k++) {
         const ox = ((k % 3) - 1) * 5, oy = (Math.floor(k / 3) - 1) * 5;

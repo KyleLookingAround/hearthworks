@@ -223,3 +223,16 @@ test('a version 24 save is upgraded to version 25: each settlement takes a namin
   runFor(S, 60);
   assert.equal(text(loadGame(content, text(S))), text(S));
 });
+
+test('a version 25 save is upgraded to version 26: its camps have had no gifts yet, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v25.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 25);
+  const S = loadGame(content, file);
+  assert.ok(S.hardship && S.trade && S.camps.length > 0);
+  assert.ok(S.camps.every(c => c.friend === null && c.goodwill === 0 && c.giftT === 0));
+  assert.equal(S.stats.gifts, 0);
+  assert.equal(S.stats.campsSettled, 0);
+  assert.equal(S.stats.barbariansSettled, 0);
+  runFor(S, 60);
+  assert.equal(text(loadGame(content, text(S))), text(S));
+});
