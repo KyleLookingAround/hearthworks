@@ -4,7 +4,7 @@
  * hand. Homes eat a varied diet of the foods their settlement grows. All of it only with `S.farms` on.
  */
 import { bp, chronicle, door, emit, inB, placeBuilding } from './world.ts';
-import { reachable } from './path.ts';
+import { reachable, reshaped } from './path.ts';
 import { sealsOff } from './planner.ts';
 import { ZONES, type BlueprintDef, type Building, type ItemId, type State, type Town } from './types.ts';
 
@@ -117,7 +117,7 @@ export function growFarm(S: State, b: Building, zoned = false): Building | null 
 /** Finished new fields join their farm: the strip becomes part of it, and it is one size bigger. */
 export function joinFields(S: State, f: Building, farm: Building | undefined, announce: boolean) {
   const W = S.world;
-  if (!farm || farm.dead) { for (let j = f.y; j < f.y + f.h; j++) for (let k = f.x; k < f.x + f.w; k++) W.bgrid[j * W.w + k] = -1; return; }
+  if (!farm || farm.dead) { for (let j = f.y; j < f.y + f.h; j++) for (let k = f.x; k < f.x + f.w; k++) W.bgrid[j * W.w + k] = -1; reshaped(W); return; }
   const x0 = Math.min(farm.x, f.x), y0 = Math.min(farm.y, f.y), x1 = Math.max(farm.x + farm.w, f.x + f.w), y1 = Math.max(farm.y + farm.h, f.y + f.h);
   const was = sizeName(S, farm);
   farm.x = x0; farm.y = y0; farm.w = x1 - x0; farm.h = y1 - y0;

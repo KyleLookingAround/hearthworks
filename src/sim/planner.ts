@@ -13,7 +13,7 @@ import { cancelTask, supplyOf, touches } from './logistics.ts';
 import { fits } from './place.ts';
 import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
-import { add, beside, bp, chronicle, ctr, demolish, dims, door, emit, FACING, front as frontOf, lift, nearestTown, placeBridge, placeBuilding, seasonOf, storesOnTrack, villagers } from './world.ts';
+import { add, beside, bp, chronicle, ctr, demolish, dims, door, emit, FACING, front as frontOf, lift, nearestTown, placeBridge, placeBuilding, seasonOf, storesOnTrack, villagers, hypot } from './world.ts';
 import { hasPlace } from './people.ts';
 import { reserve } from './agents.ts';
 import { enoughInStore, foodChainOf, plentyInStore } from './production.ts';
@@ -42,17 +42,21 @@ const T = (S: State) => S.content.tuning.planner;
 const known = (S: State, town: Town) => Object.values(S.content.blueprints).filter(B => B.id in town.knows).sort((a, b) => a.order - b.order);
 const mineOf = (S: State, town: Town) => S.buildings.filter(b => b.town === town.id);
 /** Is a point within reach of a courier building's bots? */
-const covered = (S: State, p: { x: number; y: number }) => S.buildings.some(d => { const C = bp(S, d).couriers; return !!C && Math.hypot(p.x - ctr(d).x, p.y - ctr(d).y) <= C.radius; });
+const covered = (S: State, p: { x: number; y: number }) => S.buildings.some(d => { const C = bp(S, d).couriers; return !!C && hypot(p.x - ctr(d).x, p.y - ctr(d).y) <= C.radius; });
 
 /** Grown trees within `r` of a point, those already in another harvester's range counted at `shared` weight. */
-function treeScore(S: State, cx: number, cy: number, r: number, others: Building[], shared: number): number {
+function treeScore(S: State, cx: number, cy: number, r: number, others: Building[], shared: number, memo?: Uint8Array): number {
   const W = S.world;
   let n = 0;
+  // (only harvesters whose ground can overlap this circle can take a tree in it)
+  if (!memo) others = others.filter(o => { const c = ctr(o); return hypot(c.x - cx, c.y - cy) <= bp(S, o).harvest!.radius + r + 1; });
   for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) {
     if (x < 0 || y < 0 || x >= W.w || y >= W.h || W.tree[y * W.w + x] !== 2) continue;
-    if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) > r) continue;
-    const taken = others.some(o => { const c = ctr(o), R = bp(S, o).harvest!.radius; return Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y) <= R; });
-    n += taken ? shared : 1;
+    if (hypot(x + 0.5 - cx, y + 0.5 - cy) > r) continue;
+    // (whether another harvester reaches a tree is the same for every spot weighed against the same others: `memo` keeps it, 2 for taken)
+    let m = memo ? memo[y * W.w + x] : 0;
+    if (!m) { m = others.some(o => { const c = ctr(o), R = bp(S, o).harvest!.radius; return hypot(x + 0.5 - c.x, y + 0.5 - c.y) <= R; }) ? 2 : 1; if (memo) memo[y * W.w + x] = m; }
+    n += m === 2 ? shared : 1;
   }
   return n;
 }
@@ -280,7 +284,7 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   }
   // mills: a settlement that knows one wants it where `mill_min` of the workplaces it mills stand with none in reach
   for (const M of known(S, town).filter(B => B.mills)) {
-    const near = (b: Building) => mine.some(c => c.type === M.id && Math.hypot(ctr(c).x - ctr(b).x, ctr(c).y - ctr(b).y) <= M.mills!.radius);
+    const near = (b: Building) => mine.some(c => c.type === M.id && hypot(ctr(c).x - ctr(b).x, ctr(c).y - ctr(b).y) <= M.mills!.radius);
     const bare = mine.filter(b => !b.site && M.mills!.types.includes(b.type) && !near(b)).length;
     if (bare >= P.millMin) shortages.push({ key: 'mill', mill: M.id, sev: P.millWeight, why: `${bare} ${orList(M.mills!.types.map(k => plural(S.content.blueprints[k]?.name.toLowerCase() ?? k)))} work without a ${M.name.toLowerCase()}` });
   }
@@ -450,7 +454,7 @@ function depositsNear(W: World, cx: number, cy: number, kind: string, r: number)
   const k = DEPOSITS.indexOf(kind);
   let n = 0;
   for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(W.h - 1, Math.ceil(cy + r)); y++) for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W.w - 1, Math.ceil(cx + r)); x++) {
-    if (W.deposit[y * W.w + x] === k && Math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= r) n++;
+    if (W.deposit[y * W.w + x] === k && hypot(x + 0.5 - cx, y + 0.5 - cy) <= r) n++;
   }
   return n;
 }
@@ -472,13 +476,13 @@ export function hubs(S: State, town: Town): Building[] {
 /** The buildings of one district: those nearer its centre than any other district's. */
 function members(S: State, town: Town, hub: Building): Building[] {
   const hs = hubs(S, town), c = ctr(hub);
-  return mineOf(S, town).filter(b => { const p = ctr(b), d = Math.hypot(p.x - c.x, p.y - c.y); return hs.every(o => o === hub || Math.hypot(p.x - ctr(o).x, p.y - ctr(o).y) >= d); });
+  return mineOf(S, town).filter(b => { const p = ctr(b), d = hypot(p.x - c.x, p.y - c.y); return hs.every(o => o === hub || hypot(p.x - ctr(o).x, p.y - ctr(o).y) >= d); });
 }
 
 /** How far a district reaches from its centre: `search_radius` beyond its farthest building, at most `search_radius_max`. */
 function reachOf(S: State, town: Town, hub: Building): number {
   const P = T(S), c = ctr(hub);
-  return Math.min(P.searchRadiusMax, Math.ceil(P.searchRadius + members(S, town, hub).reduce((m, b) => Math.max(m, Math.hypot(ctr(b).x - c.x, ctr(b).y - c.y)), 0)));
+  return Math.min(P.searchRadiusMax, Math.ceil(P.searchRadius + members(S, town, hub).reduce((m, b) => Math.max(m, hypot(ctr(b).x - c.x, ctr(b).y - c.y)), 0)));
 }
 
 /**
@@ -496,7 +500,7 @@ function foundDistrict(S: State, town: Town): boolean {
   for (let y = Math.floor(c.y - R); y <= Math.ceil(c.y + R); y++) for (let x = Math.floor(c.x - R); x <= Math.ceil(c.x + R); x++) {
     W.work.plannerSpots++;
     const p = { x: x + B.w / 2, y: y + B.h / 2 };
-    const d = hs.reduce((m, h) => Math.min(m, Math.hypot(ctr(h).x - p.x, ctr(h).y - p.y)), Infinity);
+    const d = hs.reduce((m, h) => Math.min(m, hypot(ctr(h).x - p.x, ctr(h).y - p.y)), Infinity);
     if (d < P.districtSpacing * 0.8 || d > P.districtSpacing * 1.4) continue;
     if (!fits(S, 'storage', x, y, P.gap) || onNoBuild(W, x, y, B.w, B.h)) continue;
     const dr = door({ x, y, w: B.w, h: B.h });
@@ -535,11 +539,11 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
   const unreached = B.couriers ? mine.filter(b => !b.site && !covered(S, ctr(b))) : [];
   // a counter goes where it guards buildings at risk that nothing guards yet
   const exposed = B.guards ? mine.filter(b => atRisk(S, b, B.guards!.hazard) && !guarded(S, b, B.guards!.hazard)) : B.sanitation ? mine.filter(b => atRisk(S, b, 'sickness') && !clean(S, b))
-    : B.mills ? mine.filter(b => !b.site && B.mills!.types.includes(b.type) && !mine.some(c => c.type === B.id && Math.hypot(ctr(c).x - ctr(b).x, ctr(c).y - ctr(b).y) <= B.mills!.radius)) : [];
+    : B.mills ? mine.filter(b => !b.site && B.mills!.types.includes(b.type) && !mine.some(c => c.type === B.id && hypot(ctr(c).x - ctr(b).x, ctr(c).y - ctr(b).y) <= B.mills!.radius)) : [];
   // a dock has to face water that reaches the nearest neighbour's shore
   const facing = B.shore ? waterFacing(S, town) : null;
-  const near = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((m, b) => Math.min(m, Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y)), Infinity);
-  const mean = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((s, b) => s + Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y), 0) / bs.length;
+  const near = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((m, b) => Math.min(m, hypot(p.x - ctr(b).x, p.y - ctr(b).y)), Infinity);
+  const mean = (p: { x: number; y: number }, bs: Building[]) => bs.reduce((s, b) => s + hypot(p.x - ctr(b).x, p.y - ctr(b).y), 0) / bs.length;
 
   const scored: { x: number; y: number; rot: number; s: number }[] = [];
   // villages and towns set homes wall to wall: no ring of open land between a home and its neighbours
@@ -583,8 +587,13 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     return true;
   };
   // a dock turns to face any shore; everything else the planner builds faces south (the player turns what they place)
+  // which trees other harvesters reach, worked out once a tree is first weighed
+  const taken = B.harvest ? new Uint8Array(W.w * W.h) : undefined;
   for (const rot of B.shore ? [0, 1, 2, 3] : [0]) {
   const { w: bw, h: bh } = dims(B, rot);
+  // the harvesters whose ground could reach a spot in the search, with their centres
+  const woods = harvesters.map(h => ({ ...ctr(h), r: bp(S, h).harvest!.radius }))
+    .filter(h => Math.max(0, x0 + bw / 2 - h.x, h.x - (x1 + bw / 2)) <= h.r + 1 && Math.max(0, y0 + bh / 2 - h.y, h.y - (y1 + bh / 2)) <= h.r + 1);
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     W.work.plannerSpots++;
     if (!fits(S, type, x, y, gap, rot)) continue;
@@ -600,16 +609,16 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     const p = { x: x + bw / 2, y: y + bh / 2 };
     // homes and noisy workplaces stay apart
     if (B.homes && inNuisance(S, p)) continue;
-    if (B.nuisance && S.buildings.some(o => bp(S, o).homes && Math.hypot(ctr(o).x - p.x, ctr(o).y - p.y) <= B.nuisance!.radius)) continue;
-    let s = -P.depositWeight * ore + P.storeWeight * Math.hypot(p.x - home.x, p.y - home.y);
+    if (B.nuisance && S.buildings.some(o => bp(S, o).homes && hypot(ctr(o).x - p.x, ctr(o).y - p.y) <= B.nuisance!.radius)) continue;
+    let s = -P.depositWeight * ore + P.storeWeight * hypot(p.x - home.x, p.y - home.y);
     if (B.harvest) {
-      const trees = treeScore(S, p.x, p.y, B.harvest.radius, harvesters, P.sharedTreeWeight);
+      const trees = treeScore(S, p.x, p.y, B.harvest.radius, harvesters, P.sharedTreeWeight, taken);
       if (trees < P.minTrees) continue;
       s -= P.treeWeight * trees;
     } else {
       // keep out of the woods and out of a forester's replanting ground
       for (let j = y - P.gap; j < y + bh + P.gap; j++) for (let k = x - P.gap; k < x + bw + P.gap; k++) if (W.tree[j * W.w + k] === 2) s += 1;
-      for (const h of harvesters) if (Math.hypot(p.x - ctr(h).x, p.y - ctr(h).y) <= bp(S, h).harvest!.radius) s += P.forestPenalty;
+      for (const h of woods) if (hypot(p.x - h.x, p.y - h.y) <= h.r) s += P.forestPenalty;
     }
     // a farm that grows wants open land behind it to grow into (the planner's farms face south: behind is north)
     if (S.farms && B.grows && rot === 0) {
@@ -639,12 +648,12 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     }
     if (B.couriers) {
       // a depot only helps where its bots reach buildings nobody's bots reach yet
-      const reach = unreached.filter(b => Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y) <= B.couriers!.radius).length;
+      const reach = unreached.filter(b => hypot(p.x - ctr(b).x, p.y - ctr(b).y) <= B.couriers!.radius).length;
       if (!reach) continue;
       s -= P.coverWeight * reach;
     }
     if (B.guards || B.sanitation || B.mills) {
-      const n = exposed.filter(b => Math.hypot(p.x - ctr(b).x, p.y - ctr(b).y) <= (B.guards ?? B.sanitation ?? B.mills)!.radius).length;
+      const n = exposed.filter(b => hypot(p.x - ctr(b).x, p.y - ctr(b).y) <= (B.guards ?? B.sanitation ?? B.mills)!.radius).length;
       if (!n) continue;
       s -= P.coverWeight * n;
     }
@@ -721,7 +730,7 @@ function chooseBridge(S: State, B: BlueprintDef, town: Town) {
   const P = T(S), W = S.world, store = S.bmap.get(town.store);
   if (!store || !B.bridge) return null;
   const from = door(store), reach = reachable(W, from.x, from.y), home = ctr(store), mine = mineOf(S, town);
-  const R = Math.min(P.searchRadiusMax, Math.ceil(P.searchRadius + mine.reduce((m, b) => Math.max(m, Math.hypot(ctr(b).x - home.x, ctr(b).y - home.y)), 0)));
+  const R = Math.min(P.searchRadiusMax, Math.ceil(P.searchRadius + mine.reduce((m, b) => Math.max(m, hypot(ctr(b).x - home.x, ctr(b).y - home.y)), 0)));
   const bank = (i: number) => (W.ground[i] === 1 || W.ground[i] === 2) && W.bgrid[i] === -1 && !W.front[i];
   const open = (i: number) => !W.ground[i] && W.bgrid[i] === -1 && !W.bridge[i];
   const trips = town.detours.filter(t => S.t - t[5] < 300);
@@ -738,7 +747,7 @@ function chooseBridge(S: State, B: BlueprintDef, town: Town) {
       W.work.plannerSpots++;
       const span = k - 1;
       // crossings keep `bridge_spacing` apart: one bridge serves the stretch of water around it
-      if (bridges.some(b => Math.hypot(ctr(b).x - (x + fx) / 2, ctr(b).y - (y + fy) / 2) < P.bridgeSpacing)) continue;
+      if (bridges.some(b => hypot(ctr(b).x - (x + fx) / 2, ctr(b).y - (y + fy) / 2) < P.bridgeSpacing)) continue;
       // land it opens: grass within 12 of the far bank that the bridge would connect and nobody can walk to yet
       const gain = reach[fy * W.w + fx] ? 0 : opensUp(W, fx, fy, reach, 12);
       let s = P.bridgeReachWeight * gain;
@@ -746,10 +755,10 @@ function chooseBridge(S: State, B: BlueprintDef, town: Town) {
       const mx = (x + fx) / 2 + 0.5, my = (y + fy) / 2 + 0.5;
       for (const t of trips) {
         if (segmentDist(mx, my, t[0] + 0.5, t[1] + 0.5, t[2] + 0.5, t[3] + 0.5) > 2.5) continue;
-        const via = Math.min(Math.hypot(t[0] - x, t[1] - y) + span + Math.hypot(fx - t[2], fy - t[3]), Math.hypot(t[0] - fx, t[1] - fy) + span + Math.hypot(x - t[2], y - t[3]));
+        const via = Math.min(hypot(t[0] - x, t[1] - y) + span + hypot(fx - t[2], fy - t[3]), hypot(t[0] - fx, t[1] - fy) + span + hypot(x - t[2], y - t[3]));
         s += Math.max(0, t[4] - via);
       }
-      s -= P.storeWeight * Math.hypot(x - home.x, y - home.y);
+      s -= P.storeWeight * hypot(x - home.x, y - home.y);
       if (s > bs) {
         bs = s;
         const sx = Math.min(x + dx, x + dx * span), sy = Math.min(y + dy, y + dy * span);
@@ -764,7 +773,7 @@ function chooseBridge(S: State, B: BlueprintDef, town: Town) {
 function segmentDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
   const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
   const t = L ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L)) : 0;
-  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+  return hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
 /** Grass tiles reachable on foot from (x, y) within `r` tiles of it, through land not already in `reach`. */
@@ -777,7 +786,7 @@ function opensUp(W: World, x: number, y: number, reach: Uint8Array, r: number): 
     for (const j of [cx > 0 ? i - 1 : -1, cx < W.w - 1 ? i + 1 : -1, i - W.w, i + W.w]) {
       if (j < 0 || j >= W.ground.length || seen.has(j) || reach[j]) continue;
       const jx = j % W.w, jy = (j / W.w) | 0;
-      if (!W.ground[j] || W.ground[j] === 3 || W.bgrid[j] !== -1 || Math.hypot(jx - x, jy - y) > r) continue;
+      if (!W.ground[j] || W.ground[j] === 3 || W.bgrid[j] !== -1 || hypot(jx - x, jy - y) > r) continue;
       seen.add(j); q.push(j);
     }
   }
@@ -815,7 +824,7 @@ function waterFacing(S: State, town: Town): (Set<number> & { label: Int32Array }
   for (const t of S.towns) {
     const s = S.bmap.get(t.store);
     if (t === town || !s || !home) continue;
-    const d = Math.hypot(s.x - home.x, s.y - home.y);
+    const d = hypot(s.x - home.x, s.y - home.y);
     if (d < best) { best = d; target = s; }
   }
   const label = new Int32Array(N).fill(-1), land = new Uint8Array(N);
@@ -904,7 +913,7 @@ function replan(S: State, town: Town, c: Choice): boolean {
       if (spare(covers) < movers) continue;
       if (inNuisance(S, { x: x + B.w / 2, y: y + B.h / 2 }) || onNoBuild(W, x, y, B.w, B.h)) continue;
       if (!fitsWithout(S, B.id, x, y, covers, town)) continue;
-      const s = B.homes - lost - 0.05 * Math.hypot(x + B.w / 2 - hub.x, y + B.h / 2 - hub.y);
+      const s = B.homes - lost - 0.05 * hypot(x + B.w / 2 - hub.x, y + B.h / 2 - hub.y);
       if (!best || s > best.s) best = { x, y, covers: [...covers], s };
     }
   }
@@ -914,7 +923,7 @@ function replan(S: State, town: Town, c: Choice): boolean {
   for (const o of best.covers) for (const id of [...o.residents]) {
     const a = S.amap.get(id);
     if (!a) continue;
-    const to = homes.filter(h => !gone.has(h) && bp(S, h).homes > h.residents.length).sort((p, q) => Math.hypot(ctr(p).x - a.x, ctr(p).y - a.y) - Math.hypot(ctr(q).x - a.x, ctr(q).y - a.y))[0];
+    const to = homes.filter(h => !gone.has(h) && bp(S, h).homes > h.residents.length).sort((p, q) => hypot(ctr(p).x - a.x, ctr(p).y - a.y) - hypot(ctr(q).x - a.x, ctr(q).y - a.y))[0];
     if (!to) return false;
     o.residents = o.residents.filter(r => r !== id);
     a.home = to; to.residents.push(id);

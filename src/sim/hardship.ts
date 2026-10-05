@@ -13,7 +13,7 @@ import { rand } from './rng.ts';
 import { makeAgent, release, removeAgent } from './agents.ts';
 import { cancelTask, touches } from './logistics.ts';
 import { findPath } from './path.ts';
-import { add, bp, chronicle, ctr, door, emit, front, nearestTown, villagers } from './world.ts';
+import { add, bp, chronicle, ctr, door, emit, front, nearestTown, villagers, hypot } from './world.ts';
 import { spareOf } from './trade.ts';
 import { take } from './roads.ts';
 import { newcomer } from './people.ts';
@@ -22,7 +22,7 @@ import type { Building, Camp, Hazard, State, Town } from './types.ts';
 const H = (S: State) => S.content.tuning.hardship;
 
 /** Tiles of open ground between two buildings' footprints (0 when they touch). */
-const gap = (a: Building, b: Building) => Math.hypot(Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w)), Math.max(0, a.y - (b.y + b.h), b.y - (a.y + a.h)));
+const gap = (a: Building, b: Building) => hypot(Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w)), Math.max(0, a.y - (b.y + b.h), b.y - (a.y + a.h)));
 
 /** A counter at work: built, and its worker (the fire crew, the healer, the lookout) at their post if it has one. */
 function manned(S: State, c: Building): boolean {
@@ -34,12 +34,12 @@ function manned(S: State, c: Building): boolean {
 
 /** The counters at work that guard this point against a hazard. */
 export function guardsOf(S: State, p: { x: number; y: number }, hazard: Hazard): Building[] {
-  return S.buildings.filter(c => { const G = bp(S, c).guards; return !!G && G.hazard === hazard && manned(S, c) && Math.hypot(ctr(c).x - p.x, ctr(c).y - p.y) <= G.radius; });
+  return S.buildings.filter(c => { const G = bp(S, c).guards; return !!G && G.hazard === hazard && manned(S, c) && hypot(ctr(c).x - p.x, ctr(c).y - p.y) <= G.radius; });
 }
 export const guarded = (S: State, b: Building, hazard: Hazard) => guardsOf(S, ctr(b), hazard).length > 0;
 
 /** Is a home kept clean (sanitation: a bathhouse at work within its radius)? */
-export const clean = (S: State, b: Building) => S.buildings.some(c => { const C = bp(S, c).sanitation; return !!C && c.town === b.town && manned(S, c) && Math.hypot(ctr(c).x - ctr(b).x, ctr(c).y - ctr(b).y) <= C.radius; });
+export const clean = (S: State, b: Building) => S.buildings.some(c => { const C = bp(S, c).sanitation; return !!C && c.town === b.town && manned(S, c) && hypot(ctr(c).x - ctr(b).x, ctr(c).y - ctr(b).y) <= C.radius; });
 
 /** Does it burn? Anything built without a fireproof good (bricks, cut stone), bridges aside. */
 export const burns = (S: State, b: Building) => { const B = bp(S, b); return !B.bridge && !B.paves && !Object.keys(B.cost).some(k => H(S).fireproof.includes(k)); };
@@ -52,7 +52,7 @@ export function floodLand(S: State, b: Building): boolean {
     if (W.height[y * W.w + x] > Z.floodHeight) continue;
     for (let j = y - r; j <= y + r; j++) for (let k = x - r; k <= x + r; k++) {
       if (k < 0 || j < 0 || k >= W.w || j >= W.h) continue;
-      if (!W.ground[j * W.w + k] && !W.bridge[j * W.w + k] && Math.hypot(k - x, j - y) <= r) return true;
+      if (!W.ground[j * W.w + k] && !W.bridge[j * W.w + k] && hypot(k - x, j - y) <= r) return true;
     }
   }
   return false;
@@ -198,7 +198,7 @@ export function strike(S: State, town: Town, hazard: Hazard): boolean {
   }
   const s = S.bmap.get(town.store);
   if (!s) return false;
-  const p = ctr(s), W = S.world, dist = (x: number, y: number) => Math.hypot(x - p.x, y - p.y);
+  const p = ctr(s), W = S.world, dist = (x: number, y: number) => hypot(x - p.x, y - p.y);
   let c = [...S.camps].filter(o => !o.raid).sort((a, b) => dist(a.x, a.y) - dist(b.x, b.y))[0];
   if (!c) {
     const i = wildLand(S).sort((a, b) => dist(a % W.w, Math.floor(a / W.w)) - dist(b % W.w, Math.floor(b / W.w)))[0];
@@ -268,7 +268,7 @@ function settledCells(S: State): { cols: number; rows: number; settled: Uint8Arr
   for (const b of S.buildings) {
     const c = ctr(b), cx = c.x / CELL, cy = c.y / CELL;
     for (let y = Math.max(0, Math.floor(cy - R)); y <= Math.min(rows - 1, Math.ceil(cy + R)); y++) for (let x = Math.max(0, Math.floor(cx - R)); x <= Math.min(cols - 1, Math.ceil(cx + R)); x++) {
-      if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= R) settled[y * cols + x] = 1;
+      if (hypot(x + 0.5 - cx, y + 0.5 - cy) <= R) settled[y * cols + x] = 1;
     }
   }
   return { cols, rows, settled };
@@ -304,7 +304,7 @@ function camps(S: State, dt: number) {
     if (S.camps.length < room && wild.length) {
       // they gather on the edge of the wilds, within `raid_reach` of a settlement's stores, when there is any such land
       const stores = S.towns.map(t => S.bmap.get(t.store)).filter(b => !!b).map(b => ctr(b!));
-      const near = wild.filter(i => stores.some(p => Math.hypot((i % W.w) + 0.5 - p.x, Math.floor(i / W.w) + 0.5 - p.y) <= Z.raidReach));
+      const near = wild.filter(i => stores.some(p => hypot((i % W.w) + 0.5 - p.x, Math.floor(i / W.w) + 0.5 - p.y) <= Z.raidReach));
       const from = near.length ? near : wild;
       const i = from[Math.floor(rand(S.hrng) * from.length)];
       const c: Camp = { id: S.nextId++, x: (i % W.w) + 0.5, y: Math.floor(i / W.w) + 0.5, strength: Z.campStrength, raidT: Z.raidEverySeconds * (0.5 + rand(S.hrng)), raid: null, friend: null, goodwill: 0, giftT: 0 };
@@ -329,9 +329,9 @@ function camps(S: State, dt: number) {
 /** The nearest settlement within `raid_reach` of a camp that `ok` allows and its people can walk to, with the way there. */
 function nearestInReach(S: State, c: Camp, ok: (t: Town) => boolean): { t: Town; path: [number, number][] } | null {
   const W = S.world, Z = H(S);
-  const targets = S.towns.map(t => ({ t, s: S.bmap.get(t.store) })).filter(o => o.s).sort((a, b) => Math.hypot(ctr(a.s!).x - c.x, ctr(a.s!).y - c.y) - Math.hypot(ctr(b.s!).x - c.x, ctr(b.s!).y - c.y));
+  const targets = S.towns.map(t => ({ t, s: S.bmap.get(t.store) })).filter(o => o.s).sort((a, b) => hypot(ctr(a.s!).x - c.x, ctr(a.s!).y - c.y) - hypot(ctr(b.s!).x - c.x, ctr(b.s!).y - c.y));
   for (const { t, s } of targets) {
-    if (Math.hypot(ctr(s!).x - c.x, ctr(s!).y - c.y) > Z.raidReach) break;
+    if (hypot(ctr(s!).x - c.x, ctr(s!).y - c.y) > Z.raidReach) break;
     if (!ok(t)) continue;
     const f = front(s!), p = findPath(W, Math.floor(c.x), Math.floor(c.y), f.x, f.y);
     if (!p || p.length > Z.raidReach * 1.5 || p.some(([x, y]) => !W.ground[y * W.w + x] && !W.bridge[y * W.w + x])) continue;
@@ -404,7 +404,7 @@ export function moveRaids(S: State, dt: number) {
     if (!r) continue;
     let step = H(S).raidSpeed * dt;
     while (step > 0 && r.path.length) {
-      const [tx, ty] = r.path[0], gx = tx + 0.5, gy = ty + 0.5, d = Math.hypot(gx - r.x, gy - r.y);
+      const [tx, ty] = r.path[0], gx = tx + 0.5, gy = ty + 0.5, d = hypot(gx - r.x, gy - r.y);
       if (d <= step) { r.x = gx; r.y = gy; r.path.shift(); step -= d; } else { r.x += (gx - r.x) / d * step; r.y += (gy - r.y) / d * step; step = 0; }
     }
     if (r.path.length) continue;
