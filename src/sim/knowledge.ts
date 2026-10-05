@@ -23,6 +23,7 @@ import { struckLately } from './hardship.ts';
 import { traffic } from './roads.ts';
 import { swapCharts } from './sea.ts';
 import { offered } from './farms.ts';
+import { setOff } from './ships.ts';
 import type { Agent, BlueprintDef, Content, Knowledge, State, Town } from './types.ts';
 
 const K = (S: State) => S.content.tuning.knowledge;
@@ -45,6 +46,8 @@ export const knows = (town: Town, id: string) => id in town.knows;
 export function pressure(S: State, town: Town, need: string): number {
   if (need === 'hauling') { const t = K(S).haulTarget; return clamp01((town.haul - t) / (1 - t)); }
   if (need === 'crossing') return town.cut;
+  // boats (with ships on): its people stayed ashore for want of a free boat, lately
+  if (need === 'boats') return S.ships && S.t - town.boatless <= S.content.tuning.sea.boatlessMemorySeconds ? 1 : 0;
   // bread: how badly its planner is short of bread
   if (need === 'bread') return clamp01(town.planner.wants.bread ?? 0);
   if (need === 'detours') return town.detour;
@@ -74,7 +77,7 @@ export function pressure(S: State, town: Town, need: string): number {
   return 0;
 }
 
-export const NEED_TEXT: Record<string, string> = { bread: 'its bakers cannot keep up', distance: 'its goods travel a long way', long_hauls: 'its carts go a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it has needs that nothing it knows can meet', hauling: 'carriers are run off their feet', conveying: 'its carriers are run off their feet where its bots cannot reach', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths', reading: 'few of its people can read what its library holds' };
+export const NEED_TEXT: Record<string, string> = { bread: 'its bakers cannot keep up', distance: 'its goods travel a long way', long_hauls: 'its carts go a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it has needs that nothing it knows can meet', hauling: 'carriers are run off their feet', conveying: 'its carriers are run off their feet where its bots cannot reach', crossing: 'the neighbours are across water nobody can cross', boats: 'its people wait ashore for a free boat', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths', reading: 'few of its people can read what its library holds' };
 
 /** A settlement's age: the latest era it has reached, knowing each era's `share` of its discoveries and every earlier era's. */
 export function ageOf(S: State, town: Town): number {
@@ -273,7 +276,7 @@ function sendVisitor(S: State, town: Town): boolean {
   cancelTask(a);
   a.visit = { from: town.id, to: host.id, back: false, carry: shareable(town), boat: false };
   a.state = 'visit';
-  if (!goToBuilding(S, a, S.bmap.get(host.store)!)) {
+  if (!setOff(S, a, town, () => goToBuilding(S, a, S.bmap.get(host.store)!))) {
     // no way there: across water nobody here can cross yet. Try again next visit.
     a.visit = null; a.state = 'idle'; town.cut = 1; town.visitT = 0;
     return false;

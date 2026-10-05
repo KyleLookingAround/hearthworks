@@ -1,4 +1,5 @@
 import { add, bp, chronicle, emit, villagers } from './world.ts';
+import { setOff } from './ships.ts';
 import { cancelTask } from './logistics.ts';
 import { goToBuilding } from './agents.ts';
 import { shareable } from './knowledge.ts';
@@ -145,9 +146,11 @@ function sendPorter(S: State, town: Town): boolean {
   a.visit = { from: town.id, to: deal.host.id, back: false, carry: shareable(town), boat: false, trade: { give: deal.give, want: deal.want } };
   a.carry = { item: deal.give, n };
   a.state = 'visit';
-  if (!goToBuilding(S, a, S.bmap.get(deal.host.store)!)) {
+  if (!setOff(S, a, town, () => goToBuilding(S, a, S.bmap.get(deal.host.store)!))) {
     putIn(S, town, deal.give, n);
     a.visit = null; a.carry = null; a.state = 'idle';
+    // kept ashore for want of a boat (ships on): the next porter waits for the next round
+    if (town.boatless === S.t) town.trade.t = 0;
     return false;
   }
   a.visit.boat = a.path.some(([x, y]) => S.world.ground[y * S.world.w + x] === 0);

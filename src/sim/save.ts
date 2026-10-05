@@ -11,7 +11,7 @@
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 import { nameFor, namingFor } from './people.ts';
 
-export const SAVE_VERSION = 28;
+export const SAVE_VERSION = 29;
 
 type Json = Record<string, unknown>;
 
@@ -206,6 +206,15 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     for (const k of ['beltsLaid', 'beltTiles', 'beltLoads', 'beltGoods', 'beltSeconds']) st[k] ??= 0;
     return state;
   },
+  // 28 to 29: ships: boats of each settlement's fleet (off for older games, where anyone rows from any dock)
+  28: state => {
+    state.ships ??= false;
+    state.boats ??= [];
+    for (const t of state.towns as Json[]) t.boatless ??= -1e9;
+    const st = state.stats as Json;
+    for (const k of ['boatsBuilt', 'boatTrips', 'ashore']) st[k] ??= 0;
+    return state;
+  },
 };
 
 /** Run-length encoding for tile grids: [value, count, value, count, ...]. */
@@ -250,7 +259,7 @@ export function saveGame(S: State): SaveFile {
     state: {
       seed: S.seed, setup: copy(S.setup), rng: S.rng.s, krng: S.krng.s, prng: S.prng.s, hrng: S.hrng.s, hardship: S.hardship, plannedRoads: S.plannedRoads, camps: copy(S.camps), campT: S.campT, t: S.t, nextId: S.nextId,
       mood: S.mood, fed: S.fed, migT: S.migT, secT: S.secT,
-      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns), chronicle: copy(S.chronicle), parcels: copy(S.parcels), seasons: S.seasons, trade: S.trade, people: S.people, newcomers: S.newcomers, carts: S.carts, settlers: S.settlers, charts: S.charts, farms: S.farms,
+      stats: copy(S.stats), events: copy(S.events), towns: copy(S.towns), chronicle: copy(S.chronicle), parcels: copy(S.parcels), seasons: S.seasons, trade: S.trade, people: S.people, newcomers: S.newcomers, carts: S.carts, settlers: S.settlers, charts: S.charts, farms: S.farms, ships: S.ships, boats: copy(S.boats),
       world, buildings: copy(S.buildings), gone: copy([...gone.values()]), agents,
     },
   };
@@ -292,7 +301,7 @@ export function loadGame(content: Content, input: SaveFile | string): State {
 
   const S = {
     content, seed: d.seed, setup: d.setup, rng: { s: d.rng }, krng: { s: d.krng }, prng: { s: d.prng }, hrng: { s: d.hrng }, hardship: d.hardship, plannedRoads: d.plannedRoads, camps: d.camps, campT: d.campT, t: d.t, nextId: d.nextId,
-    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns, chronicle: d.chronicle, parcels: d.parcels, seasons: d.seasons, trade: d.trade, people: d.people, newcomers: d.newcomers, carts: d.carts, settlers: d.settlers, charts: d.charts, farms: d.farms,
+    mood: d.mood, fed: d.fed, migT: d.migT, secT: d.secT, stats: d.stats, events: d.events, towns: d.towns, chronicle: d.chronicle, parcels: d.parcels, seasons: d.seasons, trade: d.trade, people: d.people, newcomers: d.newcomers, carts: d.carts, settlers: d.settlers, charts: d.charts, farms: d.farms, ships: d.ships, boats: d.boats,
     world, buildings, agents, bmap, amap: new Map(agents.map(a => [a.id, a])),
   } as State;
   S.planner = S.towns[0].planner;
