@@ -23,7 +23,7 @@ import { planBelts } from './belts.ts';
 import { crew, growFarm, maxSize, places, sizeName, toGrow, unripe } from './farms.ts';
 import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
 
-export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
+export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, renewAt: 0, firstFor: {}, wants: {}, use: {} });
 
 interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: 'library' | 'school' | 'university'; hall?: boolean; mill?: boolean; ships?: boolean; /** traded for from this neighbour rather than made */ from?: Town }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
@@ -511,7 +511,7 @@ function foundDistrict(S: State, town: Town): boolean {
 }
 
 /** Place: score every free spot near the town for this blueprint; lower is better. */
-export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZone = false, hub?: Building): { x: number; y: number; rot: number } | null {
+export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZone = false, hub?: Building, win?: { x0: number; y0: number; x1: number; y1: number }): { x: number; y: number; rot: number } | null {
   const P = T(S), B = S.content.blueprints[type], W = S.world;
   // a settlement grows in its newest district: search around that district's centre (or the one asked for)
   const hs = hubs(S, town), store = hub ?? hs[hs.length - 1] ?? S.bmap.get(town.store);
@@ -521,6 +521,7 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
   const producersOf = (g: ItemId) => mine.filter(b => bp(S, b).output[g]);
   const usersOf = (g: ItemId) => mine.filter(b => { const O = bp(S, b); return O.input[g] || O.keepStocked[g]; });
   const houses = mine.filter(b => bp(S, b).homes);
+  const makers = B.storage ? mine.filter(b => !b.site && Object.keys(bp(S, b).output).some(g => !B.keeps || B.keeps.includes(g))) : [];
   const unreached = B.couriers ? mine.filter(b => !b.site && !covered(S, ctr(b))) : [];
   // a counter goes where it guards buildings at risk that nothing guards yet
   const exposed = B.guards ? mine.filter(b => atRisk(S, b, B.guards!.hazard) && !guarded(S, b, B.guards!.hazard)) : B.sanitation ? mine.filter(b => atRisk(S, b, 'sickness') && !clean(S, b))
@@ -564,6 +565,8 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     }
     if (zx0 <= zx1) { zoned = true; x0 = zx0; x1 = zx1 - B.w + 1; y0 = zy0; y1 = zy1 - B.h + 1; }
   }
+  // a search kept to a window (a district's centre, for homes on land freed there)
+  if (win) { x0 = Math.max(x0, win.x0); y0 = Math.max(y0, win.y0); x1 = Math.min(x1, win.x1 - B.w + 1); y1 = Math.min(y1, win.y1 - B.h + 1); }
   const zoneOk = (x: number, y: number, strict: boolean, bw: number, bh: number) => {
     for (let j = y; j < y + bh; j++) for (let k = x; k < x + bw; k++) {
       const z = W.zone[j * W.w + k];
@@ -613,6 +616,8 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     for (const i in B.input) { const from = producersOf(i); if (from.length) s += P.linkWeight * near(p, from); }
     for (const o in B.output) { const to = usersOf(o); if (to.length) s += P.linkWeight * mean(p, to); }
     if (B.homes && houses.length) s += P.linkWeight * near(p, houses);
+    // a yard beside the makers of what it keeps (any maker, for a yard that takes anything), not in the centre
+    if (B.storage && makers.length) s += P.yardWeight * mean(p, makers);
     if (dense) {
       // rows: every tile of wall shared with another home, and a door onto a street
       let shared = 0;
@@ -641,7 +646,7 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
   }
   }
   // a zone with no spot that fits: fall back to unzoned land rather than build nothing
-  if (zoned && !scored.length) return chooseSpot(S, type, town, true, hub);
+  if (zoned && !scored.length) return chooseSpot(S, type, town, true, hub, win);
   scored.sort((a, b) => a.s - b.s);
   // doors that can be reached now must stay reachable: a new building never seals off another's way in.
   // Judged from the settlement's first storage yard, which every district centre can reach.
@@ -884,7 +889,14 @@ function replan(S: State, town: Town, c: Choice): boolean {
       const movers = [...covers].reduce((n, o) => n + o.residents.length, 0);
       if (spare(covers) < movers) continue;
       if (inNuisance(S, { x: x + B.w / 2, y: y + B.h / 2 }) || onNoBuild(W, x, y, B.w, B.h)) continue;
-      if (!fitsWithout(S, B.id, x, y, covers, town)) continue;
+      // homes share walls only with other homes: anything else keeps its ring of open land
+      let ring = false;
+      for (let j = y - P.gap; j < y + B.h + P.gap && !ring; j++) for (let k = x - P.gap; k < x + B.w + P.gap && !ring; k++) {
+        if (k < 0 || j < 0 || k >= W.w || j >= W.h) continue;
+        const o = S.bmap.get(W.bgrid[j * W.w + k]);
+        ring = !!o && !covers.has(o) && !bp(S, o).homes;
+      }
+      if (ring || !fitsWithout(S, B.id, x, y, covers, town)) continue;
       const s = B.homes - lost - 0.05 * Math.hypot(x + B.w / 2 - hub.x, y + B.h / 2 - hub.y);
       if (!best || s > best.s) best = { x, y, covers: [...covers], s };
     }
@@ -930,6 +942,171 @@ function fitsWithout(S: State, type: string, x: number, y: number, without: Set<
   for (const [i, b, dr] of saved) { W.bgrid[i] = b; W.door[i] = dr; }
   for (const o of without) { const fo = frontOf(o); W.front[fo.y * W.w + fo.x]++; }
   return ok;
+}
+
+/** The district centre a building stands in: a storage yard at a district's heart within `centre_radius` of it. */
+export function centreOf(S: State, town: Town, b: Building): Building | undefined {
+  const r = T(S).centreRadius, c = ctr(b);
+  return hubs(S, town).find(h => h !== b && Math.hypot(ctr(h).x - c.x, ctr(h).y - c.y) <= r);
+}
+
+/** What a building adds to its settlement's supply of a good a second, at the share its own trees allow. */
+function shareOf(S: State, b: Building, g: ItemId): number {
+  const B = bp(S, b);
+  return B.seconds && B.output[g] ? (B.output[g] / B.seconds) * ownEffect(S, b) * places(S, b) : 0;
+}
+
+/**
+ * What renewal never touches: what the player placed (or the founders brought), sites, paused buildings, the yards at
+ * the heart of a district, homes (replanning renews those), and the buildings that answer a need of their own rather than
+ * a good (bridges, docks, places of rites and learning, the hall, counters, depots, sheds, barns, mills, shipyards, fields),
+ * and a building something is already being built to take over from.
+ */
+function kept(S: State, town: Town, b: Building): boolean {
+  const B = bp(S, b);
+  return !b.reason || b.site || b.paused || b.town !== town.id || town.districts.includes(b.id) || b.burn > 0 || b.flood > 0
+    || !!(B.homes || B.bridge || B.shore || B.rite || B.learning || B.hall || B.guards || B.sanitation || B.couriers || B.carts || B.oxen || B.mills || B.shipyard || B.field || B.paves)
+    || S.buildings.some(o => o.replaces === b.id);
+}
+
+/** Take a building down for renewal: carriers' jobs to and from it cancelled, what it held and `salvage_share` of its cost into the nearest storage yard. */
+function takeDown(S: State, town: Town, b: Building) {
+  const P = T(S), c = ctr(b);
+  const store = hubs(S, town).filter(h => !h.site && h !== b).sort((p, q) => Math.hypot(ctr(p).x - c.x, ctr(p).y - c.y) - Math.hypot(ctr(q).x - c.x, ctr(q).y - c.y))[0] ?? S.bmap.get(town.store);
+  const back: [string, number][] = [...Object.entries(b.inv), ...Object.entries(bp(S, b).cost).map(([k, n]): [string, number] => [k, Math.floor(n * P.salvageShare)])];
+  for (const a of S.agents) if (touches(a, b)) cancelTask(a);
+  if (town.planner.site === b.id) town.planner.site = null;
+  demolish(S, b);
+  if (store) for (const [k, n] of back) if (n > 0) add(store.inv, k, n);
+}
+
+const minutes = (s: number) => { const m = Math.round(s / 60); return `${m} minute${m === 1 ? '' : 's'}`; };
+
+/**
+ * Selective: a workplace that no longer pays comes down. It has stood without work for `idle_seconds` (no worker, no
+ * inputs, or resting with enough in store) or, in a town, it takes up a district centre; and the settlement's other
+ * makers of everything it makes cover `keep_cover` times what is wanted of it, with none of it short or saved for. Never the
+ * last of its kind. The one idle longest comes down; returns whether one did.
+ */
+function pullDown(S: State, town: Town, L: Look): boolean {
+  const P = T(S), Q = town.planner, mine = mineOf(S, town), form = formOf(S, town);
+  const count: Record<string, number> = {};
+  for (const b of mine) if (!b.site) count[b.type] = (count[b.type] || 0) + 1;
+  let best: { b: Building; why: string; s: number } | null = null;
+  for (const b of mine) {
+    const B = bp(S, b);
+    if (kept(S, town, b) || !B.workers || !B.seconds || !Object.keys(B.output).length || count[b.type] < 2) continue;
+    const idle = b.idle >= P.idleSeconds, centre = form === 'town' ? centreOf(S, town, b) : undefined;
+    if (!idle && !centre) continue;
+    const outs = Object.keys(B.output);
+    if (outs.some(g => g in Q.wants || Q.saving?.good === g || (L.supply[g] || 0) - shareOf(S, b, g) < (L.demand[g] || 0) * P.keepCover)) continue;
+    const n = B.name.toLowerCase(), many = /[^aeiou]y$/.test(n) ? `${n.slice(0, -1)}ies` : `${n}s`;
+    const goods = outs.map(g => goodName(S, g)).join(' and '), others = `its other ${count[b.type] > 2 ? `${many} make` : `${n} makes`} the ${goods} it needs`;
+    const why = idle ? `${b.status.t === 'No worker free' ? 'no worker' : b.status.t.startsWith('Needs') ? 'nothing to work with' : 'nothing to do'} for ${minutes(b.idle)}, and ${others}`
+      : `the town has outgrown it: ${others}, and its land in the centre is wanted for homes`;
+    const s = b.idle + (centre ? 1 : 0);
+    if (!best || s > best.s) best = { b, why, s };
+  }
+  if (!best) return false;
+  const name = bp(S, best.b).name;
+  takeDown(S, town, best.b);
+  S.stats.pulledDown++;
+  Q.status = `Pulled down ${article(name)} ${name}: ${best.why}`;
+  chronicle(S, town.id, 'pulled', `${town.name} pulled down ${article(name)} ${name.toLowerCase()}: ${best.why}`);
+  emit(S, 'info', `${town.name}: ${Q.status}`, true);
+  return true;
+}
+
+/**
+ * Denser: while the settlement wants homes, a workplace that needs land or makes noise (a farm not yet grown past
+ * `move_max_size`, a forester, a sawmill), or a yard that is not a district's heart, standing in a district centre moves
+ * out: a new one is planned where the planner would put one today, beyond every centre, and the old one comes down when it
+ * is finished (`finishMoves`), leaving the centre to homes. The largest first, nearest its centre. Returns whether one did.
+ */
+function moveOut(S: State, town: Town, L: Look): boolean {
+  const P = T(S), Q = town.planner;
+  if (town.fed < 1 || !L.shortages.some(sh => sh.homes && sh.sev >= P.minSeverity)) return false;
+  const cands: { b: Building; hub: Building; s: number }[] = [];
+  for (const b of mineOf(S, town)) {
+    const B = bp(S, b);
+    if (kept(S, town, b) || B.deposit || !(B.harvest || B.nuisance || B.storage || (B.grows && b.size <= P.moveMaxSize))) continue;
+    const hub = centreOf(S, town, b);
+    if (hub) cands.push({ b, hub, s: b.w * b.h - 0.01 * Math.hypot(ctr(b).x - ctr(hub).x, ctr(b).y - ctr(hub).y) });
+  }
+  cands.sort((p, q) => q.s - p.s || p.b.id - q.b.id);
+  for (const { b, hub } of cands) {
+    const B = bp(S, b);
+    if (affordable(S, B, town)) continue;
+    const back = lift(S, b);
+    const spot = chooseSpot(S, b.type, town);
+    back();
+    const out = spot && hubs(S, town).every(h => Math.hypot(ctr(h).x - spot.x - B.w / 2, ctr(h).y - spot.y - B.h / 2) > P.centreRadius);
+    if (!spot || !out) continue;
+    const site = placeBuilding(S, b.type, spot.x, spot.y, false, spot.rot)!;
+    site.town = town.id; site.replaces = b.id;
+    site.priority = 1 + Math.round(P.minSeverity * P.urgencyPriority);
+    const nth = town.districts.indexOf(hub.id), where = nth === 0 ? 'the centre' : `the centre of the ${ORDINAL[nth + 1] ?? `${nth + 1}th`} district`;
+    site.reason = `to take over from the ${sizeName(S, b).toLowerCase()} in ${where}, whose land is wanted for homes`;
+    Q.site = site.id; Q.placed++; Q.streak = { type: '', n: 0 };
+    Q.status = `Moving ${article(B.name)} ${B.name} out of ${where}: its land is wanted for homes`;
+    chronicle(S, town.id, 'moved', `${town.name} began moving ${article(B.name)} ${B.name.toLowerCase()} out of ${where}, to make room for homes`);
+    emit(S, 'info', `${town.name}: ${Q.status}`, true);
+    return true;
+  }
+  return false;
+}
+
+/** A building that has taken over from one in a centre is finished: the old one comes down, its land left to homes. */
+function finishMoves(S: State, town: Town) {
+  for (const b of S.buildings) {
+    if (b.town !== town.id || b.site || b.replaces === null) continue;
+    const old = S.bmap.get(b.replaces);
+    b.replaces = null;
+    if (!old || old.dead) continue;
+    const name = sizeName(S, old).toLowerCase();
+    takeDown(S, town, old);
+    S.stats.movedOut++;
+    chronicle(S, town.id, 'moved', `${town.name} moved its ${name} out of the centre: the old one came down, its land left to homes`);
+    emit(S, 'info', `${town.name}: the old ${name} came down, its land left to homes`, true);
+  }
+}
+
+/**
+ * Looking over what it has built, at most every `renew_every_seconds`: a settlement pulls down one workplace that no
+ * longer pays, or else, in a village or town, moves one out of a district centre. Returns whether it did either.
+ */
+function renew(S: State, town: Town, L: Look): boolean {
+  const Q = town.planner;
+  if (S.t - Q.renewAt < T(S).renewEverySeconds) return false;
+  if (!pullDown(S, town, L) && (formOf(S, town) === 'hamlet' || !moveOut(S, town, L))) return false;
+  Q.renewAt = S.t;
+  return true;
+}
+
+/**
+ * Homes go first onto open land in the district centres, oldest first (where a workplace moved out or came down),
+ * searched within `centre_radius` of each centre; elsewhere only when none has room.
+ */
+function centreSpot(S: State, type: string, town: Town): { x: number; y: number; rot: number } | null {
+  const r = T(S).centreRadius;
+  for (const h of hubs(S, town)) {
+    if (h.site) continue;
+    const c = ctr(h), spot = chooseSpot(S, type, town, false, h, { x0: Math.floor(c.x - r), y0: Math.floor(c.y - r), x1: Math.ceil(c.x + r), y1: Math.ceil(c.y + r) });
+    if (spot) return spot;
+  }
+  return null;
+}
+
+/** What renewal has in mind for a building, for the inspector: being moved out of a centre, or standing idle long enough to come down. */
+export function renewalNote(S: State, b: Building): string | null {
+  const town = S.towns[b.town], P = T(S), B = bp(S, b);
+  if (!town?.planner.on || b.dead) return null;
+  if (b.replaces !== null) { const o = S.bmap.get(b.replaces); return o ? `Takes over from the ${sizeName(S, o).toLowerCase()} in the centre, which comes down when this is built` : null; }
+  const site = S.buildings.find(o => o.replaces === b.id);
+  if (site) return `Moving out: a new ${bp(S, site).name.toLowerCase()} is being built beyond the centre; this one comes down when it is done`;
+  if (kept(S, town, b) || !B.workers || !B.seconds) return null;
+  if (b.idle >= 60) return `Idle for ${minutes(b.idle)}: after ${minutes(P.idleSeconds)} it may come down, if the settlement's other makers cover what it makes`;
+  return null;
 }
 
 /**
@@ -1010,6 +1187,8 @@ function planTown(S: State, town: Town, dt: number) {
   // and one that knows the conveyor lays a belt from a storage yard's door now and then
   if (planBelts(S, town, T(S).intervalSeconds / town.levers.pace)) return;
 
+  // a building moved out of a centre is finished: the old one comes down
+  finishMoves(S, town);
   const mine = Q.site !== null ? S.bmap.get(Q.site) : undefined;
   // a site waits its turn, unless it has waited `site_patience_seconds` for a good nobody has: then plan around it;
   // with a planner at their desk in the town hall, it plans on while fewer than `atOnce` of its own sites are open
@@ -1026,10 +1205,12 @@ function planTown(S: State, town: Town, dt: number) {
   if (Q.saving) Q.wants[Q.saving.good] = Math.max(Q.wants[Q.saving.good] || 0, 0.5);
   // a crowded newest district splits off a new one
   if (formOf(S, town) !== 'hamlet' && foundDistrict(S, town)) return;
-  // a town with beds to spare renews an old block now and then: sparse homes make way for its densest
-  const dense = homeFor(S, town);
-  if (dense && formOf(S, town) === 'town' && S.t - Q.replanAt >= T(S).replanEverySeconds && L.freeBeds > 0
-    && replan(S, town, { B: dense, sev: T(S).minSeverity, why: 'the town is renewing its old streets' })) { Q.replanAt = S.t; return; }
+  // a village or town looks over what it has built: what no longer pays comes down, land and noise move out of the centres
+  if (renew(S, town, L)) return;
+  // a village or town with beds to spare renews an old block now and then: sparse homes make way for its densest
+  const dense = homeFor(S, town), form = formOf(S, town);
+  if (dense && form !== 'hamlet' && S.t - Q.replanAt >= T(S).replanEverySeconds && L.freeBeds > 0
+    && replan(S, town, { B: dense, sev: T(S).minSeverity, why: `the ${form} is renewing its old streets` })) { Q.replanAt = S.t; return; }
   Q.want = null;
   if (!worst || worst.sev < T(S).minSeverity) { Q.streak = { type: '', n: 0 }; Q.status = `The ${formOf(S, town)} has what it needs`; return; }
   // something it recently found no room for waits `no_room_retry_seconds`; the next need goes ahead
@@ -1104,7 +1285,9 @@ function planTown(S: State, town: Town, dt: number) {
     emit(S, 'info', S.towns.length > 1 ? `${town.name}: ${Q.status}` : Q.status, true);
     return;
   }
-  let spot = chooseSpot(S, c.B.id, town);
+  // in a village or town, homes go first onto open land in the district centres, where workplaces moved out or came down
+  let spot = c.B.homes && formOf(S, town) !== 'hamlet' ? centreSpot(S, c.B.id, town) : null;
+  spot ??= chooseSpot(S, c.B.id, town);
   // a dock looks along the shores of every district, newest first
   if (c.B.shore) for (const h of hubs(S, town).reverse()) spot ??= chooseSpot(S, c.B.id, town, false, h);
   // a dock with no shore left clears one: a workshop on the shore comes down for it, as roads clear their line

@@ -296,7 +296,8 @@ function run(S: State, b: Building, dt: number) {
   // the hands at work (a grown farm has more than one); a worker from a sick home stays in bed
   const team = b.hands.length ? crew(b).map(id => S.amap.get(id)).filter(a => !!a && a.state === 'working' && !(a.home && a.home.sick > 0)) as Agent[] : null;
   if (!team?.length) {
-    if (!w || w.state !== 'working') { setStatus(b, w ? 'Worker on the way' : 'No worker free', w ? 'wait' : 'bad'); return; }
+    // (a workplace without a worker, without its inputs or resting with enough in store stands idle: its planner may pull it down)
+    if (!w || w.state !== 'working') { if (!w) b.idle += dt; setStatus(b, w ? 'Worker on the way' : 'No worker free', w ? 'wait' : 'bad'); return; }
     if (w.home && w.home.sick > 0) { setStatus(b, 'Its worker is sick in bed', 'bad'); return; }
   }
   // counters have no recipe: their worker stands ready
@@ -304,7 +305,7 @@ function run(S: State, b: Building, dt: number) {
   // places of learning have no recipe: their worker keeps, teaches or studies
   if (B.learning) { setStatus(b, { library: 'A scribe at work', school: 'Lessons under way', university: 'Scholars at their inquiries' }[B.learning], 'ok'); return; }
   const lacking = Object.keys(B.input).filter(k => (b.inv[k] || 0) < B.input[k]);
-  if (lacking.length) { setStatus(b, `Needs ${itemsText(S, lacking)}`, 'bad'); return; }
+  if (lacking.length) { b.idle += dt; setStatus(b, `Needs ${itemsText(S, lacking)}`, 'bad'); return; }
   if (Object.keys(B.output).some(k => (b.inv[k] || 0) >= capOf(S, b))) {
     // a worker left standing at a full workplace goes carrying instead
     b.stall += dt;
@@ -313,7 +314,7 @@ function run(S: State, b: Building, dt: number) {
   }
   // between cycles, a workplace whose goods the stores hold plenty of rests, and in time its worker goes carrying
   if (b.timer === 0 && enoughInStore(S, b)) {
-    b.stall += dt;
+    b.stall += dt; b.idle += dt;
     if (b.stall >= T.logistics.releaseAfterSeconds) { b.stall = 0; release(S, b); }
     setStatus(b, B.shipyard ? 'The fleet has the boats it needs: resting' : 'Enough in store: resting', 'wait'); return;
   }
@@ -321,8 +322,9 @@ function run(S: State, b: Building, dt: number) {
   let tree = -1;
   if (B.harvest) {
     tree = nearestGrownTree(S, b, B.harvest.radius);
-    if (tree < 0) { setStatus(b, 'No grown trees nearby', 'bad'); return; }
+    if (tree < 0) { b.idle += dt; setStatus(b, 'No grown trees nearby', 'bad'); return; }
   }
+  b.idle = 0;
   // tools speed the work up, and wear out; a mill at work nearby makes each batch yield more
   const tooled = !!B.tools && (b.inv.tools || 0) >= 1, n = places(S, b), mill = milledBy(S, b);
   setStatus(b, (tooled ? 'Working, with tools' : 'Working') + (mill > 1 ? (tooled ? ' and milled grain' : ', with milled grain') : '') + (n > 1 ? `: ${team?.length ?? 1} of ${n} hands` : ''), 'ok');

@@ -3,7 +3,7 @@ import { surroundings } from '../sim/surroundings.ts';
 import { clean, guarded } from '../sim/hardship.ts';
 import { homeTier } from '../sim/production.ts';
 import { FEAST, NAMING, called } from '../sim/people.ts';
-import { atOnce, formOf, hubs, openSites } from '../sim/planner.ts';
+import { atOnce, formOf, hubs, openSites, renewalNote } from '../sim/planner.ts';
 import { capOf, crew, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
 import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, ageNeeded, beltBy, ctr, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
@@ -752,6 +752,9 @@ export class App {
     // a conveyor runs past its door: loads ride to and from it with no hands
     if (!b.site && S.world.belts && beltBy(S, b) >= 0) { const riding = S.parcels.filter(p => p.src === b.id || p.dst === b.id).length; rows += row('Conveyor', `beside a belt${riding ? `: ${riding} load${riding > 1 ? 's' : ''} riding to or from it` : ''}`); }
     if (B.sanitation) rows += row('Keeps clean', `homes within ${B.sanitation.radius} tiles, while its attendant is in: they fall sick ${Math.round(T.hardship.cleanFactor * 100)}% as often`);
+    // renewal: being moved out of a district centre, or idle long enough to come down
+    const renewal = renewalNote(S, b);
+    if (renewal) rows += row('Renewal', renewal);
     if (B.guards) rows += row('Guards against', `${({ fire: 'fire', flood: 'floods', sickness: 'sickness', raids: 'raiders' })[B.guards.hazard]} within ${B.guards.radius} tiles` + (B.guards.defence ? `; defence ${B.guards.defence}` : ''));
     const pct = progress === null ? null : Math.round(Math.max(0, Math.min(1, progress)) * 100);
     $('#insDyn').innerHTML = `<div class="ins-body"><span class="status ${b.status.l}">${esc(b.status.t)}</span><dl class="rows">${rows}</dl>${pct === null ? '' : `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div>`}</div>`;

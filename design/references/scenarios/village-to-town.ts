@@ -1,11 +1,12 @@
 /**
  * Gate 9 scenario: one self-planning settlement on the standard map for an hour. No build calls.
  * Passes when it grows from a roomy hamlet into a town: denser homes, old blocks replanned with nobody
- * leaving for it, more than one district, everyone fed, planning within its budget.
+ * leaving for it, workplaces pulled down or moved out of the centres, more than one district, everyone fed,
+ * planning within its budget.
  */
 import { runTracked, standardMetrics, start, worldOf, type Scenario } from '../../../src/gates/kit.ts';
 import { bp, type State } from '../../../src/sim/index.ts';
-import { formOf, hubs } from '../../../src/sim/planner.ts';
+import { centreOf, formOf, hubs } from '../../../src/sim/planner.ts';
 
 /** Beds per tile of housing land: home footprints and the ring of land around them. */
 function homeDensity(S: State): number {
@@ -22,6 +23,13 @@ function homeDensity(S: State): number {
   return tiles ? beds / tiles : 0;
 }
 
+/** Of the finished buildings in the district centres (within `centre_radius` of a district's storage yard), the share that are homes. */
+function centreHomes(S: State): number {
+  const town = S.towns[0], hearts = new Set(town.districts);
+  const inCentre = S.buildings.filter(b => b.town === town.id && !b.site && !hearts.has(b.id) && !bp(S, b).paves && centreOf(S, town, b));
+  return inCentre.length ? Math.round((inCentre.filter(b => bp(S, b).homes).length / inCentre.length) * 1000) / 1000 : 0;
+}
+
 export const run: Scenario = (content, params) => {
   const { seed, seconds } = params;
   const S = start(content, seed, { planner: true, ...worldOf(params) });
@@ -36,6 +44,12 @@ export const run: Scenario = (content, params) => {
       town_form: ['hamlet', 'village', 'town'].indexOf(formOf(S, town)),
       density_ratio: Math.round((homeDensity(S) / hamlet) * 1000) / 1000,
       blocks_replanned: S.stats.replanned,
+      pulled_down: S.stats.pulledDown,
+      moved_out: S.stats.movedOut,
+      renewed: S.stats.pulledDown + S.stats.movedOut,
+      centre_home_share: centreHomes(S),
+      mean_delivery_seconds: Math.round((S.stats.deliverySeconds / Math.max(1, S.stats.delivered)) * 100) / 100,
+      mean_delivery_tiles: Math.round((S.stats.deliveryTiles / Math.max(1, S.stats.delivered)) * 100) / 100,
       demolition_departures: S.stats.demolitionDepartures,
       districts: hubs(S, town).length,
       terraces: S.buildings.filter(b => b.type === 'terrace' && !b.site).length,
