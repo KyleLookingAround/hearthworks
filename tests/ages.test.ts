@@ -24,3 +24,28 @@ test('a settlement enters an age by knowing its share of the discoveries, and th
   assert.equal(t.age, 2);
   assert.ok(S.chronicle.some(c => c.kind === 'age'));
 });
+
+test('an era unlocks blueprints of its own: only a settlement of that age thinks of the windmill', async () => {
+  const { ageNeeded, pressure } = await import('../src/sim/knowledge.ts');
+  const clock = content.eras.findIndex(E => E.id === 'clockwork');
+  assert.deepEqual(content.eras[clock].unlocks, ['windmill']);
+  assert.equal(ageNeeded({ content } as any, 'windmill'), clock);
+  assert.equal(ageNeeded({ content } as any, 'bridge'), 0, 'discoveries of earlier eras are not locked');
+  const strained = (age: number) => {
+    const S = createState(content, 1847, {});
+    const t = S.towns[0];
+    let known = false;
+    runFor(S, 1800, s => {
+      const o = s.towns[0];
+      o.planner.wants.bread = 1; o.levers.encourage = 'windmill';
+      // hold the settlement at the age asked (what it knows is not the point here)
+      o.age = age;
+      if ('windmill' in o.knows) known = true;
+    });
+    return { known, p: pressure(S, t, 'bread') };
+  };
+  const before = strained(clock - 1), at = strained(clock);
+  assert.equal(before.p, 1);
+  assert.equal(before.known, false, 'not thought of before the age');
+  assert.equal(at.known, true, 'thought of in the Age of Clockwork');
+});

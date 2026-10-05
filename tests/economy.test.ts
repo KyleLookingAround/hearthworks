@@ -60,3 +60,23 @@ test('a planning town builds chains several steps deep and lifts homes to the th
   assert.ok(S.buildings.some(b => homeTier(S, b) === 3), 'some home is well off');
   assert.equal(S.stats.departures, 0);
 });
+
+test('a bakery by a windmill whose miller is at work gets half as much bread again from its wheat', async () => {
+  const { milledBy } = await import('../src/sim/production.ts');
+  const { findSpot, centre } = await import('../src/gates/kit.ts');
+  const { placeBuilding } = await import('../src/sim/index.ts');
+  const run = (mill: boolean) => {
+    const S = createState(content, 1847, {});
+    const at = findSpot(S, 'bakery', centre(S), 20)!, bakery = placeBuilding(S, 'bakery', at.x, at.y, true)!;
+    let wm: any = null;
+    if (mill) { const m = findSpot(S, 'windmill', { x: bakery.x, y: bakery.y }, 10)!; wm = placeBuilding(S, 'windmill', m.x, m.y, true)!; }
+    runFor(S, 5);
+    let wheat = 0;
+    runFor(S, 300, s => { if ((bakery.inv.wheat || 0) < 5) { bakery.inv.wheat = (bakery.inv.wheat || 0) + 5; wheat += 5; } bakery.inv.bread = 0; });
+    return { made: bakery.made, wheat, milled: milledBy(S, bakery), miller: wm && wm.worker !== null };
+  };
+  const plain = run(false), milled = run(true);
+  assert.equal(plain.milled, 1);
+  assert.equal(milled.milled, content.blueprints.windmill.mills!.factor);
+  assert.ok(milled.made > plain.made * 1.3, `milled ${milled.made}, plain ${plain.made}`);
+});
