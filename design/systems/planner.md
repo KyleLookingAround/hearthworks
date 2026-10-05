@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T20:40:00Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T21:56:14Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -178,7 +178,7 @@ The planner is a villager. With [people](/systems/people.md) on, a village wants
 
 # Learning
 
-With people on, the planner wants a [Library](/blueprints/library.md) while it holds knowledge beyond its founders', a [School](/blueprints/school.md) once it has `school_children` children, a [University](/blueprints/university.md) as a village of `university_villagers` that keeps a library and makes every good the university is built of (it does not open a quarry and a mason's yard for one), or as any town, that knows of one, and a [Printing House](/blueprints/printing_house.md) as a village or town that knows one and keeps a library, each at `learning_weight` ([knowledge](/systems/knowledge.md)). Universities were wanted in towns alone until the second pass: on the twelve default new games none was built within the hour, so no settlement ever thought of an idea only scholars find ([log](/log.md), 2026-10-05).
+With people on, the planner wants a [Library](/blueprints/library.md) while it holds knowledge beyond its founders', a [School](/blueprints/school.md) once it has `school_children` children, a [University](/blueprints/university.md) as a village of `university_villagers` that keeps a library, while everyone is fed, its winter store is on track and its stores hold `university_spare` times the university's cost (it waits for spare stores rather than saving, and never opens a quarry for one), or as any town, that knows of one, and a [Printing House](/blueprints/printing_house.md) as a village or town that knows one and keeps a library, each at `learning_weight` ([knowledge](/systems/knowledge.md)). A university is wanted, not needed: with no room for one the planner clears a workshop resting with enough in store (as a dock clears the shore), and if there is none it goes on to its next need in the same look, without saying its land is full (which would send settlers off). Universities were wanted in towns alone until the second pass: on the twelve default new games none was built within the hour, so no settlement ever thought of an idea only scholars find ([log](/log.md), 2026-10-05).
 
 A settlement that knows a mill (the [Windmill](/blueprints/windmill.md) for its bakeries, the [Seed Garden](/blueprints/seed_garden.md) for its farms, gardens and orchards) wants that mill, at `mill_weight`, where `mill_min` of the workplaces it serves stand with none of it in reach, and sites it where it reaches the most of them.
 

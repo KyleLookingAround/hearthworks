@@ -4,11 +4,11 @@ title: Seed Garden
 description: Scholars' beds where the best plants are bred for seed, so the farms, gardens and orchards around it bear a quarter more. Only scholars think of it.
 tags: [production, food, learning]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-05T15:16:12Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T21:56:14Z }
 color: "#7fa65a"
 order: 4.4
 size: [3, 2]
-cost: { planks: 10, stone: 4 }
+cost: { planks: 12 }
 workers: 1
 mills: { types: [farm, garden, orchard], radius: 12, factor: 1.25, boon: better seed }
 discovery: { need: bread, mean_seconds: 300, university: true }
