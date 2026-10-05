@@ -164,7 +164,7 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     if (d <= 0) continue;
     // a good the stores hold plenty of is not short, whatever the rates
     const sev = plentyInStore(S, town, g.id, d) ? 0 : clamp01(1 - (supply[g.id] || 0) / d) * (comfort.has(g.id) ? (foodShort ? 0 : P.comfortWeight) : foodShort && !basic.has(g.id) ? 0 : 1) * (diet.has(g.id) ? F.dietWeight : 1);
-    shortages.push({ key: g.id, good: g.id, sev, why: comfort.has(g.id) ? `homes want ${goodName(S, g.id)}` : diet.has(g.id) ? `homes would eat ${goodName(S, g.id)} with their bread` : runningLow(S, g.id) });
+    shortages.push({ key: g.id, good: g.id, sev, why: comfort.has(g.id) ? `homes want ${goodName(S, g.id)}` : diet.has(g.id) ? `homes would ${g.id === 'milk' ? 'drink' : 'eat'} ${goodName(S, g.id)} with their bread` : runningLow(S, g.id) });
   }
   // specialisation: what a neighbour makes and this settlement does not, it trades for
   for (const sh of shortages) if (sh.sev >= P.minSeverity) sh.from = importFrom(S, town, sh.good!, demand[sh.good!] || 0) ?? undefined;
@@ -442,6 +442,9 @@ function onNoBuild(W: World, x: number, y: number, w: number, h: number): boolea
   return false;
 }
 
+/** Ordinal words for a settlement's districts, as the chronicle tells them. */
+const ORDINAL = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
+
 /** The storage yards at the heart of a settlement's districts, first district first. */
 export function hubs(S: State, town: Town): Building[] {
   return town.districts.map(id => S.bmap.get(id)).filter((b): b is Building => !!b && !b.dead);
@@ -492,8 +495,9 @@ function foundDistrict(S: State, town: Town): boolean {
   town.districts.push(b.id);
   const Q = town.planner;
   Q.site = b.id; Q.placed++; Q.streak = { type: '', n: 0 };
-  Q.status = `Founding district ${town.districts.length}: ${b.reason}`;
-  chronicle(S, town.id, 'district', `${town.name} founded its district ${town.districts.length}`);
+  const nth = ORDINAL[town.districts.length] ?? `${town.districts.length}th`;
+  Q.status = `Founding a ${nth} district: the old one has filled up`;
+  chronicle(S, town.id, 'district', `${town.name} founded a ${nth} district`);
   emit(S, 'info', `${town.name}: ${Q.status}`);
   return true;
 }
@@ -1000,7 +1004,7 @@ function planTown(S: State, town: Town, dt: number) {
   // a site waits its turn, unless it has waited `site_patience_seconds` for a good nobody has: then plan around it;
   // with a planner at their desk in the town hall, it plans on while fewer than `atOnce` of its own sites are open
   const open = mine?.site && !starved(S, mine, town);
-  if (open && openSites(S, town) >= atOnce(S, town)) { Q.status = `Building ${article(bp(S, mine).name)} ${bp(S, mine).name}: ${mine.reason}`; return; }
+  if (open && openSites(S, town) >= atOnce(S, town)) { Q.status = bp(S, mine).field ? `Laying new fields ${mine.reason}` : `Building ${article(bp(S, mine).name)} ${bp(S, mine).name}: ${mine.reason}`; return; }
   if (Q.site !== null && !open) { Q.site = null; Q.settle = T(S).settleSeconds / town.levers.pace; }
   if (Q.settle > 0) { Q.settle -= T(S).intervalSeconds / town.levers.pace; return; }
 

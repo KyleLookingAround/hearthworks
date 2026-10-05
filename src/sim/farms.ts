@@ -124,7 +124,7 @@ export function joinFields(S: State, f: Building, farm: Building | undefined, an
   for (let j = f.y; j < f.y + f.h; j++) for (let k = f.x; k < f.x + f.w; k++) W.bgrid[j * W.w + k] = farm.id;
   farm.size++; S.stats.grown++;
   const now = sizeName(S, farm), town = S.towns[farm.town];
-  if (announce) emit(S, 'good', `${town && S.towns.length > 1 ? `${town.name}: ` : ''}${article(was).replace(/^a/, 'A')} ${was.toLowerCase()} grew into ${article(now)} ${now.toLowerCase()}`, true);
+  if (announce) emit(S, 'good', town && S.towns.length > 1 ? `${town.name}: ${article(was)} ${was.toLowerCase()} grew into ${article(now)} ${now.toLowerCase()}` : `${article(was).replace(/^a/, 'A')} ${was.toLowerCase()} grew into ${article(now)} ${now.toLowerCase()}`, true);
   if (town && farm.size === maxSize(bp(S, farm))) chronicle(S, town.id, 'farm', `${town.name} grew ${article(bp(S, farm).name)} ${bp(S, farm).name.toLowerCase()} into ${article(now)} ${now.toLowerCase()}`);
 }
 

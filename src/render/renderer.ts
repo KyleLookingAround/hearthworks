@@ -21,7 +21,7 @@ export interface View {
   sel: Building | null;
   routes: boolean;
   /** What to lay over the map: nothing, mood, nuisance, districts, traffic or courier coverage. */
-  overlay: 'none' | 'mood' | 'nuisance' | 'districts' | 'traffic' | 'coverage';
+  overlay: 'none' | 'mood' | 'nuisance' | 'districts' | 'traffic' | 'coverage' | 'cover';
 }
 
 type Ctx = CanvasRenderingContext2D;
@@ -514,7 +514,7 @@ export class Renderer {
     }
   }
 
-  /** Overlays: how each home feels, where the saws are heard, whose district a tile is, where feet go, where bots reach. */
+  /** Overlays: how each home feels, where the saws are heard, whose district a tile is, where feet go, where bots and carts reach, what guards the homes. */
   private overlay(S: State, kind: View['overlay'], x0: number, x1: number, y0: number, y1: number) {
     const c = this.ctx, w = S.world;
     if (kind === 'traffic') {
@@ -540,9 +540,23 @@ export class Renderer {
         const v = surroundings(S, b).score * (b.hunger > 0 ? 0.3 : 1);
         c.fillStyle = `hsla(${Math.round(v * 120)},70%,50%,.55)`; this.rr(b.x * TS + 2, b.y * TS + 2, b.w * TS - 4, b.h * TS - 4, 4); c.fill();
       }
+    } else if (kind === 'cover') {
+      // what keeps the homes safe: each counter's reach in the colour of its hazard, a bathhouse's in teal, and how far raiders range from their camps
+      const hue: Record<string, string> = { fire: '226,115,94', flood: '90,155,212', sickness: '143,196,106', raids: '214,176,82' };
+      for (const b of S.buildings) {
+        const B = S.content.blueprints[b.type];
+        if (b.site || (!B.guards && !B.sanitation)) continue;
+        const col = B.guards ? hue[B.guards.hazard] : '127,209,199', r = B.guards ? B.guards.radius : B.sanitation!.radius;
+        c.fillStyle = `rgba(${col},.14)`;
+        c.beginPath(); c.arc((b.x + b.w / 2) * TS, (b.y + b.h / 2) * TS, r * TS, 0, 7); c.fill();
+        this.ring(b, r, `rgba(${col},.85)`);
+      }
+      const reach = S.content.tuning.hardship.raidReach;
+      for (const camp of S.camps) if (!(camp.friend !== null && camp.goodwill > 0)) this.ring({ x: camp.x - 0.5, y: camp.y - 0.5, w: 1, h: 1 }, reach, 'rgba(176,65,62,.8)');
     } else if (kind === 'nuisance' || kind === 'coverage') {
       for (const b of S.buildings) {
-        const B = S.content.blueprints[b.type], r = kind === 'nuisance' ? B.nuisance?.radius : B.couriers?.radius;
+        // bots reach as far as their depot's radius; carts are fetched from a shed or barn within `cart_reach` of a carter
+        const B = S.content.blueprints[b.type], r = kind === 'nuisance' ? B.nuisance?.radius : B.couriers?.radius ?? (B.carts || B.oxen ? S.content.tuning.logistics.cartReach : undefined);
         if (!r || b.site) continue;
         c.fillStyle = kind === 'nuisance' ? 'rgba(226,115,94,.18)' : 'rgba(240,194,122,.16)';
         c.beginPath(); c.arc((b.x + b.w / 2) * TS, (b.y + b.h / 2) * TS, r * TS, 0, 7); c.fill();

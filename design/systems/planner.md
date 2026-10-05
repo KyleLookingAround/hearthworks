@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T01:44:50Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T02:41:56Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -125,9 +125,9 @@ The player steers each settlement's planner with levers (the Steward panel in th
 - **Pace.** Unhurried, Normal or Brisk (0.5, 1, 2): divides how long the planner waits between looks and settles after a building.
 - **Zones.** The player paints land from the build bar: homes, farms, workshops, or no building. A blueprint's `zone` (homes for any home) says which zone it keeps to. While a zone of its kind belongs to the settlement and has room, a building is placed only inside it, wherever in the settlement's reach it lies; with none, or none with room, it stays off other kinds' zones. Nothing is ever built, paved or laid out as a street on no-build land. A zoned tile belongs to the settlement whose first storage yard is nearest, so neighbours keep off each other's zones.
 - **The chronicle** records each settlement's history as it happens: founded, its form, inventions, teachings and learning by hand, proving, forgetting, replanned blocks, new districts and bridges. It reads in the menu and exports as an OKF log (dated sections newest first; Creation, Update and Deprecation bullets; game minutes for dates).
-- **The advisor** reads the planners and the chronicle and suggests a lever: bread first when a settlement goes hungry, encouraging the blueprint that would answer a need nobody knows how to meet, a zone when there is no room, the Cart Shed or Ox Barn when deliveries run long and neither is known, wheat when the oxen wait for feed, a garden, orchard or pasture when a settlement of four homes or more eats nothing but bread (with farms that grow), keeping homes and workshops apart, and the latest page of history.
+- **The advisor** reads the planners and the chronicle and suggests a lever: bread first when a settlement goes hungry, encouraging the blueprint that would answer a need nobody knows how to meet, a zone when there is no room, the Cart Shed or Ox Barn when deliveries run long and neither is known, wheat when the oxen wait for feed, a garden, orchard or pasture when a settlement of four homes or more eats nothing but bread (with farms that grow), keeping homes and workshops apart, and the latest page of history (not the turn of a season). Raiders count only from camps the settlement does not send bread to, as those never raid it.
 
-Overlays in the menu show how each home feels (surroundings, hunger), the reach of noise, districts, traffic and courier coverage.
+Overlays in the menu show how each home feels (surroundings, hunger), the reach of noise, districts, traffic, how far bots and carts reach, and what protects the homes (each counter's reach in the colour of its hazard, a bathhouse's, and how far raiders range from camps not at peace).
 
 # A deeper economy
 

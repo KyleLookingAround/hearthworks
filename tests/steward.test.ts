@@ -41,6 +41,8 @@ test('the advisor points at a lever when a settlement is stuck', () => {
   S.towns[0].fed = 1;
   S.towns[0].planner.status = 'Nothing the village knows would help: carriers are run off their feet';
   assert.ok(advise(S, S.towns[0]).some(t => /encourage them to think of the Courier Depot/.test(t)));
+  S.towns[0].planner.status = 'No room for a Farm: wheat is running low';
+  assert.ok(advise(S, S.towns[0]).includes('Hearth has no room for a Farm (wheat is running low): paint a zone where there is room, or lift no-build land.'));
 });
 
 test('the advisor points at carts for long hauls, at oxen without feed, and at a diet of bread alone', () => {

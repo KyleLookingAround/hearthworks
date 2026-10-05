@@ -53,6 +53,11 @@ export class NewGameDialog {
     $('#ngSystemsNote').textContent = on === boxes.length ? `(all ${on} on)` : `(${on} of ${boxes.length} on)`;
   }
 
+  /** Roads and settling come from the village plans: without them the boxes are dimmed and say so. */
+  private notePlans() {
+    document.querySelectorAll<HTMLElement>('#ngSystems [data-needs-plans]').forEach(l => l.classList.toggle('idle', !this.choice.plans));
+  }
+
   private build() {
     const maps = Object.values(this.content.maps).sort((a, b) => a.order - b.order);
     $('#ngMaps').innerHTML = maps.map(M => `<button type="button" class="ng-card" data-map="${esc(M.id)}" aria-pressed="false"><b>${esc(M.name)}</b><span>${esc(M.description)}</span></button>`).join('');
@@ -83,7 +88,7 @@ export class NewGameDialog {
     const trade = $<HTMLInputElement>('#ngTrade');
     trade.addEventListener('change', () => { this.choice.trade = trade.checked; });
     const plans = $<HTMLInputElement>('#ngPlans');
-    plans.addEventListener('change', () => { this.choice.plans = plans.checked; });
+    plans.addEventListener('change', () => { this.choice.plans = plans.checked; this.notePlans(); });
     document.querySelectorAll<HTMLInputElement>('#ngSystems input[type=checkbox]').forEach(b => b.addEventListener('change', () => this.noteSystems()));
     $('#ngStart').addEventListener('click', () => {
       try { localStorage.setItem(KEY, JSON.stringify(this.choice)); } catch { /* not saved: fine */ }
@@ -116,6 +121,7 @@ export class NewGameDialog {
     $<HTMLInputElement>('#ngRoads').checked = c.roads !== false;
     $<HTMLInputElement>('#ngFarms').checked = c.farms !== false;
     this.noteSystems();
+    this.notePlans();
     clearTimeout(this.previewTimer);
     this.previewTimer = window.setTimeout(() => this.preview(), 120);
   }

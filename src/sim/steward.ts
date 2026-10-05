@@ -53,11 +53,12 @@ export function advise(S: State, town: Town, n = 3): string[] {
     if (answer && ageNeeded(S, answer.id) > town.age) out.push(`Nobody in ${town.name} has an answer to "${stuck[1]}": the ${answer.name} comes to a settlement of the Age of ${S.content.eras[ageNeeded(S, answer.id)].name}, or from a neighbour who knows it.`);
     else if (answer) out.push(`Nobody in ${town.name} has an answer to "${stuck[1]}": encourage them to think of the ${answer.name}.`);
   }
-  if (/^No (room|place) for/.test(status)) out.push(`${town.name} ${status.charAt(0).toLowerCase()}${status.slice(1)}: paint a zone where there is room, or lift no-build land.`);
-  // hard times: raiders who outnumber the defence, a winter store fallen behind, the hungry kept from leaving
+  const room = /^No (room|place) for (.*?): (.*)$/.exec(status);
+  if (room) out.push(`${town.name} has no ${room[1]} for ${room[2]} (${room[3]}): paint a zone where there is room, or lift no-build land.`);
+  // hard times: raiders who outnumber the defence (a camp it sends bread to leaves it be), a winter store fallen behind, the hungry kept from leaving
   if (S.hardship) {
     const yard = S.bmap.get(town.store), reach = S.content.tuning.hardship.raidReach;
-    const threat = yard ? Math.max(0, ...S.camps.filter(c => Math.hypot(c.x - yard.x, c.y - yard.y) <= reach).map(c => Math.floor(c.strength))) : 0;
+    const threat = yard ? Math.max(0, ...S.camps.filter(c => !(c.friend === town.id && c.goodwill > 0) && Math.hypot(c.x - yard.x, c.y - yard.y) <= reach).map(c => Math.floor(c.strength))) : 0;
     if (threat > defence(S, town).total) out.push(`Raiders camped within reach of ${town.name} outnumber its defence: raise the priority of defence against raiders${knows(town, 'watchtower') ? '' : ', or encourage the Watchtower'}.`);
   }
   const season = seasonOf(S);
@@ -73,7 +74,8 @@ export function advise(S: State, town: Town, n = 3): string[] {
   }
   if (S.farms && S.buildings.filter(b => b.town === town.id && !b.site && S.content.blueprints[b.type].homes).length >= 4 && !dietOf(S, town.id).size) out.push(`${town.name} eats nothing but bread: a Garden, an Orchard or a Pasture would vary its meals and lift its mood.`);
   if (homesInNuisance(S) > 0) out.push('Some homes are within a sawmill\'s noise: zone homes and workshops apart.');
-  const last = [...S.chronicle].reverse().find(c => c.town === town.id && c.kind !== 'founded');
+  // the latest page of history worth reading: not the founding, nor the turn of a season
+  const last = [...S.chronicle].reverse().find(c => c.town === town.id && c.kind !== 'founded' && c.kind !== 'season');
   if (last) out.push(`Latest: ${last.text}.`);
   return out.slice(0, n);
 }
