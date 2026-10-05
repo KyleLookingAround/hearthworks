@@ -9,7 +9,7 @@ import { updateSettling } from './settle.ts';
 import { updateSea } from './sea.ts';
 import { updateShips } from './ships.ts';
 import { moveRaids, sickShare, updateHardship } from './hardship.ts';
-import { bp, chronicle, door, emit, foodsOf, saplings, seasonOf, storesOnTrack, villagers } from './world.ts';
+import { bp, chronicle, door, emit, foodsOf, saplings, seasonOf, storesOnTrack, villagers, worn } from './world.ts';
 import type { State } from './types.ts';
 import { surroundings } from './surroundings.ts';
 import { closeBoard, openBoard } from './logistics.ts';
@@ -128,8 +128,11 @@ export function tick(S: State, dt: number) {
       }
     }
     // worn paths fade when nobody walks them
-    const fade = Math.pow(0.5, 1 / S.content.tuning.planner.wearHalfLifeSeconds), wear = w.wear;
-    for (let i = 0; i < wear.length; i++) if (wear[i] > 0) wear[i] = wear[i] < 0.05 ? 0 : wear[i] * fade;
+    const fade = Math.pow(0.5, 1 / S.content.tuning.planner.wearHalfLifeSeconds), wear = w.wear, trodden = worn(w);
+    for (const i of trodden) {
+      if (wear[i] > 0) wear[i] = wear[i] < 0.05 ? 0 : wear[i] * fade;
+      if (!(wear[i] > 0)) trodden.delete(i);
+    }
   }
   plan(S, dt);
   S.migT += dt;

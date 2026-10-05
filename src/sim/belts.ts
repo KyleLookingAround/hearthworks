@@ -92,21 +92,28 @@ export function beltBy(S: State, b: Building): number {
  * Every standing building beside a belt, with the tile it uses and that tile's line: worked out again only when a
  * building is placed, comes down or turns, or a belt is laid. Derived, never saved.
  */
-const besides = new WeakMap<State, { net: Net; key: string; by: Map<Building, { tile: number; line: number }> }>();
+const besides = new WeakMap<State, { net: Net; key: string; by: Map<Building, { tile: number; line: number }>; lines: Map<number, [Building, { tile: number; line: number }][]> }>();
 /** A building turned where it stands: its door may now open beside a belt, or no longer. */
 export const turned = (S: State) => besides.delete(S);
 function beside(S: State): Map<Building, { tile: number; line: number }> {
   const N = net(S.world), key = `${S.nextId}:${S.buildings.length}`, had = besides.get(S);
   if (had && had.net === N && had.key === key) return had.by;
-  const out = new Map<Building, { tile: number; line: number }>();
-  besides.set(S, { net: N, key, by: out });
+  const out = new Map<Building, { tile: number; line: number }>(), lines = new Map<number, [Building, { tile: number; line: number }][]>();
+  besides.set(S, { net: N, key, by: out, lines });
   for (const b of S.buildings) {
     if (b.dead || bp(S, b).bridge) continue;
     const t = beltBy(S, b);
-    if (t >= 0) out.set(b, { tile: t, line: N.line.get(t)! });
+    if (t < 0) continue;
+    const o = { tile: t, line: N.line.get(t)! };
+    out.set(b, o);
+    let l = lines.get(o.line);
+    if (!l) lines.set(o.line, l = []);
+    l.push([b, o]);
   }
   return out;
 }
+/** The buildings beside each belt line, in building order (as `beside` lists them). */
+const besideLine = (S: State, line: number) => besides.get(S)!.lines.get(line)!;
 
 /**
  * Each tick, before the carriers look for work: loads that have ridden their way come off, then every request
@@ -137,13 +144,13 @@ export function runBelts(S: State) {
     add(src.inv, item, -n); add(dst.incoming, item, n);
     S.parcels.push({ item, n, src: src.id, dst: dst.id, from: a.tile, to: b.tile, at: S.t, secs: (d + 2) / P.speed });
     busy.add(a.tile);
-    staleBoard();
+    staleBoard(src, dst);
   };
   // the nearest building along the belt to `dst` that can send: same line and settlement, its belt tile free
   const nearest = (dst: Building, ok: (s: Building) => boolean) => {
     const at = by.get(dst)!, d = walk(w, at.tile);
     let best: Building | null = null, bd = Infinity;
-    for (const [s, o] of by) {
+    for (const [s, o] of besideLine(S, at.line)) {
       if (s === dst || o.line !== at.line || s.town !== dst.town || busy.has(o.tile) || !ok(s)) continue;
       const k = d.get(o.tile)!;
       if (k < bd) { bd = k; best = s; }
@@ -164,7 +171,7 @@ export function runBelts(S: State) {
       if (av < L.dumpAt) continue;
       const at = walk(w, o.tile);
       let st: Building | null = null, sd = Infinity;
-      for (const [d, q] of by) {
+      for (const [d, q] of besideLine(S, o.line)) {
         if (d === s || d.site || q.line !== o.line || d.town !== s.town || !bp(S, d).storage || roomFor(S, d, item) <= 0) continue;
         const k = at.get(q.tile)!;
         if (k < sd) { sd = k; st = d; }

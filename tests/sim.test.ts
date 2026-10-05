@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
 import { createState, demolish, runFor, type State } from '../src/sim/index.ts';
+import { hypot } from '../src/sim/world.ts';
 import { build, centre, standardMetrics } from '../src/gates/kit.ts';
 
 const content = loadContent();
@@ -49,4 +50,13 @@ test('a starving house eventually loses a resident', () => {
   for (const b of S.buildings) b.inv = {};
   runFor(S, content.tuning.needs.eatEverySeconds + content.tuning.needs.leaveAfterHungrySeconds + 30);
   assert.ok(S.stats.departures >= 1);
+});
+
+test('the sim measures distances exactly as Math.hypot does', () => {
+  let seed = 7;
+  const r = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  const same = (x: number, y: number) => Object.is(hypot(x, y), Math.hypot(x, y));
+  for (let x = -60; x <= 60; x += 0.5) for (let y = -40; y <= 40; y += 0.5) assert.ok(same(x, y), `${x}, ${y}`);
+  for (let i = 0; i < 200000; i++) { const x = (r() - 0.5) * 1200, y = (r() - 0.5) * 900; assert.ok(same(x, y), `${x}, ${y}`); }
+  for (const [x, y] of [[0, 0], [-0, 0], [-0, -0], [NaN, 1], [1, NaN], [Infinity, NaN], [-Infinity, 2], [1e-320, 1e-320], [1e300, 1e300], [3, 4]]) assert.ok(same(x, y), `${x}, ${y}`);
 });
