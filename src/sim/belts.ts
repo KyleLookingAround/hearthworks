@@ -88,9 +88,18 @@ export function beltBy(S: State, b: Building): number {
   return best;
 }
 
-/** Every standing building beside a belt, with the tile it uses and that tile's line. */
+/**
+ * Every standing building beside a belt, with the tile it uses and that tile's line: worked out again only when a
+ * building is placed, comes down or turns, or a belt is laid. Derived, never saved.
+ */
+const besides = new WeakMap<State, { net: Net; key: string; by: Map<Building, { tile: number; line: number }> }>();
+/** A building turned where it stands: its door may now open beside a belt, or no longer. */
+export const turned = (S: State) => besides.delete(S);
 function beside(S: State): Map<Building, { tile: number; line: number }> {
-  const out = new Map<Building, { tile: number; line: number }>(), N = net(S.world);
+  const N = net(S.world), key = `${S.nextId}:${S.buildings.length}`, had = besides.get(S);
+  if (had && had.net === N && had.key === key) return had.by;
+  const out = new Map<Building, { tile: number; line: number }>();
+  besides.set(S, { net: N, key, by: out });
   for (const b of S.buildings) {
     if (b.dead || bp(S, b).bridge) continue;
     const t = beltBy(S, b);
@@ -165,12 +174,40 @@ export function runBelts(S: State) {
   }
 }
 
+/** A binary heap of [cost, tile], cheapest first, ties by tile index: the same order on every machine. */
+function heap() {
+  const a: [number, number][] = [];
+  const less = (p: [number, number], q: [number, number]) => p[0] < q[0] || (p[0] === q[0] && p[1] < q[1]);
+  return {
+    size: () => a.length,
+    push(c: number, i: number) {
+      a.push([c, i]);
+      for (let k = a.length - 1; k > 0;) { const u = (k - 1) >> 1; if (!less(a[k], a[u])) break; [a[k], a[u]] = [a[u], a[k]]; k = u; }
+    },
+    pop(): [number, number] {
+      const top = a[0], last = a.pop()!;
+      if (a.length) {
+        a[0] = last;
+        for (let k = 0; ;) {
+          const l = 2 * k + 1, r = l + 1;
+          let m = k;
+          if (l < a.length && less(a[l], a[m])) m = l;
+          if (r < a.length && less(a[r], a[m])) m = r;
+          if (m === k) break;
+          [a[k], a[m]] = [a[m], a[k]]; k = m;
+        }
+      }
+      return top;
+    },
+  };
+}
+
 interface Strip { tiles: number[]; fresh: number; serves: number; s: number }
 
 /**
- * The best belt to lay, or null: from a storage yard's door front along its lanes (paths and roads cost `lane_cost`
- * of open ground, a belt already laid less again) to the door front of a building no belt serves yet, through no
- * building, water or rock, at most `max_tiles` long. Scored by the buildings it would serve that no belt serves yet,
+ * The best belt to lay, or null: from a storage yard's door front along its lanes and doors' fronts (a lane tile
+ * costing 1, a belt already laid a half, a door front off the lanes `rough_cost`) to the door front of a building no
+ * belt serves yet, through no building, water or rock, at most `max_tiles` long. Scored by the buildings it would serve that no belt serves yet,
  * each by how far along it they lie from the yard: the walking it saves.
  */
 export function bestBelt(S: State, town: Town): Strip | null {
@@ -198,11 +235,10 @@ export function bestBelt(S: State, town: Town): Strip | null {
     if (!open(s0)) continue;
     // cheapest routes from the yard's door front, out to `max_tiles` steps
     const dist = new Map<number, number>([[s0, 0]]), prev = new Map<number, number>(), hops = new Map<number, number>([[s0, 0]]);
-    const q: [number, number][] = [[0, s0]];
-    while (q.length) {
-      let m = 0;
-      for (let k = 1; k < q.length; k++) if (q[k][0] < q[m][0] || (q[k][0] === q[m][0] && q[k][1] < q[m][1])) m = k;
-      const [d, i] = q[m]; q[m] = q[q.length - 1]; q.pop();
+    const q = heap();
+    q.push(0, s0);
+    while (q.size()) {
+      const [d, i] = q.pop();
       if (d > dist.get(i)!) continue;
       const h = hops.get(i)!;
       if (h + 1 >= P.maxTiles) continue;
@@ -212,7 +248,7 @@ export function bestBelt(S: State, town: Town): Strip | null {
         const j = ny * w.w + nx;
         if (!open(j)) continue;
         const nd = d + cost(j);
-        if (nd < (dist.get(j) ?? Infinity)) { dist.set(j, nd); prev.set(j, i); hops.set(j, h + 1); q.push([nd, j]); }
+        if (nd < (dist.get(j) ?? Infinity)) { dist.set(j, nd); prev.set(j, i); hops.set(j, h + 1); q.push(nd, j); }
       }
     }
     for (const end of doors.keys()) {

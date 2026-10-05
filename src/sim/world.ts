@@ -4,7 +4,7 @@ import { plannerOn } from './planner.ts';
 import { foundersKnowledge } from './knowledge.ts';
 import { initPeople } from './people.ts';
 import { joinFields, offered } from './farms.ts';
-import { setBelt } from './belts.ts';
+import { setBelt, turned } from './belts.ts';
 import { findPath, reachable } from './path.ts';
 import type { Agent, BlueprintDef, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
 
@@ -499,6 +499,7 @@ export function turnBuilding(S: State, b: Building, by = 1): boolean {
   for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) w.bgrid[j * w.w + k] = -1;
   setDoor(S, b, false);
   b.x = x; b.y = y; b.w = d.w; b.h = d.h; b.rot = rot;
+  turned(S);
   for (let j = y; j < y + d.h; j++) for (let k = x; k < x + d.w; k++) { const i = j * w.w + k; w.bgrid[i] = b.id; w.tree[i] = 0; unpave(w, i); }
   setDoor(S, b, true);
   stepOut(S, b);
