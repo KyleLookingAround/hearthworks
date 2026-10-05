@@ -11,6 +11,7 @@ import { bp, chronicle, door, emit, foodsOf, saplings, seasonOf, storesOnTrack, 
 import type { State } from './types.ts';
 import { surroundings } from './surroundings.ts';
 import { closeBoard, openBoard } from './logistics.ts';
+import { runBelts } from './belts.ts';
 import { dietLift } from './farms.ts';
 
 /**
@@ -96,6 +97,7 @@ export function tick(S: State, dt: number) {
   }
   for (const b of [...S.buildings]) if (!b.dead) updateBuilding(S, b, dt);
   openBoard(S);
+  runBelts(S);
   for (const a of [...S.agents]) if (!a.dead) updateAgent(S, a, dt);
   closeBoard();
   moveRaids(S, dt);

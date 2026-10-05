@@ -26,7 +26,7 @@ export function fnv1a(s: string): string {
 
 const isMap = (v: YamlValue | undefined): v is YamlMap => !!v && typeof v === 'object' && !Array.isArray(v);
 /** Pressures a village can struggle with, and so invent its way out of. */
-const NEEDS = ['bread', 'hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'long_hauls', 'traffic', 'fire', 'flood', 'sickness', 'raids'];
+const NEEDS = ['bread', 'hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'long_hauls', 'traffic', 'conveying', 'fire', 'flood', 'sickness', 'raids'];
 const HAZARDS = ['fire', 'flood', 'sickness', 'raids'];
 const slug = (path: string) => path.replace(/^.*\//, '').replace(/\.md$/, '');
 
@@ -108,6 +108,7 @@ export function buildContent(files: SourceFile[]): Content {
       paves: f.paves === true,
       road: f.road === true,
       stone: f.stone === true,
+      belt: f.belt === true,
       shore: f.shore === true,
       zone: f.zone === 'farms' || f.zone === 'workshops' || f.zone === 'homes' ? f.zone : (num(d, f.homes, 'homes', 0) > 0 ? 'homes' : null),
       seasonal: f.seasonal === true,
@@ -129,6 +130,7 @@ export function buildContent(files: SourceFile[]): Content {
       option: f.option === 'farms' ? 'farms' : null,
       ripens: num(d, f.ripens, 'ripens', 0),
     };
+    if (bp.belt && !bp.paves) problems.push(`${d.path}: a belt is laid tile by tile: it needs paves: true`);
     if (bp.grows && bp.grows.names.length < 2) problems.push(`${d.path}: grows.names must name at least two sizes`);
     if (f.option !== undefined && f.option !== 'farms') problems.push(`${d.path}: option "${String(f.option)}" is not farms`);
     if (bp.discovery && !NEEDS.includes(bp.discovery.need)) problems.push(`${d.path}: discovery.need "${bp.discovery.need}" is not one of ${NEEDS.join(', ')}`);
@@ -182,7 +184,7 @@ export function buildContent(files: SourceFile[]): Content {
     if (!isMap(d.data.tuning)) { problems.push(`${d.path}: needs a "tuning:" block`); return [d, {}]; }
     return [d, d.data.tuning];
   };
-  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people'), [ld2, lt2] = sys('settling'), [hd, ht] = sys('hardship'), [rd, rt] = sys('roads'), [fd, ft] = sys('farms');
+  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people'), [ld2, lt2] = sys('settling'), [hd, ht] = sys('hardship'), [rd, rt] = sys('roads'), [fd, ft] = sys('farms'), [cd, ct] = sys('conveyors');
   const sizes: Record<string, MapSize> = {};
   for (const [id, v] of Object.entries(isMap(mt.sizes) ? mt.sizes : {})) {
     const m = isMap(v) ? v : {};
@@ -222,6 +224,7 @@ export function buildContent(files: SourceFile[]): Content {
       everySeconds: num(td, tt.every_seconds, 'tuning.every_seconds'), load: num(td, tt.load, 'tuning.load'), keep: num(td, tt.keep, 'tuning.keep'), minVillagers: num(td, tt.min_villagers, 'tuning.min_villagers'),
       smoothingSeconds: num(td, tt.smoothing_seconds, 'tuning.smoothing_seconds'), distanceWeight: num(td, tt.distance_weight, 'tuning.distance_weight'), minRate: num(td, tt.min_rate, 'tuning.min_rate'), maxRate: num(td, tt.max_rate, 'tuning.max_rate'), villagersPerPorter: num(td, tt.villagers_per_porter, 'tuning.villagers_per_porter'), exportDemand: num(td, tt.export_demand, 'tuning.export_demand'), wantCover: num(td, tt.want_cover, 'tuning.want_cover'), spareCover: num(td, tt.spare_cover, 'tuning.spare_cover'), kinBonus: num(td, tt.kin_bonus, 'tuning.kin_bonus'), importPatienceSeconds: num(td, tt.import_patience_seconds, 'tuning.import_patience_seconds'), importShare: num(td, tt.import_share, 'tuning.import_share'),
     },
+    conveyors: (() => { const g = (k: string) => num(cd, ct[k], `tuning.${k}`); return { speed: g('speed'), carry: g('carry'), gapSeconds: g('gap_seconds'), reach: g('reach'), roughCost: g('rough_cost'), lookEverySeconds: g('look_every_seconds'), villagersPerBelt: g('villagers_per_belt'), minTiles: g('min_tiles'), maxTiles: g('max_tiles'), minStops: g('min_stops') }; })(),
     farms: (() => { const g = (k: string) => num(fd, ft[k], `tuning.${k}`); return { diet: Array.isArray(ft.diet) ? ft.diet.map(String) : [], dietShare: g('diet_share'), dietStock: g('diet_stock'), dietSeconds: g('diet_seconds'), dietFull: g('diet_full'), dietBonus: g('diet_bonus'), dietWeight: g('diet_weight'), growRoomWeight: g('grow_room_weight') }; })(),
     seasons: {
       yearSeconds: num(ed, et.year_seconds, 'tuning.year_seconds'), firewoodEverySeconds: num(ed, et.firewood_every_seconds, 'tuning.firewood_every_seconds'),

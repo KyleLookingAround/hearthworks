@@ -8,6 +8,7 @@
 * [Bridge](bridge.md) - A plank span across a river or channel, up to six tiles of water with land at both ends. Walked like a path; boats pass under.
 * [Cart Shed](cart_shed.md) - Keeps handcarts for long hauls. A carter takes one for a long job and brings it back after; six goods a trip, quicker on roads, slower off them.
 * [Clay Pit](clay_pit.md) - Digs clay from a bank within three tiles.
+* [Conveyor](conveyor.md) (draft) - A belt laid along the lanes on which goods ride, with no hands, between the buildings whose doors open beside it; a blueprint of the Age of Clockwork's own.
 * [Courier Depot](depot.md) - Winds up three courier bots that haul goods within twelve tiles. They never eat, so villagers are free to work.
 * [Dock](dock.md) - A jetty on the shore where rowing boats are kept. Villagers launch from it and can land on any shore.
 * [Family House](family_house.md) - Home for six villagers on a 3 by 2 plot; villages build them wall to wall.

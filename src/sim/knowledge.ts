@@ -17,7 +17,7 @@ import { goToBuilding } from './agents.ts';
 import { cancelTask } from './logistics.ts';
 import { barter, homecoming } from './trade.ts';
 import { bringFeast } from './people.ts';
-import { chronicle, door, emit, learningAt, villagers } from './world.ts';
+import { bp, chronicle, door, emit, learningAt, villagers } from './world.ts';
 import { reachable } from './path.ts';
 import { struckLately } from './hardship.ts';
 import { traffic } from './roads.ts';
@@ -51,6 +51,8 @@ export function pressure(S: State, town: Town, need: string): number {
   // hardship: struck within `memory_seconds`
   if (need === 'fire' || need === 'flood' || need === 'sickness' || need === 'raids') return struckLately(S, town, need) ? 1 : 0;
   if (need === 'traffic') return traffic(S, town);
+  // conveying: carriers run off their feet although its depots' bots are winding about: hauling beyond the bots' reach
+  if (need === 'conveying') return S.buildings.some(b => b.town === town.id && !b.site && bp(S, b).couriers) ? pressure(S, town, 'hauling') : 0;
   if (need === 'distance') return S.carts ? clamp01((town.reach - K(S).distanceFrom) / K(S).distanceSpan) : 0;
   if (need === 'long_hauls') return S.carts ? clamp01((town.reach - K(S).longHaulFrom) / K(S).distanceSpan) : 0;
   if (need === 'inquiry') {
@@ -62,7 +64,7 @@ export function pressure(S: State, town: Town, need: string): number {
   return 0;
 }
 
-export const NEED_TEXT: Record<string, string> = { bread: 'its bakers cannot keep up', distance: 'its goods travel a long way', long_hauls: 'its carts go a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it has needs that nothing it knows can meet', hauling: 'carriers are run off their feet', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths' };
+export const NEED_TEXT: Record<string, string> = { bread: 'its bakers cannot keep up', distance: 'its goods travel a long way', long_hauls: 'its carts go a long way', forgetting: 'it had lost knowledge it needed', inquiry: 'it has needs that nothing it knows can meet', hauling: 'carriers are run off their feet', conveying: 'its carriers are run off their feet where its bots cannot reach', crossing: 'the neighbours are across water nobody can cross', detours: 'water keeps the village from land close by, or sends everyone the long way round', fire: 'fire had swept through it', flood: 'the waters had risen over its low land', sickness: 'sickness had gone through its homes', raids: 'raiders had fallen on its stores', traffic: 'its goods travel a long way along winding paths' };
 
 /** A settlement's age: the latest era it has reached, knowing each era's `share` of its discoveries and every earlier era's. */
 export function ageOf(S: State, town: Town): number {

@@ -28,7 +28,7 @@ test('a settlement enters an age by knowing its share of the discoveries, and th
 test('an era unlocks blueprints of its own: only a settlement of that age thinks of the windmill', async () => {
   const { ageNeeded, pressure } = await import('../src/sim/knowledge.ts');
   const clock = content.eras.findIndex(E => E.id === 'clockwork');
-  assert.deepEqual(content.eras[clock].unlocks, ['windmill']);
+  assert.deepEqual(content.eras[clock].unlocks, ['windmill', 'conveyor']);
   assert.equal(ageNeeded({ content } as any, 'windmill'), clock);
   assert.equal(ageNeeded({ content } as any, 'bridge'), 0, 'discoveries of earlier eras are not locked');
   const strained = (age: number) => {

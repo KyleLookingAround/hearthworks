@@ -4,6 +4,7 @@ import { plannerOn } from './planner.ts';
 import { foundersKnowledge } from './knowledge.ts';
 import { initPeople } from './people.ts';
 import { joinFields, offered } from './farms.ts';
+import { setBelt } from './belts.ts';
 import { findPath, reachable } from './path.ts';
 import type { Agent, BlueprintDef, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
 
@@ -105,7 +106,7 @@ export function emit(S: State, kind: GameEvent['kind'], text: string, minor = fa
  */
 function generateWorld(M: MapDef, W: number, H: number, S: State): World {
   const r = S.rng, N = W * H, T = M.terrain, F = M.forest;
-  const w: World = { w: W, h: H, ground: new Uint8Array(N), height: new Uint8Array(N), deposit: new Uint8Array(N), slopeCost: 0, rockCost: 1, pathCost: 1, roadCost: 1, stoneCost: 1, roads: 0, stone: 0, forestCost: 1, wear: new Float32Array(N), bridge: new Uint8Array(N), zone: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), bgrid: new Int32Array(N).fill(-1), door: new Uint8Array(N), front: new Uint8Array(N), dock: new Uint8Array(N), docks: 0, waterCost: 1, work: { paths: 0, pathFails: 0, pathNodes: 0, jobPairs: 0, plannerSpots: 0 } };
+  const w: World = { w: W, h: H, ground: new Uint8Array(N), height: new Uint8Array(N), deposit: new Uint8Array(N), slopeCost: 0, rockCost: 1, pathCost: 1, roadCost: 1, stoneCost: 1, roads: 0, stone: 0, forestCost: 1, wear: new Float32Array(N), bridge: new Uint8Array(N), zone: new Uint8Array(N), tree: new Uint8Array(N), grow: new Float32Array(N), road: new Uint8Array(N), belt: new Uint8Array(N), belts: 0, bgrid: new Int32Array(N).fill(-1), door: new Uint8Array(N), front: new Uint8Array(N), dock: new Uint8Array(N), docks: 0, waterCost: 1, work: { paths: 0, pathFails: 0, pathNodes: 0, jobPairs: 0, plannerSpots: 0 } };
   const n1 = valueNoise(r, T.largeCell, W, H), n2 = valueNoise(r, T.smallCell, W, H), n3 = valueNoise(r, F.cell, W, H);
   // island centres for the islands shape, and islets out at sea: drawn only for maps that have them,
   // so the lone isle draws exactly the random numbers it always did
@@ -273,7 +274,8 @@ export function createState(content: Content, seed: number, opts: WorldOptions =
   const S = {
     content, seed, rng: makeRng(seed), krng: makeRng(seed ^ 0x6b6e6f77), t: 0, buildings: [], agents: [], bmap: new Map(), amap: new Map(), nextId: 1,
     mood: 1, fed: 1, migT: 0, secT: 0, events: [], towns: [], chronicle: [], seasons: false, trade: false,
-    stats: { made: {}, trades: 0, births: 0, deaths: 0, honoured: 0, riteWaitMax: 0, feasts: 0, feastsMissed: 0, cartDeliveries: 0, goodsDelivered: 0, longGoods: 0, longGoodsByCart: 0, longFootSeconds: 0, longCartSeconds: 0, longDeliveries: 0, longByCart: 0, oxTrips: 0, longGoodsByOx: 0, longOxSeconds: 0, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, spoiled: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, eaten: {}, grown: 0, invented: 0, taught: 0, forgotten: 0, fires: 0, burnt: 0, floods: 0, outbreaks: 0, raids: 0, repelled: 0, looted: 0, sickDeaths: 0, starved: 0, camps: 0, gifts: 0, campsSettled: 0, barbariansSettled: 0, roadsLaid: 0, roadTiles: 0, roadCut: 0, roadMoved: 0, roadDeliveries: 0, roadDeliverySeconds: 0, roadDeliveryTiles: 0, pathDeliveries: 0, pathDeliverySeconds: 0, pathDeliveryTiles: 0 },
+    stats: { made: {}, trades: 0, births: 0, deaths: 0, honoured: 0, riteWaitMax: 0, feasts: 0, feastsMissed: 0, cartDeliveries: 0, goodsDelivered: 0, longGoods: 0, longGoodsByCart: 0, longFootSeconds: 0, longCartSeconds: 0, longDeliveries: 0, longByCart: 0, oxTrips: 0, longGoodsByOx: 0, longOxSeconds: 0, deliverySeconds: 0, delivered: 0, deliveryTiles: 0, replanned: 0, demolitionDepartures: 0, spoiled: 0, deliveries: { villager: 0, bot: 0 }, arrivals: 0, departures: 0, peakVillagers: 0, eaten: {}, grown: 0, invented: 0, taught: 0, forgotten: 0, fires: 0, burnt: 0, floods: 0, outbreaks: 0, raids: 0, repelled: 0, looted: 0, sickDeaths: 0, starved: 0, camps: 0, gifts: 0, campsSettled: 0, barbariansSettled: 0, roadsLaid: 0, roadTiles: 0, roadCut: 0, roadMoved: 0, roadDeliveries: 0, roadDeliverySeconds: 0, roadDeliveryTiles: 0, pathDeliveries: 0, pathDeliverySeconds: 0, pathDeliveryTiles: 0, beltsLaid: 0, beltTiles: 0, beltLoads: 0, beltGoods: 0, beltSeconds: 0 },
+    parcels: [],
   } as unknown as State;
   const mt = content.tuning.map;
   const mapId = opts.map ?? mt.standardType, sizeId = opts.size ?? mt.standardSize;
@@ -320,7 +322,7 @@ export function foundTown(S: State, cx: number, cy: number, planner: boolean, ro
   const id = S.towns.length;
   const store = placeBuilding(S, 'storage', cx - 1, cy - 1, true)!;
   store.inv = { ...t.storage };
-  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content, B => offered(S, B)), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', naming: 'fields', rites: [], feasts: [], feastUntil: -1e9, graves: {}, copyT: 0, reach: 0, mother: null, overseas: false, age: 0, laws: { rationing: false, hours: 'normal', leave: true }, struck: {}, roadT: 0, roads: [], sentAt: -1e9, settleT: 0 };
+  const town: Town = { id, name: t.names[id % t.names.length], store: store.id, knows: foundersKnowledge(content, B => offered(S, B)), planner: { ...plannerOn(planner), roads }, haul: 0, cut: 0, fed: 1, mood: 1, visitT: 0, detour: 0, detours: [], districts: [store.id], streets: [], levers: { priority: {}, encourage: null, pace: 1 }, form: 'hamlet', trade: newLedger(), custom: 'burial', naming: 'fields', rites: [], feasts: [], feastUntil: -1e9, graves: {}, copyT: 0, reach: 0, mother: null, overseas: false, age: 0, laws: { rationing: false, hours: 'normal', leave: true }, struck: {}, roadT: 0, roads: [], beltT: 0, belts: [], sentAt: -1e9, settleT: 0 };
   S.towns.push(town);
   if (!party) chronicle(S, id, 'founded', `${town.name} was founded with ${t.villagers} villagers`);
   const h1 = placeBuilding(S, 'house', cx - 5, cy - 1, true)!, h2 = placeBuilding(S, 'house', cx + 3, cy - 1, true)!;
@@ -418,7 +420,9 @@ export function placeProblem(S: State, type: string, x: number, y: number, rot =
     if (w.ground[i] === 3) return 'that is bare rock';
     if (w.bgrid[i] !== -1) return 'something is already built there';
     // a road can be laid over a path, but nothing over a road
+    if (B.belt) { if (w.belt[i]) return 'there is a conveyor already'; continue; }
     if (B.paves) { if (w.road[i] && !(B.road && w.road[i] < paveLevel(B))) return `there is a ${w.road[i] >= 2 ? 'road' : 'path'} already`; continue; }
+    if (w.belt[i]) return 'a conveyor runs there';
     if (w.front[i]) return "it would block another building's door";
   }
   if (!B.paves) {
@@ -503,6 +507,7 @@ export function turnBuilding(S: State, b: Building, by = 1): boolean {
 
 export function placeBuilding(S: State, type: string, x: number, y: number, complete: boolean, rot = 0, size?: { w: number; h: number }): Building | null {
   const B = S.content.blueprints[type], w = S.world;
+  if (B.belt) { const i = y * w.w + x; setBelt(w, i, true); w.tree[i] = 0; return null; }
   if (B.paves) { const i = y * w.w + x; pave(w, i, paveLevel(B)); w.tree[i] = 0; return null; }
   // (new fields take the size of the strip they are laid on)
   const { w: bw, h: bh } = size ?? dims(B, rot);

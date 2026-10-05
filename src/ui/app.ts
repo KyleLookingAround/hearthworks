@@ -5,7 +5,7 @@ import { homeTier } from '../sim/production.ts';
 import { FEAST, NAMING, called } from '../sim/people.ts';
 import { atOnce, formOf, hubs, openSites } from '../sim/planner.ts';
 import { capOf, crew, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
-import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, ageNeeded, ctr, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, ageNeeded, beltBy, ctr, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
 
@@ -464,7 +464,7 @@ export class App {
     const D = S.hardship ? defence(S, t) : null, near = S.hardship ? S.camps.filter(c => { const y = S.bmap.get(t.store); return !!y && Math.hypot(c.x - y.x, c.y - y.y) <= this.content.tuning.hardship.raidReach; }).length : 0;
     const peace = S.hardship ? S.camps.filter(c => c.friend === t.id && c.goodwill > 0).length : 0;
     const guard = D ? [Math.round(D.total), D.warned, near, peace] : null;
-    const key = JSON.stringify([t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.naming, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil]);
+    const key = JSON.stringify([t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, t.belts.length, 'conveyor' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.naming, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil]);
     if (!force && key === this.stewardKey) return;
     this.stewardKey = key;
     const needs: [string, string][] = [
@@ -484,6 +484,7 @@ export class App {
     html += `<span>Working hours</span><select data-law="hours">${(['short', 'normal', 'long'] as const).map(h => `<option value="${h}"${t.laws.hours === h ? ' selected' : ''}>${{ short: 'Short', normal: 'Normal', long: 'Long' }[h]}</option>`).join('')}</select>`;
     html += `<span>The hungry</span><select data-law="leave"><option value="1"${t.laws.leave ? ' selected' : ''}>May leave</option><option value="0"${t.laws.leave ? '' : ' selected'}>Must stay</option></select></div>`;
     if (S.plannedRoads) html += `<div class="steward-grid"><span>Roads</span><span>${t.roads.length ? `${t.roads.length} laid` : 'road' in t.knows ? 'none laid yet' : 'not thought of yet'}</span></div>`;
+    if (t.belts.length || 'conveyor' in t.knows) html += `<div class="steward-grid"><span>Conveyors</span><span>${t.belts.length ? `${t.belts.length} laid` : 'none laid yet'}</span></div>`;
     if (guard) html += `<div class="steward-grid"><span>Defence</span><span>${guard[0]}${guard[1] ? ', a lookout on watch' : ', no lookout'}</span><span>Camps in reach</span><span>${guard[2] || 'none'}</span>${guard[3] ? `<span>At peace</span><span>${guard[3] === 1 ? 'a camp it sends bread to' : `${guard[3]} camps it sends bread to`}</span>` : ''}</div>`;
     // its age, and what the next one would let it think of
     const next = this.content.eras[t.age + 1], opens = next?.unlocks.map(id => this.content.blueprints[id]?.name ?? id).join(', ');
@@ -738,6 +739,8 @@ export class App {
       progress = B.seconds ? b.timer / B.seconds : 0;
     }
     // a counter: what it guards against and how far
+    // a conveyor runs past its door: loads ride to and from it with no hands
+    if (!b.site && S.world.belts && beltBy(S, b) >= 0) { const riding = S.parcels.filter(p => p.src === b.id || p.dst === b.id).length; rows += row('Conveyor', `beside a belt${riding ? `: ${riding} load${riding > 1 ? 's' : ''} riding to or from it` : ''}`); }
     if (B.sanitation) rows += row('Keeps clean', `homes within ${B.sanitation.radius} tiles, while its attendant is in: they fall sick ${Math.round(T.hardship.cleanFactor * 100)}% as often`);
     if (B.guards) rows += row('Guards against', `${({ fire: 'fire', flood: 'floods', sickness: 'sickness', raids: 'raiders' })[B.guards.hazard]} within ${B.guards.radius} tiles` + (B.guards.defence ? `; defence ${B.guards.defence}` : ''));
     const pct = progress === null ? null : Math.round(Math.max(0, Math.min(1, progress)) * 100);

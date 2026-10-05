@@ -61,6 +61,8 @@ export interface BlueprintDef {
   road: boolean;
   /** Paves a road in stone (with `road`): planners repave their busiest roads with it from stone they can spare. */
   stone: boolean;
+  /** Lays a conveyor belt rather than paving (with `paves`): goods ride it between the buildings whose doors open beside it. */
+  belt: boolean;
   /** Built on the shore: its door opens onto water, and boats are launched from it. */
   shore: boolean;
   /** A crop: works from spring to autumn and rests in winter, when seasons are on. */
@@ -173,6 +175,7 @@ export interface Tuning {
     changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number; feastSeconds: number; feastMood: number; harvestBread: number; fireLogs: number; woodForFire: number; feastSpread: number; names: Record<Naming, string[]>;
   };
   trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number };
+  conveyors: { speed: number; carry: number; gapSeconds: number; reach: number; roughCost: number; lookEverySeconds: number; villagersPerBelt: number; minTiles: number; maxTiles: number; minStops: number };
   farms: { diet: ItemId[]; dietShare: number; dietStock: number; dietSeconds: number; dietFull: number; dietBonus: number; dietWeight: number; growRoomWeight: number };
   seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[] };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
@@ -427,6 +430,9 @@ export interface Town {
   /** Seconds since its planner last looked for a road to lay, and the roads it laid: [x0, y0, x1, y1, when]. */
   roadT: number;
   roads: number[][];
+  /** Seconds since its planner last looked for a conveyor to lay, and the belts it laid: [x0, y0, x1, y1, when]. */
+  beltT: number;
+  belts: number[][];
   sentAt: number;
   settleT: number;
 }
@@ -469,6 +475,10 @@ export interface World {
   /** how many road tiles are laid */
   roads: number;
   forestCost: number;
+  /** 1 where a conveyor belt runs (over open ground, a path or a road: people step across it) */
+  belt: Uint8Array;
+  /** how many belt tiles are laid */
+  belts: number;
   /** footsteps on each tile, fading over time: where people actually walk */
   wear: Float32Array;
   /** the player's zones: 0 none, then 1 + index in ZONES (homes, farms, workshops, no-build) */
@@ -539,8 +549,16 @@ export interface Stats {
   /** Roads: strips laid and their tiles, buildings they cut through and people moved for them; deliveries mostly along roads and mostly along paths (time and straight-line tiles). */
   roadsLaid: number; roadTiles: number; roadCut: number; roadMoved: number;
   roadDeliveries: number; roadDeliverySeconds: number; roadDeliveryTiles: number; pathDeliveries: number; pathDeliverySeconds: number; pathDeliveryTiles: number;
+  /** Conveyors: belts laid and their tiles; loads that rode them, the goods in them and their seconds on the belt. */
+  beltsLaid: number; beltTiles: number; beltLoads: number; beltGoods: number; beltSeconds: number;
   fires: number; burnt: number; floods: number; outbreaks: number; raids: number; repelled: number; looted: number; sickDeaths: number; starved: number; camps: number; gifts: number; campsSettled: number; barbariansSettled: number;
 }
+
+/**
+ * A load riding a conveyor belt from one building to another: it left `src` (by the belt tile `from`) at `at`
+ * and comes off at `dst` (by the tile `to`) `secs` later. Buildings are kept as ids: a load outlives neither end.
+ */
+export interface Parcel { item: ItemId; n: number; src: number; dst: number; from: number; to: number; at: number; secs: number }
 
 export interface State {
   content: Content;
@@ -592,6 +610,8 @@ export interface State {
   chronicle: Chronicle[];
   /** Separate stream for discovery, so knowledge never shifts the main simulation's random numbers. */
   krng: Rng;
+  /** Loads riding the conveyor belts. */
+  parcels: Parcel[];
   /** Farms that grow on: farms grow fields and hands, and homes eat a varied diet of the foods they grow. */
   farms: boolean;
 }
