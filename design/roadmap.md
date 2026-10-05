@@ -4,7 +4,7 @@ title: Roadmap
 description: Phases from the player-placed prototype to a self-building, island-hopping civilisation, each closed by a headless gate.
 tags: [roadmap]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-04T13:08:53Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T01:35:58Z }
 ---
 
 # How to read this
@@ -22,7 +22,7 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 3 | First automation | Courier bots on the same job board | 2 | [Gate 3](/gates/03-couriers.md) | Done |
 | 4 | The village plans | [Planner](/systems/planner.md) chooses and places buildings | 2 | [Gate 4](/gates/04-village-plans.md) | Done |
 | 5 | Knowledge | [Knowledge](/systems/knowledge.md): invented, proven, shared, forgotten; two settlements | 4 | [Gate 5](/gates/05-knowledge-spreads.md) | Done |
-| 6 | Solid ground | Solid buildings with doors, mood and supply per settlement, versioned saves, work counters | 5 | Nobody walks through walls; a save resumes exactly | Next |
+| 6 | Solid ground | Solid buildings with doors, mood and supply per settlement, versioned saves, work counters | 5 | [Gate 6](/gates/06-solid-ground.md) | Done |
 | 7 | Worlds | Map types (island, landmass, coast) and sizes the player picks, one standard map for tests, a sim and renderer that scale | 6 | [Gate 7](/gates/07-worlds.md) | Done |
 | 8 | The lie of the land | Terrain, rivers, deposits, bridges, desire-path roads, surroundings in mood | 7 | [Gate 8](/gates/08-lie-of-the-land.md) | Done |
 | 9 | Village to town | Form by size, streets, a ladder of home sizes, replanning, town and district planners | 8 | [Gate 9](/gates/09-village-to-town.md) | Done |
@@ -38,9 +38,11 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 19 | Ages | Eras of technology, machine tiers, crafts lost | 15, 18 | [Gate 19](/gates/19-ages.md) | Done |
 | 20 | Hardship | Fire, flood, sickness, barbarians and their counters; hard laws | 12, 17, 19 | [Gate 20](/gates/20-hardship.md) | Done |
 | 21 | Paths and roads | Worn paths become paths; roads are planned as long straight strips, cut through what stands, and the town is planned around them | 9, 16 | [Gate 21](/gates/21-paths-and-roads.md) | Done |
-| 22 | Farms that grow | Farms expand their fields, take on more hands and yield more; crops and herds give different foods | 11, 12, 14 | Gate 22 (proposed) | Next |
+| 22 | Farms that grow | Farms expand their fields, take on more hands and yield more; crops and herds give different foods | 11, 12, 14 | [Gate 22](/gates/22-farms-that-grow.md) | Done |
+| 23 | Leagues | Kin settlements act as one: a league's standing orders, scheduled sea routes in cargo boats, each member making what it does best | 13, 16, 18 | Gate 23 (proposed) | After the second pass |
+| 24 | A city across the water | A town whose land is full founds districts on other islands, kept supplied by boat through its quays; causeways over narrow water | 9, 21, 23 | Gate 24 (proposed) | After 23 |
 
-Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to 10), **depth of life** (11 to 15: goods, seasons, trade, people and learning), **many peoples** (16 to 18), **ages and trials** (19 and 20), **the shape of roads** (21), and **the land that feeds** (22).
+Phases group into arcs: **foundations** (6 and 7), **the shape of a town** (8 to 10), **depth of life** (11 to 15: goods, seasons, trade, people and learning), **many peoples** (16 to 18), **ages and trials** (19 and 20), **the shape of roads** (21), **the land that feeds** (22), and **one people across the sea** (23 and 24).
 
 # Principles for every phase
 
@@ -367,6 +369,38 @@ Kyle's idea. **Why.** A farm is a fixed 3 by 2 plot with one worker making wheat
 
 **Kyle's call.** How many sizes a farm has and how big the largest is; whether herds need fences and pasture as their own buildings; whether a bad year (blight, drought) belongs here or in [hardship](/systems/hardship.md).
 
+# 23. Leagues
+
+Kyle's call, after a question of his: "how could we have cities or city networks that span islands?" (2026-10-05). **Why.** On the Islands, settlements fill their islands and found colonies over the water ([settling](/systems/settling.md), and since the second pass settling for want of land), so a world soon holds many small settlements, each on its own island. Today they are only neighbours: kin favour each other in trade, but each plans alone, and its porters cross the sea one load at a time when a want and a surplus happen to meet. A league lets kin settlements act as one people spread over many islands.
+
+**Builds.**
+- **The league.** A mother and the colonies it founds (and theirs) form a league, named for the mother. The chronicle and the Steward panel show it as one: its members, its people, its trade. A settlement founded by another league's member may join the league it trades with most.
+- **Standing orders.** In place of a porter's errand when wants meet, a league keeps standing orders between members: a member that makes a good another lacks sends it every so often, sized to the other's use. The planner counts what the league supplies as supply, so each member builds what its land is best at (fish on a shore, stone by a quarry, bread on fertile land) and the league trades for the rest: specialisation by island.
+- **Cargo boats and sea routes.** A [Dock](/blueprints/dock.md) with a boatman runs a cargo boat of a dozen goods on a route between two members' quays, on a schedule, rather than villagers rowing their own loads. Routes show on the map. Ships and shipyards (Phase 18, delivered in part) build on this: bigger boats, longer routes.
+- **The player's hand.** The steward can set a league's priorities and open or close a route, as for a settlement.
+
+**Gate 23 (proposed).** On the Islands at size M with every system on, a league of at least three members forms unscripted within two hours; its members trade with each other at least twice as much (goods a member) as unrelated neighbours do; at least one good is made by only one member and eaten by all of them; and cargo boats carry most of the league's trade.
+
+**Disturbs.** Gates 13 and 18 (trade between kin changes); every default new game. Like the other systems it is off in scenarios that predate it and on in new games. Saves raise their version (leagues, orders, routes and boats).
+
+**Kyle's call.** Whether a league is only kin, or settlements can join one by choice; whether the player can found or break up a league; how far a cargo boat's route may run.
+
+# 24. A city across the water
+
+Kyle's call, with Phase 23. **Why.** A town whose island is full stops planning ("No room") or founds a colony, which is a separate settlement with its own stores and plans. A port city should be able to spread over several islands as one town: districts across a strait, its goods crossing by boat, its people one people.
+
+**Builds.**
+- **Districts over the water.** When a town's land is full and it sees open land across the water within reach, it founds a district there, as it founds districts today, with a quay (a dock) on each side. The planner places that district's buildings around its own yard, as it does for any district.
+- **Deliveries by boat.** A good bound for a district across the water goes by cart to the near quay, by the city's ferry or cargo boat (Phase 23) across, and on foot to its door: the multi-leg deliveries through hubs that Phase 16 left for later. Carriers who live across the water work there; the job board pairs jobs within a district before it pairs them across one.
+- **Causeways.** Where the water is narrow (a tile or two), a causeway or a long bridge joins the islands for walkers and carts, as the [Bridge](/blueprints/bridge.md) crosses rivers today, and the district counts as across the street.
+- **One town.** Its form, mood, chronicle and Steward panel count every district, wherever it lies.
+
+**Gate 24 (proposed).** On the Archipelago (or the Islands at size L) with every system on, a self-planning town whose island fills founds a district on another island unscripted; that district is kept supplied (its homes fed, `fed_min` 0.6) through its quay; and at least a fifth of the town's people live across the water within two hours.
+
+**Disturbs.** Gate 9 (districts) and Gate 18 (colonies: a town that can spread over the water founds fewer); Gate 16 (deliveries). Off in older scenarios and on in new games. Saves raise their version (districts across water, quays and the boat legs of deliveries).
+
+**Kyle's call.** Whether a town founds districts across the water before or after it founds colonies; how wide water a causeway may cross; whether a city across several islands keeps one name or names each quarter.
+
 # The second pass
 
 Kyle's call: once Phases 20 and 21 are built, the roadmap is walked again from Phase 1, giving each phase depth and polish rather than new systems. In particular:
@@ -382,7 +416,7 @@ Each phase's second pass is pushed and verified like any phase, with its gates r
 # Beyond
 
 - Tens of thousands of villagers: the sim in a Web Worker, then WebAssembly if needed.
-- Shared worlds: two players' civilisations meeting on one sea.
+- Shared worlds: two players' civilisations meeting on one sea (Phases 23 and 24 give a civilisation its own sea first).
 - Modding: a mod is an OKF bundle of goods, blueprints and ages loaded beside the base game's.
 
 # Rule
