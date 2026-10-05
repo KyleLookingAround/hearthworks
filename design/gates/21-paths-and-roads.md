@@ -3,7 +3,7 @@ type: Attested Computation
 title: "Gate 21: paths and roads"
 description: A town on the standard map lays straight roads through its centre unscripted, nobody is left homeless by them, and deliveries along them are faster than along paths.
 tags: [gate, roadmap, roads, logistics]
-status: stable
+status: deprecated
 generated: { by: claude/opus-5.5, at: 2026-10-04T12:54:19Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/roads.ts
@@ -26,6 +26,10 @@ The sanctioned scenario is [roads.ts](/references/scenarios/roads.ts). One settl
 # Proves
 
 Phase 21 of the [roadmap](/roadmap.md), as proposed: a town lays at least one straight road through its centre unscripted, nobody is left homeless by it, and deliveries along roads are faster than along paths (by at least 5%). Added: being fed holds (`fed_min` 0.6, as Gate 2), and the town is planned around its roads: at least a quarter of what it builds after its first road has a door onto or looking down to one (`built_along_roads`).
+
+# Superseded
+
+By [Gate 21b](/gates/21b-paths-and-roads.md) on 2026-10-05: the same scenario and checks with `min_built_along_roads` 0.2, as 0.25 sat in the middle of the spread of the town's own runs on its default seed. Kept, and runnable by name (`npm run gates -- 21-paths`).
 
 # Revisions
 

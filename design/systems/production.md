@@ -4,7 +4,7 @@ title: Production and construction
 description: Construction sites and their priority queue, worker assignment and recipe cycles.
 tags: [production, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T10:16:19Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T05:40:58Z }
 tuning:
   build_seconds: 3
   replant_every_seconds: 6
@@ -13,6 +13,7 @@ tuning:
   surplus_seconds: 900
   surplus_min: 40
   surplus_full_seconds: 120
+  fresh_seconds: 120
 ---
 
 # Placement
@@ -42,7 +43,15 @@ Each second, staffed buildings without a worker take the nearest idle carrier. O
 
 # Enough in store
 
-In a self-planning settlement, a workplace whose every good is *enough* rests between cycles, and after `release_after_seconds` its worker goes carrying; nobody is sent to it until the stock runs down. A good is enough while the settlement's stores hold `surplus_seconds` of what its planner uses of it (at least `surplus_min`; `surplus_full_seconds` for a good outside the food chain while its open yards are `store_full_share` full, so that logs and planks leave room for the harvest) and its planner wants no more of it; with seasons on, a good of the food chain is enough outside winter only once the stores also hold the coming winter's meals with `winter_headroom`. Farms rest when the granaries are full, as sawmills and quarries do when the yards are: labour goes where the shortages are. Scripted scenarios without a planner are unchanged.
+In a self-planning settlement, a workplace whose every good is *enough* rests between cycles, and after `release_after_seconds` its worker goes carrying; nobody is sent to it until the stock runs down. A good is enough while the settlement's stores hold its **stock** and its planner wants no more of it. Farms rest when the granaries are full, as sawmills and quarries do when the yards are: labour goes where the shortages are. Scripted scenarios without a planner are unchanged.
+
+A settlement stocks each good for what it is for:
+
+- **Building goods and the rest** (planks, stone, logs, tools): `surplus_seconds` of what its planner uses, for the builds ahead (at least `surplus_min`). While its open yards are `store_full_share` full, `surplus_full_seconds` will do, so that logs and planks leave room for the harvest.
+- **The food chain** (what homes eat and what goes into it): `fresh_seconds` of use, for the days ahead: bread is baked for the week, not the season, and nothing is hoarded to spoil. In autumn, with seasons on, the food chain keeps `surplus_seconds` like the rest: the bakeries bake ahead for the winter, when every hand is carrying and a loaf in store is one leg from a home where grain is two.
+- **The winter store**, with seasons on: outside winter, a good of the food chain that keeps (grain, smoked fish; not bread, milk or fish, which [spoil](/systems/logistics.md) in a yard) is enough only once the stores hold the coming winter's meals with `winter_headroom`, for everyone housed and everyone the free beds will bring. The grain is the store.
+
+The planner does not count a good it holds its stock of as short, whatever the rates. Measured on default new games (Islands M, every system on, an hour; twelve worlds, each run three times with the luck drawn afresh): when the food chain kept 900 seconds of use like everything else, the bakeries baked bread all year to fill the yards, and a third of all bread baked went off or stood in store at the hour (24824 goods spoiled in 36 games); stocked for their purpose, 9085 spoiled and the bakeries baked a third less bread for 3% more people. Baking only for the week through autumn as well left small towns without farms hungry at the end of winter, their carriers all busy fetching grain to the bakeries and bread to the homes (Gates 12 and 20 on twelve seeds: 8 departures against 1).
 
 # Recipes
 

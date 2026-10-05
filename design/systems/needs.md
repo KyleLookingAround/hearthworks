@@ -4,7 +4,7 @@ title: Needs and population
 description: Eating, mood, newcomers arriving and villagers leaving.
 tags: [needs, population, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T10:16:19Z }
+generated: { by: claude/opus-5.5, at: 2026-10-05T05:40:58Z }
 tuning:
   eat_every_seconds: 45
   leave_after_hungry_seconds: 30
@@ -37,7 +37,7 @@ Separate from its size, a home has a tier by the goods on its shelf: **1** with 
 
 # Newcomers
 
-Every `migrant_every_seconds` each settlement with mood of at least `migrate_min_mood` and a free bed draws a newcomer (a self-planning one only while it has found room for its food workplaces lately, and with [seasons](/systems/seasons.md) on only while its bakeries make at least the [planner's](/systems/planner.md) `newcomer_food_share` of what its people and one more eat: a settlement out of land for bakeries and farms stops growing rather than go hungry), so villages grow side by side and a world with more settlements grows faster. (Until Phase 7 one newcomer came to the whole world, which held four villages on a large island to about 450 people in an hour.)
+Every `migrant_every_seconds` each settlement with mood of at least `migrate_min_mood` and a free bed draws a newcomer (a self-planning one, with [seasons](/systems/seasons.md) on, only while its bakeries make at least the [planner's](/systems/planner.md) `newcomer_food_share` of what its people and one more eat; and once it has lately found no room for a bakery or a farm, only while they make all of it: a settlement out of land for food stops growing rather than go hungry, but not while it feeds everyone), so villages grow side by side and a world with more settlements grows faster. (Until Phase 7 one newcomer came to the whole world, which held four villages on a large island to about 450 people in an hour.)
 
 # Next
 
