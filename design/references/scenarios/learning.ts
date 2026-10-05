@@ -1,5 +1,5 @@
 /**
- * Gate 15 scenario, three paired parts on the standard map.
+ * Gate 15 scenario: four paired parts on the standard map, and a new game left to itself.
  * Library: one settlement is taught the Courier Depot by a neighbour (scripted) and never builds one; run
  * for `keep_seconds`, once with a library standing and once without. Kept with, lost without.
  * University: one self-planning settlement with people on, on each of six internal seeds, run for
@@ -8,13 +8,16 @@
  * Needs a university: one self-planning settlement with people and hardship on that knows the Healer's House
  * (scripted) and is kept fresh from sickness (scripted), run for `inquiry_seconds` with a university standing and
  * without one (kept from knowing the university, scripted, so it cannot build its own): the Bathhouse, a discovery that needs a university, is thought of with one and never without.
+ * Scholars, unscripted: a new game with every system on (`scholars_map` at `scholars_size`, `scholars_settlements`),
+ * nothing scripted, for `scholars_seconds`: its planners raise universities, and their scholars think of ideas only a
+ * university finds; no settlement without a university at work thinks of one.
  * Reading: two settlements, each with a library (scripted); the second knows the Courier Depot. With a grown
  * villager of the first schooled to read (scripted) and visits held back, the first reads the Depot off the
  * second's shelves within `copy_every_seconds`; with nobody schooled it does not read it. And a worker schooled
  * to read, with no master of the trade in the settlement, learns it from a library at least twice as fast as without.
  */
 import { centre, findSpot, start, worldOf, type Scenario } from '../../../src/gates/kit.ts';
-import { placeBuilding, runFor, villagers, type State } from '../../../src/sim/index.ts';
+import { learningAt, placeBuilding, runFor, villagers, type State } from '../../../src/sim/index.ts';
 
 /** A building already standing near the storage yard. */
 const stand = (S: State, type: string) => { const at = findSpot(S, type, centre(S), 30); if (!at) throw new Error(`no room for ${type}`); return placeBuilding(S, type, at.x, at.y, true)!; };
@@ -80,6 +83,23 @@ export const run: Scenario = (content, params) => {
   };
   const shelved = trade(true), bare = trade(false);
 
+  // scholars, unscripted: a new game with every system on, nothing scripted. Its planners raise universities, and their
+  // scholars think of ideas only a university finds; nobody without one at work does.
+  const scholarsWorld = () => {
+    const size = String(params.scholars_size), T = start(content, seed, { planner: true, seasons: true, trade: true, people: true, carts: true, settlers: true, charts: true, hardship: true, plannedRoads: true, farms: true, settlements: Number(params.scholars_settlements), map: String(params.scholars_map), size });
+    const only = Object.values(content.blueprints).filter(B => B.discovery?.university);
+    let ideas = 0, without = 0, first = -1, seen = 0;
+    runFor(T, Number(params.scholars_seconds), s => {
+      for (; seen < s.chronicle.length; seen++) {
+        const c = s.chronicle[seen];
+        if (c.kind !== 'invented' || !only.some(B => c.text.includes(`came up with the ${B.name}`))) continue;
+        if (learningAt(s, c.town, 'university')) { ideas++; if (first < 0) first = s.t; } else without++;
+      }
+    });
+    return { ideas, without, first, universities: T.buildings.filter(b => !b.site && content.blueprints[b.type].learning === 'university').length };
+  };
+  const scholarsRun = scholarsWorld();
+
   return {
     state: withLib.S,
     metrics: {
@@ -94,6 +114,10 @@ export const run: Scenario = (content, params) => {
       read_with_readers: reads(true),
       read_without_readers: reads(false),
       reader_skill_ratio: Math.round((shelved / Math.max(1e-9, bare)) * 100) / 100,
+      universities_unscripted: scholarsRun.universities,
+      scholars_ideas: scholarsRun.ideas,
+      scholars_first_idea_at: Math.round(scholarsRun.first),
+      ideas_without_scholars: scholarsRun.without,
     },
   };
 };

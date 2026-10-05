@@ -21,17 +21,21 @@ import { atRisk, clean, guarded, struckLately, unguarded } from './hardship.ts';
 import { planRoads } from './roads.ts';
 import { planBelts } from './belts.ts';
 import { crew, growFarm, maxSize, places, sizeName, toGrow, unripe } from './farms.ts';
-import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
+import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Learning, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
 
-interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: 'library' | 'school' | 'university'; hall?: boolean; mill?: boolean; ships?: boolean; /** traded for from this neighbour rather than made */ from?: Town }
+interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: Learning; hall?: boolean; /** the mill (a windmill, a seed garden) whose workplaces stand bare */ mill?: string; ships?: boolean; /** traded for from this neighbour rather than made */ from?: Town }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
 interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; coming: boolean; foodShort: boolean; movable: boolean; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
 const goodName = (S: State, g: ItemId) => S.content.goods[g]?.name.toLowerCase() ?? g;
 const runningLow = (S: State, g: ItemId) => { const n = goodName(S, g); return `${n} ${n.endsWith('s') ? 'are' : 'is'} running low`; };
-const article = (name: string) => (/^[aeiou]/i.test(name) ? 'an' : 'a');
+/** 'an' before a vowel sound: an Orchard, but a University. */
+const article = (name: string) => (/^(?!uni|use|eu)[aeiou]/i.test(name) ? 'an' : 'a');
+/** Plurals and lists for the planner's reasons: bakeries; farms, gardens or orchards. */
+const plural = (n: string) => (/[^aeiou]y$/.test(n) ? n.slice(0, -1) + 'ies' : n + 's');
+const orList = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} or ${xs[xs.length - 1]}` : xs[0] ?? '');
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const T = (S: State) => S.content.tuning.planner;
 /** The blueprints this settlement knows, in build-bar order. */
@@ -244,7 +248,13 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     const kids = people.filter(a => a.role === 'child').length;
     if ('library' in town.knows && !has('library') && Object.values(town.knows).some(k => k.by !== 'founders')) shortages.push({ key: 'learning', learn: 'library', sev: K.learningWeight, why: 'what it has learned should be kept' });
     if (!has('school') && kids >= K.schoolChildren) shortages.push({ key: 'learning', learn: 'school', sev: K.learningWeight, why: `${kids} children have no school` });
-    if ('university' in town.knows && !has('university') && formOf(S, town) === 'town') shortages.push({ key: 'learning', learn: 'university', sev: K.learningWeight, why: 'scholars would find new ways sooner' });
+    // a university in a village of `university_villagers` that keeps a library and makes everything a university is built of
+    // (it does not open a quarry and a mason's yard for one), or in any town: learning builds on learning
+    const U = S.content.blueprints.university, makes = new Set(mine.filter(b => !b.site).flatMap(b => Object.keys(bp(S, b).output)));
+    const village = formOf(S, town) === 'village' && has('library') && pop >= K.universityVillagers && !!U && Object.keys(U.cost).every(g => makes.has(g));
+    if ('university' in town.knows && !has('university') && (formOf(S, town) === 'town' || village)) shortages.push({ key: 'learning', learn: 'university', sev: K.learningWeight, why: 'scholars would find new ways sooner' });
+    // a printing house beside its library in a village or town that knows one: books make readers of the grown
+    if (Object.keys(town.knows).some(id => S.content.blueprints[id]?.learning === 'press') && !has('press') && has('library') && formOf(S, town) !== 'hamlet') shortages.push({ key: 'learning', learn: 'press', sev: K.learningWeight, why: 'books would let everyone read' });
   }
   // planners as people (with people on): a village wants a town hall for its planner
   if (S.people && formOf(S, town) !== 'hamlet' && !mine.some(b => bp(S, b).hall)) shortages.push({ key: 'hall', hall: true, sev: P.hallWeight, why: 'its planner needs a hall to keep up with a village' });
@@ -271,7 +281,7 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   for (const M of known(S, town).filter(B => B.mills)) {
     const near = (b: Building) => mine.some(c => c.type === M.id && Math.hypot(ctr(c).x - ctr(b).x, ctr(c).y - ctr(b).y) <= M.mills!.radius);
     const bare = mine.filter(b => !b.site && M.mills!.types.includes(b.type) && !near(b)).length;
-    if (bare >= P.millMin) shortages.push({ key: 'mill', mill: true, sev: P.millWeight, why: `${bare} ${M.mills!.types.map(k => S.content.blueprints[k]?.name.toLowerCase() ?? k).join(' and ')}s work without a ${M.name.toLowerCase()}` });
+    if (bare >= P.millMin) shortages.push({ key: 'mill', mill: M.id, sev: P.millWeight, why: `${bare} ${orList(M.mills!.types.map(k => plural(S.content.blueprints[k]?.name.toLowerCase() ?? k)))} work without a ${M.name.toLowerCase()}` });
   }
   // sanitation: a settlement struck by sickness that knows a bathhouse keeps its homes clean, once everyone is fed
   if (S.hardship && struckLately(S, town, 'sickness') && known(S, town).some(B => B.sanitation)) {
@@ -380,7 +390,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.rite) return B.rite === L.town.custom ? 1 : 0;
     if (sh.learn) return B.learning === sh.learn ? 1 : 0;
     if (sh.hall) return B.hall ? 1 : 0;
-    if (sh.mill) return B.mills ? 1 : 0;
+    if (sh.mill) return B.id === sh.mill ? 1 : 0;
     if (sh.ships) return B.shipyard ? 1 : 0;
     if (sh.guard) return B.guards?.hazard === sh.guard ? 1 : 0;
     if (sh.clean) return B.sanitation ? 1 : 0;

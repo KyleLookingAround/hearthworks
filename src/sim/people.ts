@@ -2,7 +2,7 @@ import { hash01, rand } from './rng.ts';
 import { makeAgent, quit, removeAgent } from './agents.ts';
 import { foodChainOf } from './production.ts';
 import { shortOfFood } from './planner.ts';
-import { add, bp, chronicle, door, emit, foodsOf, learningAt, seasonOf, villagers } from './world.ts';
+import { add, bp, chronicle, door, emit, foodsOf, learningAt, reads, seasonOf, villagers } from './world.ts';
 import type { Agent, Building, Custom, Feast, ItemId, Naming, State, Town } from './types.ts';
 
 /**
@@ -190,6 +190,8 @@ export const hasExpert = (S: State, town: number, type: string, but?: Agent) => 
 export function updatePeople(S: State, dt: number) {
   const T = P(S), shelves = new Map<number, boolean>();
   const shelved = (town: number) => { let v = shelves.get(town); if (v === undefined) shelves.set(town, v = learningAt(S, town, 'library', false)); return v; };
+  const presses = new Map<number, boolean>();
+  const printed = (town: number) => { let v = presses.get(town); if (v === undefined) presses.set(town, v = learningAt(S, town, 'press')); return v; };
   for (const a of villagers(S)) {
     const age = ageOf(S, a);
     if (a.dies && age >= a.dies) { die(S, a); continue; }
@@ -201,10 +203,10 @@ export function updatePeople(S: State, dt: number) {
     // the old retire from their workplace, and lend a hand carrying
     else if (a.role === 'worker' && age >= T.elderSeconds && a.work) quit(a);
     // practice: a worker at work learns the trade, faster with a master in the settlement, or,
-    // for one who can read, from the trade written down in its library once someone somewhere has proven it in use
+    // for one who can read (schooled, or with books from a printing house), from the trade written down in its library once someone somewhere has proven it in use
     if (a.role === 'worker' && a.work && a.state === 'working') {
       const k = a.work.type, s = a.skill[k] || 0, town = a.home ? S.towns[a.home.town] : undefined;
-      const master = !!town && (hasExpert(S, town.id, k, a) || (a.schooled && !!town.knows[k]?.verified.length && shelved(town.id)));
+      const master = !!town && (hasExpert(S, town.id, k, a) || (reads(S, a, printed(town.id)) && !!town.knows[k]?.verified.length && shelved(town.id)));
       const K = S.content.tuning.knowledge;
       a.skill[k] = Math.min(1, s + (1 - s) * (dt / T.practiceSeconds) * (master ? T.apprenticeFactor : 1) * (a.schooled ? K.schoolFactor : 1));
     }

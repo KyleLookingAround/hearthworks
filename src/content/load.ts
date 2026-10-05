@@ -26,7 +26,7 @@ export function fnv1a(s: string): string {
 
 const isMap = (v: YamlValue | undefined): v is YamlMap => !!v && typeof v === 'object' && !Array.isArray(v);
 /** Pressures a village can struggle with, and so invent its way out of. */
-const NEEDS = ['bread', 'hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'long_hauls', 'traffic', 'conveying', 'boats', 'fire', 'flood', 'sickness', 'raids'];
+const NEEDS = ['bread', 'hauling', 'crossing', 'detours', 'forgetting', 'inquiry', 'distance', 'long_hauls', 'traffic', 'conveying', 'boats', 'reading', 'fire', 'flood', 'sickness', 'raids'];
 const HAZARDS = ['fire', 'flood', 'sickness', 'raids'];
 const slug = (path: string) => path.replace(/^.*\//, '').replace(/\.md$/, '');
 
@@ -116,13 +116,13 @@ export function buildContent(files: SourceFile[]): Content {
       graves: typeof f.graves === 'number' ? f.graves : 0,
       carts: typeof f.carts === 'number' ? f.carts : 0,
       oxen: typeof f.oxen === 'number' ? f.oxen : 0,
-      learning: f.learning === 'library' || f.learning === 'school' || f.learning === 'university' ? f.learning : null,
+      learning: f.learning === 'library' || f.learning === 'school' || f.learning === 'university' || f.learning === 'press' ? f.learning : null,
       hall: f.hall === true,
       form: f.form === 'town' ? 'town' : f.form === 'village' ? 'village' : 'hamlet',
       bridge: bridge ? { maxSpan: num(d, bridge.max_span, 'bridge.max_span') } : null,
       nuisance: nuisance ? { radius: num(d, nuisance.radius, 'nuisance.radius'), amount: num(d, nuisance.amount, 'nuisance.amount') } : null,
       sanitation: isMap(f.sanitation) ? { radius: num(d, f.sanitation.radius, 'sanitation.radius') } : null,
-      mills: isMap(f.mills) ? { types: Array.isArray(f.mills.types) ? f.mills.types.map(String) : [], radius: num(d, f.mills.radius, 'mills.radius'), factor: num(d, f.mills.factor, 'mills.factor') } : null,
+      mills: isMap(f.mills) ? { types: Array.isArray(f.mills.types) ? f.mills.types.map(String) : [], radius: num(d, f.mills.radius, 'mills.radius'), factor: num(d, f.mills.factor, 'mills.factor'), boon: str(d, f.mills.boon, 'mills.boon') } : null,
       guards: guards ? { hazard: str(d, guards.hazard, 'guards.hazard') as Hazard, radius: num(d, guards.radius, 'guards.radius'), defence: num(d, guards.defence, 'guards.defence', 0) } : null,
       discovery: discovery ? { need: str(d, discovery.need, 'discovery.need'), meanSeconds: num(d, discovery.mean_seconds, 'discovery.mean_seconds'), after: Array.isArray(discovery.after) ? discovery.after.map(String) : [], university: discovery.university === true } : null,
       grows: isMap(f.grows) ? { names: Array.isArray(f.grows.names) ? f.grows.names.map(String) : [] } : null,
@@ -264,7 +264,7 @@ export function buildContent(files: SourceFile[]): Content {
     knowledge: {
       haulTarget: k('haul_target'), haulSmoothingSeconds: k('haul_smoothing_seconds'), struggleSeverity: k('struggle_severity'), encourageFactor: k('encourage_factor'), encourageThreshold: k('encourage_threshold'),
       verifySeconds: k('verify_seconds'), forgetAfterSeconds: k('forget_after_seconds'), visitEverySeconds: k('visit_every_seconds'), visitMinVillagers: k('visit_min_villagers'),
-      copyEverySeconds: k('copy_every_seconds'), universityFactor: k('university_factor'), universityThreshold: k('university_threshold'), schoolFactor: k('school_factor'), forgettingMemorySeconds: k('forgetting_memory_seconds'), learningWeight: k('learning_weight'), schoolChildren: k('school_children'), distanceFrom: k('distance_from'), distanceSpan: k('distance_span'), longHaulFrom: k('long_haul_from'), reachSmoothing: k('reach_smoothing'),
+      copyEverySeconds: k('copy_every_seconds'), universityFactor: k('university_factor'), universityThreshold: k('university_threshold'), schoolFactor: k('school_factor'), forgettingMemorySeconds: k('forgetting_memory_seconds'), learningWeight: k('learning_weight'), universityVillagers: k('university_villagers'), schoolChildren: k('school_children'), distanceFrom: k('distance_from'), distanceSpan: k('distance_span'), longHaulFrom: k('long_haul_from'), reachSmoothing: k('reach_smoothing'),
     },
   };
   for (const g of tuning.farms.diet) if (!goods[g]) problems.push(`${fd.path}: tuning.diet names "${g}", which has no goods/${g}.md`);

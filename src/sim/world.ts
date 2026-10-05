@@ -8,13 +8,13 @@ import { setBelt, turned } from './belts.ts';
 import { findPath, reachable } from './path.ts';
 import { islesOf, shapeSea } from './sea.ts';
 import { launch } from './ships.ts';
-import type { Agent, BlueprintDef, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
+import type { Agent, BlueprintDef, Learning, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
 
 /**
  * A place of learning of this kind in a settlement: standing, or with `working` its worker at work.
- * A library keeps knowledge just by standing; a school and a university need their teacher or scholar.
+ * A library keeps knowledge just by standing; a school, a university and a printing house need their teacher, scholar or printer.
  */
-export function learningAt(S: State, town: number, kind: 'library' | 'school' | 'university', working = kind !== 'library'): boolean {
+export function learningAt(S: State, town: number, kind: Learning, working = kind !== 'library'): boolean {
   return S.buildings.some(b => {
     if (b.town !== town || b.site || S.content.blueprints[b.type].learning !== kind) return false;
     if (!working) return true;
@@ -22,6 +22,9 @@ export function learningAt(S: State, town: number, kind: 'library' | 'school' | 
     return !!w && w.state === 'working';
   });
 }
+
+/** Can this villager read: schooled as a child, or grown in a settlement whose printing house has its printer at work (books in every home)? */
+export const reads = (S: State, a: Agent, printed = !!a.home && learningAt(S, a.home.town, 'press')) => a.role !== 'child' && (a.schooled || printed);
 
 /** A new settlement's trade ledger. */
 export const newLedger = (): Ledger => ({ t: 0, imports: {}, made: {}, exported: {}, imported: {}, waits: {} });
