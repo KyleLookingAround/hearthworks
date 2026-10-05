@@ -63,20 +63,41 @@ function siteRequests(S: State, reqs: Request[]) {
   }
 }
 
+/** What a blueprint's requests and offers turn on, worked out once per blueprint: the job board asks it of every building on every call. */
+interface Shape { food: ItemId | undefined; outputs: ItemId[]; offers: boolean }
+const shapes = new WeakMap<object, Shape>();
+function shapeOf(B: ReturnType<typeof bp>): Shape {
+  let out = shapes.get(B);
+  if (!out) { const outputs = Object.keys(B.output); out = { food: Object.keys(B.keepStocked)[0], outputs, offers: B.storage || outputs.length > 0 }; shapes.set(B, out); }
+  return out;
+}
+
+/** The foods homes keep, once per content. */
+const homeFoods = new WeakMap<object, Set<ItemId>>();
+function homeFoodOf(S: State): Set<ItemId> {
+  let out = homeFoods.get(S.content);
+  if (!out) {
+    out = new Set<ItemId>();
+    for (const id in S.content.blueprints) for (const g of Object.keys(S.content.blueprints[id].keepStocked)) if (S.content.blueprints[id].homes) out.add(g);
+    homeFoods.set(S.content, out);
+  }
+  return out;
+}
+
 export function collectRequests(S: State): Request[] {
   const reqs: Request[] = [];
   siteRequests(S, reqs);
-  const winter = seasonOf(S) === 'winter', homeFood = new Set<ItemId>(), L = S.content.tuning.logistics;
-  const yards = S.buildings.filter(o => bp(S, o).storage && !o.site);
-  const farFromStores = (b: Building) => yards.every(o => o.town !== b.town || distBB(o, b) >= L.cartMinTiles);
-  if (winter) for (const id in S.content.blueprints) for (const g of Object.keys(S.content.blueprints[id].keepStocked)) if (S.content.blueprints[id].homes) homeFood.add(g);
+  const winter = seasonOf(S) === 'winter', homeFood = winter ? homeFoodOf(S) : null, L = S.content.tuning.logistics;
+  let yards: Building[] | null = null;
+  const farFromStores = (b: Building) => (yards ??= S.buildings.filter(o => bp(S, o).storage && !o.site)).every(o => o.town !== b.town || distBB(o, b) >= L.cartMinTiles);
+  const preserved = S.content.tuning.seasons.preserved, diet = S.farms ? S.content.tuning.farms.diet : null;
   for (const b of S.buildings) {
-    const B = bp(S, b);
     if (b.site) continue;
     if (b.paused) continue;
-    const want = wants(S, b, S.towns[b.town]?.form ?? 'hamlet'), food = Object.keys(B.keepStocked)[0];
+    const B = bp(S, b), shape = shapeOf(B);
+    const want = wants(S, b, S.towns[b.town]?.form ?? 'hamlet'), food = shape.food;
     // in winter a bakery's grain comes as soon as a home's bread: the stores are all there is
-    const kitchen = winter && Object.keys(B.output).some(g => homeFood.has(g));
+    const kitchen = !!homeFood && shape.outputs.some(g => homeFood.has(g));
     for (const item in want) {
       const need = want[item] - (b.inv[item] || 0) - (b.incoming[item] || 0);
       // a home far from every storage yard asks for its food once it is worth a pair of hands, or it has run out: not a loaf
@@ -86,7 +107,7 @@ export function collectRequests(S: State): Request[] {
       const age = aged(S, b, item, need);
       // a home's food comes first, then firewood and preserved food, then its comforts
       // (with farms that grow, the foods of the diet come with the preserved food)
-      if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? (item === food ? -4 : item === 'logs' || S.content.tuning.seasons.preserved.includes(item) || (S.farms && S.content.tuning.farms.diet.includes(item)) ? -3 : 2) : kitchen ? -4 : 0) - age });
+      if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? (item === food ? -4 : item === 'logs' || preserved.includes(item) || (diet !== null && diet.includes(item)) ? -3 : 2) : kitchen ? -4 : 0) - age });
     }
   }
   return reqs;
@@ -123,42 +144,75 @@ function freeCart(S: State, a: Agent, town: number | null, ox = false): Building
   return best;
 }
 
+/**
+ * While the agents take their turns in a tick, the board is open: one carrier after another looks
+ * for work, and the requests are the same until something changes them (a job claimed, goods picked
+ * up or dropped, a visitor arriving), so they are gathered again only then. Outside that pass, every
+ * look gathers them afresh.
+ */
+let open: State | null = null, board: { S: State; t: number; reqs: Request[] } | null = null;
+/** Off, every look gathers the requests afresh: the tests check the board changes nothing but the time it takes. */
+export const jobBoard = { reuse: true };
+export function openBoard(S: State) { open = jobBoard.reuse ? S : null; board = null; }
+export function closeBoard() { open = null; board = null; }
+/** Something the requests turn on changed: gather them again at the next look. */
+export function staleBoard() { board = null; }
+
+function requestsNow(S: State): Request[] {
+  if (open !== S) return collectRequests(S);
+  if (board && board.S === S && board.t === S.t) return board.reqs;
+  const reqs = collectRequests(S);
+  board = { S, t: S.t, reqs };
+  return reqs;
+}
+
 export function findTask(S: State, a: Agent): boolean {
   const L = S.content.tuning.logistics;
   const cap = a.kind === 'bot' ? L.botCarry : L.villagerCarry;
-  const dep = a.depot, depR = dep ? bp(S, dep).couriers!.radius : 0;
+  const dep = a.depot, depR = dep ? bp(S, dep).couriers!.radius : 0, p = dep ? ctr(dep) : null;
   // villagers work for their own settlement; trade between settlements is a later phase
   const town = a.kind === 'villager' ? a.home?.town ?? null : null;
   const inRange = (b: Building) => {
     if (town !== null && b.town !== town) return false;
     if (b.noWay !== null && S.t - b.noWay < L.noWayRetrySeconds) return false;
-    if (!dep) return true;
-    const p = ctr(dep), q = ctr(b);
-    return (p.x - q.x) ** 2 + (p.y - q.y) ** 2 <= depR * depR;
+    if (!p) return true;
+    // (the centre of `b`, as ctr gives it)
+    const qx = b.x + b.w / 2, qy = b.y + b.h / 2;
+    return (p.x - qx) ** 2 + (p.y - qy) ** 2 <= depR * depR;
   };
   let best: { src: Building; dst: Building; item: ItemId; n: number } | null = null, bestScore = Infinity;
   // a cart shed near the carrier with a cart free: long jobs take a cart and a bigger load
   // and for the longest jobs an ox cart, from a barn with an ox free and feed for it
-  const shed = a.kind === 'villager' && S.carts ? freeCart(S, a, town) : null;
-  const barn = a.kind === 'villager' && S.carts ? freeCart(S, a, town, true) : null;
-  const vehicleFor = (tiles: number) => (barn && tiles >= L.oxMinTiles ? barn : shed && tiles >= L.cartMinTiles ? shed : null);
+  // (looked for only once a job is in sight: most calls find none)
+  let shed: Building | null | undefined, barn: Building | null | undefined;
+  const shedOf = () => (shed === undefined ? (shed = a.kind === 'villager' && S.carts ? freeCart(S, a, town) : null) : shed);
+  const barnOf = () => (barn === undefined ? (barn = a.kind === 'villager' && S.carts ? freeCart(S, a, town, true) : null) : barn);
+  const vehicleFor = (tiles: number) => (barnOf() && tiles >= L.oxMinTiles ? barnOf() : shedOf() && tiles >= L.cartMinTiles ? shedOf() : null);
   const loadFor = (v: Building | null) => (!v ? cap : bp(S, v).oxen ? L.oxCarry : L.cartCarry);
   const capFor = (tiles: number) => loadFor(vehicleFor(tiles));
 
   // offers indexed by good, in building order, so only real source/request pairs are scored
-  const reqs = collectRequests(S).filter(r => inRange(r.dst));
-  const offers = new Map<ItemId, { b: Building; av: number }[]>();
+  const reqs = requestsNow(S).filter(r => inRange(r.dst));
+  const offers = new Map<ItemId, { b: Building; av: number; da: number; extra: number }[]>();
   for (const r of reqs) if (!offers.has(r.item)) offers.set(r.item, []);
-  for (const s of S.buildings) {
-    if (!inRange(s)) continue;
-    for (const [item, list] of offers) { const av = available(S, s, item); if (av > 0) list.push({ b: s, av }); }
+  // (only storage and workshops offer anything: homes and sites are passed over whole)
+  // each offer keeps its walk from the carrier and the storage yard's penalty, the same for every request
+  if (offers.size) for (const s of S.buildings) {
+    if (s.site || s.dead || !shapeOf(bp(S, s)).offers || !inRange(s)) continue;
+    let da = -1;
+    for (const [item, list] of offers) {
+      const av = available(S, s, item);
+      if (av > 0) { if (da < 0) da = distAB(a, s); list.push({ b: s, av, da, extra: bp(S, s).storage ? 2 : 0 }); }
+    }
   }
   for (const r of reqs) {
     if (r.topUp) continue;
-    for (const { b: s, av } of offers.get(r.item)!) {
+    for (const { b: s, av, da, extra } of offers.get(r.item)!) {
       if (s === r.dst) continue;
       S.world.work.jobPairs++;
-      const tiles = distAB(a, s) + distBB(s, r.dst), score = tiles + r.pri + (bp(S, s).storage ? 2 : 0);
+      // the walk to the source alone already scores no better: the pair cannot win (scores only grow with distance)
+      if (da + r.pri + extra >= bestScore) continue;
+      const tiles = da + distBB(s, r.dst), score = tiles + r.pri + extra;
       if (score < bestScore) { bestScore = score; best = { src: s, dst: r.dst, item: r.item, n: Math.min(capFor(tiles), r.need, av) }; }
     }
   }
@@ -168,17 +222,23 @@ export function findTask(S: State, a: Agent): boolean {
   const room = (st: Building, item: ItemId) => roomFor(S, st, item) > 0;
   if (stores.length) for (const s of S.buildings) {
     if (s.site) continue;
+    let da = -1;
     for (const item in bp(S, s).output) {
       const av = available(S, s, item);
       if (av < L.dumpAt || !inRange(s)) continue;
+      // the walk to the source alone already scores no better: no storage yard can win it
+      if (da < 0) da = distAB(a, s);
+      if (da + 12 >= bestScore) continue;
       let st: Building | null = null, sd = Infinity;
       for (const d of stores) { if (d === s || !room(d, item)) continue; const dd = distBB(s, d); if (dd < sd) { sd = dd; st = d; } }
       if (!st) continue;
-      const score = distAB(a, s) + sd + 12;
-      if (score < bestScore) { bestScore = score; best = { src: s, dst: st, item, n: Math.min(capFor(distAB(a, s) + sd), av) }; }
+      const score = da + sd + 12;
+      if (score < bestScore) { bestScore = score; best = { src: s, dst: st, item, n: Math.min(capFor(da + sd), av) }; }
     }
   }
   if (!best) return false;
+  // a job is taken (or, if no way to it is found, taken and let go): the requests change
+  staleBoard();
   const tiles = distAB(a, best.src) + distBB(best.src, best.dst);
   let cart = vehicleFor(tiles), load = loadFor(cart);
   // a cart on a long haul fills up: the same good for others asking within `round_tiles` of the first drop, in turn
@@ -198,7 +258,7 @@ export function findTask(S: State, a: Agent): boolean {
     }
   }
   // an ox cart is slower than a handcart: only a load a handcart cannot take is worth the ox
-  if (cart && bp(S, cart).oxen && total <= L.cartCarry && shed) cart = shed;
+  if (cart && bp(S, cart).oxen && total <= L.cartCarry && shedOf()) cart = shedOf()!;
   add(best.src.reserved, best.item, total);
   add(best.dst.incoming, best.item, best.n);
   for (const r of round) add(r.dst.incoming, best.item, r.n);
