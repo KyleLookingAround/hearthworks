@@ -56,7 +56,7 @@ export function pressure(S: State, town: Town, need: string): number {
   if (need === 'inquiry') {
     if (!S.people) return 0;
     let p = 0;
-    for (const B of Object.values(S.content.blueprints)) if (B.discovery && B.discovery.need !== 'inquiry' && !knows(town, B.id)) p = Math.max(p, pressure(S, town, B.discovery.need));
+    for (const B of Object.values(S.content.blueprints)) if (B.discovery && B.discovery.need !== 'inquiry' && !knows(town, B.id) && ageNeeded(S, B.id) <= town.age) p = Math.max(p, pressure(S, town, B.discovery.need));
     return p;
   }
   return 0;
