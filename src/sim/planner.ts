@@ -983,7 +983,8 @@ function kept(S: State, town: Town, b: Building): boolean {
 function takeDown(S: State, town: Town, b: Building) {
   const P = T(S), c = ctr(b);
   const store = hubs(S, town).filter(h => !h.site && h !== b).sort((p, q) => Math.hypot(ctr(p).x - c.x, ctr(p).y - c.y) - Math.hypot(ctr(q).x - c.x, ctr(q).y - c.y))[0] ?? S.bmap.get(town.store);
-  const back: [string, number][] = [...Object.entries(b.inv), ...Object.entries(bp(S, b).cost).map(([k, n]): [string, number] => [k, Math.floor(n * P.salvageShare)])];
+  // (a site gives back only what was delivered to it)
+  const back: [string, number][] = [...Object.entries(b.inv), ...(b.site ? [] : Object.entries(bp(S, b).cost).map(([k, n]): [string, number] => [k, Math.floor(n * P.salvageShare)]))];
   for (const a of S.agents) if (touches(a, b)) cancelTask(a);
   if (town.planner.site === b.id) town.planner.site = null;
   demolish(S, b);
@@ -1047,9 +1048,8 @@ function moveOut(S: State, town: Town, L: Look): boolean {
   for (const { b, hub } of cands) {
     const B = bp(S, b);
     if (affordable(S, B, town)) continue;
-    const back = lift(S, b);
+    // (searched with the old one standing: it keeps working, and its ground is no way through, until the new one is built)
     const spot = chooseSpot(S, b.type, town);
-    back();
     const out = spot && hubs(S, town).every(h => Math.hypot(ctr(h).x - spot.x - B.w / 2, ctr(h).y - spot.y - B.h / 2) > P.centreRadius);
     if (!spot || !out) continue;
     const site = placeBuilding(S, b.type, spot.x, spot.y, false, spot.rot)!;
@@ -1068,8 +1068,16 @@ function moveOut(S: State, town: Town, L: Look): boolean {
 
 /** A building that has taken over from one in a centre is finished: the old one comes down, its land left to homes. */
 function finishMoves(S: State, town: Town) {
-  for (const b of S.buildings) {
-    if (b.town !== town.id || b.site || b.replaces === null) continue;
+  for (const b of [...S.buildings]) {
+    if (b.town !== town.id || b.replaces === null) continue;
+    // a move nobody can reach is given up before anything is delivered: the old one stays where it is
+    if (b.site && b.noWay !== null && !Object.values(b.inv).some(n => n > 0)) {
+      const name = bp(S, b).name.toLowerCase();
+      takeDown(S, town, b);
+      chronicle(S, town.id, 'moved', `${town.name} gave up moving its ${name}: nobody could reach the new one`);
+      continue;
+    }
+    if (b.site) continue;
     const old = S.bmap.get(b.replaces);
     b.replaces = null;
     if (!old || old.dead) continue;
@@ -1105,6 +1113,12 @@ function centreSpot(S: State, type: string, town: Town): { x: number; y: number;
     if (spot) return spot;
   }
   return null;
+}
+
+/** Would a building at this spot have its door on a road (its front tile on one or beside one), as placement scores it? */
+function alongRoad(S: State, B: BlueprintDef, at: { x: number; y: number; rot: number }): boolean {
+  const W = S.world, fr = frontOf({ x: at.x, y: at.y, ...dims(B, at.rot), rot: at.rot }), F = FACING[at.rot];
+  return [fr, { x: fr.x + F[1], y: fr.y + F[0] }, { x: fr.x - F[1], y: fr.y - F[0] }].some(q => q.x >= 0 && q.y >= 0 && q.x < W.w && q.y < W.h && W.road[q.y * W.w + q.x] >= 2);
 }
 
 /** What renewal has in mind for a building, for the inspector: being moved out of a centre, or standing idle long enough to come down. */
@@ -1296,7 +1310,9 @@ function planTown(S: State, town: Town, dt: number) {
     return;
   }
   // in a village or town, homes go first onto open land in the district centres, where workplaces moved out or came down
+  // (once it has laid roads, only along one: a home off the roads goes where the planner would put it anyway)
   let spot = c.B.homes && formOf(S, town) !== 'hamlet' ? centreSpot(S, c.B.id, town) : null;
+  if (spot && S.world.roads > 0 && !alongRoad(S, c.B, spot)) spot = null;
   spot ??= chooseSpot(S, c.B.id, town);
   // a dock looks along the shores of every district, newest first
   if (c.B.shore) for (const h of hubs(S, town).reverse()) spot ??= chooseSpot(S, c.B.id, town, false, h);
