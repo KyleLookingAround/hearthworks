@@ -490,6 +490,20 @@ export class Renderer {
         for (let k = 0; k < 3; k++) { const y = py + ph * 0.8 + k * 5; c.beginPath(); c.moveTo(jx, y); c.lineTo(jx + 8, y); c.stroke(); }
         return;
       }
+      case 'shipyard': {
+        // a shed on the left, and on the slipway beside it a hull that takes shape as the shipwright works
+        this.hut(px, py, pw * 0.5, ph, '#c8a878', B.color);
+        const sx = px + pw * 0.5 + 2, sw = pw * 0.5 - 5;
+        c.strokeStyle = '#6a5034'; c.lineWidth = 2;
+        for (const k of [0.3, 0.7]) { c.beginPath(); c.moveTo(sx, py + ph * k); c.lineTo(sx + sw, py + ph * k); c.stroke(); }
+        const f = B.seconds ? Math.min(1, b.timer / B.seconds) : 0;
+        if (!b.site && f > 0) {
+          c.fillStyle = '#9a7246'; c.beginPath();
+          c.ellipse(sx + sw / 2, py + ph / 2, (sw / 2) * (0.4 + 0.6 * f), ph * 0.22, 0, 0, 7); c.fill();
+          c.strokeStyle = '#5a4020'; c.lineWidth = 1; c.stroke();
+        }
+        return;
+      }
       case 'ox_barn': {
         // a barn on the left, and a fenced yard with the oxen at home
         this.hut(px, py, pw * 0.55, ph, '#c8a878', B.color);

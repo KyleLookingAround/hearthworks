@@ -36,6 +36,7 @@
 * [Road](road.md) - A planned road, laid as a long straight strip through a settlement; faster than paths, most of all for carts.
 * [Sawmill](sawmill.md) - Cuts one log into one plank. Planks build everything.
 * [School](school.md) - Where children learn to read and to learn; those who went to school pick up a trade faster, and read from libraries.
+* [Shipyard](shipyard.md) (draft) - A slipway where a shipwright builds rowing boats from planks for the settlement's fleet, while its people wait ashore for one.
 * [Smithy](smithy.md) - Forges iron ore with logs into tools: a two-input recipe.
 * [Smokehouse](smokehouse.md) - Smokes fish over a log fire into food that keeps all winter.
 * [Stone Road](stone_road.md) - A road paved in stone, the fastest ground there is; a settlement repaves its busiest road in stone it can spare.

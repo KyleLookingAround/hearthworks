@@ -8,6 +8,7 @@
  * Deterministic: no randomness at all, ties break by scan order.
  */
 import { findPath, reachable } from './path.ts';
+import { wantsBoat } from './ships.ts';
 import { cancelTask, supplyOf, touches } from './logistics.ts';
 import { fits } from './place.ts';
 import { inNuisance } from './surroundings.ts';
@@ -24,7 +25,7 @@ import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Building, type For
 
 export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, firstFor: {}, wants: {}, use: {} });
 
-interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: 'library' | 'school' | 'university'; hall?: boolean; mill?: boolean; /** traded for from this neighbour rather than made */ from?: Town }
+interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: 'library' | 'school' | 'university'; hall?: boolean; mill?: boolean; ships?: boolean; /** traded for from this neighbour rather than made */ from?: Town }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
 interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; coming: boolean; foodShort: boolean; movable: boolean; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
@@ -177,6 +178,8 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   // crossing: the neighbours are across water; a dock relieves it
   const hasDock = mine.some(b => bp(S, b).shore);
   shortages.push({ key: 'crossing', crossing: true, sev: clamp01(pressure(S, town, 'crossing') * P.crossingWeight), why: NEED_TEXT.crossing });
+  // ships (with ships on): its people wait ashore for a free boat; a shipyard builds more, while the fleet wants them
+  if (S.ships && hasDock && 'shipyard' in town.knows && !mine.some(b => bp(S, b).shipyard) && pressure(S, town, 'boats') > 0 && wantsBoat(S, town)) shortages.push({ key: 'ships', ships: true, sev: S.content.tuning.sea.shipyardWeight, why: NEED_TEXT.boats });
   // detours: water keeps the village from land nearby, or sends trips the long way round; a bridge relieves it
   shortages.push({ key: 'detours', detours: true, sev: clamp01(pressure(S, town, 'detours') * P.detourWeight), why: NEED_TEXT.detours });
   // labour: villagers free to take a new job, keeping a share of the town hauling
@@ -378,6 +381,7 @@ function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.learn) return B.learning === sh.learn ? 1 : 0;
     if (sh.hall) return B.hall ? 1 : 0;
     if (sh.mill) return B.mills ? 1 : 0;
+    if (sh.ships) return B.shipyard ? 1 : 0;
     if (sh.guard) return B.guards?.hazard === sh.guard ? 1 : 0;
     if (sh.clean) return B.sanitation ? 1 : 0;
     if (sh.store) return B.storage && (!B.keeps || B.keeps.includes('wheat')) ? clamp01((B.capacity || 300) / Math.max(1, L.storeNeed - L.storeRoom)) : 0;
@@ -646,7 +650,7 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
   const doors = S.buildings.filter(b => !b.dead && !bp(S, b).bridge).map(b => { const d = door(b); return d.y * W.w + d.x; }).filter(i => rootReach[i]);
   for (const c of scored.slice(0, 8)) {
     const at = { x: c.x, y: c.y, ...dims(B, c.rot), rot: c.rot }, d = door(at);
-    if (!findPath(W, from.x, from.y, d.x, d.y)) continue;
+    if (!findPath(W, from.x, from.y, d.x, d.y, S.ships ? { fleet: -1 } : {})) continue;
     // the open tile in front of its door, or beside it for a building on the shore
     const o = B.shore ? beside(at) : frontOf(at), front = o.y * W.w + o.x;
     if (sealsOff(W, c.x, c.y, at.w, at.h, root, doors, rootReach[front] ? front : -1)) continue;
