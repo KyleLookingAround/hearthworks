@@ -11,7 +11,7 @@
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 import { nameFor, namingFor } from './people.ts';
 
-export const SAVE_VERSION = 29;
+export const SAVE_VERSION = 30;
 
 type Json = Record<string, unknown>;
 
@@ -213,6 +213,14 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     for (const t of state.towns as Json[]) t.boatless ??= -1e9;
     const st = state.stats as Json;
     for (const k of ['boatsBuilt', 'boatTrips', 'ashore']) st[k] ??= 0;
+    return state;
+  },
+  // 29 to 30: renewal: each workplace's idle clock, sites built to take over from a building in a centre, the planner's clock for it
+  29: state => {
+    for (const b of [...state.buildings as Json[], ...(state.gone as Json[] ?? [])]) { b.idle ??= 0; b.replaces ??= null; }
+    for (const t of state.towns as { planner: Json }[]) t.planner.renewAt ??= 0;
+    const st = state.stats as Json;
+    for (const k of ['pulledDown', 'movedOut']) st[k] ??= 0;
     return state;
   },
 };

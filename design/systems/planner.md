@@ -16,6 +16,13 @@ tuning:
   district_spacing: 18
   district_room_weight: 0.05
   replan_every_seconds: 240
+  renew_every_seconds: 180
+  idle_seconds: 600
+  keep_cover: 1.25
+  centre_radius: 6
+  move_max_size: 0
+  yard_weight: 0.5
+  packed_homes: 6
   salvage_share: 0.5
   clear_reach: 3
   clear_tries: 6
@@ -101,6 +108,7 @@ Every `interval_seconds` the planner:
    - everything else: +1 per grown tree it would clear and `forest_penalty` inside a forester's ground;
    - `link_weight` × distance to the nearest maker of each input and the mean distance to the users of each output. A Bakery lands between its Farm and the houses; a Sawmill beside its Forester;
    - homes: `link_weight` × distance to the nearest house;
+   - yards (a granary, a warehouse or another storage yard, not a district's heart): `yard_weight` × the mean distance to the makers of what they keep (of anything, for a yard that takes anything), so stores stand by the workshops and fields rather than in the centre;
    - courier buildings: minus `cover_weight` per building of its settlement its bots would newly reach; a spot that reaches none is skipped.
    A spot is refused if building there would cut storage off from the door of any of the settlement's buildings, or from the tile in front of its own door: on a big landmass a farm was once sealed onto a patch of sand by the next building down. If no spot qualifies, it remembers that it found no room for that blueprint and, for `no_room_retry_seconds`, plans for its next shortage instead, so one building it cannot place (a dock with no suitable shore) never holds up the bread.
 7. **Commits** a construction site through the [job board](/systems/logistics.md) with priority `1 + severity × urgency_priority` (see [site priority](/systems/production.md)) and records why on the building.
@@ -112,7 +120,12 @@ A settlement's form follows its people: a **hamlet** below `village_at`, a **vil
 - **The ladder of homes.** For beds it plans the densest home its form allows: [Cottages](/blueprints/house.md) (0.75 beds a tile) in a hamlet, [Family Houses](/blueprints/family_house.md) (1) in a village, [Terraces](/blueprints/terrace.md) (1.5) in a town. A blueprint's `form` says which.
 - **Rows.** In a village or town, homes need no ring of open land from other homes (a gap of 0; anything else keeps its ring), and score `row_weight` better for each tile of wall shared with another home, and `street_weight` better with their door onto a road.
 - **Streets.** A town lays a street grid around each district centre once: rows every `street_every_rows` tiles (a terrace two tiles deep fits between, door on the street) and cross streets every `street_every_cols`, within `street_radius`, on open land only.
-- **Replanning.** A town with free beds renews an old block at most every `replan_every_seconds`: it tears down homes of a sparser rung where its densest home would stand, as one block, and plans that home there. Every home covered must be finished and at least `replan_min_age` seconds in use, at least one of each kind must remain, the new home must add beds, and everyone living there must fit in free beds elsewhere. They move before anything comes down, so nobody leaves; `salvage_share` of the cost goes back into storage. The block that adds most beds nearest its district centre goes first.
+- **Replanning.** A village or town with free beds renews an old block at most every `replan_every_seconds`: it tears down homes of a sparser rung where its densest home would stand, as one block, and plans that home there (cottages make way for family houses in a village, for terraces in a town). Every home covered must be finished and at least `replan_min_age` seconds in use, at least one of each kind must remain, the new home must add beds, and everyone living there must fit in free beds elsewhere. They move before anything comes down, so nobody leaves; `salvage_share` of the cost goes back into storage. The block that adds most beds nearest its district centre goes first.
+- **Renewal.** At most every `renew_every_seconds` a settlement looks over what its planner has built (never what the player or the founders placed, a paused building, a yard at a district's heart, a home, or a building that answers a need of its own rather than a good: bridges, docks, places of rites and learning, the hall, counters, depots, sheds, barns, mills, shipyards) and does one of two things:
+  - *Selective.* A workplace that no longer pays comes down: one that has stood `idle_seconds` without work (no worker, nothing to work with, or resting with enough in store; fields resting through winter and young orchards do not count), or, in a town, one taking up a district centre (the town has outgrown it), while the settlement's other makers of everything it makes cover `keep_cover` times what is wanted of it and none of it is short or saved for. Never the last of its kind. Carriers' jobs to and from it are cancelled; what it held and `salvage_share` of its cost go into the nearest storage yard; its workers go back to carrying. The one idle longest goes first.
+  - *Denser.* In a village or town that wants homes and is fed, a workplace that needs land or makes noise (a farm, garden or pasture not grown past `move_max_size`, a forester, a sawmill or another nuisance) or a yard that is not a district's heart, standing within `centre_radius` of a district centre, moves out. A new one is planned where the planner would put one today, beyond every centre (farms and foresters out where their land is; yards beside the makers of what they keep, at `yard_weight`), and the old one keeps working until the new one is finished, then comes down as above. The largest goes first.
+  - *Homes take the centre.* In a village or town, a home is placed first on open land within `centre_radius` of a district centre, oldest district first (rows and streets score as ever), and only elsewhere when no centre has room. Land freed in the centre becomes homes in rows.
+  - The chronicle says what came down or moved and why; the inspector says when a workplace has stood idle and may come down, and which building is being moved and what takes over from it; the advisor names what was lately pulled down or moved, and warns when `packed_homes` or more homes stand in the centres with nothing to fight a fire.
 - **Districts.** Each district has a storage yard at its heart. Once the newest district holds `district_buildings` buildings, a new district is founded: a storage yard on open land storage can walk to, about `district_spacing` from every other centre, where most grass lies around (`district_room_weight`). The settlement grows in its newest district: placement searches only there (`search_radius` beyond that district's farthest building), so planning cost follows district size, not town size. Paving covers every district.
 - **Never wall anyone in.** Every placement, replanned block and district centre is refused if it would cut the settlement's first storage yard off from the door of any building it reaches today, of any settlement: two towns growing into each other once sealed a house of one inside a pocket made by the other's homes.
 
@@ -199,7 +212,8 @@ Under the `detours` shortage (water keeps the village from grass close by, or tr
 - One planned site open at a time, and a settle pause after it finishes.
 - A choice must win `confirm_cycles` looks running before it is built.
 - Capacity already on the way (sites, unstaffed workplaces) counts as relief.
-- The planner never cancels a site, and demolishes only to renew a block of homes, to lay a road, or to clear a shore for its first dock.
+- The planner never cancels a site, and demolishes only to renew a block of homes, to pull down a workplace that no longer pays or one it has moved out of a centre, to lay a road, or to clear a shore for its first dock.
+- What it pulls down must be covered by the rest with `keep_cover` to spare, so it does not build the same again at its next look; renewal acts at most once every `renew_every_seconds`.
 
 # Player
 

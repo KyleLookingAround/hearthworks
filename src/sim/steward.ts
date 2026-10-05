@@ -5,7 +5,8 @@
 import { homesInNuisance } from './surroundings.ts';
 import { NEED_TEXT, ageNeeded, knows, pressure, scholarly } from './knowledge.ts';
 import { dietOf } from './farms.ts';
-import { defence } from './hardship.ts';
+import { defence, guarded } from './hardship.ts';
+import { centreOf } from './planner.ts';
 import { learningAt, seasonOf, storesOnTrack } from './world.ts';
 import type { State, Town } from './types.ts';
 
@@ -13,7 +14,7 @@ import type { State, Town } from './types.ts';
 const LABEL: Record<string, string> = {
   founded: 'Creation', invented: 'Creation', scholars: 'Creation', district: 'Creation', bridge: 'Creation',
   form: 'Update', replanned: 'Update', taught: 'Update', learned: 'Update', proven: 'Update', season: 'Update', trade: 'Creation', birth: 'Creation', custom: 'Update', settled: 'Creation', age: 'Update',
-  forgotten: 'Deprecation',
+  forgotten: 'Deprecation', pulled: 'Deprecation', moved: 'Update',
   fire: 'Finding', flood: 'Finding', sickness: 'Finding', raids: 'Finding', road: 'Creation', belt: 'Creation', dock: 'Creation', farm: 'Update', feast: 'Update', naming: 'Update', peace: 'Creation',
 };
 
@@ -46,7 +47,8 @@ function universityHint(S: State, town: Town): string {
  * Up to `n` suggestions for one settlement, most pressing first: hunger, a need nothing known answers
  * (encourage the blueprint that would), an idea only scholars find with no university at work, no room (zones), raiders who outnumber the defence, a winter store
  * fallen behind (ration), the hungry kept from leaving, long hauls with no carts thought of or oxen without feed,
- * a diet of bread alone, noisy homes, then the latest page of history.
+ * a diet of bread alone, noisy homes, homes packed in a centre with nothing to fight a fire, what was lately pulled down
+ * or moved out of a centre, then the latest page of history.
  */
 export function advise(S: State, town: Town, n = 3): string[] {
   const out: string[] = [], status = town.planner.status;
@@ -85,8 +87,16 @@ export function advise(S: State, town: Town, n = 3): string[] {
   }
   if (S.farms && S.buildings.filter(b => b.town === town.id && !b.site && S.content.blueprints[b.type].homes).length >= 4 && !dietOf(S, town.id).size) out.push(`${town.name} eats nothing but bread: a Garden, an Orchard or a Pasture would vary its meals and lift its mood.`);
   if (homesInNuisance(S) > 0) out.push('Some homes are within a sawmill\'s noise: zone homes and workshops apart.');
+  // the price of density: homes packed in a district centre, unguarded against fire, burn along their rows
+  if (S.hardship) {
+    const packed = S.buildings.filter(b => b.town === town.id && !b.site && S.content.blueprints[b.type].homes && centreOf(S, town, b) && !guarded(S, b, 'fire')).length;
+    if (packed >= S.content.tuning.planner.packedHomes) out.push(`${packed} homes stand packed in ${town.name}'s centres with nothing to fight a fire: a fire there runs along their rows. Raise the priority of guarding against fire${knows(town, 'well') ? '' : ', or encourage the Well'}.`);
+  }
+  // renewal: what the settlement lately pulled down or moved, and why
+  const renewed = [...S.chronicle].reverse().find(c => c.town === town.id && (c.kind === 'pulled' || c.kind === 'moved') && S.t - c.t <= S.content.tuning.planner.renewEverySeconds);
+  if (renewed) out.push(`Renewing: ${renewed.text}.`);
   // the latest page of history worth reading: not the founding, nor the turn of a season
   const last = [...S.chronicle].reverse().find(c => c.town === town.id && c.kind !== 'founded' && c.kind !== 'season');
-  if (last) out.push(`Latest: ${last.text}.`);
+  if (last && last !== renewed) out.push(`Latest: ${last.text}.`);
   return out.slice(0, n);
 }
