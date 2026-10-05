@@ -8,6 +8,7 @@ generated: { by: claude/opus-5.5, at: 2026-10-05T00:46:23Z }
 tuning:
   check_every_seconds: 60
   min_villagers: 70
+  crowded_min_villagers: 30
   cooldown_seconds: 1200
   party_size: 6
   max_settlements: 8

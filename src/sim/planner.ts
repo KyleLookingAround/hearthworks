@@ -1060,8 +1060,8 @@ function planTown(S: State, town: Town, dt: number) {
     return;
   }
   let spot = chooseSpot(S, c.B.id, town);
-  // with no room in the newest district, the older ones are searched, newest first (a dock looks along all their shores)
-  for (const h of hubs(S, town).reverse().slice(1)) spot ??= chooseSpot(S, c.B.id, town, false, h);
+  // a dock looks along the shores of every district, newest first
+  if (c.B.shore) for (const h of hubs(S, town).reverse()) spot ??= chooseSpot(S, c.B.id, town, false, h);
   // a dock with no shore left clears one: a workshop on the shore comes down for it, as roads clear their line
   if (!spot && c.B.shore) {
     const cleared = clearShore(S, town, c.B);
