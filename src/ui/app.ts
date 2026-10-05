@@ -676,10 +676,10 @@ export class App {
         rows += row('On the shelves', shelf.length ? '' : 'nothing yet beyond what the founders knew');
         for (const [id, k] of shelf) rows += row(this.content.blueprints[id]?.name ?? id, `by ${k.by}` + (k.from ? `, from ${k.from}` : '') + `; proven by ${k.verified.length}`);
       } else if (B.learning) rows += row('Work', B.learning === 'school' ? 'Teaching the children' : 'Pursuing lines of inquiry');
-      else if (B.speeds) {
-        // a mill: the workplaces it speeds within reach
-        const near = S.buildings.filter(o => o.town === b.town && !o.site && B.speeds!.types.includes(o.type) && Math.hypot(ctr(o).x - ctr(b).x, ctr(o).y - ctr(b).y) <= B.speeds!.radius).length;
-        rows += row('Work', `${near} ${B.speeds.types.map(k => this.content.blueprints[k]?.name.toLowerCase() ?? k).join(' and ')}${near === 1 ? '' : 's'} within ${B.speeds.radius} tiles, ${B.speeds.factor}× as fast` + (w?.state === 'working' ? '' : ' while its worker is in'));
+      else if (B.mills) {
+        // a mill: the workplaces it mills within reach
+        const near = S.buildings.filter(o => o.town === b.town && !o.site && B.mills!.types.includes(o.type) && Math.hypot(ctr(o).x - ctr(b).x, ctr(o).y - ctr(b).y) <= B.mills!.radius).length;
+        rows += row('Work', `${near} ${B.mills.types.map(k => this.content.blueprints[k]?.name.toLowerCase() ?? k).join(' and ')}${near === 1 ? '' : 's'} within ${B.mills.radius} tiles, ${B.mills.factor}× as fast` + (w?.state === 'working' ? '' : ' while its worker is in'));
       }
       else if (B.hall) {
         // the planner at their desk: how skilled, and how many of the settlement's own sites it keeps open at once

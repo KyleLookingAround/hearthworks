@@ -46,4 +46,4 @@
 * [Watchtower](watchtower.md) (draft) - A lookout on watch sees raiders coming, so the whole militia musters to meet them.
 * [Weaver](weaver.md) - Weaves two bundles of flax into a bolt of cloth.
 * [Well](well.md) (draft) - Water for a fire crew mustered from the neighbours, who put out a fire within reach quickly, before it spreads.
-* [Windmill](windmill.md) (draft) - Grinds the grain for the bakeries around it, so they bake faster; a blueprint of the Age of Clockwork's own.
+* [Windmill](windmill.md) (draft) - Grinds the grain for the bakeries around it, so each sack of wheat makes half as much bread again; a blueprint of the Age of Clockwork's own.

@@ -121,7 +121,7 @@ export function buildContent(files: SourceFile[]): Content {
       bridge: bridge ? { maxSpan: num(d, bridge.max_span, 'bridge.max_span') } : null,
       nuisance: nuisance ? { radius: num(d, nuisance.radius, 'nuisance.radius'), amount: num(d, nuisance.amount, 'nuisance.amount') } : null,
       sanitation: isMap(f.sanitation) ? { radius: num(d, f.sanitation.radius, 'sanitation.radius') } : null,
-      speeds: isMap(f.speeds) ? { types: Array.isArray(f.speeds.types) ? f.speeds.types.map(String) : [], radius: num(d, f.speeds.radius, 'speeds.radius'), factor: num(d, f.speeds.factor, 'speeds.factor') } : null,
+      mills: isMap(f.mills) ? { types: Array.isArray(f.mills.types) ? f.mills.types.map(String) : [], radius: num(d, f.mills.radius, 'mills.radius'), factor: num(d, f.mills.factor, 'mills.factor') } : null,
       guards: guards ? { hazard: str(d, guards.hazard, 'guards.hazard') as Hazard, radius: num(d, guards.radius, 'guards.radius'), defence: num(d, guards.defence, 'guards.defence', 0) } : null,
       discovery: discovery ? { need: str(d, discovery.need, 'discovery.need'), meanSeconds: num(d, discovery.mean_seconds, 'discovery.mean_seconds'), after: Array.isArray(discovery.after) ? discovery.after.map(String) : [], university: discovery.university === true } : null,
       grows: isMap(f.grows) ? { names: Array.isArray(f.grows.names) ? f.grows.names.map(String) : [] } : null,
@@ -271,7 +271,7 @@ export function buildContent(files: SourceFile[]): Content {
     if (eras.some(o => o !== e && o.unlocks.includes(id))) problems.push(`eras/${e.id}.md: "${id}" is unlocked by more than one era`);
     if (e === eras[0]) problems.push(`eras/${e.id}.md: the first age unlocks nothing; every settlement starts in it`);
   }
-  for (const B of Object.values(blueprints)) for (const k of B.speeds?.types ?? []) if (!blueprints[k]) problems.push(`blueprints/${B.id}.md: speeds.types names "${k}", which is not a blueprint`);
+  for (const B of Object.values(blueprints)) for (const k of B.mills?.types ?? []) if (!blueprints[k]) problems.push(`blueprints/${B.id}.md: mills.types names "${k}", which is not a blueprint`);
   if (problems.length) throw new ContentError(problems);
   return { goods, blueprints, maps, eras, tuning, hash };
 }

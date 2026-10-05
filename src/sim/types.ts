@@ -67,7 +67,7 @@ export interface BlueprintDef {
   seasonal: boolean;
   /** The custom for the dead it serves (burial, cremation, ship), if any. */
   rite: Custom | null;
-  /** A place of learning: a library keeps knowledge, a school schools children, a university speeds invention. */
+  /** A place of learning: a library keeps knowledge, a school schools children, a university mills invention. */
   learning: 'library' | 'school' | 'university' | null;
   /** A town hall: its planner at work lets the settlement keep more of its own sites open at once. */
   hall: boolean;
@@ -89,8 +89,8 @@ export interface BlueprintDef {
   guards: { hazard: Hazard; radius: number; defence: number } | null;
   /** Keeps homes within `radius` clean while its worker is in: they fall sick, and catch sickness, `clean_factor` as often. */
   sanitation: { radius: number } | null;
-  /** Speeds the workplaces of these kinds within `radius` by `factor` while its worker is at work (a windmill and its bakeries). */
-  speeds: { types: string[]; radius: number; factor: number } | null;
+  /** Mills for the workplaces of these kinds within `radius` while its worker is at work: each batch they make yields `factor` times as much (a windmill and its bakeries). */
+  mills: { types: string[]; radius: number; factor: number } | null;
   /** Not known at the start: a village invents it while it struggles with `need`. Null for founding knowledge. */
   discovery: { need: string; meanSeconds: number; /** blueprints the settlement must know first */ after: string[]; /** thought of only with a university at work */ university: boolean } | null;
   /** Grows in steps, one per name (farms that grow): each step adds a row of fields behind it and a place for a hand. */
@@ -280,7 +280,7 @@ export interface Building {
   /** The settlement it belongs to (index into State.towns). */
   town: number;
   /** A home's clock for using its comforts (fish, cloth, tools), in seconds. */
-  extra: number;
+  extra: number; /* a home: comforts owed; a workplace by a mill: the part of a good its batches have yielded beyond the whole */
   /** Cycles worked since its tools last wore out. */
   wear: number;
   /** A home's firewood clock in winter, in logs owed. */
@@ -460,7 +460,7 @@ export interface World {
   slopeCost: number;
   /** cost of a tile of rock relative to open land */
   rockCost: number;
-  /** cost of a path (or bridge) tile, of a road tile, and of a tile under grown trees, relative to open land: the inverse of their speeds */
+  /** cost of a path (or bridge) tile, of a road tile, and of a tile under grown trees, relative to open land: the inverse of their mills */
   pathCost: number;
   roadCost: number;
   /** Route cost of a road of stone, and how many tiles are paved in stone (`roads` counts every road tile, stone or not). */

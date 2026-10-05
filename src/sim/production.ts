@@ -166,17 +166,17 @@ export function enoughInStore(S: State, b: Building): boolean {
   return !!town && outs.length > 0 && outs.every(g => enough(S, town, g));
 }
 
-/** The kinds of workplace something speeds (a windmill its bakeries), worked out once per content. */
-const SPED = new WeakMap<object, Set<string>>();
-const spedKinds = (S: State) => { let k = SPED.get(S.content); if (!k) SPED.set(S.content, k = new Set(Object.values(S.content.blueprints).flatMap(B => B.speeds?.types ?? []))); return k; };
+/** The kinds of workplace something mills (a windmill its bakeries), worked out once per content. */
+const MILLED = new WeakMap<object, Set<string>>();
+const milledKinds = (S: State) => { let k = MILLED.get(S.content); if (!k) MILLED.set(S.content, k = new Set(Object.values(S.content.blueprints).flatMap(B => B.mills?.types ?? []))); return k; };
 
-/** How much faster a workplace works for a building of its settlement within reach whose worker is at work (a windmill by a bakery): the best such factor, else 1. */
-export function spedBy(S: State, b: Building): number {
-  if (!spedKinds(S).has(b.type)) return 1;
+/** How much more a workplace yields for a building of its settlement within reach whose worker is at work (a windmill by a bakery): the best such factor, else 1. */
+export function milledBy(S: State, b: Building): number {
+  if (!milledKinds(S).has(b.type)) return 1;
   let f = 1;
   const p = ctr(b);
   for (const c of S.buildings) {
-    const C = bp(S, c).speeds;
+    const C = bp(S, c).mills;
     if (!C || c.town !== b.town || c.site || !C.types.includes(b.type) || C.factor <= f || c.worker === null) continue;
     if (S.amap.get(c.worker)?.state !== 'working' || Math.hypot(ctr(c).x - p.x, ctr(c).y - p.y) > C.radius) continue;
     f = C.factor;
@@ -293,18 +293,23 @@ function run(S: State, b: Building, dt: number) {
     tree = nearestGrownTree(S, b, B.harvest.radius);
     if (tree < 0) { setStatus(b, 'No grown trees nearby', 'bad'); return; }
   }
-  // tools speed the work up, and wear out; a mill at work nearby speeds it too
-  const tooled = !!B.tools && (b.inv.tools || 0) >= 1, n = places(S, b), mill = spedBy(S, b);
-  setStatus(b, (tooled ? 'Working, with tools' : 'Working') + (mill > 1 ? (tooled ? ' and a mill' : ', with a mill') : '') + (n > 1 ? `: ${team?.length ?? 1} of ${n} hands` : ''), 'ok');
+  // tools speed the work up, and wear out; a mill at work nearby makes each batch yield more
+  const tooled = !!B.tools && (b.inv.tools || 0) >= 1, n = places(S, b), mill = milledBy(S, b);
+  setStatus(b, (tooled ? 'Working, with tools' : 'Working') + (mill > 1 ? (tooled ? ' and milled grain' : ', with milled grain') : '') + (n > 1 ? `: ${team?.length ?? 1} of ${n} hands` : ''), 'ok');
   // working hours, by law
   const hours = S.towns[b.town]?.laws.hours, pace = hours === 'long' ? T.hardship.longPace : hours === 'short' ? T.hardship.shortPace : 1;
   // every hand at work adds their own pace
-  b.timer += dt * (tooled ? B.tools!.speedup : 1) * mill * (team ? team.reduce((s, a) => s + skillPace(S, a, b), 0) : skillPace(S, w!, b)) * pace;
+  b.timer += dt * (tooled ? B.tools!.speedup : 1) * (team ? team.reduce((s, a) => s + skillPace(S, a, b), 0) : skillPace(S, w!, b)) * pace;
   if (b.timer >= B.seconds) {
     b.timer = 0;
     if (tooled && ++b.wear >= B.tools!.wearCycles) { b.wear = 0; add(b.inv, 'tools', -1); }
     for (const k in B.input) add(b.inv, k, -B.input[k]);
     if (tree >= 0) plant(S.world, tree);
-    for (const k in B.output) { add(b.inv, k, B.output[k]); add(S.stats.made, k, B.output[k]); if (S.towns[b.town]) add(S.towns[b.town].trade.made, k, B.output[k]); b.made += B.output[k]; }
+    for (const k in B.output) {
+      // milled: `factor` times the yield, the part beyond a whole good carried over to the next batch
+      let n = B.output[k];
+      if (mill > 1) { b.extra += n * (mill - 1); const more = Math.floor(b.extra + 1e-9); b.extra -= more; n += more; }
+      add(b.inv, k, n); add(S.stats.made, k, n); if (S.towns[b.town]) add(S.towns[b.town].trade.made, k, n); b.made += n;
+    }
   }
 }
