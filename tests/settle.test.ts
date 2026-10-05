@@ -49,3 +49,23 @@ test('a game with settling saves and loads', () => {
   assert.equal(back.towns[0].sentAt, 33);
   assert.equal(back.towns[0].mother, null);
 });
+
+test('a settlement whose land is full sends a party from crowded_min_villagers, one with room waits for min_villagers', () => {
+  const party = (full: boolean) => {
+    const S = createState(content, 1847, { planner: true, settlers: true, people: true, map: 'landmass', size: 'l' });
+    const mother = S.towns[0], yard = S.bmap.get(mother.store)!;
+    runFor(S, 1);
+    const extra = Z.crowdedMinVillagers - villagers(S).length;
+    for (let k = 0; k < extra; k++) {
+      const c = S.agents.find(a => a.kind === 'villager')!;
+      const n = { ...c, id: S.nextId++, home: yard, skill: {}, path: [], task: null, carry: null };
+      S.agents.push(n); S.amap.set(n.id, n);
+    }
+    yard.inv = { planks: 200, bread: 100, logs: 50 };
+    mother.planner.status = full ? 'No room for a Farm: bread is running low' : 'The village has what it needs';
+    return sendParty(S, mother);
+  };
+  assert.ok(Z.crowdedMinVillagers < Z.minVillagers);
+  assert.ok(party(true), 'its land is full: it sends settlers');
+  assert.equal(party(false), null, 'room to grow: it waits until it is crowded');
+});
