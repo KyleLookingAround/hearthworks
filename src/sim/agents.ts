@@ -1,6 +1,6 @@
 import { rand } from './rng.ts';
 import { findPath, type PathOptions } from './path.ts';
-import { bp, distAB, door, inB, seasonOf, storesOnTrack, tread } from './world.ts';
+import { bp, distAB, door, inB, seasonOf, storesOnTrack, tread, hypot } from './world.ts';
 import { blame, cancelTask, drop, findTask, pickup, staleBoard, staleTask } from './logistics.ts';
 import { arrive } from './knowledge.ts';
 import { explorerArrives, sight } from './sea.ts';
@@ -31,7 +31,7 @@ export function moveTo(S: State, a: Agent, tx: number, ty: number, opts?: PathOp
   if (!p) return false;
   a.path = p;
   // a trip on foot that goes the long way round water is remembered by the villager's settlement, for bridges
-  const town = a.kind === 'villager' && a.home ? S.towns[a.home.town] : undefined, straight = Math.hypot(tx - sx, ty - sy);
+  const town = a.kind === 'villager' && a.home ? S.towns[a.home.town] : undefined, straight = hypot(tx - sx, ty - sy);
   if (town && straight >= 6 && p.length >= S.content.tuning.planner.detourRatio * straight && !p.some(([x, y]) => !S.world.ground[y * S.world.w + x] && !S.world.bridge[y * S.world.w + x]) && waterBetween(S, sx, sy, tx, ty)) {
     town.detours = town.detours.filter(d => S.t - d[5] < 300).slice(-15);
     town.detours.push([sx, sy, tx, ty, p.length, S.t]);
@@ -41,7 +41,7 @@ export function moveTo(S: State, a: Agent, tx: number, ty: number, opts?: PathOp
 
 /** Is there open water on the straight line between two tiles? */
 function waterBetween(S: State, sx: number, sy: number, tx: number, ty: number): boolean {
-  const w = S.world, n = Math.ceil(Math.hypot(tx - sx, ty - sy));
+  const w = S.world, n = Math.ceil(hypot(tx - sx, ty - sy));
   for (let k = 1; k < n; k++) {
     const x = Math.round(sx + ((tx - sx) * k) / n), y = Math.round(sy + ((ty - sy) * k) / n), i = y * w.w + x;
     if (!w.ground[i] && !w.bridge[i]) return true;
@@ -91,7 +91,7 @@ export function updateAgent(S: State, a: Agent, dt: number) {
     }
     // slopes slow walkers as much as they cost in route finding
     if (w.ground[i]) sp /= 1 + w.slopeCost * Math.abs(w.height[ty * w.w + tx] - w.height[i]);
-    const dx = gx - a.x, dy = gy - a.y, d = Math.hypot(dx, dy), step = sp * dt;
+    const dx = gx - a.x, dy = gy - a.y, d = hypot(dx, dy), step = sp * dt;
     if (d <= step) {
       a.x = gx; a.y = gy; a.path.shift();
       const j = ty * w.w + tx;

@@ -4,7 +4,7 @@
  * replanning does). See design/systems/roads.md. No randomness: ties break by scan order.
  */
 import { cancelTask, touches } from './logistics.ts';
-import { add, bp, chronicle, ctr, demolish, emit, front as frontOf, pave, seasonOf, storesOnTrack, villagers } from './world.ts';
+import { add, bp, chronicle, ctr, demolish, emit, front as frontOf, pave, seasonOf, storesOnTrack, villagers, hypot } from './world.ts';
 import { enough, foodChainOf } from './production.ts';
 import type { Building, State, Town } from './types.ts';
 
@@ -129,7 +129,7 @@ export function layRoad(S: State, town: Town, run: Run) {
     const a = S.amap.get(id);
     if (!a) continue;
     const to = S.buildings.filter(b => b.town === town.id && !b.site && !gone.has(b) && bp(S, b).homes && bp(S, b).homes > b.residents.length)
-      .sort((p, q) => Math.hypot(ctr(p).x - a.x, ctr(p).y - a.y) - Math.hypot(ctr(q).x - a.x, ctr(q).y - a.y))[0];
+      .sort((p, q) => hypot(ctr(p).x - a.x, ctr(p).y - a.y) - hypot(ctr(q).x - a.x, ctr(q).y - a.y))[0];
     if (!to) continue;
     h.residents = h.residents.filter(r => r !== id);
     a.home = to; to.residents.push(id);

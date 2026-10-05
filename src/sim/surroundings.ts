@@ -3,7 +3,7 @@
  * minus noise from workplaces with a `nuisance` block, crowding by other buildings and open building
  * sites. Derived from the world each time it is asked for, so it is never saved.
  */
-import { bp, ctr } from './world.ts';
+import { bp, ctr, hypot } from './world.ts';
 import type { Building, State } from './types.ts';
 
 export interface Surroundings { score: number; trees: number; water: number; noise: number; crowd: number; sites: number }
@@ -24,7 +24,7 @@ export function surroundings(S: State, home: Building): Surroundings {
   const R = Math.max(T.treeRadius, T.waterRadius);
   for (let y = Math.floor(c.y - R); y <= Math.ceil(c.y + R); y++) for (let x = Math.floor(c.x - R); x <= Math.ceil(c.x + R); x++) {
     if (x < 0 || y < 0 || x >= w.w || y >= w.h) continue;
-    const d = Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y), i = y * w.w + x;
+    const d = hypot(x + 0.5 - c.x, y + 0.5 - c.y), i = y * w.w + x;
     if (d <= T.treeRadius && w.tree[i] === 2) trees++;
     if (d <= T.waterRadius && !w.ground[i]) water = 1;
   }
@@ -35,7 +35,7 @@ export function surroundings(S: State, home: Building): Surroundings {
     if (b === home) continue;
     const bx = b.x + b.w / 2, by = b.y + b.h / 2;
     if (Math.abs(bx - c.x) > far || Math.abs(by - c.y) > far) continue;
-    const d = Math.hypot(bx - c.x, by - c.y), N = bp(S, b).nuisance;
+    const d = hypot(bx - c.x, by - c.y), N = bp(S, b).nuisance;
     if (N && !b.site && d <= N.radius) noise += N.amount;
     if (d <= T.crowdRadius) { crowd++; if (b.site) sites++; }
   }
@@ -46,7 +46,7 @@ export function surroundings(S: State, home: Building): Surroundings {
 
 /** Is this spot within any finished or planned noisy building's reach? */
 export function inNuisance(S: State, p: { x: number; y: number }, except?: Building): boolean {
-  return S.buildings.some(b => { const N = bp(S, b).nuisance; return !!N && b !== except && Math.hypot(ctr(b).x - p.x, ctr(b).y - p.y) <= N.radius; });
+  return S.buildings.some(b => { const N = bp(S, b).nuisance; return !!N && b !== except && hypot(ctr(b).x - p.x, ctr(b).y - p.y) <= N.radius; });
 }
 
 /** Homes within reach of a noisy building: what the planner keeps at zero. */

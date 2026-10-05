@@ -49,9 +49,27 @@ export const door = (b: Placed) => {
 export const front = (b: Placed) => { const d = door(b), f = FACING[b.rot ?? 0]; return { x: d.x + f[0], y: d.y + f[1] }; };
 /** Beside the door, to its left as one looks out (east of a dock facing south): where people reach a dock that opens onto water. */
 export const beside = (b: Placed) => { const d = door(b), f = FACING[b.rot ?? 0]; return { x: d.x + f[1], y: d.y - f[0] }; };
+/**
+ * The length of (x, y), exactly as V8's Math.hypot gives it (the same scaling by the larger and Kahan sum of squares,
+ * step for step: tests/sim.test.ts checks every bit), without the array Math.hypot allocates for its arguments on every
+ * call. The sim measures many distances.
+ */
+export function hypot(x: number, y: number): number {
+  const ax = Math.abs(x), ay = Math.abs(y);
+  if (ax === Infinity || ay === Infinity) return Infinity;
+  if (ax !== ax || ay !== ay) return NaN;
+  const max = ax > ay ? ax : ay;
+  if (max === 0) return 0;
+  const a = ax / max, b = ay / max;
+  let sum = 0, comp = 0, s = a * a - comp, p = sum + s;
+  comp = (p - sum) - s; sum = p;
+  s = b * b - comp; p = sum + s;
+  comp = (p - sum) - s; sum = p;
+  return Math.sqrt(sum) * max;
+}
 export const ctr = (b: { x: number; y: number; w: number; h: number }) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
-export const distAB = (a: { x: number; y: number }, b: Building) => { const p = ctr(b); return Math.hypot(a.x - p.x, a.y - p.y); };
-export const distBB = (a: Building, b: Building) => { const p = ctr(a), q = ctr(b); return Math.hypot(p.x - q.x, p.y - q.y); };
+export const distAB = (a: { x: number; y: number }, b: Building) => { const p = ctr(b); return hypot(a.x - p.x, a.y - p.y); };
+export const distBB = (a: Building, b: Building) => { const p = ctr(a), q = ctr(b); return hypot(p.x - q.x, p.y - q.y); };
 export const add = (o: Record<string, number>, k: string, v: number) => { o[k] = (o[k] || 0) + v; if (Math.abs(o[k]) < 1e-9) o[k] = 0; };
 export const bp = (S: State, b: Building) => S.content.blueprints[b.type];
 export const villagers = (S: State): Agent[] => S.agents.filter(a => a.kind === 'villager');
@@ -121,7 +139,7 @@ function generateWorld(M: MapDef, W: number, H: number, S: State): World {
       const rad = Math.min(half - 3, Math.max(I.minTiles, scale * (I.radiusMin + rand(r) * (I.radiusMax - I.radiusMin))));
       const bx = rad + 2 + rand(r) * (W - 2 * rad - 4), by = rad + 2 + rand(r) * (H - 2 * rad - 4);
       // keep a channel of sea between islands
-      if (blobs.some(o => Math.hypot(o.x - bx, o.y - by) < (o.r + rad) * 1.05)) continue;
+      if (blobs.some(o => hypot(o.x - bx, o.y - by) < (o.r + rad) * 1.05)) continue;
       blobs.push({ x: bx, y: by, r: rad }); k++;
     }
   }
@@ -204,7 +222,7 @@ function carveRiver(w: World, r: Rng, width: number) {
 export function clearSite(S: State, M: MapDef, cx: number, cy: number) {
   const w = S.world, W = w.w;
   for (let y = Math.max(0, cy - 8); y <= Math.min(w.h - 1, cy + 8); y++) for (let x = Math.max(0, cx - 8); x <= Math.min(W - 1, cx + 8); x++) {
-    if (Math.hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
+    if (hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
   }
 }
 
@@ -215,7 +233,7 @@ function prepareSite(S: State, M: MapDef, cx: number, cy: number) {
     if (inB(w, x, y) && w.ground[i] === 2 && w.bgrid[i] === -1 && rand(S.rng) < M.forest.groveDensity) w.tree[i] = 2;
   }
   for (let y = Math.max(0, cy - 8); y <= Math.min(w.h - 1, cy + 8); y++) for (let x = Math.max(0, cx - 8); x <= Math.min(W - 1, cx + 8); x++) {
-    if (Math.hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
+    if (hypot(x + 0.5 - cx, (y + 0.5 - cy) * 1.2) < M.start.clearRadius) w.tree[y * W + x] = 0;
   }
 }
 
@@ -368,7 +386,7 @@ export function neighbourSite(S: State, from: Town = S.towns[0], reach = false, 
   const spots: { x: number; y: number; spread: number; score: number }[] = [];
   for (let cy = 3; cy < w.h - 4; cy++) for (let cx = 7; cx < w.w - 6; cx++) {
     let d = Infinity;
-    for (const c of centres) d = Math.min(d, Math.hypot(cx - c.x, cy - c.y));
+    for (const c of centres) d = Math.min(d, hypot(cx - c.x, cy - c.y));
     if (d < t.neighbourMinDistance || !layoutFits(cx, cy)) continue;
     const room = roomAround(cx, cy);
     // never found a village where it has no room to live
@@ -403,7 +421,7 @@ export function nearestTown(S: State, x: number, y: number): number {
   for (const tn of S.towns) {
     const s = S.bmap.get(tn.store);
     if (!s) continue;
-    const c = ctr(s), d = Math.hypot(c.x - x, c.y - y);
+    const c = ctr(s), d = hypot(c.x - x, c.y - y);
     if (d < bd) { bd = d; best = tn.id; }
   }
   return best;

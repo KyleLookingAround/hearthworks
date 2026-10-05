@@ -1,5 +1,5 @@
 /** Where buildings can go: shared by the planner and the gate kit. */
-import { canPlace, dims } from './world.ts';
+import { canPlace, dims, hypot } from './world.ts';
 import type { State } from './types.ts';
 
 /** No buildings or roads in the rectangle (roads are kept, not built over; with `paths`, worn paths may be). */
@@ -58,7 +58,7 @@ export function treeSpot(S: State, type: string, near: { x: number; y: number },
   const B = S.content.blueprints[type], r = B.harvest?.radius ?? 5, W = S.world;
   let best: { x: number; y: number } | null = null, bc = -1;
   for (let y = 1; y < W.h - B.h; y++) for (let x = 1; x < W.w - B.w; x++) {
-    if (Math.hypot(x - near.x, y - near.y) > maxDist) continue;
+    if (hypot(x - near.x, y - near.y) > maxDist) continue;
     if (!fits(S, type, x, y)) continue;
     const c = treesAround(S, x, y, r);
     if (c > bc) { bc = c; best = { x, y }; }
