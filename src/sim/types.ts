@@ -199,7 +199,7 @@ export interface Tuning {
   knowledge: {
     haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number; encourageFactor: number; encourageThreshold: number;
     verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number; visitMinVillagers: number;
-    copyEverySeconds: number; universityFactor: number; universityThreshold: number; schoolFactor: number; forgettingMemorySeconds: number; learningWeight: number; schoolChildren: number; distanceFrom: number; distanceSpan: number; longHaulFrom: number; reachSmoothing: number;
+    copyEverySeconds: number; universityFactor: number; universityThreshold: number; schoolFactor: number; forgettingMemorySeconds: number; learningWeight: number; universityVillagers: number; schoolChildren: number; distanceFrom: number; distanceSpan: number; longHaulFrom: number; reachSmoothing: number;
   };
 }
 

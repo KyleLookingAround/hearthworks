@@ -262,7 +262,7 @@ export function buildContent(files: SourceFile[]): Content {
     knowledge: {
       haulTarget: k('haul_target'), haulSmoothingSeconds: k('haul_smoothing_seconds'), struggleSeverity: k('struggle_severity'), encourageFactor: k('encourage_factor'), encourageThreshold: k('encourage_threshold'),
       verifySeconds: k('verify_seconds'), forgetAfterSeconds: k('forget_after_seconds'), visitEverySeconds: k('visit_every_seconds'), visitMinVillagers: k('visit_min_villagers'),
-      copyEverySeconds: k('copy_every_seconds'), universityFactor: k('university_factor'), universityThreshold: k('university_threshold'), schoolFactor: k('school_factor'), forgettingMemorySeconds: k('forgetting_memory_seconds'), learningWeight: k('learning_weight'), schoolChildren: k('school_children'), distanceFrom: k('distance_from'), distanceSpan: k('distance_span'), longHaulFrom: k('long_haul_from'), reachSmoothing: k('reach_smoothing'),
+      copyEverySeconds: k('copy_every_seconds'), universityFactor: k('university_factor'), universityThreshold: k('university_threshold'), schoolFactor: k('school_factor'), forgettingMemorySeconds: k('forgetting_memory_seconds'), learningWeight: k('learning_weight'), universityVillagers: k('university_villagers'), schoolChildren: k('school_children'), distanceFrom: k('distance_from'), distanceSpan: k('distance_span'), longHaulFrom: k('long_haul_from'), reachSmoothing: k('reach_smoothing'),
     },
   };
   for (const g of tuning.farms.diet) if (!goods[g]) problems.push(`${fd.path}: tuning.diet names "${g}", which has no goods/${g}.md`);

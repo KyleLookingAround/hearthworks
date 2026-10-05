@@ -8,7 +8,7 @@
  * Needs a university: one self-planning settlement with people and hardship on that knows the Healer's House
  * (scripted) and is kept fresh from sickness (scripted), run for `inquiry_seconds` with a university standing and
  * without one (kept from knowing the university, scripted, so it cannot build its own): the Bathhouse, a discovery that needs a university, is thought of with one and never without.
- * Scholars, unscripted: a new game as the new-game screen makes it (`scholars_map` at `scholars_size`, every system on),
+ * Scholars, unscripted: a new game with every system on (`scholars_map` at `scholars_size`, `scholars_settlements`),
  * nothing scripted, for `scholars_seconds`: its planners raise universities, and their scholars think of ideas only a
  * university finds; no settlement without a university at work thinks of one.
  * Reading: two settlements, each with a library (scripted); the second knows the Courier Depot. With a grown
@@ -83,10 +83,10 @@ export const run: Scenario = (content, params) => {
   };
   const shelved = trade(true), bare = trade(false);
 
-  // scholars, unscripted: a new game as the new-game screen makes it (every system on), nothing scripted. Its planners
-  // raise universities, and their scholars think of ideas only a university finds; nobody without one at work does.
+  // scholars, unscripted: a new game with every system on, nothing scripted. Its planners raise universities, and their
+  // scholars think of ideas only a university finds; nobody without one at work does.
   const scholarsWorld = () => {
-    const size = String(params.scholars_size), T = start(content, seed, { planner: true, seasons: true, trade: true, people: true, carts: true, settlers: true, charts: true, hardship: true, plannedRoads: true, farms: true, settlements: content.tuning.map.sizes[size].settlements, map: String(params.scholars_map), size });
+    const size = String(params.scholars_size), T = start(content, seed, { planner: true, seasons: true, trade: true, people: true, carts: true, settlers: true, charts: true, hardship: true, plannedRoads: true, farms: true, settlements: Number(params.scholars_settlements), map: String(params.scholars_map), size });
     const only = Object.values(content.blueprints).filter(B => B.discovery?.university);
     let ideas = 0, without = 0, first = -1, seen = 0;
     runFor(T, Number(params.scholars_seconds), s => {

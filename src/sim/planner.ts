@@ -245,10 +245,10 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     const kids = people.filter(a => a.role === 'child').length;
     if ('library' in town.knows && !has('library') && Object.values(town.knows).some(k => k.by !== 'founders')) shortages.push({ key: 'learning', learn: 'library', sev: K.learningWeight, why: 'what it has learned should be kept' });
     if (!has('school') && kids >= K.schoolChildren) shortages.push({ key: 'learning', learn: 'school', sev: K.learningWeight, why: `${kids} children have no school` });
-    // a university in a village that keeps a library, or in any town: learning builds on learning
-    if ('university' in town.knows && !has('university') && (formOf(S, town) === 'town' || (formOf(S, town) === 'village' && has('library')))) shortages.push({ key: 'learning', learn: 'university', sev: K.learningWeight, why: 'scholars would find new ways sooner' });
-    // a printing house beside its library, once its scholars have thought of one: books make readers of the grown
-    if (Object.keys(town.knows).some(id => S.content.blueprints[id]?.learning === 'press') && !has('press') && has('library')) shortages.push({ key: 'learning', learn: 'press', sev: K.learningWeight, why: 'books would let everyone read' });
+    // a university in a village of `university_villagers` that keeps a library, or in any town: learning builds on learning
+    if ('university' in town.knows && !has('university') && (formOf(S, town) === 'town' || (formOf(S, town) === 'village' && has('library') && pop >= K.universityVillagers))) shortages.push({ key: 'learning', learn: 'university', sev: K.learningWeight, why: 'scholars would find new ways sooner' });
+    // a printing house beside its library in a village or town that knows one: books make readers of the grown
+    if (Object.keys(town.knows).some(id => S.content.blueprints[id]?.learning === 'press') && !has('press') && has('library') && formOf(S, town) !== 'hamlet') shortages.push({ key: 'learning', learn: 'press', sev: K.learningWeight, why: 'books would let everyone read' });
   }
   // planners as people (with people on): a village wants a town hall for its planner
   if (S.people && formOf(S, town) !== 'hamlet' && !mine.some(b => bp(S, b).hall)) shortages.push({ key: 'hall', hall: true, sev: P.hallWeight, why: 'its planner needs a hall to keep up with a village' });

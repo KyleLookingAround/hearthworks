@@ -20,4 +20,4 @@ With a scholar at work, its settlement invents `university_factor` times as fast
 
 # Discovery
 
-The need `inquiry` is how hard the settlement strains on the needs of blueprints it has not yet thought of. A village that keeps a library, or any town, plans one once it knows how: learning builds on learning ([planner](/systems/planner.md)).
+The need `inquiry` is how hard the settlement strains on the needs of blueprints it has not yet thought of. A village of `university_villagers` that keeps a library, or any town, plans one once it knows how: learning builds on learning ([planner](/systems/planner.md)).

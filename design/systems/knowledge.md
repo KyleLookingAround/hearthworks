@@ -21,6 +21,7 @@ tuning:
   school_factor: 2
   forgetting_memory_seconds: 600
   learning_weight: 0.35
+  university_villagers: 60
   school_children: 3
   distance_from: 12
   distance_span: 12
@@ -52,7 +53,7 @@ Three buildings keep and grow knowledge (Phase 15):
 - A [University](/blueprints/university.md) with a scholar makes invention `university_factor` times as fast, on top of the steward's encouragement, and its scholars take up a line of inquiry at `university_threshold` of the strain anyone else needs: they think ahead of need, where a settlement without one waits until the strain is pressing. It is thought of under `inquiry`: the settlement's strongest strain on the need of a blueprint it does not know.
 - A [Printing House](/blueprints/printing_house.md) with a printer makes a reader of every grown villager of its settlement, schooled or not.
 
-The planner wants a library while it holds knowledge beyond its founders', a school once there are `school_children` children, a university in a village that keeps a library or in any town that knows of one, and a printing house beside its library once it knows one, each at `learning_weight`.
+The planner wants a library while it holds knowledge beyond its founders', a school once there are `school_children` children, a university in a village of `university_villagers` or more that keeps a library, or in any town, that knows of one, and a printing house in a village or town that keeps a library and knows one, each at `learning_weight`.
 
 # Ideas only scholars find
 

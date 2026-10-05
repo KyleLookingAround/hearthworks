@@ -20,4 +20,4 @@ While its printer is at work, every grown villager of its settlement reads, scho
 
 # Discovery
 
-Thought of under the need `reading` (in a settlement with a library, the share of its grown villagers who cannot read), by a settlement that knows the Library, and only while its [University](/blueprints/university.md) has a scholar at work: books are a scholar's idea. A neighbour may still teach it. The [planner](/systems/planner.md) builds one, at `learning_weight`, in a settlement that knows it and keeps a library.
+Thought of under the need `reading` (in a settlement with a library, the share of its grown villagers who cannot read), by a settlement that knows the Library, and only while its [University](/blueprints/university.md) has a scholar at work: books are a scholar's idea. A neighbour may still teach it. The [planner](/systems/planner.md) builds one, at `learning_weight`, in a village or town that knows it and keeps a library.

@@ -38,7 +38,7 @@ export function chronicleLog(S: State, town?: number): string {
 /** What a settlement lacks for scholars at work: a scholar at its university, the university itself, or the idea of one. */
 function universityHint(S: State, town: Town): string {
   if (S.buildings.some(b => b.town === town.id && !b.site && S.content.blueprints[b.type].learning === 'university')) return 'its University needs a scholar at work';
-  if (knows(town, 'university')) return 'build a University (its planner builds one in a village with a library, or in a town)';
+  if (knows(town, 'university')) return `build a University (its planner builds one in a village of ${S.content.tuning.knowledge.universityVillagers} with a library, or in a town)`;
   return 'encourage the University';
 }
 
