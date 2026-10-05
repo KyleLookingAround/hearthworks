@@ -87,13 +87,20 @@ function homeFoodOf(S: State): Set<ItemId> {
 export function collectRequests(S: State): Request[] {
   const reqs: Request[] = [];
   siteRequests(S, reqs);
+  const ask = asker(S);
+  for (const b of S.buildings) ask(b, reqs);
+  return reqs;
+}
+
+/** What one standing building asks for, pushed onto `reqs`: the same for the whole tick until its stock, its goods on the way or its wants change. */
+function asker(S: State): (b: Building, reqs: Request[]) => void {
   const winter = seasonOf(S) === 'winter', homeFood = winter ? homeFoodOf(S) : null, L = S.content.tuning.logistics;
   let yards: Building[] | null = null;
   const farFromStores = (b: Building) => (yards ??= S.buildings.filter(o => bp(S, o).storage && !o.site)).every(o => o.town !== b.town || distBB(o, b) >= L.cartMinTiles);
   const preserved = S.content.tuning.seasons.preserved, diet = S.farms ? S.content.tuning.farms.diet : null;
-  for (const b of S.buildings) {
-    if (b.site) continue;
-    if (b.paused) continue;
+  return (b, reqs) => {
+    if (b.site) return;
+    if (b.paused) return;
     const B = bp(S, b), shape = shapeOf(B);
     const want = wants(S, b, S.towns[b.town]?.form ?? 'hamlet'), food = shape.food;
     // in winter a bakery's grain comes as soon as a home's bread: the stores are all there is
@@ -109,8 +116,7 @@ export function collectRequests(S: State): Request[] {
       // (with farms that grow, the foods of the diet come with the preserved food)
       if (need > 0) reqs.push({ dst: b, item, need, pri: (B.homes ? (item === food ? -4 : item === 'logs' || preserved.includes(item) || (diet !== null && diet.includes(item)) ? -3 : 2) : kitchen ? -4 : 0) - age });
     }
-  }
-  return reqs;
+  };
 }
 
 /** How many more of a good a store takes: none if it does not keep that kind, else the room left (no limit: plenty). */
@@ -150,20 +156,133 @@ function freeCart(S: State, a: Agent, town: number | null, ox = false): Building
  * up or dropped, a visitor arriving), so they are gathered again only then. Outside that pass, every
  * look gathers them afresh.
  */
-let open: State | null = null, board: { S: State; t: number; reqs: Request[] } | null = null;
+let open: State | null = null, board: Board | null = null;
+/**
+ * The board of the tick: every request, and each standing building's own. After a job is claimed or goods are picked
+ * up or dropped, only the buildings it touched ask again (with the sites, whose queue turns on every settlement's
+ * supply); the rest ask what they asked a moment ago, as nothing they ask by has changed.
+ */
+interface Board {
+  S: State; t: number; reqs: Request[] | null; touched: Set<Building> | null;
+  /** the requests last gathered, and where each building's own lie among them (`from` to `to`, by its place in `bs`) */
+  last: Request[]; bs: Building[]; n: number; from: Int32Array; to: Int32Array;
+}
 /** Off, every look gathers the requests afresh: the tests check the board changes nothing but the time it takes. */
 export const jobBoard = { reuse: true };
 export function openBoard(S: State) { open = jobBoard.reuse ? S : null; board = null; }
 export function closeBoard() { open = null; board = null; }
-/** Something the requests turn on changed: gather them again at the next look. */
-export function staleBoard() { board = null; }
+/**
+ * Something the requests turn on changed: gather them again at the next look. Given the buildings whose stock or
+ * goods on the way changed, only they (and the sites) ask again; given none, everyone does.
+ */
+export function staleBoard(...touched: (Building | null | undefined)[]) {
+  if (!board) return;
+  if (!touched.length) { board = null; return; }
+  board.reqs = null;
+  board.touched ??= new Set();
+  for (const b of touched) if (b) board.touched.add(b);
+}
+/** A carrier's job is about to change things at these buildings: its source, its drop and the rest of its round. */
+export const staleTask = (t: Task | null) => { if (t) staleBoard(t.src, t.dst, ...t.round.map(r => r.dst)); else staleBoard(); };
+
+/**
+ * The buildings of each settlement that can offer goods (storage yards and workplaces), in building order, gathered
+ * again whenever buildings come or go or time moves on: a carrier of one settlement looks over its own only, as it
+ * would find nothing in range elsewhere; a carrier of none over every settlement's.
+ */
+let owned: { S: State; all: Building[]; n: number; t: number; by: Map<number | null, Building[]> } | null = null;
+function offerersOf(S: State, town: number | null): Building[] {
+  if (!owned || owned.S !== S || owned.all !== S.buildings || owned.n !== S.buildings.length || owned.t !== S.t) {
+    const by = new Map<number | null, Building[]>([[null, []]]);
+    for (const b of S.buildings) {
+      if (!shapeOf(bp(S, b)).offers) continue;
+      let l = by.get(b.town);
+      if (!l) by.set(b.town, l = []);
+      l.push(b); by.get(null)!.push(b);
+    }
+    owned = { S, all: S.buildings, n: S.buildings.length, t: S.t, by };
+  }
+  return owned.by.get(town) ?? [];
+}
+
+/**
+ * Settlements whose carriers found no job on the board as it stands. Without a depot a carrier's range is its whole
+ * settlement, so whether any pair exists does not turn on where the carrier stands: the next one of that settlement
+ * finds none either, until the board changes.
+ */
+let idleOn: { reqs: Request[]; towns: Set<number | null> } | null = null;
 
 export function requestsNow(S: State): Request[] {
   if (open !== S) return collectRequests(S);
-  if (board && board.S === S && board.t === S.t) return board.reqs;
-  const reqs = collectRequests(S);
-  board = { S, t: S.t, reqs };
+  if (board && board.S === S && board.t === S.t) {
+    if (board.reqs) return board.reqs;
+    // (the same buildings in the same order: only the touched ones ask again)
+    if (board.touched && board.bs === S.buildings && board.n === S.buildings.length) {
+      const { last, bs, n, from, to, touched } = board, reqs: Request[] = [], ask = asker(S), nf = new Int32Array(n), nt = new Int32Array(n);
+      siteRequests(S, reqs);
+      for (let i = 0; i < n; i++) {
+        nf[i] = reqs.length;
+        if (touched.has(bs[i])) ask(bs[i], reqs);
+        else for (let k = from[i]; k < to[i]; k++) reqs.push(last[k]);
+        nt[i] = reqs.length;
+      }
+      board.reqs = board.last = reqs; board.from = nf; board.to = nt; board.touched = null;
+      return reqs;
+    }
+  }
+  const reqs: Request[] = [], ask = asker(S), bs = S.buildings, n = bs.length, from = new Int32Array(n), to = new Int32Array(n);
+  siteRequests(S, reqs);
+  for (let i = 0; i < n; i++) { from[i] = reqs.length; ask(bs[i], reqs); to[i] = reqs.length; }
+  board = { S, t: S.t, reqs, touched: null, last: reqs, bs, n, from, to };
   return reqs;
+}
+
+/** What a carrier sees on the board: the requests in range, the offers of each good asked for, and the surplus to clear. */
+interface Seen {
+  reqs: Request[];
+  /** each request (not a cart's top-up) with each offer of its good from elsewhere (in building order, with the storage yard's penalty) */
+  pairs: { r: Request; o: { b: Building; av: number; extra: number } }[];
+  stores: Building[];
+  /** surplus enough to clear, in building order, and (once first weighed) the nearest storage yard with room for it */
+  dumps: { s: Building; item: ItemId; av: number; st?: Building | null; sd: number }[];
+}
+let looks: { reqs: Request[]; by: Map<number | null, Seen> } | null = null;
+
+/** Look over the board: `mine` are the buildings in reach that can offer goods. */
+function lookOver(S: State, all: Request[], mine: Building[], inRange: (b: Building) => boolean): Seen {
+  const L = S.content.tuning.logistics;
+  // offers indexed by good, in building order, so only real source/request pairs are scored
+  const reqs = all.filter(r => inRange(r.dst));
+  const offers = new Map<ItemId, { b: Building; av: number; extra: number }[]>();
+  for (const r of reqs) if (!offers.has(r.item)) offers.set(r.item, []);
+  // (only storage and workshops offer anything: homes and sites are passed over whole)
+  if (offers.size) for (const s of mine) {
+    if (s.site || s.dead || !inRange(s)) continue;
+    for (const [item, list] of offers) {
+      const av = available(S, s, item);
+      if (av > 0) list.push({ b: s, av, extra: bp(S, s).storage ? 2 : 0 });
+    }
+  }
+  const stores = mine.filter(b => bp(S, b).storage && !b.site && inRange(b)), dumps: Seen['dumps'] = [];
+  if (stores.length) for (const s of mine) {
+    if (s.site) continue;
+    for (const item in bp(S, s).output) {
+      const av = available(S, s, item);
+      if (av < L.dumpAt || !inRange(s)) continue;
+      dumps.push({ s, item, av, sd: Infinity });
+    }
+  }
+  // every request with each offer of its good, in turn
+  const pairs: Seen['pairs'] = [];
+  for (const r of reqs) if (!r.topUp) for (const o of offers.get(r.item)!) if (o.b !== r.dst) pairs.push({ r, o });
+  return { reqs, pairs, stores, dumps };
+}
+
+/** The nearest storage yard to a surplus that keeps its kind and has room left. */
+function nearestRoom(S: State, d: Seen['dumps'][number], stores: Building[]) {
+  let st: Building | null = null, sd = Infinity;
+  for (const o of stores) { if (o === d.s || roomFor(S, o, d.item) <= 0) continue; const dd = distBB(d.s, o); if (dd < sd) { sd = dd; st = o; } }
+  d.st = st; d.sd = sd;
 }
 
 export function findTask(S: State, a: Agent): boolean {
@@ -191,54 +310,40 @@ export function findTask(S: State, a: Agent): boolean {
   const loadFor = (v: Building | null) => (!v ? cap : bp(S, v).oxen ? L.oxCarry : L.cartCarry);
   const capFor = (tiles: number) => loadFor(vehicleFor(tiles));
 
-  // offers indexed by good, in building order, so only real source/request pairs are scored
-  const reqs = requestsNow(S).filter(r => inRange(r.dst));
-  const offers = new Map<ItemId, { b: Building; av: number; da: number; extra: number }[]>();
-  for (const r of reqs) if (!offers.has(r.item)) offers.set(r.item, []);
-  // (only storage and workshops offer anything: homes and sites are passed over whole)
-  // each offer keeps its walk from the carrier and the storage yard's penalty, the same for every request
-  if (offers.size) for (const s of S.buildings) {
-    if (s.site || s.dead || !shapeOf(bp(S, s)).offers || !inRange(s)) continue;
-    let da = -1;
-    for (const [item, list] of offers) {
-      const av = available(S, s, item);
-      if (av > 0) { if (da < 0) da = distAB(a, s); list.push({ b: s, av, da, extra: bp(S, s).storage ? 2 : 0 }); }
-    }
+  const all = requestsNow(S);
+  if (!p && idleOn?.reqs === all && idleOn.towns.has(town)) return false;
+  // what is asked and offered in range: the same for every carrier of a settlement without a depot, until the board changes
+  let seen = !p && open === S && looks?.reqs === all ? looks.by.get(town) : undefined;
+  if (!seen) {
+    seen = lookOver(S, all, offerersOf(S, town), inRange);
+    if (!p && open === S) { if (looks?.reqs !== all) looks = { reqs: all, by: new Map() }; looks.by.set(town, seen); }
   }
-  for (const r of reqs) {
-    if (r.topUp) continue;
-    for (const { b: s, av, da, extra } of offers.get(r.item)!) {
-      if (s === r.dst) continue;
-      S.world.work.jobPairs++;
-      // the walk to the source alone already scores no better: the pair cannot win (scores only grow with distance)
-      if (da + r.pri + extra >= bestScore) continue;
-      const tiles = da + distBB(s, r.dst), score = tiles + r.pri + extra;
-      if (score < bestScore) { bestScore = score; best = { src: s, dst: r.dst, item: r.item, n: Math.min(capFor(tiles), r.need, av) }; }
-    }
+  const { reqs, pairs, dumps } = seen;
+  for (const { r, o: { b: s, av, extra } } of pairs) {
+    S.world.work.jobPairs++;
+    const da = distAB(a, s);
+    // the walk to the source alone already scores no better: the pair cannot win (scores only grow with distance)
+    if (da + r.pri + extra >= bestScore) continue;
+    const tiles = da + distBB(s, r.dst), score = tiles + r.pri + extra;
+    if (score < bestScore) { bestScore = score; best = { src: s, dst: r.dst, item: r.item, n: Math.min(capFor(tiles), r.need, av) }; }
   }
   // surplus goes to the nearest storage yard so producers don't stall
-  const stores = S.buildings.filter(b => bp(S, b).storage && !b.site && inRange(b));
-  // a store takes a good if it keeps that kind and has room left
-  const room = (st: Building, item: ItemId) => roomFor(S, st, item) > 0;
-  if (stores.length) for (const s of S.buildings) {
-    if (s.site) continue;
-    let da = -1;
-    for (const item in bp(S, s).output) {
-      const av = available(S, s, item);
-      if (av < L.dumpAt || !inRange(s)) continue;
-      // the walk to the source alone already scores no better: no storage yard can win it
-      if (da < 0) da = distAB(a, s);
-      if (da + 12 >= bestScore) continue;
-      let st: Building | null = null, sd = Infinity;
-      for (const d of stores) { if (d === s || !room(d, item)) continue; const dd = distBB(s, d); if (dd < sd) { sd = dd; st = d; } }
-      if (!st) continue;
-      const score = da + sd + 12;
-      if (score < bestScore) { bestScore = score; best = { src: s, dst: st, item, n: Math.min(capFor(da + sd), av) }; }
-    }
+  for (const d of dumps) {
+    const da = distAB(a, d.s);
+    // the walk to the source alone already scores no better: no storage yard can win it
+    if (da + 12 >= bestScore) continue;
+    if (d.st === undefined) nearestRoom(S, d, seen.stores);
+    if (!d.st) continue;
+    const score = da + d.sd + 12;
+    if (score < bestScore) { bestScore = score; best = { src: d.s, dst: d.st, item: d.item, n: Math.min(capFor(da + d.sd), d.av) }; }
   }
-  if (!best) return false;
+  if (!best) {
+    // (only while the board is open: outside it every look gathers the requests afresh)
+    if (!p && open === S) { if (idleOn?.reqs !== all) idleOn = { reqs: all, towns: new Set() }; idleOn.towns.add(town); }
+    return false;
+  }
   // a job is taken (or, if no way to it is found, taken and let go): the requests change
-  staleBoard();
+  staleBoard(best.src, best.dst);
   const tiles = distAB(a, best.src) + distBB(best.src, best.dst);
   let cart = vehicleFor(tiles), load = loadFor(cart);
   // a cart on a long haul fills up: the same good for others asking within `round_tiles` of the first drop, in turn
@@ -259,6 +364,7 @@ export function findTask(S: State, a: Agent): boolean {
   }
   // an ox cart is slower than a handcart: only a load a handcart cannot take is worth the ox
   if (cart && bp(S, cart).oxen && total <= L.cartCarry && shedOf()) cart = shedOf()!;
+  staleBoard(cart, ...round.map(r => r.dst));
   add(best.src.reserved, best.item, total);
   add(best.dst.incoming, best.item, best.n);
   for (const r of round) add(r.dst.incoming, best.item, r.n);

@@ -40,14 +40,16 @@ const mineOf = (S: State, town: Town) => S.buildings.filter(b => b.town === town
 const covered = (S: State, p: { x: number; y: number }) => S.buildings.some(d => { const C = bp(S, d).couriers; return !!C && Math.hypot(p.x - ctr(d).x, p.y - ctr(d).y) <= C.radius; });
 
 /** Grown trees within `r` of a point, those already in another harvester's range counted at `shared` weight. */
-function treeScore(S: State, cx: number, cy: number, r: number, others: Building[], shared: number): number {
+function treeScore(S: State, cx: number, cy: number, r: number, others: Building[], shared: number, memo?: Uint8Array): number {
   const W = S.world;
   let n = 0;
   for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) {
     if (x < 0 || y < 0 || x >= W.w || y >= W.h || W.tree[y * W.w + x] !== 2) continue;
     if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) > r) continue;
-    const taken = others.some(o => { const c = ctr(o), R = bp(S, o).harvest!.radius; return Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y) <= R; });
-    n += taken ? shared : 1;
+    // (whether another harvester reaches a tree is the same for every spot weighed against the same others: `memo` keeps it, 2 for taken)
+    let m = memo ? memo[y * W.w + x] : 0;
+    if (!m) { m = others.some(o => { const c = ctr(o), R = bp(S, o).harvest!.radius; return Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y) <= R; }) ? 2 : 1; if (memo) memo[y * W.w + x] = m; }
+    n += m === 2 ? shared : 1;
   }
   return n;
 }
@@ -568,8 +570,13 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     return true;
   };
   // a dock turns to face any shore; everything else the planner builds faces south (the player turns what they place)
+  // which trees other harvesters reach, worked out once a tree is first weighed
+  const taken = B.harvest ? new Uint8Array(W.w * W.h) : undefined;
   for (const rot of B.shore ? [0, 1, 2, 3] : [0]) {
   const { w: bw, h: bh } = dims(B, rot);
+  // the harvesters whose ground could reach a spot in the search, with their centres
+  const woods = harvesters.map(h => ({ ...ctr(h), r: bp(S, h).harvest!.radius }))
+    .filter(h => Math.max(0, x0 + bw / 2 - h.x, h.x - (x1 + bw / 2)) <= h.r + 1 && Math.max(0, y0 + bh / 2 - h.y, h.y - (y1 + bh / 2)) <= h.r + 1);
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     W.work.plannerSpots++;
     if (!fits(S, type, x, y, gap, rot)) continue;
@@ -588,13 +595,13 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
     if (B.nuisance && S.buildings.some(o => bp(S, o).homes && Math.hypot(ctr(o).x - p.x, ctr(o).y - p.y) <= B.nuisance!.radius)) continue;
     let s = -P.depositWeight * ore + P.storeWeight * Math.hypot(p.x - home.x, p.y - home.y);
     if (B.harvest) {
-      const trees = treeScore(S, p.x, p.y, B.harvest.radius, harvesters, P.sharedTreeWeight);
+      const trees = treeScore(S, p.x, p.y, B.harvest.radius, harvesters, P.sharedTreeWeight, taken);
       if (trees < P.minTrees) continue;
       s -= P.treeWeight * trees;
     } else {
       // keep out of the woods and out of a forester's replanting ground
       for (let j = y - P.gap; j < y + bh + P.gap; j++) for (let k = x - P.gap; k < x + bw + P.gap; k++) if (W.tree[j * W.w + k] === 2) s += 1;
-      for (const h of harvesters) if (Math.hypot(p.x - ctr(h).x, p.y - ctr(h).y) <= bp(S, h).harvest!.radius) s += P.forestPenalty;
+      for (const h of woods) if (Math.hypot(p.x - h.x, p.y - h.y) <= h.r) s += P.forestPenalty;
     }
     // a farm that grows wants open land behind it to grow into (the planner's farms face south: behind is north)
     if (S.farms && B.grows && rot === 0) {

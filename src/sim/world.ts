@@ -5,7 +5,7 @@ import { foundersKnowledge } from './knowledge.ts';
 import { initPeople } from './people.ts';
 import { joinFields, offered } from './farms.ts';
 import { setBelt, turned } from './belts.ts';
-import { findPath, reachable } from './path.ts';
+import { findPath, reachable, reshaped } from './path.ts';
 import { islesOf, shapeSea } from './sea.ts';
 import type { Agent, BlueprintDef, Building, Content, GameEvent, Ledger, MapDef, State, Town, World } from './types.ts';
 
@@ -471,6 +471,8 @@ function setDoor(S: State, b: Building, on: boolean) {
   w.door[i] = on ? 1 : 0;
   if (bp(S, b).shore) { w.dock[i] = on ? 1 : 0; w.docks += on ? 1 : -1; }
   if (f >= 0 && f < w.front.length) w.front[f] = Math.max(0, w.front[f] + (on ? 1 : -1));
+  // a new dock opens the water to rowers
+  if (on && bp(S, b).shore) reshaped(w);
 }
 
 /** Place a building (or a road tile). New buildings start as construction sites unless `complete`. */
@@ -481,6 +483,7 @@ function setDoor(S: State, b: Building, on: boolean) {
 export function lift(S: State, b: Building): () => void {
   const w = S.world, at = S.buildings.indexOf(b);
   for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) w.bgrid[j * w.w + k] = -1;
+  reshaped(w);
   setDoor(S, b, false);
   S.buildings.splice(at, 1); S.bmap.delete(b.id);
   return () => {
@@ -505,6 +508,7 @@ export function turnBuilding(S: State, b: Building, by = 1): boolean {
   back();
   if (!ok) return false;
   for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) w.bgrid[j * w.w + k] = -1;
+  reshaped(w);
   setDoor(S, b, false);
   b.x = x; b.y = y; b.w = d.w; b.h = d.h; b.rot = rot;
   turned(S);
@@ -567,6 +571,7 @@ export function completeSite(S: State, b: Building, announce: boolean) {
   }
   if (B.bridge) {
     for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) S.world.bridge[j * S.world.w + k] = 1;
+    reshaped(S.world);
     // the long ways round it remembered were measured before this bridge stood
     if (S.towns[b.town]) S.towns[b.town].detours = [];
   }
@@ -587,6 +592,7 @@ export function demolish(S: State, b: Building) {
   S.buildings = S.buildings.filter(o => o !== b); S.bmap.delete(b.id);
   const w = S.world;
   for (let j = b.y; j < b.y + b.h; j++) for (let k = b.x; k < b.x + b.w; k++) { w.bgrid[j * w.w + k] = -1; w.bridge[j * w.w + k] = 0; }
+  reshaped(w);
   if (bp(S, b).bridge) for (const p of [door(b), farBank(b)]) w.front[p.y * w.w + p.x] = Math.max(0, w.front[p.y * w.w + p.x] - 1);
   else setDoor(S, b, false);
   for (const a of S.agents) if (a.work === b) { a.work = null; a.role = 'carrier'; a.state = 'idle'; a.path = []; }

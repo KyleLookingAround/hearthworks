@@ -10,6 +10,14 @@ export interface Surroundings { score: number; trees: number; water: number; noi
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
+/** The furthest any blueprint's nuisance reaches, once per content. */
+const reaches = new WeakMap<object, number>();
+function nuisanceReach(S: State): number {
+  let r = reaches.get(S.content);
+  if (r === undefined) { r = Math.max(0, ...Object.values(S.content.blueprints).map(B => B.nuisance?.radius ?? 0)); reaches.set(S.content, r); }
+  return r;
+}
+
 export function surroundings(S: State, home: Building): Surroundings {
   const T = S.content.tuning.surroundings, w = S.world, c = ctr(home);
   let trees = 0, water = 0;
@@ -21,9 +29,13 @@ export function surroundings(S: State, home: Building): Surroundings {
     if (d <= T.waterRadius && !w.ground[i]) water = 1;
   }
   let noise = 0, crowd = 0, sites = 0;
+  // (no nuisance reaches further than `far`: buildings further off along either axis are passed over)
+  const far = Math.max(T.crowdRadius, nuisanceReach(S));
   for (const b of S.buildings) {
     if (b === home) continue;
-    const d = Math.hypot(ctr(b).x - c.x, ctr(b).y - c.y), N = bp(S, b).nuisance;
+    const bx = b.x + b.w / 2, by = b.y + b.h / 2;
+    if (Math.abs(bx - c.x) > far || Math.abs(by - c.y) > far) continue;
+    const d = Math.hypot(bx - c.x, by - c.y), N = bp(S, b).nuisance;
     if (N && !b.site && d <= N.radius) noise += N.amount;
     if (d <= T.crowdRadius) { crowd++; if (b.site) sites++; }
   }
