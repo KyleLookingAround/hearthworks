@@ -668,7 +668,7 @@ export class App {
         // the shelves: every record its settlement holds beyond founding knowledge, with who thought of it
         const t = S.towns[b.town], shelf = t ? Object.entries(t.knows).filter(([, k]) => k.by !== 'founders') : [];
         // its readers: grown villagers schooled to read, who learn from it and from other libraries
-        if (S.people && t) { const readers = villagers(S).filter(a => a.schooled && a.role !== 'child' && a.home?.town === t.id).length; rows += row('Readers', readers ? `${readers}, reading what other libraries hold` : 'none yet: a school teaches the children to read'); }
+        if (S.people && t) { const readers = villagers(S).filter(a => a.schooled && a.role !== 'child' && a.home?.town === t.id).length; rows += row('Readers', readers ? `${readers}, reading ${S.towns.length > 1 ? 'what other libraries hold, and ' : ''}the trades written down here` : 'none yet: a school teaches the children to read'); }
         rows += row('On the shelves', shelf.length ? '' : 'nothing yet beyond what the founders knew');
         for (const [id, k] of shelf) rows += row(this.content.blueprints[id]?.name ?? id, `by ${k.by}` + (k.from ? `, from ${k.from}` : '') + `; proven by ${k.verified.length}`);
       } else if (B.learning) rows += row('Work', B.learning === 'school' ? 'Teaching the children' : 'Pursuing lines of inquiry');

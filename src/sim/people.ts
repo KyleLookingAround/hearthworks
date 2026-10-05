@@ -106,7 +106,7 @@ export function holdFeasts(S: State, season: string) {
     const spare = (b: Building) => Math.max(0, Math.floor((b.inv[F.item] || 0) - (b.reserved[F.item] || 0)));
     if (yards.reduce((n, b) => n + spare(b), 0) < need) {
       S.stats.feastsMissed++;
-      chronicle(S, t.id, 'feast', `${t.name} could not hold its ${F.name}: too little ${S.content.goods[F.item]?.name.toLowerCase() ?? F.item} in store`);
+      chronicle(S, t.id, 'feast', `${t.name} could not hold its ${F.name}: not enough ${S.content.goods[F.item]?.name.toLowerCase() ?? F.item} in store`);
       continue;
     }
     let left = need;
