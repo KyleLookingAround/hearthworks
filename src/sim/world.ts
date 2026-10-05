@@ -367,7 +367,8 @@ export function neighbourSite(S: State, from: Town = S.towns[0], reach = false, 
   const { layoutFits, roomAround, woodAround } = siteTests(w);
   const spots: { x: number; y: number; spread: number; score: number }[] = [];
   for (let cy = 3; cy < w.h - 4; cy++) for (let cx = 7; cx < w.w - 6; cx++) {
-    const d = Math.min(...centres.map(c => Math.hypot(cx - c.x, cy - c.y)));
+    let d = Infinity;
+    for (const c of centres) d = Math.min(d, Math.hypot(cx - c.x, cy - c.y));
     if (d < t.neighbourMinDistance || !layoutFits(cx, cy)) continue;
     const room = roomAround(cx, cy);
     // never found a village where it has no room to live
