@@ -1,9 +1,10 @@
 /** Browser shell: HUD, build bar, inspector, toasts, pointer input and the frame loop. */
 import { surroundings } from '../sim/surroundings.ts';
+import { clean, guarded } from '../sim/hardship.ts';
 import { homeTier } from '../sim/production.ts';
 import { FEAST, NAMING, called } from '../sim/people.ts';
 import { formOf, hubs } from '../sim/planner.ts';
-import { capOf, crew, foodsEaten, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
+import { capOf, crew, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
 import { ZONES, advise, defence, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
@@ -397,7 +398,19 @@ export class App {
       const w = S.world, inside = h.x >= 0 && h.y >= 0 && h.x < w.w && h.y < w.h;
       const id = inside ? w.bgrid[h.y * w.w + h.x] : -1;
       this.select(id >= 0 ? S.bmap.get(id) ?? null : null);
+      // a barbarian camp is no building: a tap on one says who camps there and how they stand with the settlements
+      const camp = id < 0 ? S.camps.find(c => Math.hypot(c.x - (h.x + 0.5), c.y - (h.y + 0.5)) <= 1.5) : undefined;
+      if (camp) this.toast(this.campText(camp));
     }
+  }
+
+  /** A barbarian camp in a line: how many, whether they are out raiding, and any settlement that sends them bread. */
+  private campText(c: State['camps'][number]) {
+    const S = this.S, n = Math.floor(c.strength), friend = c.friend !== null ? S.towns[c.friend] : undefined;
+    const gifts = Math.round(c.goodwill * this.content.tuning.hardship.giftsToSettle), of = this.content.tuning.hardship.giftsToSettle;
+    const who = `A barbarian camp of ${n} raider${n === 1 ? '' : 's'}`;
+    if (friend && c.goodwill > 0) return `${who}, at peace with ${friend.name}: ${gifts} of ${of} gifts of bread, and they will come and settle`;
+    return `${who}${c.raid ? `, out raiding ${S.towns[c.raid.town]?.name ?? 'a settlement'}` : ''}. ${S.trade ? 'Gifts of bread from a settlement with some to spare would keep it at peace.' : 'Settlers who reach the wilds where it stands break it up.'}`;
   }
 
   // ---------- HUD and toasts ----------
@@ -477,7 +490,7 @@ export class App {
       const word = { burial: 'Burial', cremation: 'Cremation', ship: 'Ship burial' }[t.custom];
       html += `<div class="steward-grid"><span>Custom for the dead</span><span>${word}${t.rites.length ? `, ${t.rites.length} waiting` : ''}</span>`;
       // the feasts it keeps through the year, and whether one lately held lifts its mood
-      html += `<span>Names</span><span>${esc(NAMING[t.naming] ?? '')}</span>`;
+      html += `<span>Names its children</span><span>${esc(NAMING[t.naming] ?? '')}</span>`;
       if (S.seasons) html += `<span>Feasts</span><span>${t.feasts.length ? t.feasts.map(f => FEAST[f].name).join(', ') : 'none'}${S.t < t.feastUntil ? ' (feasting now)' : ''}</span>`;
       html += '</div>';
     }
@@ -510,7 +523,23 @@ export class App {
     if (!$<HTMLDetailsElement>('#chronicle').open || n === this.chronShown) return;
     this.chronShown = n;
     const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-    $('#chronList').innerHTML = [...S.chronicle].reverse().slice(0, 80).map(c => `<li><b>${clock(c.t)}</b>${esc(c.text)}</li>`).join('');
+    // a season comes to every settlement at once: one line for all of them
+    const lines: { t: number; text: string }[] = [];
+    let turn: { t: number; text: string; names: string[] } | null = null;
+    for (const c of [...S.chronicle].reverse()) {
+      const m = c.kind === 'season' ? /^(\w+) came to (.+) in year (\d+)$/.exec(c.text) : null;
+      if (m && turn && turn.t === c.t && turn.text === `${m[1]}|${m[3]}`) { turn.names.unshift(m[2]); continue; }
+      if (m) { turn = { t: c.t, text: `${m[1]}|${m[3]}`, names: [m[2]] }; lines.push(turn); continue; }
+      turn = null;
+      lines.push(c);
+      if (lines.length >= 80) break;
+    }
+    const said = (l: { text: string; names?: string[] }) => {
+      if (!l.names) return l.text;
+      const [season, year] = l.text.split('|'), who = l.names.length === S.towns.length && l.names.length > 2 ? 'every settlement' : l.names.length > 1 ? `${l.names.slice(0, -1).join(', ')} and ${l.names[l.names.length - 1]}` : l.names[0];
+      return `${season} came to ${who} in year ${year}`;
+    };
+    $('#chronList').innerHTML = lines.slice(0, 80).map(l => `<li><b>${clock(l.t)}</b>${esc(said(l))}</li>`).join('');
   }
 
   private renderKnowledge() {
@@ -629,17 +658,29 @@ export class App {
         const named = [...ppl].sort((x, y) => x!.born - y!.born).map(a => a!.role === 'child' ? `${called(a!)} (a child)` : S.t - a!.born >= P.elderSeconds ? `${called(a!)} (retired)` : called(a!));
         if (named.length) rows += row('Names', named.join(', '));
       }
-      for (const k in B.keepStocked) rows += row(`${G[k].name} at home`, `${n0(b.inv[k])} / ${B.keepStocked[k]}`) + row('On the way', n0(b.incoming[k]));
-      const su = surroundings(S, b), good = [su.trees > 0 && 'trees', su.water > 0 && 'water'].filter(Boolean), bad = [su.noise > 0 && 'noise', su.crowd > 0 && 'crowding', su.sites > 0 && 'building work'].filter(Boolean);
-      const tier = homeTier(S, b), N = T.needs;
+      const tier = homeTier(S, b), N = T.needs, su = surroundings(S, b);
       rows += row('Tier', ['Hungry', 'Fed', 'Comfortable', 'Well off'][tier]);
+      // what is on the shelf: what it keeps stocked, then the other foods and the goods it has, each with what is on the way
+      const have = (g: string) => `${n0(b.inv[g])}` + ((b.incoming[g] || 0) > 0 ? ` (+${n0(b.incoming[g])} on the way)` : '');
+      const some = (g: string) => (b.inv[g] || 0) >= 1 || (b.incoming[g] || 0) > 0;
+      for (const k in B.keepStocked) rows += row(`${G[k].name} at home`, `${have(k)} of ${B.keepStocked[k]}`);
+      const list = (gs: string[]) => gs.filter(some).map(g => `${n0(b.inv[g])} ${G[g].name.toLowerCase()}` + ((b.incoming[g] || 0) > 0 ? ` (+${n0(b.incoming[g])})` : '')).join(', ');
       // farms that grow: the foods of the diet on the shelf, and how varied its meals have been lately
       if (S.farms) {
-        for (const g of T.farms.diet) if ((b.inv[g] || 0) >= 1 || (b.incoming[g] || 0) > 0) rows += row(G[g].name, `${n0(b.inv[g])}` + ((b.incoming[g] || 0) > 0 ? ` (+${n0(b.incoming[g])})` : ''));
+        const foods = list(T.farms.diet.filter(g => !(g in B.keepStocked)));
+        if (foods) rows += row('Other food', foods);
         const ate = Object.keys(b.ate).filter(f => S.t - b.ate[f] <= T.farms.dietSeconds).map(f => G[f]?.name.toLowerCase() ?? f);
-        rows += row('Eaten lately', ate.length ? `${foodsEaten(S, b)} food${ate.length > 1 ? 's' : ''}: ${ate.join(', ')}` : 'nothing yet');
+        rows += row('Eaten lately', ate.length ? (ate.length > 1 ? `${ate.slice(0, -1).join(', ')} and ${ate[ate.length - 1]}` : ate[0]) : 'nothing yet');
       }
-      for (const g of [...N.tierTwo, ...N.tierThree]) if ((b.inv[g] || 0) >= 1 || (b.incoming[g] || 0) > 0) rows += row(G[g].name, `${n0(b.inv[g])}` + ((b.incoming[g] || 0) > 0 ? ` (+${n0(b.incoming[g])})` : ''));
+      if (S.seasons && !(('logs') in B.keepStocked)) rows += row('Firewood', some('logs') ? have('logs') : seasonOf(S) === 'winter' ? 'none: the home is cold' : 'none yet');
+      const goods = list([...N.tierTwo, ...N.tierThree]);
+      if (goods) rows += row('Goods', goods);
+      // hard times: sickness in the house, and what keeps it well
+      if (S.hardship && b.residents.length) {
+        const keep = [clean(S, b) && 'kept clean by a bathhouse', guarded(S, b, 'sickness') && 'a healer within reach'].filter(Boolean);
+        rows += row('Health', (b.sick > 0 ? 'Sickness in the house' : 'In good health') + (keep.length ? `; ${keep.join(', ')}` : ''));
+      }
+      const good = [su.trees > 0 && 'trees', su.water > 0 && 'water'].filter(Boolean), bad = [su.noise > 0 && 'noise', su.crowd > 0 && 'crowding', su.sites > 0 && 'building work'].filter(Boolean);
       rows += row('Surroundings', `${Math.round(su.score * 100)}%` + (good.length ? `, ${good.join(' and ')}` : '') + (bad.length ? `; ${bad.join(', ')}` : ''));
     } else if (B.storage) {
       const held = Object.values(b.inv).reduce((s, n) => s + n, 0);
@@ -661,7 +702,7 @@ export class App {
       if (n > 1) { const ids = crew(b), at = ids.filter(id => S.amap.get(id)?.state === 'working').length; rows += row('Hands', `${ids.length} of ${n}` + (ids.length > at ? `, ${ids.length - at} walking over` : '')); }
       else rows += row('Worker', w ? (w.state === 'working' ? 'On the job' : 'Walking over') : 'None free');
       // farms that grow: its size and fields, and what it has made
-      if (S.farms && B.grows) rows += row('Size', `${sizeName(S, b)}, ${b.size + 1} of ${B.grows.names.length}`) + row('Fields', `${b.w * b.h} tiles`) + row('Made', n0(b.made));
+      if (S.farms && B.grows) rows += row('Size', `${sizeName(S, b)}, ${b.size + 1} of ${B.grows.names.length}`) + row('Fields', `${b.w * b.h} tiles`) + row('Made', `${n0(b.made)} ${Object.keys(B.output).map(k => G[k].name.toLowerCase()).join(' and ')}`);
       if (B.ripens && b.plantT < B.ripens) rows += row('Bears in', `${Math.ceil(B.ripens - b.plantT)}s`);
       for (const k in B.input) rows += row(`${G[k].name} in`, `${n0(b.inv[k])} / ${B.keepStocked[k] ?? B.input[k]}` + ((b.incoming[k] || 0) > 0 ? ` (+${n0(b.incoming[k])})` : ''));
       for (const k in B.output) rows += row(`${G[k].name} out`, `${n0(b.inv[k])} / ${capOf(S, b)}`);
@@ -671,8 +712,13 @@ export class App {
         // its readers: grown villagers schooled to read, who learn from it and from other libraries
         if (S.people && t) { const readers = villagers(S).filter(a => a.schooled && a.role !== 'child' && a.home?.town === t.id).length; rows += row('Readers', readers ? `${readers}, reading ${S.towns.length > 1 ? 'what other libraries hold, and ' : ''}the trades written down here` : 'none yet: a school teaches the children to read'); }
         rows += row('On the shelves', shelf.length ? '' : 'nothing yet beyond what the founders knew');
-        for (const [id, k] of shelf) rows += row(this.content.blueprints[id]?.name ?? id, `by ${k.by}` + (k.from ? `, from ${k.from}` : '') + `; proven by ${k.verified.length}`);
-      } else if (B.learning) rows += row('Work', B.learning === 'school' ? 'Teaching the children' : 'Pursuing lines of inquiry');
+        for (const [id, k] of shelf) rows += row(this.content.blueprints[id]?.name ?? id, `${originText(t!, k)}; ` + (k.verified.length ? `proven in ${k.verified.length === 1 ? 'one settlement' : `${k.verified.length} settlements`}` : 'not yet proven'));
+      } else if (B.learning === 'school') {
+        // its pupils: the settlement's children, who grow up able to read while it is at work
+        const t = S.towns[b.town], ppl = t ? villagers(S).filter(a => a.home?.town === t.id) : [];
+        const kids = ppl.filter(a => a.role === 'child').length, readers = ppl.filter(a => a.schooled && a.role !== 'child').length;
+        rows += row('Pupils', kids ? `${kids} ${kids > 1 ? 'children' : 'child'} of ${t!.name}` : 'no children yet') + row('Grown readers', readers || 'none yet');
+      } else if (B.learning) rows += row('Work', 'Pursuing lines of inquiry');
       else if (!B.guards) rows += row('Cycle', `${B.seconds}s each`);
       if (B.tools) rows += row('Tools', (b.inv.tools || 0) >= 1 ? `${n0(b.inv.tools)}: working ${B.tools.speedup}× as fast` : 'none: slower work');
       progress = B.seconds ? b.timer / B.seconds : 0;

@@ -57,7 +57,8 @@
         <option value="nuisance">Noise</option>
         <option value="districts">Districts</option>
         <option value="traffic">Traffic</option>
-        <option value="coverage">Bot coverage</option>
+        <option value="coverage">Reach of bots and carts</option>
+        <option value="cover">Protection: fire, floods, sickness, raiders</option>
       </select>
     </label>
     <details class="goals steward" id="steward">
@@ -105,15 +106,15 @@
         <fieldset><legend>Settlements</legend><div class="ng-row" id="ngTowns"></div></fieldset>
         <fieldset><legend>Seed</legend><div class="ng-row"><input id="ngSeed" type="number" min="0" step="1" inputmode="numeric" aria-label="Seed"><button type="button" class="btn" id="ngRandom">Random</button></div></fieldset>
         <details class="ng-systems" id="ngSystems"><summary>Systems <span id="ngSystemsNote"></span></summary>
-          <label class="ng-check"><input type="checkbox" id="ngPlans" checked> Village plans: the villagers decide what to build</label>
-          <label class="ng-check"><input type="checkbox" id="ngSeasons" checked> Seasons: crops rest in winter, and homes need firewood</label>
-          <label class="ng-check"><input type="checkbox" id="ngTrade" checked> Trade: neighbours send porters to swap what they can spare</label>
-          <label class="ng-check"><input type="checkbox" id="ngSettlers" checked> Settling: crowded towns send settlers to found new villages</label>
-          <label class="ng-check"><input type="checkbox" id="ngCarts" checked> Carts: villages can think of handcarts for long hauls</label>
-          <label class="ng-check"><input type="checkbox" id="ngHardship" checked> Hardship: fire, flood, sickness and barbarian raids, and laws for hard times</label>
-          <label class="ng-check"><input type="checkbox" id="ngRoads" checked> Roads: towns lay straight roads where their people walk, and build along them</label>
-          <label class="ng-check"><input type="checkbox" id="ngFarms" checked> Farms that grow: farms grow their fields and hands, and homes eat a varied diet of the foods they grow</label>
-          <label class="ng-check"><input type="checkbox" id="ngPeople" checked> People: villagers grow up, learn trades and grow old, and each village honours its dead its own way</label>
+          <label class="ng-check"><input type="checkbox" id="ngPlans" checked><span><b>Village plans</b> The villagers decide what to build, and where.</span></label>
+          <label class="ng-check"><input type="checkbox" id="ngSeasons" checked><span><b>Seasons</b> Crops rest in winter, and homes need firewood.</span></label>
+          <label class="ng-check"><input type="checkbox" id="ngFarms" checked><span><b>Farms that grow</b> Farms take on fields and hands; gardens, orchards and pastures vary what homes eat.</span></label>
+          <label class="ng-check"><input type="checkbox" id="ngPeople" checked><span><b>People</b> Villagers have names, grow up, go to school, learn trades and grow old. Each village honours its dead its own way and, with seasons, keeps its feasts.</span></label>
+          <label class="ng-check"><input type="checkbox" id="ngTrade" checked><span><b>Trade</b> Neighbours send porters to swap what they can spare, and gifts of bread keep barbarians at peace.</span></label>
+          <label class="ng-check"><input type="checkbox" id="ngCarts" checked><span><b>Carts</b> Villages can think of handcarts, then ox carts, for long hauls.</span></label>
+          <label class="ng-check" data-needs-plans><input type="checkbox" id="ngRoads" checked><span><b>Roads</b> Villages lay straight roads where their people walk, pave the busiest in stone, and build along them. <small class="ng-needs">Needs village plans.</small></span></label>
+          <label class="ng-check" data-needs-plans><input type="checkbox" id="ngSettlers" checked><span><b>Settling</b> Crowded villages send settlers to found new ones, across the sea if need be. <small class="ng-needs">Needs village plans.</small></span></label>
+          <label class="ng-check"><input type="checkbox" id="ngHardship" checked><span><b>Hardship</b> Fire, flood, sickness and barbarian camps, and laws for hard times.</span></label>
         </details>
       </div>
       <figure class="ng-preview"><canvas id="ngPreview" width="320" height="240" aria-label="Preview of the generated land"></canvas><figcaption id="ngNote"></figcaption></figure>

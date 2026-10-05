@@ -21,8 +21,8 @@ export function initPeople(S: State) {
     a.born = -(P(S).adultSeconds + rand(S.prng) * (P(S).founderAgeMaxSeconds - P(S).adultSeconds));
     a.dies = lifespan(S);
   }
-  const word = { burial: 'buries', cremation: 'cremates', ship: 'sets out to sea' };
-  for (const t of S.towns) { t.custom = customFor(S, t); chronicle(S, t.id, 'custom', `${t.name} ${word[t.custom]} its dead`); }
+  const word = { burial: 'buries its dead', cremation: 'cremates its dead', ship: 'sets its dead out to sea' };
+  for (const t of S.towns) { t.custom = customFor(S, t); chronicle(S, t.id, 'custom', `${t.name} ${word[t.custom]}`); }
   // and names its people as its land suggests: the founders too
   for (const t of S.towns) { t.naming = namingFor(S, t); chronicle(S, t.id, 'naming', `${t.name} names its children ${NAMING[t.naming]}`); }
   for (const a of villagers(S)) if (a.home) a.name = nameFor(S, a, S.towns[a.home.town]);
@@ -127,7 +127,7 @@ export function bringFeast(S: State, home: Town, host: Town) {
   for (const f of host.feasts) {
     if (home.feasts.includes(f) || rand(S.prng) >= P(S).feastSpread) continue;
     home.feasts.push(f);
-    chronicle(S, home.id, 'feast', `${home.name} took up ${FEAST[f].text} from ${host.name}`);
+    chronicle(S, home.id, 'feast', `${home.name} took up ${host.name}'s ${FEAST[f].name}, held as ${FEAST[f].season} comes`);
     emit(S, 'info', `${home.name} took up the ${FEAST[f].name} from ${host.name}`);
   }
 }
@@ -248,9 +248,9 @@ function farewells(S: State, t: Town) {
     t.custom = next;
     // the strain starts over under the new custom
     t.rites = t.rites.map(() => S.t - P(S).riteGraceSeconds);
-    const word = { burial: 'bury', cremation: 'cremate', ship: 'set out to sea' };
-    chronicle(S, t.id, 'custom', `${t.name} could no longer ${word[was]} its dead, and took to ${next}`);
+    const word = { burial: 'bury its dead', cremation: 'cremate its dead', ship: 'set its dead out to sea' };
+    chronicle(S, t.id, 'custom', `${t.name} could no longer ${word[was]}, and took to ${next}`);
     for (const o of S.towns) if (o !== t) chronicle(S, o.id, 'custom', `${o.name} heard that ${t.name} now takes to ${next}`);
-    emit(S, 'bad', `${t.name} could not ${word[was]} its dead and took to ${next}`);
+    emit(S, 'bad', `${t.name} could not ${word[was]} and took to ${next}`);
   }
 }

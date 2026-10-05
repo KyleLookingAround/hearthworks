@@ -184,6 +184,9 @@ test('the advisor warns of raiders who outnumber the defence, and of a winter st
   const t = S.towns[0], yard = S.bmap.get(t.store)!;
   S.camps.push({ id: S.nextId++, x: yard.x + 20, y: yard.y, strength: 10, raidT: 1e9, raid: null, friend: null, goodwill: 0, giftT: 0 });
   assert.ok(advise(S, t, 9).some(x => /outnumber its defence/.test(x)));
+  // a camp it sends bread to never raids it, so no warning
+  S.camps[S.camps.length - 1].friend = t.id; S.camps[S.camps.length - 1].goodwill = 0.2;
+  assert.ok(!advise(S, t, 9).some(x => /outnumber its defence/.test(x)));
   runFor(S, content.tuning.seasons.yearSeconds * 0.6);
   for (const b of S.buildings) b.inv = {};
   assert.ok(advise(S, t, 9).some(x => /ration food before the frost/.test(x)));
