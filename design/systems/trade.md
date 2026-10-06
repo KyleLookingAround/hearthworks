@@ -4,7 +4,7 @@ title: Trade
 description: Neighbouring settlements send porters to swap what they can spare for what they want, one load at a time, and count steady imports as relief.
 tags: [trade, settlement, economy]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T05:14:43Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T09:07:23Z }
 tuning:
   every_seconds: 15
   load: 4
@@ -23,6 +23,7 @@ tuning:
   import_share: 0.25
   min_worth: 0.1
   lately_share: 0.25
+  input_bonus: 0.5
 ---
 
 # Idea
@@ -34,11 +35,11 @@ Two villages finding their own ways and swapping what they have. Trade is on in 
 A settlement weighs each good by its **cover**: how many seconds its stock lasts at the rate it uses the good (its [planner](/systems/planner.md)'s demand at its last look).
 
 - **Want.** A good it uses with less than `want_cover` seconds in store, the more the less it has; or one its planner is short of (a shortage's severity, at least `min_severity`) or saving for.
-- **Spare.** Stock beyond `keep` plus `spare_cover` seconds of its own use, of a good it does not want and has not lately traded for (imports above `lately_share` of a `load` per `smoothing_seconds`), less what carriers have claimed. Of what its homes eat it also keeps a meal per villager.
+- **Spare.** Stock beyond `keep` plus `spare_cover` seconds of its own use, of a good it does not want and has not lately traded for (imports above `lately_share` of a `load` per `smoothing_seconds`), less what carriers have claimed. Of what its homes eat it also keeps a meal per villager, and with [seasons](/systems/seasons.md) nothing of the winter store (grain, bread, preserved food) that would leave the store behind: a village that bartered its grain away in autumn went hungry in the winter.
 
 # Porters
 
-Every `every_seconds` a settlement of at least `min_villagers`, with fewer porters out than one for every `villagers_per_porter` (at least one), looks for the best deal: a want of its own that a neighbour can spare, for a spare good of its own that neighbour wants, scored by both wants less `distance_weight` per tile between storage yards, plus `kin_bonus` between a [daughter](/systems/settling.md) and her mother: kin keep trading. A carrier takes up to `load` of the spare good from the stores and walks to the neighbour's yard like a [visitor](/systems/knowledge.md), gossiping as they do.
+Every `every_seconds` a settlement of at least `min_villagers`, with fewer porters out than one for every `villagers_per_porter` (at least one), looks for the best deal: a want of its own that a neighbour can spare, for a spare good of its own that neighbour wants, scored by both wants less `distance_weight` per tile between storage yards, plus `kin_bonus` between a [daughter](/systems/settling.md) and her mother: kin keep trading. An input its workplaces stand without (a staffed workplace holding, with what is on the way, less than a cycle takes) counts `input_bonus` more in the score, so porters fetch the iron ore idle smithies wait for before a comfort for the stores. A carrier takes up to `load` of the spare good from the stores and walks to the neighbour's yard like a [visitor](/systems/knowledge.md), gossiping as they do.
 
 # Barter
 

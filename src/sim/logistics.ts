@@ -337,10 +337,18 @@ function hasSheds(S: State, town: number): boolean {
   return sheds.has(town);
 }
 
-/** The nearest storage yard to a surplus that keeps its kind and has room left. */
+/**
+ * The nearest storage yard to a surplus that keeps its kind and has room left. A store that keeps only some goods (a
+ * granary) is `keeper_tiles` nearer for a good that spoils elsewhere, and as much farther for one that keeps anywhere.
+ */
 function nearestRoom(S: State, d: Seen['dumps'][number], stores: Building[]) {
-  let st: Building | null = null, sd = Infinity;
-  for (const o of stores) { if (o === d.s || roomFor(S, o, d.item) <= 0) continue; const dd = distBB(d.s, o); if (dd < sd) { sd = dd; st = o; } }
+  let st: Building | null = null, sd = Infinity, ss = Infinity;
+  const spoils = !!S.content.goods[d.item]?.spoils, K = S.content.tuning.logistics.keeperTiles;
+  for (const o of stores) {
+    if (o === d.s || roomFor(S, o, d.item) <= 0) continue;
+    const dd = distBB(d.s, o), score = dd + (bp(S, o).keeps ? (spoils ? -K : K) : 0);
+    if (score < ss) { ss = score; sd = dd; st = o; }
+  }
   d.st = st; d.sd = sd;
 }
 

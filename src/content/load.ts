@@ -151,7 +151,7 @@ export function buildContent(files: SourceFile[]): Content {
   for (const d of docs.filter(d => d.path.startsWith('eras/'))) {
     if (d.data.type !== 'Era') continue;
     const f = d.data, list = Array.isArray(f.discoveries) ? f.discoveries.map(String) : [], unlocks = Array.isArray(f.unlocks) ? f.unlocks.map(String) : [];
-    eras.push({ id: slug(d.path), name: String(f.title ?? slug(d.path)).replace(/^The Age of /, ''), order: num(d, f.order, 'order'), discoveries: list, share: num(d, f.share, 'share'), unlocks });
+    eras.push({ id: slug(d.path), name: String(f.title ?? slug(d.path)).replace(/^The Age of /, ''), order: num(d, f.order, 'order'), discoveries: list, share: num(d, f.share, 'share'), works: num(d, f.works, 'works'), unlocks });
   }
   eras.sort((a, b) => a.order - b.order);
   for (const d of docs.filter(d => d.path.startsWith('maps/'))) {
@@ -190,6 +190,8 @@ export function buildContent(files: SourceFile[]): Content {
   /** How one tuning value is read from its YAML (`key` is its full name, for the problems). */
   type Read<V> = (d: Doc, v: YamlValue | undefined, key: string) => V;
   const N: Read<number> = (d, v, key) => num(d, v, key), S: Read<string> = (d, v, key) => str(d, v, key), STOCK: Read<Stock> = stock;
+  /** A map of names to numbers. */
+  const NUMS: Read<Record<string, number>> = (d, v, key) => Object.fromEntries(Object.entries(isMap(v) ? v : {}).map(([k, x]) => [k, num(d, x, `${key}.${k}`)]));
   /** A list of names, which must not be empty. */
   const names = (what: string): Read<string[]> => (d, v, key) => (Array.isArray(v) && v.length ? v.map(String) : (problems.push(`${d.path}: "${key}" must be a list of ${what}`), ['']));
   /** A list, `def` if there is none. */
@@ -220,7 +222,7 @@ export function buildContent(files: SourceFile[]): Content {
     map: { width: std.width, height: std.height, ...map },
     start: section<Tuning['start']>(sys('settlement'), { villagers: N, storage: STOCK, houseStock: STOCK, names: names('settlement names'), neighbourMinDistance: N, neighbourSpacing: N, neighbourMinRoom: N, neighbourSpreadShare: N, startRoomShare: N, startWoodWeight: N }),
     logistics: section<Tuning['logistics']>(sys('logistics'), {
-      villagerCarry: N, botCarry: N, villagerSpeed: N, botSpeed: N, pathSpeed: N, roadSpeed: N, forestSpeed: N, boatSpeed: N, outputCap: N, releaseAfterSeconds: N, cartCarry: N, cartPathSpeed: N, cartRoadSpeed: N, cartRoughSpeed: N, cartMinTiles: N, roundTiles: N, cartReach: N, dumpAt: N, requestAging: N, noWayRetrySeconds: N, surplusPenalty: N, harvestPriority: N, slopeCost: N, rockCost: N, stoneRoadSpeed: N,
+      villagerCarry: N, botCarry: N, villagerSpeed: N, botSpeed: N, pathSpeed: N, roadSpeed: N, forestSpeed: N, boatSpeed: N, outputCap: N, releaseAfterSeconds: N, cartCarry: N, cartPathSpeed: N, cartRoadSpeed: N, cartRoughSpeed: N, cartMinTiles: N, roundTiles: N, cartReach: N, dumpAt: N, requestAging: N, noWayRetrySeconds: N, surplusPenalty: N, harvestPriority: N, keeperTiles: N, slopeCost: N, rockCost: N, stoneRoadSpeed: N,
       oxCarry: N, oxPathSpeed: N, oxRoadSpeed: N, oxRoughSpeed: N, oxMinTiles: N, oxFeed: N, hubReach: N, relayMinTiles: N, hubStock: N, relayMinLoad: N, relayBonus: N, adviseLongHauls: N, adviseFootShare: N, idleLookSeconds: N, idleLookJitter: N, wanderChance: N,
     }),
     needs: section<Tuning['needs']>(needs, { eatEverySeconds: N, leaveAfterHungrySeconds: N, migrantEverySeconds: N, migrateMinMood: N, surroundingsWeight: N, tierTwo: list([]), tierThree: list([]), extrasEverySeconds: N, extrasStock: N, varietyBonus: N, emptyShelfFed: N, adviseHungryBelow: N }, 'tuning.', ['surroundings']),
@@ -234,7 +236,7 @@ export function buildContent(files: SourceFile[]): Content {
       // each naming custom's list of names, from `names_<custom>`
       names: section<Record<Naming, string[]>>([people[0], { sea: people[1].names_sea, trees: people[1].names_trees, fields: people[1].names_fields }], { sea: names('names'), trees: names('names'), fields: names('names') }, 'tuning.names_'),
     },
-    trade: section<Tuning['trade']>(sys('trade'), { everySeconds: N, load: N, keep: N, minVillagers: N, smoothingSeconds: N, distanceWeight: N, minRate: N, maxRate: N, villagersPerPorter: N, exportDemand: N, wantCover: N, spareCover: N, kinBonus: N, importPatienceSeconds: N, importShare: N, minWorth: N, latelyShare: N }),
+    trade: section<Tuning['trade']>(sys('trade'), { everySeconds: N, load: N, keep: N, minVillagers: N, smoothingSeconds: N, distanceWeight: N, minRate: N, maxRate: N, villagersPerPorter: N, exportDemand: N, wantCover: N, spareCover: N, kinBonus: N, importPatienceSeconds: N, importShare: N, minWorth: N, latelyShare: N, inputBonus: N }),
     conveyors: section<Tuning['conveyors']>(sys('conveyors'), { speed: N, carry: N, gapSeconds: N, reach: N, roughCost: N, lookEverySeconds: N, villagersPerBelt: N, minTiles: N, maxTiles: N, minStops: N }),
     farms: section<Tuning['farms']>(sys('farms'), { diet: list([]), dietShare: N, dietStock: N, dietSeconds: N, dietFull: N, dietBonus: N, dietWeight: N, growRoomWeight: N, adviseDietHomes: N }),
     seasons: section<Tuning['seasons']>(sys('seasons'), { yearSeconds: N, firewoodEverySeconds: N, firewoodStock: N, coldPenalty: N, winterHeadroom: N, preserved: list([]), winterFoodShare: N }),
@@ -243,7 +245,7 @@ export function buildContent(files: SourceFile[]): Content {
     planner: section<Tuning['planner']>(sys('planner'), {
       intervalSeconds: N, sitePatienceSeconds: N, buildGoods: list(['planks']), comfortWeight: N, depositWeight: N, replanMinAge: N, districtBuildings: N, districtSpacing: N, districtRoomWeight: N, replanEverySeconds: N, salvageShare: N, clearReach: N, clearTries: N, villageAt: N, townAt: N, rowWeight: N, streetWeight: N, streetEveryRows: N, streetEveryCols: N, streetRadius: N,
       detourRatio: N, detourWeight: N, bridgeReachWeight: N, bridgeMinGain: N, bridgeSpacing: N, paveWear: N, pavePerLook: N, wearHalfLifeSeconds: N, settleSeconds: N, confirmCycles: N, minSeverity: N, hallWeight: N, hallSites: N, hallMasterSites: N, millWeight: N, millMin: N,
-      foodHeadroom: N, newcomerFoodShare: N, growthBeds: N, storeFullShare: N, villagersPerCartShed: N, villagersPerOxBarn: N, growthWeight: N, carrierShare: N, planksPerVillagerMinute: N, inputCover: N,
+      foodHeadroom: N, newcomerFoodShare: N, growthBeds: N, storeFullShare: N, villagersPerCartShed: N, villagersPerOxBarn: N, growthWeight: N, carrierShare: N, planksPerVillagerMinute: N, inputCover: N, spoilFullPerMinute: N, spoilWeight: N,
       costWeight: N, urgencyPriority: N, crossingWeight: N, savePatienceSeconds: N, noRoomRetrySeconds: N, haulWeight: N, coverWeight: N, searchRadius: N, searchRadiusMax: N, gap: N, minTrees: N,
       treeWeight: N, sharedTreeWeight: N, linkWeight: N, storeWeight: N, forestPenalty: N, renewEverySeconds: N, idleSeconds: N, keepCover: N, centreRadius: N, moveMaxSize: N, yardWeight: N, packedHomes: N,
       detourMinTiles: N, detourMemorySeconds: N, detourMemoryTrips: N, bridgeReachTiles: N, bridgeTripTiles: N, wearFloor: N,
@@ -263,6 +265,7 @@ export function buildContent(files: SourceFile[]): Content {
       copyEverySeconds: N, universityFactor: N, universityThreshold: N, schoolFactor: N, forgettingMemorySeconds: N, learningWeight: N, universityVillagers: N, universitySpare: N, schoolChildren: N, distanceFrom: N, distanceSpan: N, longHaulFrom: N, reachSmoothing: N,
       detourEverySeconds: N, detourMargin: N, detourCutFrom: N, detourCutSpan: N, detourTrips: N,
     }),
+    advisor: section<Tuning['advisor']>(sys('advisor'), { everySeconds: N, tips: N, holdSeconds: N, quietSeconds: N, zoneRoomTiles: N, weights: NUMS }),
   };
   const [sd] = sys('settlement'), [fd] = sys('farms');
   for (const g of tuning.farms.diet) if (!goods[g]) problems.push(`${fd.path}: tuning.diet names "${g}", which has no goods/${g}.md`);

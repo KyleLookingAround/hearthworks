@@ -171,7 +171,7 @@ export interface Tuning {
   start: { villagers: number; storage: Stock; houseStock: Stock; names: string[]; neighbourMinDistance: number; neighbourSpacing: number; neighbourMinRoom: number; neighbourSpreadShare: number; startRoomShare: number; startWoodWeight: number };
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
-    pathSpeed: number; roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartPathSpeed: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; roundTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; surplusPenalty: number; harvestPriority: number; slopeCost: number; rockCost: number; stoneRoadSpeed: number; oxCarry: number; oxPathSpeed: number; oxRoadSpeed: number; oxRoughSpeed: number; oxMinTiles: number; oxFeed: number;
+    pathSpeed: number; roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartPathSpeed: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; roundTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; surplusPenalty: number; harvestPriority: number; keeperTiles: number; slopeCost: number; rockCost: number; stoneRoadSpeed: number; oxCarry: number; oxPathSpeed: number; oxRoadSpeed: number; oxRoughSpeed: number; oxMinTiles: number; oxFeed: number;
     /** Hubs: a storage yard within `hubReach` of a far delivery's door takes the rest of a cartload for its district, when the goods come from `relayMinTiles` or more away, up to `hubStock` of a good. */
     hubReach: number; relayMinTiles: number; hubStock: number; relayMinLoad: number; relayBonus: number;
     /** The advisor points at hauling once a settlement has seen `adviseLongHauls` goods on long hauls and `adviseFootShare` of them went on foot. */
@@ -187,7 +187,7 @@ export interface Tuning {
     practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
     changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number; feastSeconds: number; feastMood: number; harvestBread: number; fireLogs: number; woodForFire: number; feastSpread: number; feastLayIn: number; feastRetrySeconds: number; apart: number; craftPace: number; craftLookSeconds: number; recallSkill: number; names: Record<Naming, string[]>;
   };
-  trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number; minWorth: number; latelyShare: number };
+  trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number; minWorth: number; latelyShare: number; inputBonus: number };
   conveyors: { speed: number; carry: number; gapSeconds: number; reach: number; roughCost: number; lookEverySeconds: number; villagersPerBelt: number; minTiles: number; maxTiles: number; minStops: number };
   farms: { diet: ItemId[]; dietShare: number; dietStock: number; dietSeconds: number; dietFull: number; dietBonus: number; dietWeight: number; growRoomWeight: number; adviseDietHomes: number };
   seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[]; winterFoodShare: number };
@@ -210,11 +210,12 @@ export interface Tuning {
     copyEverySeconds: number; universityFactor: number; universityThreshold: number; schoolFactor: number; forgettingMemorySeconds: number; learningWeight: number; universityVillagers: number; universitySpare: number; schoolChildren: number; distanceFrom: number; distanceSpan: number; longHaulFrom: number; reachSmoothing: number;
     detourEverySeconds: number; detourMargin: number; detourCutFrom: number; detourCutSpan: number; detourTrips: number;
   };
+  advisor: { everySeconds: number; tips: number; holdSeconds: number; quietSeconds: number; zoneRoomTiles: number; weights: Record<string, number> };
 }
 
 export interface PlannerTuning {
   intervalSeconds: number; sitePatienceSeconds: number; buildGoods: ItemId[]; comfortWeight: number; depositWeight: number; replanMinAge: number; districtBuildings: number; districtSpacing: number; districtRoomWeight: number; replanEverySeconds: number; salvageShare: number; clearReach: number; clearTries: number; villageAt: number; townAt: number; rowWeight: number; streetWeight: number; streetEveryRows: number; streetEveryCols: number; streetRadius: number; detourRatio: number; detourWeight: number; bridgeReachWeight: number; bridgeMinGain: number; bridgeSpacing: number; paveWear: number; pavePerLook: number; wearHalfLifeSeconds: number; settleSeconds: number; confirmCycles: number; minSeverity: number; hallWeight: number; hallSites: number; hallMasterSites: number; millWeight: number; millMin: number;
-  foodHeadroom: number; newcomerFoodShare: number; growthBeds: number; storeFullShare: number; villagersPerCartShed: number; villagersPerOxBarn: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number;
+  foodHeadroom: number; newcomerFoodShare: number; growthBeds: number; storeFullShare: number; villagersPerCartShed: number; villagersPerOxBarn: number; growthWeight: number; carrierShare: number; planksPerVillagerMinute: number; inputCover: number; spoilFullPerMinute: number; spoilWeight: number;
   costWeight: number; urgencyPriority: number; crossingWeight: number; savePatienceSeconds: number; noRoomRetrySeconds: number; haulWeight: number; coverWeight: number;
   searchRadius: number; searchRadiusMax: number; gap: number; minTrees: number;
   treeWeight: number; sharedTreeWeight: number; linkWeight: number; storeWeight: number; forestPenalty: number;
@@ -263,7 +264,7 @@ export interface PlannerState {
 }
 
 /** An era: a group of discoveries; a settlement knowing `share` of them (and every earlier era) is in its age. */
-export interface EraDef { id: string; name: string; order: number; discoveries: string[]; share: number; /** blueprints of its own: thought of only by a settlement of this age or later */ unlocks: string[] }
+export interface EraDef { id: string; name: string; order: number; discoveries: string[]; share: number; /** buildings of its discoveries that must stand, finished, for a settlement to enter it */ works: number; /** blueprints of its own: thought of only by a settlement of this age or later */ unlocks: string[] }
 
 export interface Content {
   goods: Record<ItemId, GoodDef>;
@@ -478,7 +479,16 @@ export interface Town {
   boatless: number;
   /** Goods delivered to its buildings by each way (foot, cart, ox, bot, belt), those handed on at its yards (`handed`), and the goods on long hauls (`long`, of them on foot `longFoot`), since its founding. */
   ways: Stock;
+  /** The advisor's tips standing now, most pressing first, and when each kind was last given and on what grounds (`[time, grounds]`), so it is not repeated while nothing changed. */
+  advice: Tip[];
+  advised: Record<string, [number, string]>;
 }
+
+/** What a tip offers to do: a lever or a law the player can set with one tap (through `takeAdvice` in commands.ts). */
+export type TipAct = { lever: 'priority'; need: string; value: number } | { lever: 'encourage'; value: string } | { law: 'rationing' | 'leave'; value: boolean };
+
+/** One piece of advice: its kind (`key`), its words, the grounds it was given on (`why`: it is given again sooner only when they change), its rank, when it was given, and what it offers to do. */
+export interface Tip { key: string; text: string; why: string; score: number; at: number; act: TipAct | null; label: string | null }
 
 /**
  * A boat of a settlement's fleet (with ships on): moored at its docks, or out with its crew, the people rowing it

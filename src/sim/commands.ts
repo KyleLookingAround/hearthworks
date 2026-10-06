@@ -25,6 +25,8 @@ export type LawCommand = { town: number } & ({ law: 'rationing' | 'leave'; value
 export interface PlaceCommand { type: string; x: number; y: number; rot?: number }
 /** Act on one building, by its id. */
 export interface BuildingCommand { building: number }
+/** Take the lever or law a standing tip of a settlement's advisor offers, by the tip's kind. */
+export interface AdviceCommand { town: number; key: string }
 
 /** Every command, tagged with what it does: what a recorded game holds. */
 export type Command =
@@ -36,7 +38,8 @@ export type Command =
   | ({ do: 'turn'; by?: number } & BuildingCommand)
   | ({ do: 'demolish' } & BuildingCommand)
   | ({ do: 'pause'; paused: boolean } & BuildingCommand)
-  | ({ do: 'grow' } & BuildingCommand);
+  | ({ do: 'grow' } & BuildingCommand)
+  | ({ do: 'advice' } & AdviceCommand);
 
 const ok: Done = { ok: true };
 const no = (why: string): Done => ({ ok: false, why });
@@ -132,6 +135,16 @@ export function growFields(S: State, c: BuildingCommand): Done {
   return ok;
 }
 
+/** Do what a standing tip offers (a lever or a law), as if set by hand. The tip stays until the advisor looks again. */
+export function takeAdvice(S: State, c: AdviceCommand): Done {
+  const t = S.towns[c.town];
+  if (!t) return no('there is no such settlement');
+  const act = t.advice.find(x => x.key === c.key)?.act;
+  if (!act) return no('that advice offers nothing to set');
+  if ('law' in act) return setLaw(S, { town: t.id, ...act });
+  return setLever(S, { town: t.id, ...act });
+}
+
 /** Carry out any command: what a recorded game is replayed with. */
 export function command(S: State, c: Command): Done {
   switch (c.do) {
@@ -144,5 +157,6 @@ export function command(S: State, c: Command): Done {
     case 'demolish': return pullDown(S, c);
     case 'pause': return pauseWork(S, c);
     case 'grow': return growFields(S, c);
+    case 'advice': return takeAdvice(S, c);
   }
 }

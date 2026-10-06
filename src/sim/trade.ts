@@ -1,4 +1,5 @@
 import { add, bp, chronicle, emit, villagers } from './core.ts';
+import { storesOnTrack } from './seasons.ts';
 import { sendOnTrip, traveller } from './lifecycle.ts';
 import { goToBuilding } from './agents.ts';
 import { shareable } from './knowledge.ts';
@@ -36,18 +37,34 @@ export function wantOf(S: State, town: Town, g: ItemId, st = stockOf(S, town)): 
 /**
  * What a settlement can spare: stock beyond `keep` and `spare_cover` seconds of its own use, of every good
  * it does not want and has not lately traded for (nothing goes straight back). Of its food chain (what homes
- * eat and what goes into it) it keeps twice the cover and a meal per villager besides.
+ * eat and what goes into it) it keeps twice the cover and a meal per villager besides, and with seasons nothing of the
+ * winter store (grain, bread, preserved food) that would leave the store behind.
  */
 export function spareOf(S: State, town: Town): Stock {
-  const out: Stock = {}, st = stockOf(S, town), food = foodChain(S);
+  const out: Stock = {}, st = stockOf(S, town), food = foodChain(S), winter = new Set(['wheat', 'bread', ...S.content.tuning.seasons.preserved]);
   const pop = villagers(S).filter(a => a.home?.town === town.id).length;
   for (const g in st) {
     if (wantOf(S, town, g, st) > 0 || (town.trade.imports[g] || 0) > X(S).load / X(S).smoothingSeconds * X(S).latelyShare) continue;
     // the food chain keeps twice the cover, and a meal per villager
     const n = Math.floor(st[g] - X(S).keep - (town.planner.use[g] || 0) * X(S).spareCover * (food.has(g) ? 2 : 1) - (food.has(g) ? pop : 0));
-    if (n >= 1) out[g] = n;
+    // and with seasons, nothing of the winter store that would leave it behind
+    if (n >= 1 && !(winter.has(g) && !storesOnTrack(S, town, 0, n))) out[g] = n;
   }
   return out;
+}
+
+/** The nearest neighbour that can spare a good, or null. */
+export function spareFrom(S: State, town: Town, g: ItemId): Town | null {
+  if (!S.trade) return null;
+  const home = S.bmap.get(town.store);
+  let best: Town | null = null, bd = Infinity;
+  for (const o of S.towns) {
+    const st = S.bmap.get(o.store);
+    if (o === town || !st || !home || !(spareOf(S, o)[g] >= 1)) continue;
+    const d = Math.hypot(st.x - home.x, st.y - home.y);
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best;
 }
 
 /** The goods homes eat: their bread and the foods of the diet (once a game). */
@@ -105,7 +122,7 @@ export function updateTrade(S: State, dt: number) {
 function bestDeal(S: State, town: Town) {
   const home = S.bmap.get(town.store);
   if (!home) return null;
-  const mine = spareOf(S, town), st = stockOf(S, town);
+  const mine = spareOf(S, town), st = stockOf(S, town), short = lacking(S, town, st);
   let best: { host: Town; give: ItemId; want: ItemId; score: number } | null = null;
   for (const host of S.towns) {
     const hs = S.bmap.get(host.store);
@@ -114,7 +131,8 @@ function bestDeal(S: State, town: Town) {
     // kin keep trading: a daughter and her mother favour each other
     const kin = host.mother === town.id || town.mother === host.id ? X(S).kinBonus : 0;
     for (const want in theirs) {
-      const w = wantOf(S, town, want, st);
+      // an input its workplaces stand without counts for more than a want of its stores
+      const w = wantOf(S, town, want, st) + (short.has(want) ? X(S).inputBonus : 0);
       if (!(w > 0)) continue;
       for (const give in mine) {
         // a neighbour takes what it wants, or anything it is not itself unloading, at a poor rate
@@ -126,6 +144,20 @@ function bestDeal(S: State, town: Town) {
     }
   }
   return best;
+}
+
+/**
+ * The inputs a settlement's workplaces stand without: a staffed workplace with less of one in hand or on the way than a
+ * cycle takes, while the stores have less than that to send it (a bakery between deliveries of grain does not count).
+ */
+export function lacking(S: State, town: Town, st = stockOf(S, town)): Set<ItemId> {
+  const out = new Set<ItemId>();
+  for (const b of S.buildings) {
+    if (b.town !== town.id || b.site || b.worker === null) continue;
+    const B = bp(S, b);
+    for (const i in B.input) if ((b.inv[i] || 0) + (b.incoming[i] || 0) < B.input[i] && (st[i] || 0) < B.input[i]) out.add(i);
+  }
+  return out;
 }
 
 function sendPorter(S: State, town: Town): boolean {

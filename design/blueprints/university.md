@@ -4,7 +4,7 @@ title: University
 description: Scholars pursue lines of inquiry, in a hall of planks a village can raise, so a settlement comes up with new ideas faster under strain, and with ideas no village of hands alone finds.
 tags: [learning, knowledge]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T21:56:14Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T08:14:04Z }
 color: "#4a5a7a"
 order: 26
 size: [3, 3]
@@ -22,4 +22,4 @@ With a scholar at work, its settlement invents `university_factor` times as fast
 
 # Discovery
 
-The need `inquiry` is how hard the settlement strains on the needs of blueprints it has not yet thought of and could think of without scholars. A village of `university_villagers` that keeps a library, once everyone is fed, its winter store is on track and its stores hold `university_spare` times its cost, or any town, plans one once it knows how: learning builds on learning ([planner](/systems/planner.md)).
+The need `inquiry` is how hard the settlement strains on the needs of blueprints it has not yet thought of and could think of without scholars, and, once it keeps a library, on the needs of ideas only scholars find ([knowledge](/systems/knowledge.md)). A village of `university_villagers` that keeps a library, once everyone is fed, its winter store is on track and its stores hold `university_spare` times its cost, or any town, plans one once it knows how: learning builds on learning ([planner](/systems/planner.md)).

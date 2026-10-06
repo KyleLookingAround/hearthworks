@@ -116,7 +116,9 @@ test('a settlement whose island is full founds a colony whose settlers build a b
   const boat = S.boats.find(b => b.town === colony!.id)!;
   a.task = null; a.carry = null; a.state = 'idle'; a.path = []; a.x = door(mine).x + 0.5; a.y = door(mine).y + 0.5;
   boat.town = colony!.mother!; boat.bound = colony!.id; boat.crew = [a.id];
-  runFor(S, 240);
+  // (watched as it lands: once home, a colonist may well set off again on the colony's own errands)
+  const landed = () => isleAt(S, Math.floor(a.x), Math.floor(a.y)) === isleAt(S, yard.x, yard.y) && !boat.crew.includes(a.id);
+  for (let t = 0; t < 240 && !landed(); t++) runFor(S, 1);
   assert.equal(isleAt(S, Math.floor(a.x), Math.floor(a.y)), isleAt(S, yard.x, yard.y), 'the settler reached the colony');
   assert.equal(boat.town, colony!.id, 'and the boat is the colony\'s again');
   assert.ok(!boat.crew.includes(a.id));
