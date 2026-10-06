@@ -4,7 +4,7 @@ title: Farms that grow
 description: Farms, gardens, orchards and pastures grow in steps, each adding fields and a hand; homes eat a varied diet of the foods they grow.
 tags: [farms, food, production, needs]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T10:16:19Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T05:14:43Z }
 tuning:
   diet: [vegetables, fruit, milk, meat]
   diet_share: 0.5
@@ -14,6 +14,7 @@ tuning:
   diet_bonus: 0.1
   diet_weight: 0.6
   grow_room_weight: 1
+  advise_diet_homes: 4
 ---
 
 # Option
@@ -38,4 +39,4 @@ A home remembers when it last ate each food. Mood gains up to `diet_bonus` for h
 
 # Planning
 
-The [planner](/systems/planner.md) wants `diet_share` of its people's meals from the diet foods, an equal part each, and bread for the rest and for whatever part of the diet it does not grow. A shortage of a diet food weighs `diet_weight` against one of bread. When it plans a food workplace and one of that kind can grow, it grows that one (the most grown first) instead of building another, and when it places a new one it favours spots with open land behind (`grow_room_weight` a row).
+The [planner](/systems/planner.md) wants `diet_share` of its people's meals from the diet foods, an equal part each, and bread for the rest and for whatever part of the diet it does not grow. A shortage of a diet food weighs `diet_weight` against one of bread. When it plans a food workplace and one of that kind can grow, it grows that one (the most grown first) instead of building another, and when it places a new one it favours spots with open land behind (`grow_room_weight` a row). The [advisor](/systems/planner.md) suggests a garden, an orchard or a pasture to a settlement of `advise_diet_homes` homes or more that eats nothing but bread.

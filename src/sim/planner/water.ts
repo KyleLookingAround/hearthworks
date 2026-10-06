@@ -52,7 +52,7 @@ export function clearShore(S: State, town: Town, B: BlueprintDef, idle = false):
 
 /**
  * Where to bridge: from a bank tile storage can walk to, straight across up to `max_span` tiles of open water to
- * land on the far side. Scores each span by the grass within 8 of the far bank that cannot be walked to today
+ * land on the far side. Scores each span by the grass within `bridge_reach_tiles` of the far bank that cannot be walked to today
  * (`bridge_reach_weight` each), plus the tiles it would save on recent trips that went the long way round, less
  * `store_weight` times its distance from storage. The best span scoring at least `bridge_min_gain`, or null.
  */
@@ -63,7 +63,7 @@ export function chooseBridge(S: State, B: BlueprintDef, town: Town) {
   const R = Math.min(P.searchRadiusMax, Math.ceil(P.searchRadius + mine.reduce((m, b) => Math.max(m, hypot(ctr(b).x - home.x, ctr(b).y - home.y)), 0)));
   const bank = (i: number) => (W.ground[i] === 1 || W.ground[i] === 2) && W.bgrid[i] === -1 && !W.front[i];
   const open = (i: number) => !W.ground[i] && W.bgrid[i] === -1 && !W.bridge[i];
-  const trips = town.detours.filter(t => S.t - t[5] < 300);
+  const trips = town.detours.filter(t => S.t - t[5] < P.detourMemorySeconds);
   const bridges = S.buildings.filter(b => bp(S, b).bridge);
   let best: { x: number; y: number; w: number; h: number; from: { x: number; y: number }; to: { x: number; y: number } } | null = null, bs = P.bridgeMinGain;
   for (let y = Math.max(1, Math.floor(home.y - R)); y <= Math.min(W.h - 2, Math.ceil(home.y + R)); y++) for (let x = Math.max(1, Math.floor(home.x - R)); x <= Math.min(W.w - 2, Math.ceil(home.x + R)); x++) {
@@ -79,12 +79,12 @@ export function chooseBridge(S: State, B: BlueprintDef, town: Town) {
       // crossings keep `bridge_spacing` apart: one bridge serves the stretch of water around it
       if (bridges.some(b => hypot(ctr(b).x - (x + fx) / 2, ctr(b).y - (y + fy) / 2) < P.bridgeSpacing)) continue;
       // land it opens: grass within 12 of the far bank that the bridge would connect and nobody can walk to yet
-      const gain = reach[fy * W.w + fx] ? 0 : opensUp(W, fx, fy, reach, 12);
+      const gain = reach[fy * W.w + fx] ? 0 : opensUp(W, fx, fy, reach, P.bridgeReachTiles);
       let s = P.bridgeReachWeight * gain;
       // a trip counts only for a span its straight line passes: the water it went round is here
       const mx = (x + fx) / 2 + 0.5, my = (y + fy) / 2 + 0.5;
       for (const t of trips) {
-        if (segmentDist(mx, my, t[0] + 0.5, t[1] + 0.5, t[2] + 0.5, t[3] + 0.5) > 2.5) continue;
+        if (segmentDist(mx, my, t[0] + 0.5, t[1] + 0.5, t[2] + 0.5, t[3] + 0.5) > P.bridgeTripTiles) continue;
         const via = Math.min(hypot(t[0] - x, t[1] - y) + span + hypot(fx - t[2], fy - t[3]), hypot(t[0] - fx, t[1] - fy) + span + hypot(x - t[2], y - t[3]));
         s += Math.max(0, t[4] - via);
       }

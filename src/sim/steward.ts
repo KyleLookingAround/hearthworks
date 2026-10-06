@@ -68,7 +68,7 @@ function universityHint(S: State, town: Town): string {
  */
 export function advise(S: State, town: Town, n = 3): string[] {
   const out: string[] = [], status = town.planner.status;
-  if (town.fed < 0.8) out.push(`${town.name} is going hungry: raise the priority of bread.`);
+  if (town.fed < S.content.tuning.needs.adviseHungryBelow) out.push(`${town.name} is going hungry: raise the priority of bread.`);
   const stuck = /^Nothing the \w+ knows would help: (.*)$/.exec(status);
   if (stuck) {
     const need = Object.entries(NEED_TEXT).find(([, text]) => text === stuck[1])?.[0];
@@ -104,7 +104,7 @@ export function advise(S: State, town: Town, n = 3): string[] {
     const W = town.ways, A = S.content.tuning.logistics;
     if (knows(town, 'cart_shed') && (W.long || 0) >= A.adviseLongHauls && (W.longFoot || 0) >= A.adviseFootShare * (W.long || 0)) out.push(`${Math.round((100 * (W.longFoot || 0)) / (W.long || 1))}% of ${town.name}'s long hauls go on foot, one or two goods at a time: raise the priority of hauling for more cart sheds, which take them by the cartload and hand the rest on at its yards.`);
   }
-  if (S.farms && S.buildings.filter(b => b.town === town.id && !b.site && S.content.blueprints[b.type].homes).length >= 4 && !dietOf(S, town.id).size) out.push(`${town.name} eats nothing but bread: a Garden, an Orchard or a Pasture would vary its meals and lift its mood.`);
+  if (S.farms && S.buildings.filter(b => b.town === town.id && !b.site && S.content.blueprints[b.type].homes).length >= S.content.tuning.farms.adviseDietHomes && !dietOf(S, town.id).size) out.push(`${town.name} eats nothing but bread: a Garden, an Orchard or a Pasture would vary its meals and lift its mood.`);
   if (homesInNuisance(S) > 0) out.push('Some homes are within a sawmill\'s noise: zone homes and workshops apart.');
   // the price of density: homes packed in a district centre, unguarded against fire, burn along their rows
   if (S.hardship) {

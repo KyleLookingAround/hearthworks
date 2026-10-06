@@ -41,7 +41,7 @@ export function ownEffect(S: State, b: Building): number {
   if (!b.site && b.paused) return 0;
   if (B.harvest) {
     const c = ctr(b), harvesters = S.buildings.filter(o => o !== b && bp(S, o).harvest);
-    return clamp01(treeScore(S, c.x, c.y, B.harvest.radius, harvesters, 0.5) / T(S).minTrees);
+    return clamp01(treeScore(S, c.x, c.y, B.harvest.radius, harvesters, T(S).sharedTreeYield) / T(S).minTrees);
   }
   return 1;
 }

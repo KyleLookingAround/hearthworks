@@ -1,6 +1,5 @@
 import { add, bp, chronicle, emit, villagers } from './core.ts';
-import { setOff } from './ships.ts';
-import { cancelTask } from './logistics.ts';
+import { sendOnTrip, traveller } from './lifecycle.ts';
 import { goToBuilding } from './agents.ts';
 import { shareable } from './knowledge.ts';
 import type { Agent, ItemId, Ledger, State, Stock, Town } from './types.ts';
@@ -43,7 +42,7 @@ export function spareOf(S: State, town: Town): Stock {
   const out: Stock = {}, st = stockOf(S, town), food = foodChain(S);
   const pop = villagers(S).filter(a => a.home?.town === town.id).length;
   for (const g in st) {
-    if (wantOf(S, town, g, st) > 0 || (town.trade.imports[g] || 0) > X(S).load / X(S).smoothingSeconds / 4) continue;
+    if (wantOf(S, town, g, st) > 0 || (town.trade.imports[g] || 0) > X(S).load / X(S).smoothingSeconds * X(S).latelyShare) continue;
     // the food chain keeps twice the cover, and a meal per villager
     const n = Math.floor(st[g] - X(S).keep - (town.planner.use[g] || 0) * X(S).spareCover * (food.has(g) ? 2 : 1) - (food.has(g) ? pop : 0));
     if (n >= 1) out[g] = n;
@@ -88,8 +87,8 @@ function putIn(S: State, town: Town, g: ItemId, n: number) {
   if (to) add(to.inv, g, n);
 }
 
-/** A good's worth to a settlement: how badly it wants it, never nothing. */
-const worth = (S: State, town: Town, g: ItemId) => Math.max(0.1, wantOf(S, town, g));
+/** A good's worth to a settlement: how badly it wants it, never under `min_worth`. */
+const worth = (S: State, town: Town, g: ItemId) => Math.max(X(S).minWorth, wantOf(S, town, g));
 
 /** Once a second: imports fade, and each settlement may send a porter. */
 export function updateTrade(S: State, dt: number) {
@@ -135,24 +134,17 @@ function sendPorter(S: State, town: Town): boolean {
   if (people.length < X(S).minVillagers || out >= Math.max(1, Math.floor(people.length / X(S).villagersPerPorter))) return false;
   const deal = bestDeal(S, town);
   if (!deal) return false;
-  const carriers = people.filter(a => a.role === 'carrier' && a.state !== 'visit');
-  if (carriers.length < 2) return false;
-  const a = carriers.find(c => !c.carry && (c.state === 'idle' || c.state === 'wander' || c.state === 'toSrc'));
+  const a = traveller(people);
   if (!a) return false;
   const n = takeFrom(S, town, deal.give, Math.min(X(S).load, spareOf(S, town)[deal.give] || 0));
   if (n < 1) return false;
-  cancelTask(a);
-  a.visit = { from: town.id, to: deal.host.id, back: false, carry: shareable(town), boat: false, trade: { give: deal.give, want: deal.want } };
-  a.carry = { item: deal.give, n };
-  a.state = 'visit';
-  if (!setOff(S, a, town, () => goToBuilding(S, a, S.bmap.get(deal.host.store)!))) {
+  const visit = { from: town.id, to: deal.host.id, back: false, carry: shareable(town), boat: false, trade: { give: deal.give, want: deal.want } };
+  if (!sendOnTrip(S, a, town, visit, () => goToBuilding(S, a, S.bmap.get(deal.host.store)!), { item: deal.give, n })) {
     putIn(S, town, deal.give, n);
-    a.visit = null; a.carry = null; a.state = 'idle';
     // kept ashore for want of a boat (ships on): the next porter waits for the next round
     if (town.boatless === S.t) town.trade.t = 0;
     return false;
   }
-  a.visit.boat = a.path.some(([x, y]) => S.world.ground[y * S.world.w + x] === 0);
   return true;
 }
 

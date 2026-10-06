@@ -81,7 +81,7 @@ function planTown(S: State, town: Town, dt: number) {
   // what it is short of, for its porters to trade for: its shortages of goods, and what it is saving
   Q.wants = {}; Q.use = { ...L.demand };
   for (const sh of L.shortages) if (sh.good && sh.sev >= T(S).minSeverity) Q.wants[sh.good] = sh.sev;
-  if (Q.saving) Q.wants[Q.saving.good] = Math.max(Q.wants[Q.saving.good] || 0, 0.5);
+  if (Q.saving) Q.wants[Q.saving.good] = Math.max(Q.wants[Q.saving.good] || 0, T(S).savingWant);
   // a crowded newest district splits off a new one
   if (formOf(S, town) !== 'hamlet' && foundDistrict(S, town)) return;
   // a village or town looks over what it has built: what no longer pays comes down, land and noise move out of the centres

@@ -5,7 +5,7 @@
  */
 import { parseDoc, type Doc } from './frontmatter.ts';
 import type { YamlMap, YamlValue } from './yaml.ts';
-import type { BlueprintDef, Content, Hazard, EraDef, GoodDef, MapDef, MapSize, Stock, Tuning } from '../sim/types.ts';
+import type { BlueprintDef, Content, Hazard, EraDef, GoodDef, MapDef, MapSize, Naming, Stock, Tuning } from '../sim/types.ts';
 
 export interface SourceFile { path: string; raw: string }
 
@@ -180,94 +180,91 @@ export function buildContent(files: SourceFile[]): Content {
     };
   }
 
-  // tuning, one block per system doc
+  // tuning, one block per system doc: each key of the Tuning interface read from its snake_case name in the YAML
   const sys = (name: string): [Doc, YamlMap] => {
     const d = docs.find(x => x.path === `systems/${name}.md`);
     if (!d) { problems.push(`systems/${name}.md is required (it holds tuning numbers)`); return [{ path: `systems/${name}.md`, data: {}, body: '' }, {}]; }
     if (!isMap(d.data.tuning)) { problems.push(`${d.path}: needs a "tuning:" block`); return [d, {}]; }
     return [d, d.data.tuning];
   };
-  const [md, mt] = sys('map'), [sd, st] = sys('settlement'), [ld, lt] = sys('logistics'), [nd, nt] = sys('needs'), [pd, pt] = sys('production'), [qd, qt] = sys('planner'), [kd, kt] = sys('knowledge'), [ed, et] = sys('seasons'), [td, tt] = sys('trade'), [od, ot] = sys('people'), [ld2, lt2] = sys('settling'), [hd, ht] = sys('hardship'), [rd, rt] = sys('roads'), [fd, ft] = sys('farms'), [ad, zt] = sys('sea'), [cd, ct] = sys('conveyors');
-  const sizes: Record<string, MapSize> = {};
-  for (const [id, v] of Object.entries(isMap(mt.sizes) ? mt.sizes : {})) {
-    const m = isMap(v) ? v : {};
-    sizes[id] = { width: num(md, m.width, `tuning.sizes.${id}.width`), height: num(md, m.height, `tuning.sizes.${id}.height`), settlements: num(md, m.settlements, `tuning.sizes.${id}.settlements`), label: str(md, m.label, `tuning.sizes.${id}.label`, id), offered: m.offered !== false };
-  }
-  const std = sizes[String(mt.standard_size)] ?? (problems.push(`${md.path}: tuning.standard_size must name one of tuning.sizes`), { width: 0, height: 0, settlements: 1, label: '', offered: false });
-  if (!maps[String(mt.standard_type)]) problems.push(`${md.path}: tuning.standard_type must name a map type in maps/`);
-  const q = (k: string) => num(qd, qt[k], `tuning.${k}`), k = (key: string) => num(kd, kt[key], `tuning.${key}`);
-  const tuning: Tuning = {
-    map: { width: std.width, height: std.height, treeGrowSeconds: num(md, mt.tree_grow_seconds, 'tuning.tree_grow_seconds'), standardType: str(md, mt.standard_type, 'tuning.standard_type'), standardSize: str(md, mt.standard_size, 'tuning.standard_size'), gameSize: str(md, mt.game_size, 'tuning.game_size'), sizes },
-    start: {
-      villagers: num(sd, st.villagers, 'tuning.villagers'), storage: stock(sd, st.storage, 'tuning.storage'), houseStock: stock(sd, st.house_stock, 'tuning.house_stock'),
-      names: Array.isArray(st.names) && st.names.length ? st.names.map(String) : (problems.push(`${sd.path}: "tuning.names" must be a list of settlement names`), ['']),
-      neighbourMinDistance: num(sd, st.neighbour_min_distance, 'tuning.neighbour_min_distance'), neighbourSpacing: num(sd, st.neighbour_spacing, 'tuning.neighbour_spacing'), neighbourMinRoom: num(sd, st.neighbour_min_room, 'tuning.neighbour_min_room'), neighbourSpreadShare: num(sd, st.neighbour_spread_share, 'tuning.neighbour_spread_share'), startRoomShare: num(sd, st.start_room_share, 'tuning.start_room_share'), startWoodWeight: num(sd, st.start_wood_weight, 'tuning.start_wood_weight'),
-    },
-    logistics: {
-      villagerCarry: num(ld, lt.villager_carry, 'tuning.villager_carry'), botCarry: num(ld, lt.bot_carry, 'tuning.bot_carry'),
-      villagerSpeed: num(ld, lt.villager_speed, 'tuning.villager_speed'), botSpeed: num(ld, lt.bot_speed, 'tuning.bot_speed'),
-      pathSpeed: num(ld, lt.path_speed, 'tuning.path_speed'), roadSpeed: num(ld, lt.road_speed, 'tuning.road_speed'), boatSpeed: num(ld, lt.boat_speed, 'tuning.boat_speed'), forestSpeed: num(ld, lt.forest_speed, 'tuning.forest_speed'),
-      outputCap: num(ld, lt.output_cap, 'tuning.output_cap'), releaseAfterSeconds: num(ld, lt.release_after_seconds, 'tuning.release_after_seconds'), cartCarry: num(ld, lt.cart_carry, 'tuning.cart_carry'), cartPathSpeed: num(ld, lt.cart_path_speed, 'tuning.cart_path_speed'), cartRoadSpeed: num(ld, lt.cart_road_speed, 'tuning.cart_road_speed'), cartRoughSpeed: num(ld, lt.cart_rough_speed, 'tuning.cart_rough_speed'), cartMinTiles: num(ld, lt.cart_min_tiles, 'tuning.cart_min_tiles'), roundTiles: num(ld, lt.round_tiles, 'tuning.round_tiles'), cartReach: num(ld, lt.cart_reach, 'tuning.cart_reach'), dumpAt: num(ld, lt.dump_at, 'tuning.dump_at'), requestAging: num(ld, lt.request_aging, 'tuning.request_aging'), noWayRetrySeconds: num(ld, lt.no_way_retry_seconds, 'tuning.no_way_retry_seconds'), surplusPenalty: num(ld, lt.surplus_penalty, 'tuning.surplus_penalty'), harvestPriority: num(ld, lt.harvest_priority, 'tuning.harvest_priority'), slopeCost: num(ld, lt.slope_cost, 'tuning.slope_cost'), rockCost: num(ld, lt.rock_cost, 'tuning.rock_cost'), stoneRoadSpeed: num(ld, lt.stone_road_speed, 'tuning.stone_road_speed'),
-      oxCarry: num(ld, lt.ox_carry, 'tuning.ox_carry'), oxPathSpeed: num(ld, lt.ox_path_speed, 'tuning.ox_path_speed'), oxRoadSpeed: num(ld, lt.ox_road_speed, 'tuning.ox_road_speed'), oxRoughSpeed: num(ld, lt.ox_rough_speed, 'tuning.ox_rough_speed'), oxMinTiles: num(ld, lt.ox_min_tiles, 'tuning.ox_min_tiles'), oxFeed: num(ld, lt.ox_feed, 'tuning.ox_feed'), hubReach: num(ld, lt.hub_reach, 'tuning.hub_reach'), relayMinTiles: num(ld, lt.relay_min_tiles, 'tuning.relay_min_tiles'), hubStock: num(ld, lt.hub_stock, 'tuning.hub_stock'), relayMinLoad: num(ld, lt.relay_min_load, 'tuning.relay_min_load'), relayBonus: num(ld, lt.relay_bonus, 'tuning.relay_bonus'), adviseLongHauls: num(ld, lt.advise_long_hauls, 'tuning.advise_long_hauls'), adviseFootShare: num(ld, lt.advise_foot_share, 'tuning.advise_foot_share'),
-    },
-    needs: {
-      eatEverySeconds: num(nd, nt.eat_every_seconds, 'tuning.eat_every_seconds'), leaveAfterHungrySeconds: num(nd, nt.leave_after_hungry_seconds, 'tuning.leave_after_hungry_seconds'),
-      migrantEverySeconds: num(nd, nt.migrant_every_seconds, 'tuning.migrant_every_seconds'), migrateMinMood: num(nd, nt.migrate_min_mood, 'tuning.migrate_min_mood'), surroundingsWeight: num(nd, nt.surroundings_weight, 'tuning.surroundings_weight'),
-      tierTwo: Array.isArray(nt.tier_two) ? nt.tier_two.map(String) : [], tierThree: Array.isArray(nt.tier_three) ? nt.tier_three.map(String) : [],
-      extrasEverySeconds: num(nd, nt.extras_every_seconds, 'tuning.extras_every_seconds'), extrasStock: num(nd, nt.extras_stock, 'tuning.extras_stock'), varietyBonus: num(nd, nt.variety_bonus, 'tuning.variety_bonus'),
-    },
-    sea: (() => { const g = (k: string) => num(ad, zt[k], `tuning.${k}`); return { shallowTiles: g('shallow_tiles'), shallowSpeed: g('shallow_speed'), reefFromTiles: g('reef_from_tiles'), reefToTiles: g('reef_to_tiles'), reefCell: g('reef_cell'), sightTiles: g('sight_tiles'), lookEverySeconds: g('look_every_seconds'), exploreEverySeconds: g('explore_every_seconds'), dockBoats: g('dock_boats'), partyBoatPlanks: g('party_boat_planks'), villagersPerBoat: g('villagers_per_boat'), fleetMax: g('fleet_max'), boatlessMemorySeconds: g('boatless_memory_seconds'), shipyardWeight: g('shipyard_weight'), boatNames: Array.isArray(zt.boat_names) && zt.boat_names.length ? zt.boat_names.map(String) : (problems.push(`${ad.path}: "tuning.boat_names" must be a list of names`), ['']) }; })(),
-    settling: (() => { const g = (k: string) => num(ld2, lt2[k], `tuning.${k}`); return { checkEverySeconds: g('check_every_seconds'), minVillagers: g('min_villagers'), cooldownSeconds: g('cooldown_seconds'), partySize: g('party_size'), crowdedMinVillagers: g('crowded_min_villagers'), storesShare: g('stores_share'), maxSettlements: g('max_settlements'), firstHarvestSeconds: g('first_harvest_seconds'), provisionHeadroom: g('provision_headroom') }; })(),
-    people: (() => { const g = (k: string) => num(od, ot[k], `tuning.${k}`); return {
-      adultSeconds: g('adult_seconds'), elderSeconds: g('elder_seconds'), lifespanSeconds: g('lifespan_seconds'), lifespanJitterSeconds: g('lifespan_jitter_seconds'), founderAgeMaxSeconds: g('founder_age_max_seconds'), birthEverySeconds: g('birth_every_seconds'),
-      practiceSeconds: g('practice_seconds'), apprenticeFactor: g('apprentice_factor'), expertAt: g('expert_at'), skillSpeedup: g('skill_speedup'), riteGraceSeconds: g('rite_grace_seconds'), ritePenalty: g('rite_penalty'),
-      changeCustomAfterSeconds: g('change_custom_after_seconds'), pyreLogs: g('pyre_logs'), shipPlanks: g('ship_planks'), customRadius: g('custom_radius'), woodForPyre: g('wood_for_pyre'), waterForShip: g('water_for_ship'), feastSeconds: g('feast_seconds'), feastMood: g('feast_mood'), harvestBread: g('harvest_bread'), fireLogs: g('fire_logs'), woodForFire: g('wood_for_fire'), feastSpread: g('feast_spread'), feastLayIn: g('feast_lay_in'), feastRetrySeconds: g('feast_retry_seconds'), apart: g('apart'), craftPace: g('craft_pace'), craftLookSeconds: g('craft_look_seconds'),
-      names: (() => { const l = (k: string) => Array.isArray(ot[k]) && ot[k].length ? ot[k].map(String) : (problems.push(`${od.path}: "tuning.${k}" must be a list of names`), ['']); return { sea: l('names_sea'), trees: l('names_trees'), fields: l('names_fields') }; })(),
-    }; })(),
-    trade: {
-      everySeconds: num(td, tt.every_seconds, 'tuning.every_seconds'), load: num(td, tt.load, 'tuning.load'), keep: num(td, tt.keep, 'tuning.keep'), minVillagers: num(td, tt.min_villagers, 'tuning.min_villagers'),
-      smoothingSeconds: num(td, tt.smoothing_seconds, 'tuning.smoothing_seconds'), distanceWeight: num(td, tt.distance_weight, 'tuning.distance_weight'), minRate: num(td, tt.min_rate, 'tuning.min_rate'), maxRate: num(td, tt.max_rate, 'tuning.max_rate'), villagersPerPorter: num(td, tt.villagers_per_porter, 'tuning.villagers_per_porter'), exportDemand: num(td, tt.export_demand, 'tuning.export_demand'), wantCover: num(td, tt.want_cover, 'tuning.want_cover'), spareCover: num(td, tt.spare_cover, 'tuning.spare_cover'), kinBonus: num(td, tt.kin_bonus, 'tuning.kin_bonus'), importPatienceSeconds: num(td, tt.import_patience_seconds, 'tuning.import_patience_seconds'), importShare: num(td, tt.import_share, 'tuning.import_share'),
-    },
-    conveyors: (() => { const g = (k: string) => num(cd, ct[k], `tuning.${k}`); return { speed: g('speed'), carry: g('carry'), gapSeconds: g('gap_seconds'), reach: g('reach'), roughCost: g('rough_cost'), lookEverySeconds: g('look_every_seconds'), villagersPerBelt: g('villagers_per_belt'), minTiles: g('min_tiles'), maxTiles: g('max_tiles'), minStops: g('min_stops') }; })(),
-    farms: (() => { const g = (k: string) => num(fd, ft[k], `tuning.${k}`); return { diet: Array.isArray(ft.diet) ? ft.diet.map(String) : [], dietShare: g('diet_share'), dietStock: g('diet_stock'), dietSeconds: g('diet_seconds'), dietFull: g('diet_full'), dietBonus: g('diet_bonus'), dietWeight: g('diet_weight'), growRoomWeight: g('grow_room_weight') }; })(),
-    seasons: {
-      yearSeconds: num(ed, et.year_seconds, 'tuning.year_seconds'), firewoodEverySeconds: num(ed, et.firewood_every_seconds, 'tuning.firewood_every_seconds'),
-      firewoodStock: num(ed, et.firewood_stock, 'tuning.firewood_stock'), coldPenalty: num(ed, et.cold_penalty, 'tuning.cold_penalty'), winterHeadroom: num(ed, et.winter_headroom, 'tuning.winter_headroom'),
-      preserved: Array.isArray(et.preserved) ? et.preserved.map(String) : [],
-    },
-    surroundings: (() => {
-      const su = isMap(nt.surroundings) ? nt.surroundings : {}, g = (k: string) => num(nd, su[k], `tuning.surroundings.${k}`);
-      return { base: g('base'), treeRadius: g('tree_radius'), treeAmenity: g('tree_amenity'), treeMax: g('tree_max'), waterRadius: g('water_radius'), waterAmenity: g('water_amenity'), crowdRadius: g('crowd_radius'), crowdPenalty: g('crowd_penalty'), sitePenalty: g('site_penalty') };
-    })(),
-    production: {
-      buildSeconds: num(pd, pt.build_seconds, 'tuning.build_seconds'), replantEverySeconds: num(pd, pt.replant_every_seconds, 'tuning.replant_every_seconds'),
-      maxTreesNearForester: num(pd, pt.max_trees_near_forester, 'tuning.max_trees_near_forester'),
-      sitePriorityTiles: num(pd, pt.site_priority_tiles, 'tuning.site_priority_tiles'),
-      surplusSeconds: num(pd, pt.surplus_seconds, 'tuning.surplus_seconds'), surplusMin: num(pd, pt.surplus_min, 'tuning.surplus_min'), surplusFullSeconds: num(pd, pt.surplus_full_seconds, 'tuning.surplus_full_seconds'), freshSeconds: num(pd, pt.fresh_seconds, 'tuning.fresh_seconds'),
-    },
-    planner: {
-      intervalSeconds: q('interval_seconds'), sitePatienceSeconds: q('site_patience_seconds'), buildGoods: Array.isArray(qt.build_goods) ? qt.build_goods.map(String) : ['planks'], comfortWeight: q('comfort_weight'), depositWeight: q('deposit_weight'), replanMinAge: q('replan_min_age'), districtBuildings: q('district_buildings'), districtSpacing: q('district_spacing'), districtRoomWeight: q('district_room_weight'), replanEverySeconds: q('replan_every_seconds'), salvageShare: q('salvage_share'), clearReach: q('clear_reach'), clearTries: q('clear_tries'), villageAt: q('village_at'), townAt: q('town_at'), rowWeight: q('row_weight'), streetWeight: q('street_weight'), streetEveryRows: q('street_every_rows'), streetEveryCols: q('street_every_cols'), streetRadius: q('street_radius'), detourRatio: q('detour_ratio'), detourWeight: q('detour_weight'), bridgeReachWeight: q('bridge_reach_weight'), bridgeMinGain: q('bridge_min_gain'), bridgeSpacing: q('bridge_spacing'), paveWear: q('pave_wear'), pavePerLook: q('pave_per_look'), wearHalfLifeSeconds: q('wear_half_life_seconds'), settleSeconds: q('settle_seconds'), confirmCycles: q('confirm_cycles'), minSeverity: q('min_severity'), hallWeight: q('hall_weight'), hallSites: q('hall_sites'), hallMasterSites: q('hall_master_sites'), millWeight: q('mill_weight'), millMin: q('mill_min'),
-      foodHeadroom: q('food_headroom'), newcomerFoodShare: q('newcomer_food_share'), growthBeds: q('growth_beds'), storeFullShare: q('store_full_share'), villagersPerCartShed: q('villagers_per_cart_shed'), villagersPerOxBarn: q('villagers_per_ox_barn'), growthWeight: q('growth_weight'), carrierShare: q('carrier_share'), planksPerVillagerMinute: q('planks_per_villager_minute'), inputCover: q('input_cover'),
-      costWeight: q('cost_weight'), urgencyPriority: q('urgency_priority'), crossingWeight: q('crossing_weight'), savePatienceSeconds: q('save_patience_seconds'), noRoomRetrySeconds: q('no_room_retry_seconds'), haulWeight: q('haul_weight'), coverWeight: q('cover_weight'),
-      searchRadius: q('search_radius'), searchRadiusMax: q('search_radius_max'), gap: q('gap'), minTrees: q('min_trees'),
-      treeWeight: q('tree_weight'), sharedTreeWeight: q('shared_tree_weight'), linkWeight: q('link_weight'), storeWeight: q('store_weight'), forestPenalty: q('forest_penalty'),
-      renewEverySeconds: q('renew_every_seconds'), idleSeconds: q('idle_seconds'), keepCover: q('keep_cover'), centreRadius: q('centre_radius'), moveMaxSize: q('move_max_size'), yardWeight: q('yard_weight'), packedHomes: q('packed_homes'),
-    },
-    hardship: (() => { const g = (k: string) => num(hd, ht[k], `tuning.${k}`); return {
-      fireEverySeconds: g('fire_every_seconds'), spreadGap: g('spread_gap'), spreadChance: g('spread_chance'), burnSeconds: g('burn_seconds'), douseSeconds: g('douse_seconds'), rebuildShare: g('rebuild_share'), fireLoss: g('fire_loss'), fireproof: Array.isArray(ht.fireproof) ? ht.fireproof.map(String) : [],
-      floodChance: g('flood_chance'), floodReach: g('flood_reach'), floodHeight: g('flood_height'), floodSeconds: g('flood_seconds'), floodLoss: g('flood_loss'),
-      sicknessEverySeconds: g('sickness_every_seconds'), sickAt: g('sick_at'), sickSeconds: g('sick_seconds'), sickSpreadGap: g('sick_spread_gap'), sickSpreadChance: g('sick_spread_chance'), sickDeath: g('sick_death'), healedSeconds: g('healed_seconds'), healedDeath: g('healed_death'), sickMood: g('sick_mood'),
-      wildDistance: g('wild_distance'), wildTilesPerCamp: g('wild_tiles_per_camp'), campEverySeconds: g('camp_every_seconds'), campStrength: g('camp_strength'), campGrowSeconds: g('camp_grow_seconds'), campMax: g('camp_max'), raidEverySeconds: g('raid_every_seconds'), raidReach: g('raid_reach'), raidSpeed: g('raid_speed'), raidTake: g('raid_take'), raidLoss: g('raid_loss'), giftEverySeconds: g('gift_every_seconds'), giftBread: g('gift_bread'), giftsToSettle: g('gifts_to_settle'),
-      militiaShare: g('militia_share'), surprisedShare: g('surprised_share'), memorySeconds: g('memory_seconds'), guardWeight: g('guard_weight'), cleanFactor: g('clean_factor'),
-      rationFactor: g('ration_factor'), rationMood: g('ration_mood'), longPace: g('long_pace'), longMood: g('long_mood'), shortPace: g('short_pace'), shortMood: g('short_mood'), stayMood: g('stay_mood'), starveFactor: g('starve_factor'),
-    }; })(),
-    roads: (() => { const g = (k: string) => num(rd, rt[k], `tuning.${k}`); return { trafficFrom: g('traffic_from'), trafficSpan: g('traffic_span'), villagersPerRoad: g('villagers_per_road'), lookEverySeconds: g('look_every_seconds'), minTraffic: g('min_traffic'), margin: g('margin'), minLength: g('min_length'), demolishWeight: g('demolish_weight'), homeWeight: g('home_weight'), spacing: g('spacing'), frontWeight: g('front_weight'), nearWeight: g('near_weight'), nearTiles: g('near_tiles'), districtWeight: g('district_weight'), districtReach: g('district_reach') }; })(),
-    knowledge: {
-      haulTarget: k('haul_target'), haulSmoothingSeconds: k('haul_smoothing_seconds'), struggleSeverity: k('struggle_severity'), encourageFactor: k('encourage_factor'), encourageThreshold: k('encourage_threshold'),
-      verifySeconds: k('verify_seconds'), forgetAfterSeconds: k('forget_after_seconds'), visitEverySeconds: k('visit_every_seconds'), visitMinVillagers: k('visit_min_villagers'),
-      copyEverySeconds: k('copy_every_seconds'), universityFactor: k('university_factor'), universityThreshold: k('university_threshold'), schoolFactor: k('school_factor'), forgettingMemorySeconds: k('forgetting_memory_seconds'), learningWeight: k('learning_weight'), universityVillagers: k('university_villagers'), universitySpare: k('university_spare'), schoolChildren: k('school_children'), distanceFrom: k('distance_from'), distanceSpan: k('distance_span'), longHaulFrom: k('long_haul_from'), reachSmoothing: k('reach_smoothing'),
-    },
+  /** How one tuning value is read from its YAML (`key` is its full name, for the problems). */
+  type Read<V> = (d: Doc, v: YamlValue | undefined, key: string) => V;
+  const N: Read<number> = (d, v, key) => num(d, v, key), S: Read<string> = (d, v, key) => str(d, v, key), STOCK: Read<Stock> = stock;
+  /** A list of names, which must not be empty. */
+  const names = (what: string): Read<string[]> => (d, v, key) => (Array.isArray(v) && v.length ? v.map(String) : (problems.push(`${d.path}: "${key}" must be a list of ${what}`), ['']));
+  /** A list, `def` if there is none. */
+  const list = (def: string[]): Read<string[]> => (_d, v) => (Array.isArray(v) ? v.map(String) : def);
+  const sizesOf: Read<Record<string, MapSize>> = (d, v, key) => {
+    const out: Record<string, MapSize> = {};
+    for (const [id, o] of Object.entries(isMap(v) ? v : {})) {
+      const m = isMap(o) ? o : {};
+      out[id] = { width: num(d, m.width, `${key}.${id}.width`), height: num(d, m.height, `${key}.${id}.height`), settlements: num(d, m.settlements, `${key}.${id}.settlements`), label: str(d, m.label, `${key}.${id}.label`, id), offered: m.offered !== false };
+    }
+    return out;
   };
+  /**
+   * One block of tuning: every key `spec` names (the Tuning interface's, so none is missed and none misspelt) read from
+   * its snake_case name in the YAML. A key in the YAML that nothing reads (`also` names those read elsewhere) is a problem too.
+   */
+  const section = <T>([d, y]: [Doc, YamlMap], spec: { [K in keyof T]-?: Read<T[K]> }, at = 'tuning.', also: string[] = []): T => {
+    const out = {} as T, known = new Set(also);
+    for (const k in spec) { const key = k.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`); known.add(key); out[k] = spec[k](d, y[key], at + key); }
+    for (const key in y) if (!known.has(key)) problems.push(`${d.path}: "${at}${key}" is not a tuning key (misspelt, or no longer read?)`);
+    return out;
+  };
+  const [md] = sys('map'), map = section<Omit<Tuning['map'], 'width' | 'height'>>(sys('map'), { treeGrowSeconds: N, standardType: S, standardSize: S, gameSize: S, sizes: sizesOf });
+  const std = map.sizes[map.standardSize] ?? (problems.push(`${md.path}: tuning.standard_size must name one of tuning.sizes`), { width: 0, height: 0, settlements: 1, label: '', offered: false });
+  if (!maps[map.standardType]) problems.push(`${md.path}: tuning.standard_type must name a map type in maps/`);
+  const needs = sys('needs'), people = sys('people');
+  const tuning: Tuning = {
+    map: { width: std.width, height: std.height, ...map },
+    start: section<Tuning['start']>(sys('settlement'), { villagers: N, storage: STOCK, houseStock: STOCK, names: names('settlement names'), neighbourMinDistance: N, neighbourSpacing: N, neighbourMinRoom: N, neighbourSpreadShare: N, startRoomShare: N, startWoodWeight: N }),
+    logistics: section<Tuning['logistics']>(sys('logistics'), {
+      villagerCarry: N, botCarry: N, villagerSpeed: N, botSpeed: N, pathSpeed: N, roadSpeed: N, forestSpeed: N, boatSpeed: N, outputCap: N, releaseAfterSeconds: N, cartCarry: N, cartPathSpeed: N, cartRoadSpeed: N, cartRoughSpeed: N, cartMinTiles: N, roundTiles: N, cartReach: N, dumpAt: N, requestAging: N, noWayRetrySeconds: N, surplusPenalty: N, harvestPriority: N, slopeCost: N, rockCost: N, stoneRoadSpeed: N,
+      oxCarry: N, oxPathSpeed: N, oxRoadSpeed: N, oxRoughSpeed: N, oxMinTiles: N, oxFeed: N, hubReach: N, relayMinTiles: N, hubStock: N, relayMinLoad: N, relayBonus: N, adviseLongHauls: N, adviseFootShare: N, idleLookSeconds: N, idleLookJitter: N, wanderChance: N,
+    }),
+    needs: section<Tuning['needs']>(needs, { eatEverySeconds: N, leaveAfterHungrySeconds: N, migrantEverySeconds: N, migrateMinMood: N, surroundingsWeight: N, tierTwo: list([]), tierThree: list([]), extrasEverySeconds: N, extrasStock: N, varietyBonus: N, emptyShelfFed: N, adviseHungryBelow: N }, 'tuning.', ['surroundings']),
+    settling: section<Tuning['settling']>(sys('settling'), { checkEverySeconds: N, minVillagers: N, cooldownSeconds: N, partySize: N, crowdedMinVillagers: N, storesShare: N, maxSettlements: N, firstHarvestSeconds: N, provisionHeadroom: N }),
+    sea: section<Tuning['sea']>(sys('sea'), { shallowTiles: N, shallowSpeed: N, reefFromTiles: N, reefToTiles: N, reefCell: N, sightTiles: N, lookEverySeconds: N, exploreEverySeconds: N, dockBoats: N, partyBoatPlanks: N, villagersPerBoat: N, fleetMax: N, boatlessMemorySeconds: N, shipyardWeight: N, boatNames: names('names') }),
+    people: {
+      ...section<Omit<Tuning['people'], 'names'>>(people, {
+        adultSeconds: N, elderSeconds: N, lifespanSeconds: N, lifespanJitterSeconds: N, founderAgeMaxSeconds: N, birthEverySeconds: N, practiceSeconds: N, apprenticeFactor: N, expertAt: N, skillSpeedup: N, riteGraceSeconds: N, ritePenalty: N,
+        changeCustomAfterSeconds: N, pyreLogs: N, shipPlanks: N, customRadius: N, woodForPyre: N, waterForShip: N, feastSeconds: N, feastMood: N, harvestBread: N, fireLogs: N, woodForFire: N, feastSpread: N, feastLayIn: N, feastRetrySeconds: N, apart: N, craftPace: N, craftLookSeconds: N, recallSkill: N,
+      }, 'tuning.', ['names_sea', 'names_trees', 'names_fields']),
+      // each naming custom's list of names, from `names_<custom>`
+      names: section<Record<Naming, string[]>>([people[0], { sea: people[1].names_sea, trees: people[1].names_trees, fields: people[1].names_fields }], { sea: names('names'), trees: names('names'), fields: names('names') }, 'tuning.names_'),
+    },
+    trade: section<Tuning['trade']>(sys('trade'), { everySeconds: N, load: N, keep: N, minVillagers: N, smoothingSeconds: N, distanceWeight: N, minRate: N, maxRate: N, villagersPerPorter: N, exportDemand: N, wantCover: N, spareCover: N, kinBonus: N, importPatienceSeconds: N, importShare: N, minWorth: N, latelyShare: N }),
+    conveyors: section<Tuning['conveyors']>(sys('conveyors'), { speed: N, carry: N, gapSeconds: N, reach: N, roughCost: N, lookEverySeconds: N, villagersPerBelt: N, minTiles: N, maxTiles: N, minStops: N }),
+    farms: section<Tuning['farms']>(sys('farms'), { diet: list([]), dietShare: N, dietStock: N, dietSeconds: N, dietFull: N, dietBonus: N, dietWeight: N, growRoomWeight: N, adviseDietHomes: N }),
+    seasons: section<Tuning['seasons']>(sys('seasons'), { yearSeconds: N, firewoodEverySeconds: N, firewoodStock: N, coldPenalty: N, winterHeadroom: N, preserved: list([]) }),
+    surroundings: section<Tuning['surroundings']>([needs[0], isMap(needs[1].surroundings) ? needs[1].surroundings : {}], { base: N, treeRadius: N, treeAmenity: N, treeMax: N, waterRadius: N, waterAmenity: N, crowdRadius: N, crowdPenalty: N, sitePenalty: N }, 'tuning.surroundings.'),
+    production: section<Tuning['production']>(sys('production'), { buildSeconds: N, replantEverySeconds: N, maxTreesNearForester: N, sitePriorityTiles: N, surplusSeconds: N, surplusMin: N, surplusFullSeconds: N, freshSeconds: N, spoilEverySeconds: N }),
+    planner: section<Tuning['planner']>(sys('planner'), {
+      intervalSeconds: N, sitePatienceSeconds: N, buildGoods: list(['planks']), comfortWeight: N, depositWeight: N, replanMinAge: N, districtBuildings: N, districtSpacing: N, districtRoomWeight: N, replanEverySeconds: N, salvageShare: N, clearReach: N, clearTries: N, villageAt: N, townAt: N, rowWeight: N, streetWeight: N, streetEveryRows: N, streetEveryCols: N, streetRadius: N,
+      detourRatio: N, detourWeight: N, bridgeReachWeight: N, bridgeMinGain: N, bridgeSpacing: N, paveWear: N, pavePerLook: N, wearHalfLifeSeconds: N, settleSeconds: N, confirmCycles: N, minSeverity: N, hallWeight: N, hallSites: N, hallMasterSites: N, millWeight: N, millMin: N,
+      foodHeadroom: N, newcomerFoodShare: N, growthBeds: N, storeFullShare: N, villagersPerCartShed: N, villagersPerOxBarn: N, growthWeight: N, carrierShare: N, planksPerVillagerMinute: N, inputCover: N,
+      costWeight: N, urgencyPriority: N, crossingWeight: N, savePatienceSeconds: N, noRoomRetrySeconds: N, haulWeight: N, coverWeight: N, searchRadius: N, searchRadiusMax: N, gap: N, minTrees: N,
+      treeWeight: N, sharedTreeWeight: N, linkWeight: N, storeWeight: N, forestPenalty: N, renewEverySeconds: N, idleSeconds: N, keepCover: N, centreRadius: N, moveMaxSize: N, yardWeight: N, packedHomes: N,
+      detourMinTiles: N, detourMemorySeconds: N, detourMemoryTrips: N, bridgeReachTiles: N, bridgeTripTiles: N, wearFloor: N,
+      districtSpacingMin: N, districtSpacingMax: N, districtRoomTiles: N, districtTries: N, siteTries: N, openStoreCapacity: N, sharedTreeYield: N,
+      replanHubWeight: N, moveOutHubWeight: N, winterGapMinSeconds: N, lowMoodGrowth: N, savingWant: N,
+    }),
+    hardship: section<Tuning['hardship']>(sys('hardship'), {
+      fireEverySeconds: N, spreadGap: N, spreadChance: N, burnSeconds: N, douseSeconds: N, rebuildShare: N, fireLoss: N, fireproof: list([]),
+      floodChance: N, floodReach: N, floodHeight: N, floodSeconds: N, floodLoss: N,
+      sicknessEverySeconds: N, sickAt: N, sickSeconds: N, sickSpreadGap: N, sickSpreadChance: N, sickDeath: N, healedSeconds: N, healedDeath: N, sickMood: N,
+      wildDistance: N, wildTilesPerCamp: N, campEverySeconds: N, campStrength: N, campGrowSeconds: N, campMax: N, raidEverySeconds: N, raidReach: N, raidSpeed: N, raidTake: N, raidLoss: N, giftEverySeconds: N, giftBread: N, giftsToSettle: N,
+      militiaShare: N, surprisedShare: N, memorySeconds: N, guardWeight: N, cleanFactor: N, raidJitter: N, rationFactor: N, rationMood: N, longPace: N, longMood: N, shortPace: N, shortMood: N, stayMood: N, starveFactor: N,
+    }),
+    roads: section<Tuning['roads']>(sys('roads'), { trafficFrom: N, trafficSpan: N, villagersPerRoad: N, lookEverySeconds: N, minTraffic: N, margin: N, minLength: N, demolishWeight: N, homeWeight: N, spacing: N, frontWeight: N, nearWeight: N, nearTiles: N, districtWeight: N, districtReach: N }),
+    knowledge: section<Tuning['knowledge']>(sys('knowledge'), {
+      haulTarget: N, haulSmoothingSeconds: N, struggleSeverity: N, encourageFactor: N, encourageThreshold: N, verifySeconds: N, forgetAfterSeconds: N, visitEverySeconds: N, visitMinVillagers: N,
+      copyEverySeconds: N, universityFactor: N, universityThreshold: N, schoolFactor: N, forgettingMemorySeconds: N, learningWeight: N, universityVillagers: N, universitySpare: N, schoolChildren: N, distanceFrom: N, distanceSpan: N, longHaulFrom: N, reachSmoothing: N,
+      detourEverySeconds: N, detourMargin: N, detourCutFrom: N, detourCutSpan: N, detourTrips: N,
+    }),
+  };
+  const [sd] = sys('settlement'), [fd] = sys('farms');
   for (const g of tuning.farms.diet) if (!goods[g]) problems.push(`${fd.path}: tuning.diet names "${g}", which has no goods/${g}.md`);
   if (!Object.values(blueprints).some(B => B.field)) problems.push('blueprints/field.md (field: true) is required: farms that grow lay new fields');
   checkGoods(sd, tuning.start.storage, 'tuning.storage'); checkGoods(sd, tuning.start.houseStock, 'tuning.house_stock');

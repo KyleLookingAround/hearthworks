@@ -4,6 +4,7 @@ import { onNoBuild, fitsWithout } from '../place.ts';
 import { inNuisance } from '../surroundings.ts';
 import { add, bp, chronicle, ctr, emit, hypot } from '../core.ts';
 import { demolish, placeBuilding } from '../buildings.ts';
+import { moveHome } from '../lifecycle.ts';
 import { sizeName } from '../farms.ts';
 import type { BlueprintDef, Building, State, Town } from '../types.ts';
 import { goodName, article, ORDINAL, minutes } from './text.ts';
@@ -62,7 +63,7 @@ export function replan(S: State, town: Town, c: Choice): boolean {
         ring = !!o && !covers.has(o) && !bp(S, o).homes;
       }
       if (ring || !fitsWithout(S, B.id, x, y, covers, town)) continue;
-      const s = B.homes - lost - 0.05 * hypot(x + B.w / 2 - hub.x, y + B.h / 2 - hub.y);
+      const s = B.homes - lost - P.replanHubWeight * hypot(x + B.w / 2 - hub.x, y + B.h / 2 - hub.y);
       if (!best || s > best.s) best = { x, y, covers: [...covers], s };
     }
   }
@@ -74,8 +75,7 @@ export function replan(S: State, town: Town, c: Choice): boolean {
     if (!a) continue;
     const to = homes.filter(h => !gone.has(h) && bp(S, h).homes > h.residents.length).sort((p, q) => hypot(ctr(p).x - a.x, ctr(p).y - a.y) - hypot(ctr(q).x - a.x, ctr(q).y - a.y))[0];
     if (!to) return false;
-    o.residents = o.residents.filter(r => r !== id);
-    a.home = to; to.residents.push(id);
+    moveHome(a, to);
   }
   for (const o of best.covers) {
     const salvage = Object.entries(bp(S, o).cost);
@@ -169,7 +169,7 @@ function moveOut(S: State, town: Town, L: Look): boolean {
     const B = bp(S, b);
     if (kept(S, town, b) || B.deposit || !(B.harvest || B.nuisance || B.storage || (B.grows && b.size <= P.moveMaxSize))) continue;
     const hub = centreOf(S, town, b);
-    if (hub) cands.push({ b, hub, s: b.w * b.h - 0.01 * Math.hypot(ctr(b).x - ctr(hub).x, ctr(b).y - ctr(hub).y) });
+    if (hub) cands.push({ b, hub, s: b.w * b.h - P.moveOutHubWeight * Math.hypot(ctr(b).x - ctr(hub).x, ctr(b).y - ctr(hub).y) });
   }
   cands.sort((p, q) => q.s - p.s || p.b.id - q.b.id);
   for (const { b, hub } of cands) {

@@ -1,5 +1,6 @@
 import { makeRng } from './rng.ts';
 import { makeAgent } from './agents.ts';
+import { moveHome } from './lifecycle.ts';
 import { chronicle, villagers } from './core.ts';
 import { firstSite, generateWorld, neighbourSite, prepareSite } from './worldgen.ts';
 import { placeBuilding } from './buildings.ts';
@@ -84,9 +85,7 @@ export function foundTown(S: State, cx: number, cy: number, planner: boolean, ro
   if (party) {
     for (const a of party) {
       const home = homes.find(h => h.residents.length < cap);
-      if (a.home) a.home.residents = a.home.residents.filter(r => r !== a.id);
-      a.home = home ?? null;
-      if (home) home.residents.push(a.id);
+      moveHome(a, home ?? null);
     }
     return town;
   }

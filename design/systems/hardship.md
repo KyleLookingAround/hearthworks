@@ -4,7 +4,7 @@ title: Hardship
 description: Fire, flood, sickness and barbarian raids, the counters a settlement finds for each, gifts that bring barbarians in peace, and the steward's laws for hard times.
 tags: [hardship, hazards, laws, settlement]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-05T00:58:48Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T05:14:43Z }
 tuning:
   fire_every_seconds: 40000
   spread_gap: 0.5
@@ -55,6 +55,7 @@ tuning:
   short_mood: 0.05
   stay_mood: 0.1
   starve_factor: 3
+  raid_jitter: 0.5
 ---
 
 # Idea
@@ -81,7 +82,7 @@ A settlement of `sick_at` people or more falls sick about once every `sickness_e
 
 Kyle's idea. Wild land is open ground farther than `wild_distance` from every building of every settlement. Every `camp_every_seconds` the wilds are looked over: a barbarian camp is pitched on wild land while there are fewer camps than one per `wild_tiles_per_camp` tiles of it, so more where more land lies untouched. Camps gather on the edge of the wilds, within `raid_reach` of a settlement's stores, while there is any such land. A camp starts at `camp_strength` raiders and gains one every `camp_grow_seconds`, up to `camp_max`.
 
-About every `raid_every_seconds` a camp sends its raiders on foot to the nearest settlement's first storage yard within `raid_reach`. There they meet its defence: the watchtowers and palisades guarding that yard, and a militia of `militia_share` of its grown villagers, all of them if a lookout on a watchtower saw the raiders coming, `surprised_share` of them otherwise. A defence at least as strong beats them off, and the camp loses `raid_loss` of the raiders it sent (a camp left with none breaks up); a weaker one loses `raid_take` of every good in its stores.
+About every `raid_every_seconds` (a new camp's first raid within `raid_jitter` of it either way, later ones within half that) a camp sends its raiders on foot to the nearest settlement's first storage yard within `raid_reach`. There they meet its defence: the watchtowers and palisades guarding that yard, and a militia of `militia_share` of its grown villagers, all of them if a lookout on a watchtower saw the raiders coming, `surprised_share` of them otherwise. A defence at least as strong beats them off, and the camp loses `raid_loss` of the raiders it sent (a camp left with none breaks up); a weaker one loses `raid_take` of every good in its stores.
 
 The answers are the [Watchtower](/blueprints/watchtower.md), the [Palisade](/blueprints/palisade.md), the militia, and in the end [settling](/systems/settling.md): a camp the settlements grow up to breaks up, and as civilisation spreads the wild land where camps can appear shrinks.
 

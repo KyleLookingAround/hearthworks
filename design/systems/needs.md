@@ -4,7 +4,7 @@ title: Needs and population
 description: Eating, mood, newcomers arriving and villagers leaving.
 tags: [needs, population, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T05:40:58Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T05:14:43Z }
 tuning:
   eat_every_seconds: 45
   leave_after_hungry_seconds: 30
@@ -17,6 +17,8 @@ tuning:
   extras_stock: 2
   variety_bonus: 0.1
   surroundings: { base: 0.5, tree_radius: 4, tree_amenity: 0.03, tree_max: 0.3, water_radius: 5, water_amenity: 0.2, crowd_radius: 3, crowd_penalty: 0.06, site_penalty: 0.1 }
+  empty_shelf_fed: 0.6
+  advise_hungry_below: 0.8
 ---
 
 # Eating
@@ -25,7 +27,7 @@ Each resident of a [House](/blueprints/house.md) eats one unit of the house's st
 
 # Mood
 
-Being fed (`fed`) is the share of villagers in fed houses: a stocked house counts fully, an empty shelf counts 0.6, a hungry house counts 0. Mood blends it with the homes' surroundings: `fed × (1 − surroundings_weight) + surroundings × surroundings_weight`, both averaged over residents. Each settlement has its own; the world's (what gates report as `mood_min` and `fed_min`) is the same over everyone. Gates hold welfare with `fed_min`, which keeps their intent ("nobody goes hungry") whatever surroundings do.
+Being fed (`fed`) is the share of villagers in fed houses: a stocked house counts fully, an empty shelf counts `empty_shelf_fed`, a hungry house counts 0. Mood blends it with the homes' surroundings: `fed × (1 − surroundings_weight) + surroundings × surroundings_weight`, both averaged over residents. Each settlement has its own; the world's (what gates report as `mood_min` and `fed_min`) is the same over everyone. Gates hold welfare with `fed_min`, which keeps their intent ("nobody goes hungry") whatever surroundings do. The [advisor](/systems/planner.md) says a settlement is going hungry once its fed share falls below `advise_hungry_below`.
 
 # Surroundings
 

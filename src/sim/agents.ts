@@ -14,7 +14,7 @@ import type { Agent, Building, State } from './types.ts';
 export function makeAgent(S: State, kind: Agent['kind'], x: number, y: number): Agent {
   const a: Agent = {
     id: S.nextId++, kind, x, y, path: [], state: 'idle', role: kind === 'bot' ? 'bot' : 'carrier', task: null, carry: null,
-    home: null, work: null, depot: null, cool: rand(S.rng) * 0.5, dead: false, visit: null, born: S.t, dies: 0, skill: {}, schooled: false, name: '', cart: null,
+    home: null, work: null, depot: null, cool: rand(S.rng) * S.content.tuning.logistics.idleLookSeconds, dead: false, visit: null, born: S.t, dies: 0, skill: {}, schooled: false, name: '', cart: null,
   };
   S.agents.push(a); S.amap.set(a.id, a);
   return a;
@@ -35,9 +35,9 @@ export function moveTo(S: State, a: Agent, tx: number, ty: number, opts?: PathOp
   if (!p) return false;
   a.path = p;
   // a trip on foot that goes the long way round water is remembered by the villager's settlement, for bridges
-  const town = a.kind === 'villager' && a.home ? S.towns[a.home.town] : undefined, straight = hypot(tx - sx, ty - sy);
-  if (town && straight >= 6 && p.length >= S.content.tuning.planner.detourRatio * straight && !p.some(([x, y]) => !S.world.ground[y * S.world.w + x] && !S.world.bridge[y * S.world.w + x]) && waterBetween(S, sx, sy, tx, ty)) {
-    town.detours = town.detours.filter(d => S.t - d[5] < 300).slice(-15);
+  const town = a.kind === 'villager' && a.home ? S.towns[a.home.town] : undefined, straight = hypot(tx - sx, ty - sy), P = S.content.tuning.planner;
+  if (town && straight >= P.detourMinTiles && p.length >= P.detourRatio * straight && !p.some(([x, y]) => !S.world.ground[y * S.world.w + x] && !S.world.bridge[y * S.world.w + x]) && waterBetween(S, sx, sy, tx, ty)) {
+    town.detours = town.detours.filter(d => S.t - d[5] < P.detourMemorySeconds).slice(-P.detourMemoryTrips);
     town.detours.push([sx, sy, tx, ty, p.length, S.t]);
   }
   return true;
@@ -73,9 +73,10 @@ export function updateAgent(S: State, a: Agent, dt: number) {
   if (a.state === 'idle' || a.state === 'wander') {
     a.cool -= dt;
     if (a.cool <= 0) {
-      a.cool = 0.5 + rand(S.rng) * 0.4;
+      const L = S.content.tuning.logistics;
+      a.cool = L.idleLookSeconds + rand(S.rng) * L.idleLookJitter;
       // children neither work nor carry: they potter about
-      if ((a.role === 'child' || !findTask(S, a)) && a.state === 'idle' && rand(S.rng) < 0.3) wander(S, a);
+      if ((a.role === 'child' || !findTask(S, a)) && a.state === 'idle' && rand(S.rng) < L.wanderChance) wander(S, a);
     }
   }
   if (a.path.length) {
@@ -181,7 +182,7 @@ export function assignWorkers(S: State) {
     // (only on the way to pick up, so nothing carried is lost)
     if (S.people) {
       const best = Math.max(0, ...idle.map(a => a.skill[b.type] || 0));
-      const skilled = carriers.filter(a => a.task && a.state === 'toSrc' && !(S.t - a.born >= S.content.tuning.people.elderSeconds) && (a.skill[b.type] || 0) >= best + 0.25)
+      const skilled = carriers.filter(a => a.task && a.state === 'toSrc' && !(S.t - a.born >= S.content.tuning.people.elderSeconds) && (a.skill[b.type] || 0) >= best + S.content.tuning.people.recallSkill)
         .sort((p, q) => (q.skill[b.type] || 0) - (p.skill[b.type] || 0))[0];
       if (skilled) { cancelTask(skilled); idle.unshift(skilled); }
     }

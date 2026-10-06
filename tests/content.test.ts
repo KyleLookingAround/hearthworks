@@ -23,6 +23,18 @@ test('a missing tuning number is rejected', () => {
   assert.throws(() => buildContent(files), /systems\/needs.md: "tuning.eat_every_seconds" is required/);
 });
 
+test('a misspelt tuning key is rejected, and so is the key it should have been', () => {
+  const files = readDesignFiles().map(f => f.path === 'systems/trade.md' ? { ...f, raw: f.raw.replace(/\n  kin_bonus:/, '\n  kin_bonuss:') } : f);
+  assert.throws(() => buildContent(files), (e: unknown) => e instanceof ContentError
+    && e.problems.some(p => p.includes('systems/trade.md: "tuning.kin_bonuss" is not a tuning key'))
+    && e.problems.some(p => p.includes('systems/trade.md: "tuning.kin_bonus" is required')));
+});
+
+test('a misspelt key in a nested tuning block is rejected', () => {
+  const files = readDesignFiles().map(f => f.path === 'systems/needs.md' ? { ...f, raw: f.raw.replace(' tree_radius: 4,', ' tree_radios: 4,') } : f);
+  assert.throws(() => buildContent(files), /systems\/needs.md: "tuning.surroundings.tree_radios" is not a tuning key/);
+});
+
 test('content hash changes when a number changes', () => {
   const a = buildContent(readDesignFiles());
   const b = buildContent(readDesignFiles().map(f => f.path === 'systems/needs.md' ? { ...f, raw: f.raw.replace('eat_every_seconds: 45', 'eat_every_seconds: 46') } : f));

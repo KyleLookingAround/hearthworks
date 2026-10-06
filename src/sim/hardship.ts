@@ -10,7 +10,8 @@
  *              palisades and a militia beat them off, and settling the wilds breaks the camps up
  */
 import { rand } from './rng.ts';
-import { makeAgent, release, removeAgent } from './agents.ts';
+import { makeAgent } from './agents.ts';
+import { loseVillager, toSite } from './lifecycle.ts';
 import { cancelTask, touches } from './logistics.ts';
 import { findPath } from './path.ts';
 import { add, bp, chronicle, ctr, door, emit, front, nearestTown, villagers, hypot } from './core.ts';
@@ -134,15 +135,9 @@ function fires(S: State, dt: number) {
  * stay on in the shell; its worker goes carrying until it is rebuilt.
  */
 function gut(S: State, b: Building) {
-  const B = bp(S, b), Z = H(S);
-  for (const a of S.agents) if (touches(a, b)) cancelTask(a);
-  release(S, b);
-  // a depot's bots burn with it: rebuilt, it winds up new ones
-  for (const id of b.bots) { const bot = S.amap.get(id); if (bot) removeAgent(S, bot); }
-  b.bots = [];
-  b.site = true; b.build = 0; b.incoming = {}; b.reserved = {}; b.waiting = {}; b.timer = 0; b.used = 0;
-  b.inv = {};
-  for (const k in B.cost) { const left = Math.floor(B.cost[k] * (1 - Z.rebuildShare)); if (left > 0) b.inv[k] = left; }
+  const B = bp(S, b);
+  // (a depot's bots burn with it: rebuilt, it winds up new ones)
+  toSite(S, b, H(S).rebuildShare);
   // the last maker of a good its own rebuilding needs is rebuilt from what its makers save of it, or nothing could rebuild it
   for (const k in B.cost) if (B.output[k] && !S.buildings.some(o => o !== b && o.town === b.town && !o.site && bp(S, o).output[k])) b.inv[k] = B.cost[k];
   b.priority = Math.max(b.priority, 1 + S.content.tuning.planner.urgencyPriority);
@@ -240,10 +235,7 @@ function sickness(S: State, dt: number) {
     for (const id of [...b.residents]) {
       const a = S.amap.get(id);
       if (!a || rand(S.hrng) >= (healed ? Z.healedDeath : Z.sickDeath)) continue;
-      removeAgent(S, a);
-      S.stats.deaths++; S.stats.sickDeaths++;
-      if (S.people && town) town.rites.push(S.t);
-      emit(S, 'bad', `A villager of ${town?.name ?? 'the village'} died of the sickness`, true);
+      loseVillager(S, a, 'sickness', () => ['bad', `A villager of ${town?.name ?? 'the village'} died of the sickness`, true]);
     }
   }
 }
@@ -307,7 +299,7 @@ function camps(S: State, dt: number) {
       const near = wild.filter(i => stores.some(p => hypot((i % W.w) + 0.5 - p.x, Math.floor(i / W.w) + 0.5 - p.y) <= Z.raidReach));
       const from = near.length ? near : wild;
       const i = from[Math.floor(rand(S.hrng) * from.length)];
-      const c: Camp = { id: S.nextId++, x: (i % W.w) + 0.5, y: Math.floor(i / W.w) + 0.5, strength: Z.campStrength, raidT: Z.raidEverySeconds * (0.5 + rand(S.hrng)), raid: null, friend: null, goodwill: 0, giftT: 0 };
+      const c: Camp = { id: S.nextId++, x: (i % W.w) + 0.5, y: Math.floor(i / W.w) + 0.5, strength: Z.campStrength, raidT: Z.raidEverySeconds * (1 - Z.raidJitter + rand(S.hrng) * 2 * Z.raidJitter), raid: null, friend: null, goodwill: 0, giftT: 0 };
       S.camps.push(c);
       S.stats.camps++;
       emit(S, 'bad', 'Barbarians have made camp in the wilds');
@@ -321,7 +313,7 @@ function camps(S: State, dt: number) {
     if (S.trade && gifts(S, c, dt)) continue;
     c.raidT -= dt;
     if (c.raidT > 0) continue;
-    c.raidT = Z.raidEverySeconds * (0.75 + rand(S.hrng) * 0.5);
+    c.raidT = Z.raidEverySeconds * (1 - Z.raidJitter / 2 + rand(S.hrng) * Z.raidJitter);
     raid(S, c);
   }
 }

@@ -1,5 +1,6 @@
 import { hash01, rand } from './rng.ts';
-import { makeAgent, quit, removeAgent } from './agents.ts';
+import { makeAgent, quit } from './agents.ts';
+import { loseVillager } from './lifecycle.ts';
 import { foodChainOf, foodsOf } from './production.ts';
 import { shortOfFood } from './planner/sense.ts';
 import { add, bp, chronicle, door, emit, villagers } from './core.ts';
@@ -341,13 +342,11 @@ function seekCrafts(S: State) {
 }
 
 function die(S: State, a: Agent) {
-  const town = a.home ? S.towns[a.home.town] : undefined;
-  removeAgent(S, a);
-  S.stats.deaths++;
-  if (!town) return;
-  town.rites.push(S.t);
-  const how = { burial: 'to be laid to rest', cremation: 'for the pyre', ship: 'to be set out to sea' }[town.custom];
-  emit(S, 'info', `${a.name ? `${a.name}, an elder of ${town.name},` : `An elder of ${town.name}`} died, old and content; they wait ${how}`, true);
+  loseVillager(S, a, 'old age', town => {
+    if (!town) return null;
+    const how = { burial: 'to be laid to rest', cremation: 'for the pyre', ship: 'to be set out to sea' }[town.custom];
+    return ['info', `${a.name ? `${a.name}, an elder of ${town.name},` : `An elder of ${town.name}`} died, old and content; they wait ${how}`, true];
+  });
 }
 
 /** A fed home with two adults has a child now and then, while its settlement has a bed for one and its food is not short. */
@@ -355,7 +354,7 @@ function births(S: State, dt: number) {
   const T = P(S), chain = foodChainOf(S);
   // a settlement badly short of anything in its food chain, with anyone hungry, or short of food (see shortOfFood),
   // has no children for now
-  const easy = S.towns.map(t => t.fed >= 1 && !shortOfFood(S, t) && !Object.keys(t.planner.wants).some(g => chain.has(g) && t.planner.wants[g] >= 0.5));
+  const easy = S.towns.map(t => t.fed >= 1 && !shortOfFood(S, t) && !Object.keys(t.planner.wants).some(g => chain.has(g) && t.planner.wants[g] >= S.content.tuning.planner.savingWant));
   for (const b of S.buildings) {
     const B = bp(S, b);
     if (!B.homes || b.site || !easy[b.town] || b.hunger > 0 || !foodsOf(S, b).some(f => (b.inv[f] || 0) > 0)) continue;

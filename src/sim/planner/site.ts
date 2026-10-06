@@ -156,7 +156,7 @@ export function chooseSpot(S: State, type: string, town: Town = S.towns[0], anyZ
   const main = S.bmap.get(town.store), root = main ? door(main) : from, rootReach = main ? reachable(W, root.x, root.y) : reach;
   // every settlement's doors: neighbours that grow into each other must not wall each other in
   const doors = S.buildings.filter(b => !b.dead && !bp(S, b).bridge).map(b => { const d = door(b); return d.y * W.w + d.x; }).filter(i => rootReach[i]);
-  for (const c of scored.slice(0, 8)) {
+  for (const c of scored.slice(0, P.siteTries)) {
     const at = { x: c.x, y: c.y, ...dims(B, c.rot), rot: c.rot }, d = door(at);
     if (!findPath(W, from.x, from.y, d.x, d.y, S.ships ? { fleet: -1 } : {})) continue;
     // the open tile in front of its door, or beside it for a building on the shore

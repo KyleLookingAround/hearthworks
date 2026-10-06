@@ -6,6 +6,7 @@
 import { cancelTask, touches } from './logistics.ts';
 import { add, bp, chronicle, ctr, emit, front as frontOf, villagers, hypot } from './core.ts';
 import { demolish } from './buildings.ts';
+import { moveHome } from './lifecycle.ts';
 import { pave } from './terrain.ts';
 import { seasonOf, storesOnTrack } from './seasons.ts';
 import { enough, foodChainOf } from './production.ts';
@@ -134,8 +135,7 @@ export function layRoad(S: State, town: Town, run: Run) {
     const to = S.buildings.filter(b => b.town === town.id && !b.site && !gone.has(b) && bp(S, b).homes && bp(S, b).homes > b.residents.length)
       .sort((p, q) => hypot(ctr(p).x - a.x, ctr(p).y - a.y) - hypot(ctr(q).x - a.x, ctr(q).y - a.y))[0];
     if (!to) continue;
-    h.residents = h.residents.filter(r => r !== id);
-    a.home = to; to.residents.push(id);
+    moveHome(a, to);
     S.stats.roadMoved++;
   }
   for (const b of run.cut) {
