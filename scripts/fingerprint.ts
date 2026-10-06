@@ -6,16 +6,15 @@
  */
 import { createHash } from 'node:crypto';
 import { loadContent } from '../src/content/node.ts';
-import { createState, runFor, saveGame, loadGame, type State } from '../src/sim/index.ts';
+import { runFor, saveGame, loadGame, type State } from '../src/sim/index.ts';
+import { newGame as defaultGame, newGameOptions } from '../src/gates/kit.ts';
 
 const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const seconds = Number(args[0] ?? 600), seeds = (args[1] ?? '1,2,3').split(',').map(Number), resume = process.argv.includes('--resume');
 const content = loadContent();
-const T = content.tuning.map;
-// as NewGameDialog defaults: the first map type by order, the game size, its settlements, every option on
-const map = Object.values(content.maps).sort((a, b) => a.order - b.order)[0]?.id ?? T.standardType;
-const size = T.sizes[T.gameSize] ? T.gameSize : T.standardSize;
-const newGame = (seed: number) => createState(content, seed, { planner: true, seasons: true, trade: true, people: true, carts: true, settlers: true, charts: true, ships: true, hardship: true, plannedRoads: true, farms: true, settlements: T.sizes[size].settlements, map, size });
+// as NewGameDialog defaults (the gate kit's builder, which Gate 25 runs too)
+const { map, size } = newGameOptions(content);
+const newGame = (seed: number) => defaultGame(content, seed);
 // the save without the hash of the content it was made with, which any edit to the design's prose changes
 const text = (S: State) => { const j = saveGame(S) as unknown as Record<string, unknown>; delete j.content; return JSON.stringify(j); };
 const full = (S: State) => JSON.stringify(saveGame(S));

@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import { listGates, reportLines, runGate, type GateRun } from '../src/gates/executor.ts';
 import { attest } from '../design/references/attesters/thresholds.ts';
 
+const firstPlank = () => listGates().find(p => p.endsWith('01-first-plank.md'))!;
 const inWorker = (path: string) => new Promise<GateRun>((done, fail) => {
   const w = new Worker(new URL('./gate-worker.ts', import.meta.url), { workerData: path });
   w.once('message', done);
@@ -31,8 +32,7 @@ describe('roadmap gates', { concurrency: Math.max(1, availableParallelism()) }, 
 });
 
 test('the attester rejects a receipt from an edited scenario', async () => {
-  const path = listGates()[0];
-  const r = await runGate(path);
+  const r = await runGate(firstPlank());
   const scenario = readFileSync(new URL('../design/references/scenarios/first-plank.ts', import.meta.url), 'utf8');
   const v = attest({ id: r.id, passWhen: { min_planks_made: 1 }, computationSource: scenario + '\n// tweak' }, r.receipt);
   assert.equal(v.ok, false);
@@ -40,7 +40,7 @@ test('the attester rejects a receipt from an edited scenario', async () => {
 });
 
 test('the attester reports a missing metric', async () => {
-  const r = await runGate(listGates()[0]);
+  const r = await runGate(firstPlank());
   const scenario = readFileSync(new URL('../design/references/scenarios/first-plank.ts', import.meta.url), 'utf8');
   const v = attest({ id: r.id, passWhen: { min_unicorns: 1 }, computationSource: scenario }, r.receipt);
   assert.equal(v.ok, false);

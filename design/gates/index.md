@@ -2,6 +2,7 @@
 
 # Attested Computations
 
+* [Gate 0: the game as played](00-game-as-played.md) - The default new game, exactly as the new-game screen starts it and left to itself for an hour, stays fed, grows in people and settlements, trades, reaches a second age and keeps its people.
 * [Gate 1: a plank with no player clicks](01-first-plank.md) - After placing a Forester and a Sawmill, villagers alone build both, fell trees and saw planks within three minutes.
 * [Gate 2: the town grows and stays fed](02-sustain-town.md) - With a scripted build order, the town reaches 20 villagers and nobody leaves hungry over 30 game minutes.
 * [Gate 3: bots carry a real share](03-couriers.md) - With a Courier Depot beside storage, bots make at least 30% of deliveries in 15 game minutes and nobody leaves.

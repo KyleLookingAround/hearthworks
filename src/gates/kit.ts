@@ -13,6 +13,14 @@ export interface ScenarioResult { state: State; metrics: Metrics }
 export type Scenario = (content: Content, params: GateParams) => ScenarioResult;
 
 export const start = (content: Content, seed: number, opts: WorldOptions = {}) => createState(content, seed, opts);
+/** The default new game, as the new-game screen starts it: the first map type by order, the game size, its settlements, every option on. */
+export function newGameOptions(content: Content): WorldOptions {
+  const T = content.tuning.map;
+  const map = Object.values(content.maps).sort((a, b) => a.order - b.order)[0]?.id ?? T.standardType;
+  const size = T.sizes[T.gameSize] ? T.gameSize : T.standardSize;
+  return { planner: true, seasons: true, trade: true, people: true, carts: true, settlers: true, charts: true, ships: true, hardship: true, plannedRoads: true, farms: true, settlements: T.sizes[size].settlements, map, size };
+}
+export const newGame = (content: Content, seed: number) => createState(content, seed, newGameOptions(content));
 export const storeOf = (S: State) => S.buildings.find(b => bp(S, b).storage)!;
 export const centre = (S: State) => ctr(storeOf(S));
 

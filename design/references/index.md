@@ -3,5 +3,5 @@
 # Sections
 
 * [attesters](attesters/) - thresholds.ts
-* [scenarios](scenarios/) - ages.ts, carts.ts, couriers.ts, deeper-economy.ts, 18 more
+* [scenarios](scenarios/) - ages.ts, as-played.ts, carts.ts, couriers.ts, 19 more
 * [skills](skills/) - Run a gate
