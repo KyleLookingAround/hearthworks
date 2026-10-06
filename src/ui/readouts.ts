@@ -3,7 +3,7 @@
  * DOM-free, so the tests can check it. Nothing here changes the simulation: it calls only sim functions that read
  * (their caches are keyed on `S.t`, which the next tick moves on before it reads them).
  */
-import { ageNeeded, bp, dims, nearestTown, NEED_TEXT, scholarly, villagers, type BlueprintDef, type Building, type ItemId, type State, type Stock, type Town } from '../sim/index.ts';
+import { ageNeeded, bp, NEED_TEXT, scholarly, villagers, type BlueprintDef, type Building, type ItemId, type State, type Stock, type Town } from '../sim/index.ts';
 import { enoughInStore } from '../sim/production.ts';
 import { formOf } from '../sim/planner.ts';
 import { offered } from '../sim/farms.ts';
@@ -163,17 +163,5 @@ export function waitsOn(S: State, t: Town, B: BlueprintDef, short = false): stri
 /** Is the blueprint one this world offers at all (farms that grow, ships)? */
 export const inWorld = (S: State, B: BlueprintDef) => offered(S, B);
 
-/** The settlement whose land a building at x, y would stand on: the one the sim gives it when placed. */
-export function landOf(S: State, type: string, x: number, y: number, rot = 0): Town | undefined {
-  const B = S.content.blueprints[type];
-  const { w, h } = B.paves ? { w: 1, h: 1 } : dims(B, rot);
-  return S.towns[nearestTown(S, x + w / 2, y + h / 2)];
-}
-
-/** Why the player may not place `type` at x, y for want of knowledge, or null if the settlement there knows it. */
-export function knowledgeProblem(S: State, type: string, x: number, y: number, rot = 0): string | null {
-  const t = landOf(S, type, x, y, rot), B = S.content.blueprints[type];
-  if (!t || !B || type in t.knows) return null;
-  const others = S.towns.filter(o => type in o.knows).map(o => o.name);
-  return `this is ${t.name}'s land, and ${t.name} does not know the ${B.name} yet` + (others.length ? ` (${others.join(' and ')} ${others.length > 1 ? 'do' : 'does'})` : '');
-}
+// where the player may place what for want of knowledge: the sim's own check, made by the place command
+export { landOf, knowledgeProblem } from '../sim/commands.ts';

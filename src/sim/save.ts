@@ -10,6 +10,7 @@
  */
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 import { nameFor, namingFor } from './people.ts';
+import { saved } from './caches.ts';
 
 export const SAVE_VERSION = 32;
 
@@ -263,6 +264,8 @@ const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const ref = (b: Building | null) => (b ? b.id : null);
 
 export function saveGame(S: State): SaveFile {
+  // what a save cannot carry, the game that goes on forgets too: a game loaded from this save then does the same work
+  saved(S);
   const w = S.world;
   const world: Json = { w: w.w, h: w.h, docks: w.docks, waterCost: w.waterCost, slopeCost: w.slopeCost, rockCost: w.rockCost, pathCost: w.pathCost, roadCost: w.roadCost, stoneCost: w.stoneCost, roads: w.roads, stone: w.stone, belts: w.belts, forestCost: w.forestCost, work: { ...w.work } };
   for (const g of Object.keys(GRIDS) as GridName[]) world[g] = rle(w[g]);

@@ -9,6 +9,7 @@ import { seasonOf } from './seasons.ts';
 import { capOf, crew, dietOf, mealOf, places, unripe } from './farms.ts';
 import { fleetText, launch, wantsBoat } from './ships.ts';
 import type { Agent, Building, ItemId, Level, State, Stock, Town } from './types.ts';
+import { caches, thisTick, type Stocks } from './caches.ts';
 
 const setStatus = (b: Building, t: string, l: Level) => { b.status.t = t; b.status.l = l; };
 /** What a building without workers says it is doing: carts ready in a shed or barn, boats at a dock, a bridge open to walkers. Words only. */
@@ -80,12 +81,11 @@ export function homeTier(S: State, b: Building): number {
 export const cold = (S: State, b: Building) => seasonOf(S) === 'winter' && !!bp(S, b).homes && b.residents.length > 0 && !((b.inv.logs || 0) >= 1);
 
 /** What each building wants, worked out once a tick: it reads only the season, the settlement's form and rites, and the diet. */
-const wanted = new WeakMap<Building, { t: number; form: string; custom: string | undefined; rites: boolean; out: Stock }>();
 export function wants(S: State, b: Building, form: string): Stock {
-  const town = S.towns[b.town], custom = town?.custom, rites = !!town?.rites.length, hit = wanted.get(b);
-  if (hit && hit.t === S.t && hit.form === form && hit.custom === custom && hit.rites === rites) return hit.out;
+  const town = S.towns[b.town], custom = town?.custom, rites = !!town?.rites.length, wanted = thisTick(S).wanted, hit = wanted.get(b);
+  if (hit && hit.form === form && hit.custom === custom && hit.rites === rites) return hit.out;
   const out = wantsNow(S, b, form);
-  wanted.set(b, { t: S.t, form, custom, rites, out });
+  wanted.set(b, { form, custom, rites, out });
   return out;
 }
 
@@ -112,17 +112,17 @@ function wantsNow(S: State, b: Building, form: string): Stock {
   return out;
 }
 
-/** What homes eat (their bread and the foods of the diet) and everything that goes into making it, once per content. */
-const chains = new WeakMap<object, Set<string>>();
+/** What homes eat (their bread and the foods of the diet) and everything that goes into making it, once a game. */
 export function foodChainOf(S: State): Set<string> {
-  let out = chains.get(S.content);
+  const C = caches(S.world);
+  let out = C.foodChain;
   if (out) return out;
   out = new Set([...Object.values(S.content.blueprints).filter(B => B.homes).flatMap(B => Object.keys(B.keepStocked)), ...S.content.tuning.farms.diet]);
   for (let grew = true; grew;) {
     grew = false;
     for (const B of Object.values(S.content.blueprints)) if (Object.keys(B.output).some(g => out!.has(g))) for (const i in B.input) if (!out.has(i)) { out.add(i); grew = true; }
   }
-  chains.set(S.content, out);
+  C.foodChain = out;
   return out;
 }
 
@@ -166,11 +166,9 @@ export function enough(S: State, town: Town, g: ItemId): boolean {
 }
 
 /** A settlement's stores and people, counted once a tick. */
-const counted = new WeakMap<State, { t: number; by: Map<number, { goods: Stock; pop: number; beds: number; held: number; room: number }> }>();
-function stocks(S: State, town: number): { goods: Stock; pop: number; beds: number; held: number; room: number } {
-  let c = counted.get(S);
-  if (!c || c.t !== S.t) { c = { t: S.t, by: new Map() }; counted.set(S, c); }
-  let out = c.by.get(town);
+function stocks(S: State, town: number): Stocks {
+  const counted = thisTick(S).stocks;
+  let out = counted.get(town);
   if (out) return out;
   out = { goods: {}, pop: 0, beds: 0, held: 0, room: 0 };
   for (const o of S.buildings) {
@@ -183,7 +181,7 @@ function stocks(S: State, town: number): { goods: Stock; pop: number; beds: numb
     if (O.capacity && !O.keeps) { out.room += O.capacity; for (const k in o.inv) out.held += o.inv[k]; }
   }
   for (const a of S.agents) if (a.kind === 'villager' && a.home?.town === town) out.pop++;
-  c.by.set(town, out);
+  counted.set(town, out);
   return out;
 }
 
@@ -206,9 +204,8 @@ export function enoughInStore(S: State, b: Building): boolean {
   return !!town && outs.length > 0 && outs.every(g => enough(S, town, g));
 }
 
-/** The kinds of workplace something mills (a windmill its bakeries), worked out once per content. */
-const MILLED = new WeakMap<object, Set<string>>();
-const milledKinds = (S: State) => { let k = MILLED.get(S.content); if (!k) MILLED.set(S.content, k = new Set(Object.values(S.content.blueprints).flatMap(B => B.mills?.types ?? []))); return k; };
+/** The kinds of workplace something mills (a windmill its bakeries), worked out once a game. */
+const milledKinds = (S: State) => { const C = caches(S.world); return C.milled ??= new Set(Object.values(S.content.blueprints).flatMap(B => B.mills?.types ?? [])); };
 
 /** How much more a workplace yields for a building of its settlement within reach whose worker is at work (a windmill by a bakery): the best such factor, else 1. */
 export const milledBy = (S: State, b: Building): number => bestMill(S, b).factor;
