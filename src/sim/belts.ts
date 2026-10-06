@@ -149,11 +149,31 @@ export function runBelts(S: State) {
     busy.add(a.tile);
     staleBoard(S, src, dst);
   };
-  // the nearest building along the belt to `dst` that can send: same line and settlement, its belt tile free
-  const nearest = (dst: Building, ok: (s: Building) => boolean) => {
+  // the buildings beside each line with some of a good to send, in building order (as `besideLine` lists them), sorted
+  // out once a step as a line is first asked about: loads only go out from here on, so one with none to send now has
+  // none for the rest of the step, and passing it over changes nothing
+  const offers = new Map<number, Map<ItemId, [Building, { tile: number; line: number }][]>>();
+  const offering = (line: number, item: ItemId) => {
+    let m = offers.get(line);
+    if (!m) {
+      offers.set(line, m = new Map());
+      for (const e of besideLine(S, line)) {
+        const s = e[0], B = bp(S, s);
+        for (const g of B.storage ? Object.keys(s.inv) : Object.keys(B.output)) {
+          if (available(S, s, g) <= 0) continue;
+          let l = m.get(g);
+          if (!l) m.set(g, l = []);
+          l.push(e);
+        }
+      }
+    }
+    return m.get(item) ?? [];
+  };
+  // the nearest building along the belt to `dst` that can send `item`: same line and settlement, its belt tile free
+  const nearest = (dst: Building, item: ItemId, ok: (s: Building) => boolean) => {
     const at = by.get(dst)!, d = walk(w, at.tile);
     let best: Building | null = null, bd = Infinity;
-    for (const [s, o] of besideLine(S, at.line)) {
+    for (const [s, o] of offering(at.line, item)) {
       if (s === dst || o.line !== at.line || s.town !== dst.town || busy.has(o.tile) || !ok(s)) continue;
       const k = d.get(o.tile)!;
       if (k < bd) { bd = k; best = s; }
@@ -162,7 +182,7 @@ export function runBelts(S: State) {
   };
   const reqs = requestsNow(S).filter(r => by.has(r.dst)).sort((p, q) => p.pri - q.pri || p.dst.id - q.dst.id);
   for (const r of reqs) {
-    const got = nearest(r.dst, s => available(S, s, r.item) > 0);
+    const got = nearest(r.dst, r.item, s => available(S, s, r.item) > 0);
     if (!got) continue;
     send(got.s, r.dst, r.item, Math.min(r.need, P.carry, available(S, got.s, r.item)), got.d);
   }
@@ -175,7 +195,7 @@ export function runBelts(S: State) {
     if (!hub || !by.has(hub) || busyHub.has(hub)) continue;
     const want = hubWant(S, hub, r.item);
     if (want <= 0) continue;
-    const got = nearest(hub, s => available(S, s, r.item) > 0 && distBB(s, r.dst) >= L0.relayMinTiles);
+    const got = nearest(hub, r.item, s => available(S, s, r.item) > 0 && distBB(s, r.dst) >= L0.relayMinTiles);
     if (!got) continue;
     send(got.s, hub, r.item, Math.min(want, P.carry, available(S, got.s, r.item)), got.d, true);
     busyHub.add(hub);
