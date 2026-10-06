@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots, carts, and deliveries in legs through each district's yard.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T19:26:40Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T02:30:00Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
