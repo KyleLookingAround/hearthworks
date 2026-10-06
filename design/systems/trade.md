@@ -4,7 +4,7 @@ title: Trade
 description: Neighbouring settlements send porters to swap what they can spare for what they want, one load at a time, and count steady imports as relief.
 tags: [trade, settlement, economy]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T06:54:05Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T09:07:23Z }
 tuning:
   every_seconds: 15
   load: 4
@@ -35,7 +35,7 @@ Two villages finding their own ways and swapping what they have. Trade is on in 
 A settlement weighs each good by its **cover**: how many seconds its stock lasts at the rate it uses the good (its [planner](/systems/planner.md)'s demand at its last look).
 
 - **Want.** A good it uses with less than `want_cover` seconds in store, the more the less it has; or one its planner is short of (a shortage's severity, at least `min_severity`) or saving for.
-- **Spare.** Stock beyond `keep` plus `spare_cover` seconds of its own use, of a good it does not want and has not lately traded for (imports above `lately_share` of a `load` per `smoothing_seconds`), less what carriers have claimed. Of what its homes eat it also keeps a meal per villager.
+- **Spare.** Stock beyond `keep` plus `spare_cover` seconds of its own use, of a good it does not want and has not lately traded for (imports above `lately_share` of a `load` per `smoothing_seconds`), less what carriers have claimed. Of what its homes eat it also keeps a meal per villager, and with [seasons](/systems/seasons.md) nothing of the winter store (grain, bread, preserved food) that would leave the store behind: a village that bartered its grain away in autumn went hungry in the winter.
 
 # Porters
 

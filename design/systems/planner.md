@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T06:54:05Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T09:07:23Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -179,7 +179,7 @@ With carts on and the [Cart Shed](/blueprints/cart_shed.md) known, a settlement 
 
 # Spoiling food
 
-Food rotting in stores that do not keep it ([spoiling](/systems/logistics.md)) is a need, `spoilage`: what the piles would lose a minute, a full need at `spoil_full_per_minute`, times `spoil_weight`, less the share of the rotting pile that stores keeping food (standing, or sites) have room for, since the food goes there as it comes and what lies in the yards is eaten first. A store that keeps the goods that rot relieves it by the share of the loss it keeps, as does a workplace that turns them into food that keeps (a [Smokehouse](/blueprints/smokehouse.md) for fish), so a settlement losing bread builds a [Granary](/blueprints/granary.md) and one losing only fish the cheaper smokehouse.
+Food rotting in stores that do not keep it ([spoiling](/systems/logistics.md)) is a need, `spoilage`: what the piles would lose a minute, a full need at `spoil_full_per_minute`, times `spoil_weight`, less the share of the rotting pile that stores keeping food (standing, or sites) have room for, since the food goes there as it comes and what lies in the yards is eaten first. A store that keeps the goods that rot relieves it by the share of the loss it keeps, as does a workplace that turns them into food that keeps (a [Smokehouse](/blueprints/smokehouse.md) for fish), so a settlement losing bread builds a [Granary](/blueprints/granary.md) and one losing only fish the cheaper smokehouse. Rot is waste, not want: no maker is planned for its store (a village out of land once filled it with masons cutting stone for a granary, then had no room for a bakery): it saves for one only from what it already makes or trades for.
 
 # Full stores
 

@@ -14,7 +14,7 @@ import { planBelts } from './belts.ts';
 import { growFarm, sizeName, toGrow } from './farms.ts';
 import type { State, Town } from './types.ts';
 import { goodName, runningLow, article } from './planner/text.ts';
-import { T, known, starved, formOf, homeFor, hubs, affordable } from './planner/core.ts';
+import { T, known, starved, formOf, homeFor, hubs, affordable, mineOf } from './planner/core.ts';
 import { type Shortage, look, importFrom } from './planner/sense.ts';
 import { type Choice, propose, follow } from './planner/choose.ts';
 import { chooseSpot, centreSpot, alongRoad } from './planner/site.ts';
@@ -106,6 +106,10 @@ function planTown(S: State, town: Town, dt: number) {
     // (with no room it clears a workshop resting with enough in store, as a dock clears the shore)
     if (c && c.B.learning === 'university' && (roomless(c.B.id) || (!hubs(S, town).some(h => chooseSpot(S, c!.B.id, town, false, h)) && !chooseSpot(S, c.B.id, town) && !clearFor(S, town, c.B)))) { if (!roomless(c.B.id)) Q.noRoom[c.B.id] = S.t; c = null; continue; }
     if (c && roomless(c.B.id)) { blocked ??= c; c = null; continue; }
+    // food that rots is waste, not want: a store that keeps it is saved for only from what the settlement makes or trades
+    // for already, never by planning a maker (a village out of land once filled it with masons, then had no room for a bakery)
+    const rot = c?.key === 'spoilage' ? affordable(S, c.B, town) : null;
+    if (rot && !importFrom(S, town, rot.good) && !mineOf(S, town).some(b => !b.site && bp(S, b).output[rot.good])) { c = null; continue; }
     if (c?.wait) { waiting ??= c; c = null; continue; }
     // short of a good whose maker it has just found no room for: saving would wait for good, so the next need goes ahead
     const owe = c ? affordable(S, c.B, town) : null, maker = owe ? known(S, town).find(B => B.seconds && B.output[owe.good]) : undefined;
@@ -127,7 +131,7 @@ function planTown(S: State, town: Town, dt: number) {
     // (a good it trades for from a neighbour that makes it is waited for, not made)
     const from = importFrom(S, town, owe.good, L.demand[owe.good] || 0);
     const stuck = !from && ((L.supply[owe.good] || 0) <= 0 || S.t - Q.saving.since > T(S).savePatienceSeconds);
-    const maker = stuck ? known(S, town).find(B => B.seconds && B.output[owe.good]) : undefined;
+    const maker = stuck && c.key !== 'spoilage' ? known(S, town).find(B => B.seconds && B.output[owe.good]) : undefined;
     if (maker) Q.saving.since = S.t;
     const why = `${runningLow(S, owe.good)} to build ${article(c.B.name)} ${c.B.name}`;
     if (maker && !affordable(S, maker, town)) c = follow(S, L, { B: maker, sev: c.sev, why }, 0);

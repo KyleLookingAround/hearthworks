@@ -1,4 +1,5 @@
 import { add, bp, chronicle, emit, villagers } from './core.ts';
+import { storesOnTrack } from './seasons.ts';
 import { sendOnTrip, traveller } from './lifecycle.ts';
 import { goToBuilding } from './agents.ts';
 import { shareable } from './knowledge.ts';
@@ -36,16 +37,18 @@ export function wantOf(S: State, town: Town, g: ItemId, st = stockOf(S, town)): 
 /**
  * What a settlement can spare: stock beyond `keep` and `spare_cover` seconds of its own use, of every good
  * it does not want and has not lately traded for (nothing goes straight back). Of its food chain (what homes
- * eat and what goes into it) it keeps twice the cover and a meal per villager besides.
+ * eat and what goes into it) it keeps twice the cover and a meal per villager besides, and with seasons nothing of the
+ * winter store (grain, bread, preserved food) that would leave the store behind.
  */
 export function spareOf(S: State, town: Town): Stock {
-  const out: Stock = {}, st = stockOf(S, town), food = foodChain(S);
+  const out: Stock = {}, st = stockOf(S, town), food = foodChain(S), winter = new Set(['wheat', 'bread', ...S.content.tuning.seasons.preserved]);
   const pop = villagers(S).filter(a => a.home?.town === town.id).length;
   for (const g in st) {
     if (wantOf(S, town, g, st) > 0 || (town.trade.imports[g] || 0) > X(S).load / X(S).smoothingSeconds * X(S).latelyShare) continue;
     // the food chain keeps twice the cover, and a meal per villager
     const n = Math.floor(st[g] - X(S).keep - (town.planner.use[g] || 0) * X(S).spareCover * (food.has(g) ? 2 : 1) - (food.has(g) ? pop : 0));
-    if (n >= 1) out[g] = n;
+    // and with seasons, nothing of the winter store that would leave it behind
+    if (n >= 1 && !(winter.has(g) && !storesOnTrack(S, town, 0, n))) out[g] = n;
   }
   return out;
 }
@@ -119,7 +122,7 @@ export function updateTrade(S: State, dt: number) {
 function bestDeal(S: State, town: Town) {
   const home = S.bmap.get(town.store);
   if (!home) return null;
-  const mine = spareOf(S, town), st = stockOf(S, town), short = lacking(S, town);
+  const mine = spareOf(S, town), st = stockOf(S, town), short = lacking(S, town, st);
   let best: { host: Town; give: ItemId; want: ItemId; score: number } | null = null;
   for (const host of S.towns) {
     const hs = S.bmap.get(host.store);
@@ -143,13 +146,16 @@ function bestDeal(S: State, town: Town) {
   return best;
 }
 
-/** The inputs a settlement's workplaces stand without: a staffed workplace with less of one in hand or on the way than a cycle takes. */
-export function lacking(S: State, town: Town): Set<ItemId> {
+/**
+ * The inputs a settlement's workplaces stand without: a staffed workplace with less of one in hand or on the way than a
+ * cycle takes, while the stores have less than that to send it (a bakery between deliveries of grain does not count).
+ */
+export function lacking(S: State, town: Town, st = stockOf(S, town)): Set<ItemId> {
   const out = new Set<ItemId>();
   for (const b of S.buildings) {
     if (b.town !== town.id || b.site || b.worker === null) continue;
     const B = bp(S, b);
-    for (const i in B.input) if ((b.inv[i] || 0) + (b.incoming[i] || 0) < B.input[i]) out.add(i);
+    for (const i in B.input) if ((b.inv[i] || 0) + (b.incoming[i] || 0) < B.input[i] && (st[i] || 0) < B.input[i]) out.add(i);
   }
   return out;
 }
