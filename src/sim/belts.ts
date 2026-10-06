@@ -3,8 +3,8 @@
  * the buildings whose doors open beside them. See design/systems/conveyors.md. No randomness: ties break by
  * building order and tile index.
  */
-import { available, requestsNow, roomFor, staleBoard } from './logistics.ts';
-import { add, bp, chronicle, emit, front, villagers } from './world.ts';
+import { available, hubOf, hubWant, requestsNow, roomFor, staleBoard } from './logistics.ts';
+import { add, bp, chronicle, distBB, emit, front, villagers } from './world.ts';
 import { have, take } from './roads.ts';
 import type { BlueprintDef, Building, ItemId, State, Town, World } from './types.ts';
 
@@ -129,6 +129,10 @@ export function runBelts(S: State) {
       if (!dst || dst.dead) continue;
       add(dst.inv, p.item, p.n); add(dst.incoming, p.item, -p.n);
       S.stats.beltLoads++; S.stats.beltGoods += p.n; S.stats.beltSeconds += p.secs;
+      const ways = S.towns[dst.town]?.ways;
+      add(S.stats.ways, 'belt', p.n);
+      if (ways) add(ways, 'belt', p.n);
+      if (p.hub) { S.stats.handedOnBelt += p.n; if (ways) add(ways, 'handed', p.n); }
     }
     if (riding.length !== S.parcels.length) { S.parcels = riding; staleBoard(); }
   }
@@ -139,10 +143,10 @@ export function runBelts(S: State) {
   // a building sends one load every `gap_seconds` from each belt tile
   const busy = new Set<number>();
   for (const p of S.parcels) if (S.t - p.at < P.gapSeconds - 1e-9) busy.add(p.from);
-  const send = (src: Building, dst: Building, item: ItemId, n: number, d: number) => {
+  const send = (src: Building, dst: Building, item: ItemId, n: number, d: number, hub = false) => {
     const a = by.get(src)!, b = by.get(dst)!;
     add(src.inv, item, -n); add(dst.incoming, item, n);
-    S.parcels.push({ item, n, src: src.id, dst: dst.id, from: a.tile, to: b.tile, at: S.t, secs: (d + 2) / P.speed });
+    S.parcels.push({ item, n, src: src.id, dst: dst.id, from: a.tile, to: b.tile, at: S.t, secs: (d + 2) / P.speed, ...(hub ? { hub } : {}) });
     busy.add(a.tile);
     staleBoard(src, dst);
   };
@@ -162,6 +166,20 @@ export function runBelts(S: State) {
     const got = nearest(r.dst, s => available(S, s, r.item) > 0);
     if (!got) continue;
     send(got.s, r.dst, r.item, Math.min(r.need, P.carry, available(S, got.s, r.item)), got.d);
+  }
+  // a building off the belt asking for a good from far away: the belt brings it to the yard of its district, if that yard
+  // is beside the belt, for its carriers to take on on foot (see hubFor)
+  const L0 = S.content.tuning.logistics, busyHub = new Set<Building>();
+  for (const r of requestsNow(S)) {
+    if (by.has(r.dst) || r.dst.site || bp(S, r.dst).storage) continue;
+    const hub = hubOf(S, r.dst);
+    if (!hub || !by.has(hub) || busyHub.has(hub)) continue;
+    const want = hubWant(S, hub, r.item);
+    if (want <= 0) continue;
+    const got = nearest(hub, s => available(S, s, r.item) > 0 && distBB(s, r.dst) >= L0.relayMinTiles);
+    if (!got) continue;
+    send(got.s, hub, r.item, Math.min(want, P.carry, available(S, got.s, r.item)), got.d, true);
+    busyHub.add(hub);
   }
   // surplus to the nearest store along the belt with room for it
   for (const [s, o] of by) {

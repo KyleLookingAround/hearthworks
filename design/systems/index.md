@@ -7,7 +7,7 @@
 * [Farms that grow](farms.md) - Farms, gardens, orchards and pastures grow in steps, each adding fields and a hand; homes eat a varied diet of the foods they grow.
 * [Hardship](hardship.md) (draft) - Fire, flood, sickness and barbarian raids, the counters a settlement finds for each, gifts that bring barbarians in peace, and the steward's laws for hard times.
 * [Knowledge](knowledge.md) - Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
-* [Logistics](logistics.md) - The job board — requests, offers, reservations, carriers and courier bots.
+* [Logistics](logistics.md) - The job board — requests, offers, reservations, carriers and courier bots, carts, and deliveries in legs through each district's yard.
 * [Map](map.md) - Map types and sizes, seeded generation, the standard map, trees and regrowth.
 * [Needs and population](needs.md) - Eating, mood, newcomers arriving and villagers leaving.
 * [People](people.md) - Villagers as individuals; names, ages, births and deaths, skills that grow with practice and pass from master to apprentice, each village's custom for its dead, its naming custom, and its feasts through the year.
