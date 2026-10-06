@@ -6,7 +6,7 @@
 import { bp, chronicle, door, emit, inB } from './core.ts';
 import { placeBuilding } from './buildings.ts';
 import { reachable, reshaped } from './path.ts';
-import { sealsOff } from './planner.ts';
+import { sealsOff } from './place.ts';
 import { ZONES, type BlueprintDef, type Building, type ItemId, type State, type Town } from './types.ts';
 
 const NOBUILD = 1 + ZONES.indexOf('nobuild'), FARMS = 1 + ZONES.indexOf('farms');

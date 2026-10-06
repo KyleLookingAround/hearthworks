@@ -1,7 +1,8 @@
 /** Where buildings can go: shared by the planner and the gate kit. */
+import { reachable } from './path.ts';
+import { dims, hypot, bp, door, front as frontOf } from './core.ts';
 import { canPlace } from './buildings.ts';
-import { dims, hypot } from './core.ts';
-import type { State } from './types.ts';
+import { type State, ZONES, type Building, type Town, type World } from './types.ts';
 
 /** No buildings or roads in the rectangle (roads are kept, not built over; with `paths`, worn paths may be). */
 export function clear(S: State, x: number, y: number, w: number, h: number, paths = false): boolean {
@@ -65,4 +66,57 @@ export function treeSpot(S: State, type: string, near: { x: number; y: number },
     if (c > bc) { bc = c; best = { x, y }; }
   }
   return best;
+}
+
+export const NOBUILD = 1 + ZONES.indexOf('nobuild');
+const DEPOSITS = ['', 'fertile', 'stone', 'clay', 'fish', 'iron'];
+
+/** Deposit tiles of `kind` within `r` of a point. */
+export function depositsNear(W: World, cx: number, cy: number, kind: string, r: number): number {
+  const k = DEPOSITS.indexOf(kind);
+  let n = 0;
+  for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(W.h - 1, Math.ceil(cy + r)); y++) for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W.w - 1, Math.ceil(cx + r)); x++) {
+    if (W.deposit[y * W.w + x] === k && hypot(x + 0.5 - cx, y + 0.5 - cy) <= r) n++;
+  }
+  return n;
+}
+
+/** Does a footprint touch land the player has zoned for no building? */
+export function onNoBuild(W: World, x: number, y: number, w: number, h: number): boolean {
+  for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) if (k >= 0 && j >= 0 && k < W.w && j < W.h && W.zone[j * W.w + k] === NOBUILD) return true;
+  return false;
+}
+
+/** Would `type` at (x, y) cut the settlement's first storage yard off from a door it reaches now, or from its own? */
+export function cutsOff(S: State, town: Town, type: string, x: number, y: number): boolean {
+  const W = S.world, B = S.content.blueprints[type], store = S.bmap.get(town.store);
+  if (!store) return false;
+  const from = door(store), reach = reachable(W, from.x, from.y);
+  const doors = S.buildings.filter(b => !b.dead && !bp(S, b).bridge).map(b => { const d = door(b); return d.y * W.w + d.x; }).filter(i => reach[i]);
+  const d = door({ x, y, w: B.w, h: B.h }), front = B.shore ? d.y * W.w + d.x + 1 : (d.y + 1) * W.w + d.x;
+  return sealsOff(W, x, y, B.w, B.h, from, doors, front);
+}
+
+/** Would a footprint at (x, y) cut storage off from any of `doors`, or from the tile in front of its own door? */
+export function sealsOff(W: World, x: number, y: number, w: number, h: number, from: { x: number; y: number }, doors: number[], front: number): boolean {
+  const saved: number[] = [];
+  for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) { const i = j * W.w + k; saved.push(W.bgrid[i]); W.bgrid[i] = -2; }
+  const reach = reachable(W, from.x, from.y);
+  let n = 0;
+  for (let j = y; j < y + h; j++) for (let k = x; k < x + w; k++) W.bgrid[j * W.w + k] = saved[n++];
+  return (front >= 0 && !reach[front]) || doors.some(i => !reach[i]);
+}
+
+/** Would `type` fit at (x, y) if the buildings in `without` were not there? Lifts them off the map to check. */
+export function fitsWithout(S: State, type: string, x: number, y: number, without: Set<Building>, town: Town): boolean {
+  const W = S.world, saved: [number, number, number][] = [];
+  for (const o of without) {
+    for (let j = o.y; j < o.y + o.h; j++) for (let k = o.x; k < o.x + o.w; k++) { const i = j * W.w + k; saved.push([i, W.bgrid[i], W.door[i]]); W.bgrid[i] = -1; W.door[i] = 0; }
+    const fo = frontOf(o), f = fo.y * W.w + fo.x;
+    W.front[f] = Math.max(0, W.front[f] - 1);
+  }
+  const ok = fits(S, type, x, y, 0) && !cutsOff(S, town, type, x, y);
+  for (const [i, b, dr] of saved) { W.bgrid[i] = b; W.door[i] = dr; }
+  for (const o of without) { const fo = frontOf(o); W.front[fo.y * W.w + fo.x]++; }
+  return ok;
 }

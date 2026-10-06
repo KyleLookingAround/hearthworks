@@ -1,7 +1,7 @@
 import { hash01, rand } from './rng.ts';
 import { makeAgent, quit, removeAgent } from './agents.ts';
 import { foodChainOf, foodsOf } from './production.ts';
-import { shortOfFood } from './planner.ts';
+import { shortOfFood } from './planner/sense.ts';
 import { add, bp, chronicle, door, emit, villagers } from './core.ts';
 import { seasonOf } from './seasons.ts';
 import type { Agent, Building, Custom, Feast, ItemId, Learning, Naming, State, Town } from './types.ts';

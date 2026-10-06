@@ -1,7 +1,8 @@
 import { assignWorkers, makeAgent, nearestStore, updateAgent } from './agents.ts';
 import { cold, homeTier, updateBuilding, foodsOf } from './production.ts';
-import { formOf } from './planner.ts';
-import { plan, shortOfFood } from './planner.ts';
+import { formOf } from './planner/core.ts';
+import { plan } from './planner.ts';
+import { shortOfFood } from './planner/sense.ts';
 import { updateKnowledge } from './knowledge.ts';
 import { updateTrade } from './trade.ts';
 import { feastMood, holdFeasts, missFeasts, newcomer, riteMood, updatePeople } from './people.ts';
