@@ -82,10 +82,10 @@ test('renewal: in a village a forester in the centre moves out, the old one come
   assert.deepEqual(walledIn(S), []);
 });
 
-test('the advisor names what was lately pulled down', () => {
+test('the advisor leaves what was lately pulled down to the chronicle: there is nothing to do about it', () => {
   const S = createState(content, 7, { planner: true });
   S.chronicle.push({ t: S.t, town: 0, kind: 'pulled', text: 'Hearth pulled down a bakery: no worker for 12 minutes' });
-  assert.ok(advise(S, S.towns[0], 9).some(l => l.startsWith('Renewing: Hearth pulled down a bakery')));
+  assert.ok(!advise(S, S.towns[0], 9).some(l => /pulled down/.test(l)));
 });
 
 test('a version 29 save is upgraded to version 30: workplaces start with no idle time, nothing is being moved, and it plays on', () => {

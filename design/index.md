@@ -21,7 +21,7 @@ okf_version: "0.2"
 * [goods](goods/) - Bread, Bricks, Clay, Cloth, 14 more
 * [maps](maps/) - Archipelago, Coast, Lone isle, Islands, 1 more
 * [references](references/) - attesters/, scenarios/, skills/
-* [systems](systems/) - Ages, Conveyors, Farms that grow, Hardship, 14 more
+* [systems](systems/) - Advisor, Ages, Conveyors, Farms that grow, 15 more
 
 # History
 

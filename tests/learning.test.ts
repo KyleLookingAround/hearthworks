@@ -158,12 +158,19 @@ test('ideas only scholars find do not count towards inquiry: a village cannot th
   assert.equal(pressure(S, t, 'inquiry'), 0);
 });
 
-test('the advisor names an idea only scholars find, and what the settlement lacks to find it', () => {
+test('the advisor names an idea only scholars find, and what the settlement lacks to find it, but not to a hamlet', () => {
   const S = createState(content, 1847, { planner: true, people: true });
   const t = S.towns[0];
   t.planner.wants.bread = 1;
   const said = () => advise(S, t, 9);
+  // a hamlet is too small for a university: nothing it could do would bring scholars soon
+  assert.equal(t.form, 'hamlet');
+  assert.ok(!said().some(x => /Scholars would think/.test(x)), said().join(' / '));
+  t.form = 'village';
   assert.ok(said().some(x => /^Scholars would think of the Seed Garden for .*: encourage the University\.$/.test(x)), said().join(' / '));
   t.knows.university = { by: t.name, at: 0, verified: [], from: null, learned: 0, used: 0 };
-  assert.ok(said().some(x => /Seed Garden.*build a University/.test(x)), said().join(' / '));
+  assert.ok(said().some(x => /Seed Garden.*place a University/.test(x)), said().join(' / '));
+  // one standing, waiting for a scholar: not the player's to give
+  stand(S, 'university');
+  assert.ok(!said().some(x => /Scholars would think/.test(x)), said().join(' / '));
 });

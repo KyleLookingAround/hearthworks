@@ -18,6 +18,7 @@ import { surroundings } from './surroundings.ts';
 import { closeBoard, openBoard } from './logistics.ts';
 import { runBelts } from './belts.ts';
 import { dietLift } from './farms.ts';
+import { updateAdvice } from './steward.ts';
 
 /** The season before each: as one comes, the feasts of the one before that were not held are missed. */
 const PREV: Record<string, string> = { spring: 'winter', summer: 'spring', autumn: 'summer', winter: 'autumn' };
@@ -177,6 +178,8 @@ export const SYSTEMS: System[] = [
   { name: 'seasons', every: 'second', on: S => S.seasons, run: S => turnSeasons(S) },
   { name: 'spoiling', every: 'second', run: S => spoil(S) },
   { name: 'worn paths', every: 'second', run: S => fadePaths(S) },
+  // the advisor reads what the world's second left, and changes nothing but its own tips
+  { name: 'advisor', every: 'second', run: S => updateAdvice(S) },
   // after the world has moved, each settlement's planner looks, and newcomers come
   { name: 'planner', every: 'after', run: plan },
   { name: 'newcomers', every: 'after', run: newcomers },

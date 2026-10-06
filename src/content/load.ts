@@ -151,7 +151,7 @@ export function buildContent(files: SourceFile[]): Content {
   for (const d of docs.filter(d => d.path.startsWith('eras/'))) {
     if (d.data.type !== 'Era') continue;
     const f = d.data, list = Array.isArray(f.discoveries) ? f.discoveries.map(String) : [], unlocks = Array.isArray(f.unlocks) ? f.unlocks.map(String) : [];
-    eras.push({ id: slug(d.path), name: String(f.title ?? slug(d.path)).replace(/^The Age of /, ''), order: num(d, f.order, 'order'), discoveries: list, share: num(d, f.share, 'share'), unlocks });
+    eras.push({ id: slug(d.path), name: String(f.title ?? slug(d.path)).replace(/^The Age of /, ''), order: num(d, f.order, 'order'), discoveries: list, share: num(d, f.share, 'share'), works: num(d, f.works, 'works'), unlocks });
   }
   eras.sort((a, b) => a.order - b.order);
   for (const d of docs.filter(d => d.path.startsWith('maps/'))) {
@@ -190,6 +190,8 @@ export function buildContent(files: SourceFile[]): Content {
   /** How one tuning value is read from its YAML (`key` is its full name, for the problems). */
   type Read<V> = (d: Doc, v: YamlValue | undefined, key: string) => V;
   const N: Read<number> = (d, v, key) => num(d, v, key), S: Read<string> = (d, v, key) => str(d, v, key), STOCK: Read<Stock> = stock;
+  /** A map of names to numbers. */
+  const NUMS: Read<Record<string, number>> = (d, v, key) => Object.fromEntries(Object.entries(isMap(v) ? v : {}).map(([k, x]) => [k, num(d, x, `${key}.${k}`)]));
   /** A list of names, which must not be empty. */
   const names = (what: string): Read<string[]> => (d, v, key) => (Array.isArray(v) && v.length ? v.map(String) : (problems.push(`${d.path}: "${key}" must be a list of ${what}`), ['']));
   /** A list, `def` if there is none. */
@@ -263,6 +265,7 @@ export function buildContent(files: SourceFile[]): Content {
       copyEverySeconds: N, universityFactor: N, universityThreshold: N, schoolFactor: N, forgettingMemorySeconds: N, learningWeight: N, universityVillagers: N, universitySpare: N, schoolChildren: N, distanceFrom: N, distanceSpan: N, longHaulFrom: N, reachSmoothing: N,
       detourEverySeconds: N, detourMargin: N, detourCutFrom: N, detourCutSpan: N, detourTrips: N,
     }),
+    advisor: section<Tuning['advisor']>(sys('advisor'), { everySeconds: N, tips: N, holdSeconds: N, quietSeconds: N, zoneRoomTiles: N, weights: NUMS }),
   };
   const [sd] = sys('settlement'), [fd] = sys('farms');
   for (const g of tuning.farms.diet) if (!goods[g]) problems.push(`${fd.path}: tuning.diet names "${g}", which has no goods/${g}.md`);

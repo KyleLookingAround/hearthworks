@@ -3,7 +3,7 @@
  * DOM-free, so the tests can check it. Nothing here changes the simulation: it calls only sim functions that read
  * (their caches are keyed on `S.t`, which the next tick moves on before it reads them).
  */
-import { ageNeeded, bp, NEED_TEXT, scholarly, villagers, type BlueprintDef, type Building, type ItemId, type State, type Stock, type Town } from '../sim/index.ts';
+import { ageNeeded, bp, ideasNear, NEED_SHORT, NEED_TEXT, nextAge, scholarly, villagers, type BlueprintDef, type Building, type ItemId, type State, type Stock, type Town } from '../sim/index.ts';
 import { enoughInStore } from '../sim/production.ts';
 import { formOf } from '../sim/planner.ts';
 import { offered } from '../sim/farms.ts';
@@ -158,6 +158,37 @@ export function waitsOn(S: State, t: Town, B: BlueprintDef, short = false): stri
   if (B.discovery.university) parts.push(scholars?.waits === 'university' ? `Only scholars think of it, and ${t.name} has no university at work.` : 'Only scholars think of it, at a university.');
   parts.push(`The idea comes when ${NEED_TEXT[B.discovery.need] ?? B.discovery.need}.`);
   return parts.join(' ');
+}
+
+/** A share as whole tens of per cent, rounded down (a hair under 70% from floating point still says 70). */
+export const tens = (share: number) => Math.floor(share * 10 + 1e-9) * 10;
+
+/** One idea a settlement could think of next: its name, its need in a few words, how far of the way (0 to 1), and a line saying so (to the ten per cent, so a panel is not redrawn every second). */
+export interface IdeaView { id: string; name: string; need: string; share: number; text: string }
+
+/**
+ * How near a settlement is to each idea it could think of next, nearest first ("Courier Depot: carriers strained, 70%
+ * of the way"). Once the strain reaches the point it takes the idea up, it is thinking on it: the idea comes at random,
+ * on average within the minutes shown.
+ */
+export function ideasOf(S: State, t: Town): IdeaView[] {
+  return ideasNear(S, t).map(x => {
+    const need = NEED_SHORT[x.need] ?? x.need, pct = tens(x.share);
+    const text = x.share >= 1 ? `${x.B.name}: ${need}, thinking on it (about ${Math.max(1, Math.round(x.meanSeconds / 60))} min on average)` : `${x.B.name}: ${need}, ${pct}% of the way`;
+    return { id: x.B.id, name: x.B.name, need, share: x.share, text };
+  });
+}
+
+/** What a settlement still lacks for its next age, in a sentence; null in the last age. */
+export function nextAgeText(S: State, t: Town): string | null {
+  const n = nextAge(S, t);
+  if (!n) return null;
+  const name = (id: string) => S.content.blueprints[id]?.name ?? id, list = (xs: string[], and: string) => xs.length > 1 ? `${xs.slice(0, -1).join(', ')} ${and} ${xs[xs.length - 1]}` : xs[0] ?? '';
+  const left = n.E.discoveries.filter(id => !n.proven.includes(id)).map(id => `the ${name(id)}`);
+  const parts: string[] = [];
+  if (n.proven.length < n.needed) parts.push(n.needed === n.E.discoveries.length ? `prove ${list(left, 'and')} in use` : `prove ${n.needed - n.proven.length} more of ${list(left, 'or')} in use`);
+  if (n.works < n.worksNeeded) parts.push(n.worksNeeded === 1 ? `have one standing` : `have ${n.worksNeeded} standing (${n.works} now)`);
+  return parts.length ? `The Age of ${n.E.name}: ${parts.join(', and ')}.` : `The Age of ${n.E.name}: ready, on its next second.`;
 }
 
 /** Is the blueprint one this world offers at all (farms that grow, ships)? */

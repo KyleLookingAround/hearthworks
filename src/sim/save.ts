@@ -12,7 +12,7 @@ import type { Agent, Building, Content, State, Task, World } from './types.ts';
 import { nameFor, namingFor } from './people.ts';
 import { saved } from './caches.ts';
 
-export const SAVE_VERSION = 32;
+export const SAVE_VERSION = 33;
 
 type Json = Record<string, unknown>;
 
@@ -234,6 +234,11 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
   // 31 to 32: traditions: each settlement's craft (none yet: it takes one up from its next master) and why it holds to its ways (not known for an older game)
   31: state => {
     for (const t of state.towns as Json[]) { t.craft ??= null; t.why ??= {}; }
+    return state;
+  },
+  // 32 to 33: the advisor's tips stand on each settlement, with when each kind was last given (none yet: it advises on its next look)
+  32: state => {
+    for (const t of state.towns as Json[]) { t.advice ??= []; t.advised ??= {}; }
     return state;
   },
 };
