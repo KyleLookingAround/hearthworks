@@ -1,10 +1,10 @@
 ---
 type: System
 title: People
-description: Villagers as individuals; names, ages, births and deaths, skills that grow with practice and pass from master to apprentice, each village's custom for its dead, its naming custom, and its feasts through the year.
+description: Villagers as individuals; names, ages, births and deaths, skills that grow with practice and pass from master to apprentice, each village's custom for its dead, its naming custom, its feasts through the year, and traditions that set it apart from its neighbours (a custom and feast of its own, a craft) and pass to its daughters.
 tags: [people, customs, settlement]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T16:33:40Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T01:48:55Z }
 tuning:
   adult_seconds: 600
   elder_seconds: 6000
@@ -91,7 +91,7 @@ Each settlement holds to ways of its own, which set it apart from its neighbours
 
 **A craft.** A settlement takes pride in a trade: it takes up as its craft the trade of its most skilled master (`expert_at`) among the trades no other settlement works (has a workplace of standing) or holds as its craft, looking every `craft_look_seconds`. Only workplaces that make goods are crafts (not schools, libraries, halls, rites or fields being laid). Its workplaces of that kind work `craft_pace` faster from then on, on top of their workers' skill. As settlements on one island trade for what a neighbour makes rather than build their own maker ([trade](/systems/trade.md)), a village's craft is what it is known for: a fishing village's fish, a quarry village's stone, a mining village's ore. Without people there are no crafts. Code: `seekCrafts` and `takeCraft` in `src/sim/people.ts`.
 
-**Kept and passed on.** A daughter settlement keeps its mother's custom, feasts, names and craft, and says so in its chronicle; a custom gives way only under strain, as above, and feasts still spread by visitors. A custom giving way stays apart where it can: a burying settlement takes to the pyre and a cremating one to burial as before, and a people of the sea with no dock takes to the pyre where another settlement buries and none cremates, and otherwise buries. Code: `giveWay`. The chronicle, the [Steward](/systems/steward.md) panel (each way with why it is held: its land, the neighbour it set itself apart from, its mother, its first master) and the inspector of a workplace of its craft say what a settlement holds to and why. A save from before traditions (version 30) keeps its settlements' customs, feasts and names; each takes up a craft from its next look.
+**Kept and passed on.** A daughter settlement keeps its mother's custom, feasts, names and craft, and says so in its chronicle; a custom gives way only under strain, as above, and feasts still spread by visitors. A custom giving way stays apart where it can: a burying settlement takes to the pyre and a cremating one to burial as before, and a people of the sea with no dock takes to the pyre where another settlement buries and none cremates, and otherwise buries. Code: `giveWay`. The chronicle, the Steward panel (each way with why it is held: its land, the neighbour it set itself apart from, its mother, its first master) and the inspector of a workplace of its craft say what a settlement holds to and why. A save from before traditions (version 30) keeps its settlements' customs, feasts and names; each takes up a craft from its next look.
 
 # Not yet
 

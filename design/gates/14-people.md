@@ -4,7 +4,7 @@ title: "Gate 14: people and traditions"
 description: A settlement grows by births alone with an expert in every trade, two settlements on different land honour every death by their own custom, and with the year turning each holds its feasts.
 tags: [gate, roadmap, people, customs]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T12:46:04Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T01:48:55Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/people.ts
 parameters:
@@ -37,8 +37,10 @@ Phase 14 of the [roadmap](/roadmap.md):
 - Two settlements whose land differs (at the default seed, one well wooded, one not) keep different customs, and every death is honoured within five minutes.
 - With the year turning, each settlement holds a [feast](/systems/people.md) a year or more, and between them they keep both feasts.
 
-At seeds where both settlements' land suggests the same custom, `customs_distinct` is 1 by design, and so, as the same land suggests the same feast, is `feast_kinds`; the default seed is one where they differ.
+Where both settlements' land suggests the same custom and feast, the one founded second sets itself apart if its land allows another ([traditions](/systems/people.md)), so the two still differ; only where its land allows nothing else (bare land, little wood or water) is `customs_distinct` 1, and with it `feast_kinds`.
 
 # Revisions
+
+- 2026-10-06: the note on seeds whose land is alike, in place; the computation and every threshold unchanged. With [traditions](/systems/people.md), the settlement founded second sets itself apart from the first where its land allows another custom and feast, so the custom checks pass because neighbours differ, not because anything is counted differently. On the usual twelve seeds `customs_distinct` and `feast_kinds` are 2 on all twelve (on six before: seeds 2, 4, 5, 6, 99 and 2026 were 1), and the gate passes on eleven against four; seed 3 still misses `expert_share` (0.8) and `fed_min` (0.571, 0.4 before), for the causes logged on 2026-10-05. Seeds 7 and 99 now reach `expert_share` 1 (0.833 before; how much of that is their crafts working a tenth faster is not pinned down). The longest wait for a farewell is 151 seconds (seed 4, where a people of the sea with no dock took to the pyre beside a burying neighbour; 147 before).
 
 - 2026-10-04: a third part, feasts (the second pass: traditions beyond the dead), with two added checks: `min_feasts_per_year_min` 1 and `min_feast_kinds` 2. The first two parts are unchanged (they run without seasons, so no feast is held in them). On seeds 1847, 7, 42, 99, 2026 and 31337 each settlement held 1 to 2.5 feasts a year (1847: 2), 0 to 2 missed in all; both feasts are kept wherever the customs differ, one where they do not (seeds 99 and 2026, as for customs).
