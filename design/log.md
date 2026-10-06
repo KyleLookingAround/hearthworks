@@ -1,5 +1,9 @@
 # Design bundle log
 
+## 2026-10-06
+
+* **Update**: universities sooner merged onto main (with renewal), measured by the coordinator on the same twelve default games (one run each): 2187 villagers against 2213, 48 settlements against 49, 2 departures as before, 668 trades against 657. Kyle asked for universities sooner; the cost, about a hand a world where one stands, is within what was asked for.
+
 ## 2026-10-05
 
 * **Update**: renewal merged onto main (with performance), measured by the coordinator on the same twelve default games (one run each): 2213 villagers against 2158, 49 settlements against 51, 2 departures as before, 657 trades against 870. The fall in trades is new on this measure and waits on a look.
