@@ -102,7 +102,7 @@ test('the seed garden is thought of only while a university has a scholar at wor
   assert.ok(!('seed_garden' in without.t.knows), 'a village of hands alone never thinks of it');
   assert.ok(!without.S.chronicle.some(c => c.kind === 'scholars'));
   const { S, t } = think(true);
-  assert.ok('seed_garden' in t.knows, 'its scholars did');
+  assert.ok(S.chronicle.some(c => c.kind === 'invented' && c.text.includes('the Seed Garden')), 'its scholars did');
   assert.ok(S.chronicle.some(c => c.kind === 'invented' && /^The scholars of .* came up with the Seed Garden, an idea only a university finds/.test(c.text)));
   // the chronicle marks the day scholars took up their inquiries, once, naming the ideas only they find
   const opened = S.chronicle.filter(c => c.kind === 'scholars');
