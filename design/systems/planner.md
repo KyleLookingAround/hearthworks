@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T05:14:43Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T06:54:05Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -59,6 +59,8 @@ tuning:
   carrier_share: 0.4
   planks_per_villager_minute: 0.7
   input_cover: 0.6
+  spoil_full_per_minute: 10
+  spoil_weight: 0.5
   cost_weight: 0.01
   urgency_priority: 10
   crossing_weight: 1
@@ -117,6 +119,7 @@ Every `interval_seconds` the planner:
 3. **Proposes** for the worst shortage that something it knows can relieve (going down the list) the blueprint with the best `severity × relief − cost_weight × cost`, where relief is the share of the gap it closes. Two follow-ups make chains work:
    - if the choice would idle for lack of an input (spare supply below `input_cover` of what it uses), plan that input's maker first: bread short and no wheat spare means a Farm before the Bakery;
    - if it needs a worker and fewer than one villager is spare after keeping `carrier_share` of the grown villagers hauling, wait for newcomers when beds are free, otherwise plan a House. A carrier share of 0.4 is what the job board needs: at 0.2, small villages ran out of hands to haul and stalled (see the [log](/log.md)). Newcomers are only waited for while they would come: mood at the newcomer threshold, and with seasons on, spring or summer (in summer while the winter store keeps pace) with its bakeries making at least `newcomer_food_share` of what its people and one more eat (stores hide a shortfall until the winter; without seasons it shows at once as hunger, which keeps newcomers away by itself). While they would not, a workplace of the food chain is built anyway when the settlement is short of food or anyone goes hungry, and so is one making another of the basics (building materials and firewood), and a hand moves to it from carrying or from outside the chain: the basics do not wait on newcomers who are not coming (a village growing by births alone held a forester waiting for them for half an hour).
+   - with no maker to plan for that input (none known, or no room for one lately), a workplace still goes ahead with the stock there is, unless the workplaces already using the input stand short of it (made and imported below what they use): then it waits, "Trading with Brook for iron ore before a Smithy" when a neighbour can spare some, else "No iron ore to spare". The same holds for a maker planned to pay for something it saves for. A town with no room for a mine once built eight smithies that stood needing iron ore, and another seven masons with no stone;
    - a choice that waits for hands does not hold back the needs after it: the planner goes down the list to the next it can act on, and says what it waits for only when nothing can go ahead. A town waiting for a miner for its five smithies left its bread short by half.
 4. **Confirms**: the same blueprint must top `confirm_cycles` looks in a row.
 5. **Checks the cost** against its own settlement's free supply, after its open sites' outstanding needs. If short, and nothing makes the missing good or the settlement has been short of it for more than `save_patience_seconds` (whatever it was saving for), it plans that good's maker instead; otherwise it says what it is saving for, and wants that good at least `saving_want` (for its porters to trade for; with people on, no children are born while a good of its food chain is wanted that badly). What it is thinking about or saving for counts as use, so the settlement does not [forget](/systems/knowledge.md) it meanwhile.
@@ -173,6 +176,10 @@ Overlays in the menu show how each home feels (surroundings, hunger), the reach 
 # Carts
 
 With carts on and the [Cart Shed](/blueprints/cart_shed.md) known, a settlement whose deliveries run long (the need `distance`) wants a shed for every `villagers_per_cart_shed` villagers, placed in its newest district like any building. Knowing the [Ox Barn](/blueprints/ox_barn.md), one whose deliveries run longer still (the need `long_hauls`) wants a barn for every `villagers_per_ox_barn`.
+
+# Spoiling food
+
+Food rotting in stores that do not keep it ([spoiling](/systems/logistics.md)) is a need, `spoilage`: what the piles would lose a minute, a full need at `spoil_full_per_minute`, times `spoil_weight`, less the share of the rotting pile that stores keeping food (standing, or sites) have room for, since the food goes there as it comes and what lies in the yards is eaten first. A store that keeps the goods that rot relieves it by the share of the loss it keeps, as does a workplace that turns them into food that keeps (a [Smokehouse](/blueprints/smokehouse.md) for fish), so a settlement losing bread builds a [Granary](/blueprints/granary.md) and one losing only fish the cheaper smokehouse.
 
 # Full stores
 

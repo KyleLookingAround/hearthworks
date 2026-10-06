@@ -1,11 +1,12 @@
 /** Choosing: the blueprint that answers a shortage best, and the inputs it needs planned first. */
 import { foodChainOf, plentyInStore } from '../production.ts';
-import type { BlueprintDef, State } from '../types.ts';
+import { lacking, spareFrom } from '../trade.ts';
+import type { BlueprintDef, ItemId, State } from '../types.ts';
 import { goodName, article } from './text.ts';
 import { clamp01, T, known, basics, homeFor } from './core.ts';
 import { type Shortage, type Look, importFrom } from './sense.ts';
 
-export interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }
+export interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string; /** it waits for this input, which the workplaces using it already stand short of */ lacks?: ItemId }
 /** Propose: the best blueprint for a shortage, following a recipe's inputs when they would leave it idle. */
 export function propose(S: State, L: Look, sh: Shortage): Choice | null {
   const P = T(S);
@@ -24,6 +25,13 @@ export function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.guard) return B.guards?.hazard === sh.guard ? 1 : 0;
     if (sh.clean) return B.sanitation ? 1 : 0;
     if (sh.store) return B.storage && (!B.keeps || B.keeps.includes('wheat')) ? clamp01((B.capacity || T(S).openStoreCapacity) / Math.max(1, L.storeNeed - L.storeRoom)) : 0;
+    if (sh.spoils) {
+      // the share of what spoils it keeps: a store that keeps it, or a workplace that turns it into food that keeps
+      const goods = S.content.goods, saves = (g: ItemId) => B.storage ? !!B.keeps?.includes(g) : !!B.seconds && g in B.input && Object.keys(B.output).every(o => !goods[o]?.spoils);
+      let all = 0, kept = 0;
+      for (const g in sh.spoils) { all += sh.spoils[g]; if (saves(g)) kept += sh.spoils[g]; }
+      return all > 0 ? kept / all : 0;
+    }
     const add = B.seconds && B.output[sh.good!] ? B.output[sh.good!] / B.seconds : 0;
     const gap = Math.max(1e-6, (L.demand[sh.good!] || 0) - (L.supply[sh.good!] || 0));
     return clamp01(add / gap);
@@ -63,7 +71,18 @@ export function follow(S: State, L: Look, c: Choice, depth: number): Choice {
     const maker = known(S, L.town).find(B => B.seconds && B.output[i]);
     // a maker it has just found no room for doesn't hold this one back: build with the stock there is
     const noRoom = L.town.planner.noRoom[maker?.id ?? ''];
-    if (!maker || maker === c.B || (noRoom !== undefined && S.t - noRoom < T(S).noRoomRetrySeconds)) continue;
+    if (!maker || maker === c.B || (noRoom !== undefined && S.t - noRoom < T(S).noRoomRetrySeconds)) {
+      // but with workplaces already short of it (made and imported below what they use, and one standing without it),
+      // another would only stand beside them needing it: it waits, and the
+      // porters go for the input (a town with no room for a mine once built eight smithies that stood needing iron ore)
+      if ((L.demand[i] || 0) > 0 && (L.supply[i] || 0) < L.demand[i] && lacking(S, L.town).has(i)) {
+        const host = spareFrom(S, L.town, i), name = `${article(c.B.name)} ${c.B.name}`;
+        // (with no room for the input's maker, its land is full for what it needs: settling reads "No room")
+        const wait = host ? `Trading with ${host.name} for ${goodName(S, i)} before ${name}` : maker && maker !== c.B ? `No room for ${article(maker.name)} ${maker.name}, and no ${goodName(S, i)} to spare for ${name}` : `No ${goodName(S, i)} to spare for ${name}`;
+        return { ...c, lacks: i, wait: `${wait}: ${c.why}` };
+      }
+      continue;
+    }
     const users = c.B.name.toLowerCase();
     return follow(S, L, { B: maker, sev: c.sev, why: `${c.why}, and a new ${users} would need ${goodName(S, i)}` }, depth + 1);
   }

@@ -179,8 +179,9 @@ test('a craft: a settlement takes up the trade of a master in a trade no other s
   assert.equal(craftable(S, 'school'), false);
   assert.equal(craftable(S, 'bakery'), true);
   // left to themselves, settlements take up crafts as their people master trades, never the same one
+  // (within 3000 seconds: the first came at 2000 here, and at 2500 once the planner stopped building smithies that stand needing iron ore)
   const R = createState(content, 2, { planner: true, people: true, seasons: true, settlements: 2 });
-  runFor(R, 2000);
+  runFor(R, 3000);
   const crafts = R.towns.map(t => t.craft).filter(Boolean);
   assert.ok(crafts.length >= 1, 'a craft was taken up');
   assert.equal(new Set(crafts).size, crafts.length);

@@ -132,6 +132,8 @@ function planTown(S: State, town: Town, dt: number) {
     const why = `${runningLow(S, owe.good)} to build ${article(c.B.name)} ${c.B.name}`;
     if (maker && !affordable(S, maker, town)) c = follow(S, L, { B: maker, sev: c.sev, why }, 0);
     else { Q.status = from ? `Trading with ${from.name} for ${goodName(S, owe.good)} to build ${article(c.B.name)} ${c.B.name}: ${c.why}` : `Saving ${goodName(S, owe.good)} for ${article(c.B.name)} ${c.B.name}: ${c.why}`; return; }
+    // a maker that would only stand beside others short of its own input waits too (seven masons, and no stone)
+    if (c.lacks) { Q.streak = { type: '', n: 0 }; Q.status = c.wait!; return; }
     // what the maker led to (an input's maker, a home for its worker) must be affordable as well;
     // if it is not, build the maker itself: its inputs can follow, but nothing comes without it
     if (affordable(S, c.B, town)) c = { B: maker, sev: c.sev, why };

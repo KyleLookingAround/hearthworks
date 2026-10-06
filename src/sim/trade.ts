@@ -49,6 +49,20 @@ export function spareOf(S: State, town: Town): Stock {
   return out;
 }
 
+/** The nearest neighbour that can spare a good, or null. */
+export function spareFrom(S: State, town: Town, g: ItemId): Town | null {
+  if (!S.trade) return null;
+  const home = S.bmap.get(town.store);
+  let best: Town | null = null, bd = Infinity;
+  for (const o of S.towns) {
+    const st = S.bmap.get(o.store);
+    if (o === town || !st || !home || !(spareOf(S, o)[g] >= 1)) continue;
+    const d = Math.hypot(st.x - home.x, st.y - home.y);
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best;
+}
+
 /** The goods homes eat: their bread and the foods of the diet (once per content). */
 const foodSets = new WeakMap<object, Set<ItemId>>();
 const homeFoods = (S: State) => {
@@ -109,7 +123,7 @@ export function updateTrade(S: State, dt: number) {
 function bestDeal(S: State, town: Town) {
   const home = S.bmap.get(town.store);
   if (!home) return null;
-  const mine = spareOf(S, town), st = stockOf(S, town);
+  const mine = spareOf(S, town), st = stockOf(S, town), short = lacking(S, town);
   let best: { host: Town; give: ItemId; want: ItemId; score: number } | null = null;
   for (const host of S.towns) {
     const hs = S.bmap.get(host.store);
@@ -118,7 +132,8 @@ function bestDeal(S: State, town: Town) {
     // kin keep trading: a daughter and her mother favour each other
     const kin = host.mother === town.id || town.mother === host.id ? X(S).kinBonus : 0;
     for (const want in theirs) {
-      const w = wantOf(S, town, want, st);
+      // an input its workplaces stand without counts for more than a want of its stores
+      const w = wantOf(S, town, want, st) + (short.has(want) ? X(S).inputBonus : 0);
       if (!(w > 0)) continue;
       for (const give in mine) {
         // a neighbour takes what it wants, or anything it is not itself unloading, at a poor rate
@@ -130,6 +145,17 @@ function bestDeal(S: State, town: Town) {
     }
   }
   return best;
+}
+
+/** The inputs a settlement's workplaces stand without: a staffed workplace with less of one in hand or on the way than a cycle takes. */
+export function lacking(S: State, town: Town): Set<ItemId> {
+  const out = new Set<ItemId>();
+  for (const b of S.buildings) {
+    if (b.town !== town.id || b.site || b.worker === null) continue;
+    const B = bp(S, b);
+    for (const i in B.input) if ((b.inv[i] || 0) + (b.incoming[i] || 0) < B.input[i]) out.add(i);
+  }
+  return out;
 }
 
 function sendPorter(S: State, town: Town): boolean {

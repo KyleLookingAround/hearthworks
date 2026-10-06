@@ -12,7 +12,7 @@ import { HAZARDS, type Hazard, type Learning, type Building, type ItemId, type S
 import { goodName, runningLow, plural, orList } from './text.ts';
 import { clamp01, T, known, mineOf, covered, ownEffect, basics, starved, formOf, affordable } from './core.ts';
 
-export interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: Learning; hall?: boolean; /** the mill (a windmill, a seed garden) whose workplaces stand bare */ mill?: string; ships?: boolean; /** traded for from this neighbour rather than made */ from?: Town }
+export interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: Learning; hall?: boolean; /** the mill (a windmill, a seed garden) whose workplaces stand bare */ mill?: string; ships?: boolean; /** traded for from this neighbour rather than made */ from?: Town; /** food spoiling in stores that do not keep it: units lost a minute, by good */ spoils?: Stock }
 export interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; coming: boolean; foodShort: boolean; movable: boolean; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
 /** Sense: one settlement's production and consumption rates per good, beds, hands and hauling, each shortage scored 0 to 1. */
@@ -162,6 +162,28 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     for (const b of mine) { const B = bp(S, b); if (!B.storage || b.site || !B.capacity || B.keeps) continue; room += B.capacity; for (const k in b.inv) held += b.inv[k]; }
     const full = room ? held / room : 0;
     if (full >= P.storeFullShare) shortages.push({ key: 'storage', store: true, sev: clamp01((full - P.storeFullShare) / (1 - P.storeFullShare)), why: 'the stores are full' });
+  }
+  // spoilage: food rotting in stores that do not keep it, a full need at `spoil_full_per_minute` units lost a minute
+  // (and none while food is short: food first);
+  // a store that keeps it, or a workplace that turns it into food that keeps, relieves it
+  {
+    // (less the share of the rotting pile that stores keeping food, standing or on the way, have room for: the food
+    // goes there as it comes, and what lies in the yards is eaten first)
+    const spoils: Stock = {}, every = S.content.tuning.production.spoilEverySeconds;
+    let lost = 0, pile = 0, room = 0;
+    for (const b of mine) {
+      const B = bp(S, b);
+      if (!B.storage) continue;
+      if (B.keeps && B.capacity) { let n = 0; if (!b.site) for (const k in b.inv) n += b.inv[k]; room += Math.max(0, B.capacity - n); }
+      if (b.site) continue;
+      for (const k in b.inv) {
+        const G = S.content.goods[k];
+        if (!G?.spoils || B.keeps?.includes(k)) continue;
+        const n = Math.floor((b.inv[k] - (b.reserved[k] || 0)) * G.spoils) * 60 / every;
+        if (n > 0) { spoils[k] = (spoils[k] || 0) + n; lost += n; pile += b.inv[k] - (b.reserved[k] || 0); }
+      }
+    }
+    if (lost > 0) shortages.push({ key: 'spoilage', spoils, sev: foodShort ? 0 : clamp01(lost / P.spoilFullPerMinute) * clamp01(1 - room / pile) * P.spoilWeight, why: `${orList(Object.keys(spoils).sort((a, b) => spoils[b] - spoils[a]).map(g => goodName(S, g)))} ${Object.keys(spoils).length > 1 ? 'spoil' : 'spoils'} in the stores` });
   }
   // winter stores: from summer, room enough for the winter's grain (a quarter year of meals, with headroom)
   let storeNeed = 0, storeRoom = 0;

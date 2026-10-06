@@ -4,7 +4,7 @@ title: Logistics
 description: The job board — requests, offers, reservations, carriers and courier bots, carts, and deliveries in legs through each district's yard.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T05:14:43Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T06:54:05Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -40,6 +40,7 @@ tuning:
   dump_at: 3
   surplus_penalty: 12
   harvest_priority: 4
+  keeper_tiles: 20
   request_aging: 0.5
   no_way_retry_seconds: 30
   slope_cost: 0.006
@@ -102,7 +103,7 @@ Route finding and walking speed agree: a [path](/blueprints/path.md) or [bridge]
 
 # Storage and spoiling
 
-A store holds at most its blueprint's `capacity` goods in all, and takes only the goods it `keeps` if it lists them: a [Storage Yard](/blueprints/storage.md) 300 of anything, a [Warehouse](/blueprints/warehouse.md) 600, a [Granary](/blueprints/granary.md) 400 of food. Surplus goes to the nearest store with room that takes it. Every `spoil_every_seconds` ([production](/systems/production.md)), food left in a store that does not keep it loses the whole units of its `spoils` share of the pile ([bread](/goods/bread.md) 2%, [fish](/goods/fish.md) 5%), so only large piles go off. A home's food is delivered before its comforts.
+A store holds at most its blueprint's `capacity` goods in all, and takes only the goods it `keeps` if it lists them: a [Storage Yard](/blueprints/storage.md) 300 of anything, a [Warehouse](/blueprints/warehouse.md) 600, a [Granary](/blueprints/granary.md) 400 of food. Surplus goes to the nearest store with room that takes it, a store that keeps only some goods (a granary) counting `keeper_tiles` nearer for a good that spoils elsewhere and as much farther for one that keeps anywhere: its room is for what would rot. Every `spoil_every_seconds` ([production](/systems/production.md)), food left in a store that does not keep it loses the whole units of its `spoils` share of the pile ([bread](/goods/bread.md) 2%, [fish](/goods/fish.md) 5%), so only large piles go off. A home's food is delivered before its comforts.
 
 # Carriers
 
