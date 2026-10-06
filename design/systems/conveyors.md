@@ -4,7 +4,7 @@ title: Conveyors
 description: Belts laid along the lanes from a storage yard's door; goods ride them between the buildings beside them with no hands.
 tags: [logistics, automation, ages]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-06T05:27:23Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T15:39:40Z }
 tuning:
   speed: 6
   carry: 2

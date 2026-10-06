@@ -154,7 +154,7 @@ export function wishesOf(S: State, t: Town, n = 4): WishView[] {
     const B = w.type ? C.blueprints[w.type] : undefined, of = B?.name ?? '';
     // the works by what they are; a need by the building it calls for, else by its good, else by why it is wished for
     const name = { road: 'Road', belt: 'Conveyor', district: 'New district', replan: `${of} (renewing a block)`, move_out: `${of} (moving out)` }[w.key]
-      ?? (B ? B.name : C.goods[w.key] ? C.goods[w.key].name : w.why[0].toUpperCase() + w.why.slice(1));
+      ?? (B ? `${B.name}${w.key === 'winter_store' ? ' for the winter' : ''}` : C.goods[w.key] ? C.goods[w.key].name : w.why[0].toUpperCase() + w.why.slice(1));
     let short = VERDICT[w.verdict];
     if (w.verdict === 'saving' && w.good) short = `saving ${gn(w.good)}${w.need ? `, ${w.have ?? 0} of ${w.need}` : ''}`;
     else if (w.verdict === 'input' && w.good) short = `waiting for ${gn(w.good)}`;

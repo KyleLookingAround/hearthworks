@@ -4,7 +4,7 @@ title: Roads
 description: Paths are worn where people walk; roads are planned as long straight strips that cut through what stands, and the town is then built along them.
 tags: [roads, logistics, planner]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-05T21:56:14Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T15:39:40Z }
 tuning:
   traffic_from: 8
   traffic_span: 8

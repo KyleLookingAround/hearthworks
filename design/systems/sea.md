@@ -4,7 +4,7 @@ title: The sea
 description: Shallows along every shore and reefs out at sea on the sea maps; charts - a settlement knows only the islands it has seen, settles only on charted land, and sends explorers out for the rest; and ships - every boat belongs to a settlement's fleet, built at its docks and shipyard, and a crossing takes one.
 tags: [water, settlement, map]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-06T06:43:46Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T15:39:40Z }
 tuning:
   shallow_tiles: 2
   shallow_speed: 0.6

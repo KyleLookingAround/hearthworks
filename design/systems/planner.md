@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T12:49:48Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T16:48:17Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -99,8 +99,8 @@ tuning:
   priority_stock: 0.5
   priority_staff: 0.25
   priority_ceiling: 0.95
-  road_weight: 0.6
-  belt_weight: 0.6
+  road_weight: 1
+  belt_weight: 0.9
   district_weight: 1
   replan_weight: 0.5
   move_out_weight: 0.7

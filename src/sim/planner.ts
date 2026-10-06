@@ -60,7 +60,8 @@ type Act = () => string | null;
  * A candidate on the wish list: a need it sees, or one of the works that once pre-empted the needs (a road, a conveyor,
  * a new district, a replanned block, a workplace moved out of a centre), each at its own weight.
  */
-type Cand = { sh: Shortage } | { key: string; sev: number; why: string; B?: BlueprintDef; works?: Works; act?: Act; room?: string };
+type Found = { B?: BlueprintDef; works?: Works; act?: Act; room?: string };
+type Cand = { sh: Shortage } | ({ key: string; sev: number; why: string; name?: string; find: () => Found | null } & Found);
 
 function planTown(S: State, town: Town, dt: number) {
   const Q = town.planner;
@@ -124,26 +125,29 @@ function wishList(S: State, town: Town, L: Look, busy: boolean): Wish[] {
   // (each work at its weight times the steward's priority on it, as a need is: one put first rises to `priority_ceiling` at most)
   const weigh = (k: string, w: number) => { const p = priorityOf(town, k); return p > 1 ? Math.max(w, Math.min(w * p, P.priorityCeiling)) : clamp01(w * p); };
   const cands: Cand[] = [];
-  // works, each at its weight (and only while it would come to anything: what it costs to look for them is paid only then)
+  // works, each at its weight; where one would go (a road's run, a district's yard, the block to renew, the workplace to
+  // move) is looked for only once the list comes to it, so a work waiting its turn costs nothing
   const works: Cand[] = [];
-  if (weigh('road', P.roadWeight) >= P.minSeverity) { const w = roadWork(S, town); if (w) works.push({ key: 'road', sev: weigh('road', P.roadWeight), why: 'its people walk this way most', works: w }); } else rested(town);
-  if (weigh('belt', P.beltWeight) >= P.minSeverity) { const w = beltWork(S, town); if (w) works.push({ key: 'belt', sev: weigh('belt', P.beltWeight), why: 'its carriers walk the lanes from a yard', works: w }); } else restBelts(town);
+  if (weigh('road', P.roadWeight) < P.minSeverity) rested(town);
+  else if (roadDue(S, town)) works.push({ key: 'road', sev: weigh('road', P.roadWeight), why: 'its people walk this way most', name: 'a road', find: () => { const w = roadWork(S, town); return w ? { works: w } : null; } });
+  if (weigh('belt', P.beltWeight) < P.minSeverity) restBelts(town);
+  else if (beltDue(S, town)) works.push({ key: 'belt', sev: weigh('belt', P.beltWeight), why: 'its carriers walk the lanes from a yard', name: 'a conveyor', find: () => { const w = beltWork(S, town); return w ? { works: w } : null; } });
   // a crowded newest district splits off a new one
   if (!busy && form !== 'hamlet' && weigh('district', P.districtWeight) >= P.minSeverity && districtDue(S, town)) {
-    const spot = districtSpot(S, town), sev = weigh('district', P.districtWeight);
-    works.push({ key: 'district', sev, why: 'the old one has filled up', B: S.content.blueprints.storage, ...(spot ? { act: () => { foundDistrict(S, town, spot, sev); return Q.status; } } : { room: 'No room for a new district: the old one has filled up' }) });
+    const sev = weigh('district', P.districtWeight);
+    works.push({ key: 'district', sev, why: 'the old one has filled up', B: S.content.blueprints.storage, find: () => { const spot = districtSpot(S, town); return spot ? { act: () => { foundDistrict(S, town, spot, sev); return Q.status; } } : { room: 'No room for a new district: the old one has filled up' }; } });
   }
   // a village or town with beds to spare renews an old block now and then: sparse homes make way for its densest
   const dense = homeFor(S, town);
   if (!busy && dense && form !== 'hamlet' && S.t - Q.replanAt >= P.replanEverySeconds && L.freeBeds > 0 && weigh('replan', P.replanWeight) >= P.minSeverity) {
-    const block = replanBlock(S, town, dense), sev = weigh('replan', P.replanWeight), why = `the ${form} is renewing its old streets`;
-    // (with no block to renew, it looks again in `replan_every_seconds`)
-    if (block) works.push({ key: 'replan', sev, why, B: dense, act: () => (replan(S, town, { B: dense, sev, why }, block) ? (Q.replanAt = S.t, Q.status) : null) });
+    const sev = weigh('replan', P.replanWeight), why = `the ${form} is renewing its old streets`;
+    // (with no block to renew, it is no wish this look)
+    works.push({ key: 'replan', sev, why, B: dense, find: () => { const block = replanBlock(S, town, dense); return block ? { act: () => (replan(S, town, { B: dense, sev, why }, block) ? (Q.replanAt = S.t, Q.status) : null) } : null; } });
   }
   // land and noise move out of the centres
-  if (!busy && weigh('move_out', P.moveOutWeight) >= P.minSeverity) {
-    const m = moveOutWish(S, town, L), sev = weigh('move_out', P.moveOutWeight);
-    if (m) works.push({ key: 'move_out', sev, why: 'its land in the centre is wanted for homes', B: bp(S, m.b), act: () => { moveOut(S, town, m, sev); return Q.status; } });
+  if (!busy && form !== 'hamlet' && S.t - Q.renewAt >= P.renewEverySeconds && weigh('move_out', P.moveOutWeight) >= P.minSeverity) {
+    const sev = weigh('move_out', P.moveOutWeight);
+    works.push({ key: 'move_out', sev, why: 'its land in the centre is wanted for homes', name: 'a workplace moved out', find: () => { const m = moveOutWish(S, town, L); return m ? { B: bp(S, m.b), act: () => { moveOut(S, town, m, sev); return Q.status; } } : null; } });
   }
   // (a work ties with a need of the same weight and goes first, as it once went before every need; but food comes
   // first: while food is short, every need of the food chain goes before every work)
@@ -167,6 +171,10 @@ function wishList(S: State, town: Town, L: Look, busy: boolean): Wish[] {
     const cand = cands[i], sev = sevOf(cand);
     if (sev < P.minSeverity) break;
     if (!('sh' in cand)) {
+      // where it would go, now that the list has come to it (with nowhere, no wish)
+      const found = cand.find();
+      if (!found) continue;
+      Object.assign(cand, found);
       // works: no room for one, or not paid for yet (they are laid from the stores, and do not hold back the needs below them)
       if (cand.room) { wish(cand.key, sev, cand.B ?? null, 'room', cand.room, cand.why); continue; }
       if (cand.works) {
@@ -210,7 +218,7 @@ function wishList(S: State, town: Town, L: Look, busy: boolean): Wish[] {
   const shown = T(S).wishListSize;
   for (i++; !busy && i < cands.length && out.length < shown; i++) {
     const cand = cands[i], sev = sevOf(cand);
-    if (!('sh' in cand)) { if (sev >= P.minSeverity) wish(cand.key, sev, cand.B ?? null, 'queued', `${cand.works ? cand.works.name : cand.B ? name(cand.B) : cand.key}: ${cand.why}`, cand.why); continue; }
+    if (!('sh' in cand)) { if (sev >= P.minSeverity) wish(cand.key, sev, cand.key === 'move_out' ? null : cand.B ?? null, 'queued', `${cand.name ?? (cand.B ? name(cand.B) : cand.key)}: ${cand.why}`, cand.why); continue; }
     const sh = cand.sh;
     if (sev < P.minSeverity) { if (sev > 0) wish(sh.key, sev, null, 'below', sh.why, sh.why); continue; }
     if (sh.from) { wish(sh.key, sev, null, 'trading', `Trading with ${sh.from.name} for ${goodName(S, sh.good!)}: ${sh.why}`, sh.why, { good: sh.good }); continue; }

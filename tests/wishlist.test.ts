@@ -51,7 +51,7 @@ test('the card reads the top of the list in a few words', () => {
     { key: 'road', sev: 0.6, type: null, verdict: 'queued', text: 'a road: its people walk this way most', why: 'its people walk this way most' },
     { key: 'meat', sev: 0.1, type: null, verdict: 'below', text: 'meat is running low', why: 'meat is running low' },
   ];
-  assert.deepEqual(wishesOf(S, t).map(w => `${w.name}: ${w.short}`), ['Bakery: saving planks, 6 of 10', 'Granary: no room', 'Road: waits its turn']);
+  assert.deepEqual(wishesOf(S, t).map(w => `${w.name}: ${w.short}`), ['Bakery: saving planks, 6 of 10', 'Granary for the winter: no room', 'Road: waits its turn']);
 });
 
 test('a version 33 save is upgraded to version 34: no wishes yet, nothing held without room, and the needs that shared a key keep their priority under each new one', () => {
