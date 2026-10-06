@@ -6,6 +6,7 @@ A 2D web town builder where villagers will plan and build their own civilisation
 
 - `design/` is an OKF v0.2 bundle (Open Knowledge Format): markdown concepts with YAML frontmatter. **It is also game content.** Blueprints, goods and the `tuning:` blocks in `design/systems/*.md` are loaded by the game and by the tests.
 - `src/sim/` is the deterministic, DOM-free simulation. All randomness goes through `rand(S.rng)`; never use `Math.random` there.
+  - `tick.ts` runs the systems in the order of `SYSTEMS`. `core.ts` holds the helpers everything uses (`bp`, `door`, `emit`, `chronicle`, `townOf`) and imports nothing from the sim; `towns.ts` makes a state (`createState`, `foundTown`), `worldgen.ts` the land, `buildings.ts` places and removes buildings, `terrain.ts` trees and paving, `seasons.ts` the year. `world.ts` only re-exports them. The planner's parts live in `src/sim/planner/` (`sense.ts` looks at needs, `choose.ts` picks a blueprint, `site.ts` a spot, `renewal.ts`, `districts.ts`, `water.ts`); `planner.ts` runs them and re-exports their API.
 - `src/render/`, `src/ui/`, `src/main.ts` are the browser shell. They read state and issue commands only.
 - `src/content/` parses the bundle (`yaml.ts` is a strict YAML subset: no `|`/`>` blocks, anchors or tags).
 - `design/gates/` are roadmap gates as OKF Attested Computations. Their scenarios live in `design/references/scenarios/`, the attester in `design/references/attesters/`.
