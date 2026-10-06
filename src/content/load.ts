@@ -255,7 +255,7 @@ export function buildContent(files: SourceFile[]): Content {
       floodChance: N, floodReach: N, floodHeight: N, floodSeconds: N, floodLoss: N,
       sicknessEverySeconds: N, sickAt: N, sickSeconds: N, sickSpreadGap: N, sickSpreadChance: N, sickDeath: N, healedSeconds: N, healedDeath: N, sickMood: N,
       wildDistance: N, wildTilesPerCamp: N, campEverySeconds: N, campStrength: N, campGrowSeconds: N, campMax: N, raidEverySeconds: N, raidReach: N, raidSpeed: N, raidTake: N, raidLoss: N, giftEverySeconds: N, giftBread: N, giftsToSettle: N,
-      militiaShare: N, surprisedShare: N, memorySeconds: N, guardWeight: N, cleanFactor: N, raidJitter: N, rationFactor: N, rationMood: N, longPace: N, longMood: N, shortPace: N, shortMood: N, stayMood: N, starveFactor: N,
+      militiaShare: N, surprisedShare: N, memorySeconds: N, guardWeight: N, cleanFactor: N, raidJitter: N, campTries: N, rationFactor: N, rationMood: N, longPace: N, longMood: N, shortPace: N, shortMood: N, stayMood: N, starveFactor: N,
     }),
     roads: section<Tuning['roads']>(sys('roads'), { trafficFrom: N, trafficSpan: N, villagersPerRoad: N, lookEverySeconds: N, minTraffic: N, margin: N, minLength: N, demolishWeight: N, homeWeight: N, spacing: N, frontWeight: N, nearWeight: N, nearTiles: N, districtWeight: N, districtReach: N }),
     knowledge: section<Tuning['knowledge']>(sys('knowledge'), {

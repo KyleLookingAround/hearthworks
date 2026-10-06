@@ -8,7 +8,7 @@ import { chooseSpot } from '../src/sim/planner.ts';
 import { enoughInStore } from '../src/sim/production.ts';
 import { isleAt } from '../src/sim/sea.ts';
 import { provisions } from '../src/sim/settle.ts';
-import { fleetOf, freeBoat, rows, setOff, wantsBoat } from '../src/sim/ships.ts';
+import { fleetOf, fleetWanted, freeBoat, rows, setOff, wantsBoat } from '../src/sim/ships.ts';
 
 const content = loadContent();
 const text = (S: State) => JSON.stringify(saveGame(S));
@@ -80,6 +80,25 @@ test('a shipyard builds a boat from planks while the fleet wants one, then rests
   assert.ok(S.chronicle.some(c => c.kind === 'boat' && c.text.includes('shipyard launched')));
   assert.equal(enoughInStore(S, ship!), true, 'then it rests');
   assert.ok(!dock.dead);
+});
+
+test('the fleet grows by the trips refused for want of a boat, within one boat for every villagers_per_boat people', () => {
+  const { S, home } = harbour();
+  const Z = content.tuning.sea, yard = S.bmap.get(home.store)!;
+  assert.equal(fleetOf(S, home).length, 1);
+  // people enough for more boats, but nobody has waited for one: the fleet it has will do
+  while (S.agents.filter(a => a.home?.town === home.id).length < Z.villagersPerBoat * 3) { const a = makeAgent(S, 'villager', yard.x + 0.5, yard.y + 2.5); a.home = yard; }
+  assert.equal(fleetWanted(S, home), 1);
+  assert.equal(wantsBoat(S, home), false);
+  // two set off at once: the second stays ashore, and the fleet wants one more
+  const one = traveller(S), two = traveller(S);
+  assert.ok(one.go() && !two.go());
+  assert.equal(home.boatless, S.t);
+  assert.equal(fleetWanted(S, home), 2);
+  assert.ok(wantsBoat(S, home));
+  // the wait forgotten after `boatless_memory_seconds`, the fleet stays as it is
+  S.t += Z.boatlessMemorySeconds + 1;
+  assert.equal(fleetWanted(S, home), 1);
 });
 
 test('a settlement whose island is full founds a colony whose settlers build a boat of their own, which stays with the colony', () => {

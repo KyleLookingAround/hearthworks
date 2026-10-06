@@ -24,10 +24,15 @@ export const boatOf = (S: State, a: Agent): Boat | undefined => S.boats.find(b =
 
 const hasDock = (S: State, t: Town) => S.buildings.some(b => b.town === t.id && !b.site && bp(S, b).shore);
 
-/** The boats a settlement wants: one for every `villagers_per_boat` people, at least one, at most `fleet_max`. */
+/**
+ * The boats a settlement wants: one more than it has while its people have stayed ashore for want of a free boat
+ * within `boatless_memory_seconds`, else those it has (at least one); never more than one for every
+ * `villagers_per_boat` people, nor `fleet_max`.
+ */
 export function fleetWanted(S: State, t: Town): number {
-  const pop = villagers(S).filter(a => a.home?.town === t.id).length;
-  return Math.min(Z(S).fleetMax, Math.max(1, Math.ceil(pop / Z(S).villagersPerBoat)));
+  const pop = villagers(S).filter(a => a.home?.town === t.id).length, has = fleetOf(S, t).length;
+  const cap = Math.min(Z(S).fleetMax, Math.max(1, Math.ceil(pop / Z(S).villagersPerBoat)));
+  return Math.min(cap, Math.max(1, has + (S.t - t.boatless <= Z(S).boatlessMemorySeconds ? 1 : 0)));
 }
 
 /** Does a settlement with a dock want another boat? */

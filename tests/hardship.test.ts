@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
 import { bp, ctr, createState, defence, findSpot, ignite, loadGame, placeBuilding, runFor, saveGame, strike, villagers, type Content, type State } from '../src/sim/index.ts';
-import { floodLand, guarded } from '../src/sim/hardship.ts';
+import { floodLand, guarded, wildLand } from '../src/sim/hardship.ts';
+import { reachable } from '../src/sim/path.ts';
+import { front } from '../src/sim/core.ts';
 
 const content = loadContent();
 const H = content.tuning.hardship;
@@ -129,6 +131,19 @@ test('a camp the settlements grow up to breaks up', () => {
   placeBuilding(S, 'house', p.x, p.y, true);
   runFor(S, 6);
   assert.ok(!S.camps.includes(c), 'it broke up');
+});
+
+test('camps are pitched only where their raiders can walk to a settlement: on islands settled to their shores, none', () => {
+  const often: Content = { ...quiet, tuning: { ...quiet.tuning, hardship: { ...quiet.tuning.hardship, campEverySeconds: 5 } } };
+  const walkable = (S: State) => S.camps.every(c => S.towns.some(t => { const s = S.bmap.get(t.store)!, f = front(s); return reachable(S.world, f.x, f.y)[Math.floor(c.y) * S.world.w + Math.floor(c.x)] === 1; }));
+  const land = createState(often, 1847, { hardship: true, map: 'landmass', size: 'm' });
+  runFor(land, 30);
+  assert.ok(land.camps.length >= 1, 'camps on the wild land of a landmass');
+  assert.ok(walkable(land), 'each within walking of a settlement');
+  const isles = createState(often, 1, { hardship: true, settlements: 2, map: 'islands', size: 'm' });
+  runFor(isles, 30);
+  assert.ok(wildLand(isles).length > 0, 'wild land on the islands nobody has settled');
+  assert.ok(walkable(isles), 'but no camp where it could reach nobody');
 });
 
 test('laws: rationing makes food last longer, and with leaving forbidden the hungry stay', () => {
