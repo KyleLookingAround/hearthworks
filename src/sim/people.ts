@@ -32,19 +32,27 @@ export const reads = (S: State, a: Agent, printed = !!a.home && learningAt(S, a.
 const lifespan = (S: State) => P(S).lifespanSeconds + rand(S.prng) * P(S).lifespanJitterSeconds;
 export const ageOf = (S: State, a: Agent) => S.t - a.born;
 
-/** A new world's people: its founders adults of many ages, its settlements each with a custom from their land. */
+/** A new world's people: its founders adults of many ages, its settlements each with its ways from their land and their neighbours. */
 export function initPeople(S: State) {
   for (const a of villagers(S)) {
     a.born = -(P(S).adultSeconds + rand(S.prng) * (P(S).founderAgeMaxSeconds - P(S).adultSeconds));
     a.dies = lifespan(S);
   }
-  const word = { burial: 'buries its dead', cremation: 'cremates its dead', ship: 'sets its dead out to sea' };
-  for (const t of S.towns) { t.custom = customFor(S, t); chronicle(S, t.id, 'custom', `${t.name} ${word[t.custom]}`); }
-  // and names its people as its land suggests: the founders too
+  // each in the order founded, so a settlement founded later can set itself apart from those before it
+  for (const t of S.towns) {
+    const c = takeCustom(S, t);
+    t.custom = c.custom; t.why.custom = c.why;
+    chronicle(S, t.id, 'custom', `${t.name} ${CUSTOM_WORD[t.custom]}, ${c.why}`);
+  }
+  // and names its people by the way it honours its dead: the founders too
   for (const t of S.towns) { t.naming = namingFor(S, t); chronicle(S, t.id, 'naming', `${t.name} names its children ${NAMING[t.naming]}`); }
   for (const a of villagers(S)) if (a.home) a.name = nameFor(S, a, S.towns[a.home.town]);
-  // with the year turning, each keeps a feast its land suggests
-  if (S.seasons) for (const t of S.towns) { t.feasts = [feastFor(S, t)]; chronicle(S, t.id, 'feast', `${t.name} keeps ${FEAST[t.feasts[0]].text}`); }
+  // with the year turning, each keeps a feast its land suggests, or one that sets it apart
+  if (S.seasons) for (const t of S.towns) {
+    const f = takeFeast(S, t);
+    t.feasts = [f.feast]; t.why.feast = f.why;
+    chronicle(S, t.id, 'feast', `${t.name} keeps ${FEAST[f.feast].text}, ${f.why}`);
+  }
 }
 
 /** A newcomer is a young adult, who goes by a name of the settlement they come to. */
@@ -57,11 +65,9 @@ export function newcomer(S: State, a: Agent, town: Town) {
 /** The naming customs: where a settlement takes its children's names from. */
 export const NAMING: Record<Naming, string> = { sea: 'for the sea', trees: 'for the trees', fields: 'for the fields and their birds' };
 
-/** The naming custom a settlement's land suggests, by the same lines as its custom for the dead: much water, the sea; well wooded, the trees; else the fields. */
-export function namingFor(S: State, t: Town): Naming {
-  if (!S.bmap.get(t.store)) return 'fields';
-  const l = landOf(S, t);
-  return l.water >= P(S).waterForShip ? 'sea' : l.wood >= P(S).woodForPyre ? 'trees' : 'fields';
+/** The naming custom that goes with the way a settlement honours its dead: a people of the sea name their children for the sea, one of the pyre for the trees, one that buries for the fields. */
+export function namingFor(_S: State, t: Town): Naming {
+  return ({ ship: 'sea', cremation: 'trees', burial: 'fields' } as const)[t.custom] ?? 'fields';
 }
 
 /** A villager's given name: from their settlement's custom, picked by their id and the world's seed, never by a random stream. */
@@ -87,14 +93,60 @@ export function landOf(S: State, t: Town): { water: number; wood: number } {
   return { water: all ? water / all : 0, wood: land ? wood / land : 0 };
 }
 
+/** The words for each custom: what a settlement does. */
+export const CUSTOM_WORD: Record<Custom, string> = { burial: 'buries its dead', cremation: 'cremates its dead', ship: 'sets its dead out to sea' };
+
 /** The custom a settlement's land suggests: one by much water sets its dead out to sea, a well-wooded one cremates, others bury. */
-export function customFor(S: State, t: Town): Custom {
+export function landCustom(S: State, t: Town): Custom {
   if (!S.bmap.get(t.store)) return 'burial';
   const l = landOf(S, t);
   if (l.water >= P(S).waterForShip) return 'ship';
   if (l.wood >= P(S).woodForPyre) return 'cremation';
   return 'burial';
 }
+
+/**
+ * Setting a settlement apart from those founded before it: if one of them already keeps `land` (what its own land
+ * suggests), it takes up the way its land allows best of those none of them keeps, so long as its land allows it to
+ * `1 - apart` of what would suggest it outright (a `score` of 1). Otherwise it keeps what its land suggests. Returns the
+ * way, and the settlement it set itself apart from.
+ */
+function setApart<K extends string>(S: State, t: Town, land: K, score: Record<K, number>, kept: (o: Town) => readonly string[]): { way: K; from: Town | null } {
+  const before = S.towns.filter(o => o.id < t.id), from = before.find(o => kept(o).includes(land));
+  if (!from) return { way: land, from: null };
+  const taken = new Set(before.flatMap(o => [...kept(o)]));
+  let best: K | null = null;
+  for (const k of Object.keys(score) as K[]) if (!taken.has(k) && score[k] >= 1 - P(S).apart && (best === null || score[k] > score[best])) best = k;
+  return best === null ? { way: land, from: null } : { way: best, from };
+}
+
+const LAND_WHY: Record<Custom, string> = { ship: 'as befits a people by the water', cremation: 'as its wooded land suggests', burial: 'as its open land suggests' };
+
+/** The custom a settlement takes up as it is founded, and why: from its land, or set apart from a settlement before it, on land that allows another. */
+export function takeCustom(S: State, t: Town): { custom: Custom; why: string } {
+  const land = landCustom(S, t);
+  if (!S.bmap.get(t.store)) return { custom: land, why: LAND_WHY[land] };
+  const l = landOf(S, t);
+  // it sets itself apart by the sea only if it already knows how to build the dock to keep that custom
+  const sea = land === 'ship' || 'dock' in t.knows ? l.water / P(S).waterForShip : 0;
+  const { way, from } = setApart<Custom>(S, t, land, { ship: sea, cremation: l.wood / P(S).woodForPyre, burial: 1 }, o => [o.custom]);
+  return { custom: way, why: from ? `unlike ${from.name}, which ${CUSTOM_WORD[land].replace('its dead', 'its own')}` : LAND_WHY[way] };
+}
+
+/**
+ * The custom a settlement takes to when it can no longer keep its own: a burying one cremates and a cremating one buries;
+ * a people of the sea with no dock buries, or cremates where another settlement buries and none cremates, so it stays
+ * apart from its neighbours (by then its own trees may be felled: the pyre burns logs from wherever they come).
+ */
+export function giveWay(S: State, t: Town): Custom {
+  if (t.custom === 'burial') return 'cremation';
+  if (t.custom === 'cremation') return 'burial';
+  const others = S.towns.filter(o => o !== t).map(o => o.custom);
+  return others.includes('burial') && !others.includes('cremation') ? 'cremation' : 'burial';
+}
+
+/** The custom a settlement takes up as it is founded (see `takeCustom`). */
+export const customFor = (S: State, t: Town): Custom => takeCustom(S, t).custom;
 
 /**
  * The feasts (with people and seasons on): each is held as its season comes, if the stores hold what it needs,
@@ -106,9 +158,19 @@ export const FEAST: Record<Feast, { name: string; text: string; season: string; 
 };
 
 /** The feast a settlement's land suggests: a well-wooded one lights a midwinter fire, others hold a harvest festival. */
-export function feastFor(S: State, t: Town): Feast {
+export function landFeast(S: State, t: Town): Feast {
   return landOf(S, t).wood >= P(S).woodForFire ? 'midwinter' : 'harvest';
 }
+
+/** The feast a settlement takes up as it is founded, and why: from its land, or set apart from a settlement before it whose feast it would otherwise share. */
+export function takeFeast(S: State, t: Town): { feast: Feast; why: string } {
+  const land = landFeast(S, t), wood = landOf(S, t).wood;
+  const { way, from } = setApart<Feast>(S, t, land, { midwinter: wood / P(S).woodForFire, harvest: 1 }, o => o.feasts);
+  return { feast: way, why: from ? `unlike ${from.name}, which keeps the ${FEAST[land].name}` : way === 'midwinter' ? 'as its wooded land suggests' : 'as its fields suggest' };
+}
+
+/** The feast a settlement takes up as it is founded (see `takeFeast`). */
+export const feastFor = (S: State, t: Town): Feast => takeFeast(S, t).feast;
 
 /** When this season began, in game seconds. */
 const seasonStart = (S: State) => { const q = S.content.tuning.seasons.yearSeconds / 4; return Math.floor(S.t / q + 1e-9) * q; };
@@ -194,10 +256,35 @@ export function riteMood(S: State, t: Town): number {
   return S.t - t.rites[0] > P(S).riteGraceSeconds ? P(S).ritePenalty : 0;
 }
 
-/** Workplace pace from its worker's skill: a novice at 1 - speedup/2, an expert up to 1 + speedup/2. */
+/** Workplace pace from its worker's skill: a novice at 1 - speedup/2, an expert up to 1 + speedup/2; `craft_pace` more at a workplace of its settlement's craft. */
 export function skillPace(S: State, w: Agent | undefined, b: Building): number {
   if (!S.people || !w) return 1;
-  return 1 - P(S).skillSpeedup / 2 + P(S).skillSpeedup * (w.skill[b.type] || 0);
+  return (1 - P(S).skillSpeedup / 2 + P(S).skillSpeedup * (w.skill[b.type] || 0)) * (isCraft(S, b) ? 1 + P(S).craftPace : 1);
+}
+
+/** Is this workplace of its settlement's craft? */
+export const isCraft = (S: State, b: Building) => !!S.people && S.towns[b.town]?.craft === b.type;
+
+/** Can a kind of workplace be a settlement's craft: one that makes goods from its worker's hands (not fields still being laid, rites, learning or a hall)? */
+export function craftable(S: State, type: string): boolean {
+  const B = S.content.blueprints[type];
+  return !!B && B.workers > 0 && Object.keys(B.output).length > 0 && !B.field && !B.rite && !B.learning && !B.hall;
+}
+
+/** What a craft makes, for the player: its goods' names. */
+export const craftGoods = (S: State, type: string) => Object.keys(S.content.blueprints[type]?.output ?? {}).map(g => (S.content.goods[g]?.name ?? g).toLowerCase()).join(' and ');
+
+/**
+ * A settlement takes up its craft from a master (`expert_at`) of a trade no other settlement works or holds as its own:
+ * its workplaces of that kind work `craft_pace` faster from then on, and its daughters keep it.
+ */
+export function takeCraft(S: State, t: Town, a: Agent, type: string) {
+  if (t.craft !== null || !craftable(S, type) || !ownTrade(S, t, type)) return;
+  t.craft = type;
+  const goods = craftGoods(S, type);
+  t.why.craft = `with ${called(a)} a master of the ${S.content.blueprints[type].name.toLowerCase()}, a trade no neighbour works`;
+  chronicle(S, t.id, 'craft', `${t.name} takes pride in its ${goods}, ${t.why.craft}`);
+  emit(S, 'good', `${t.name} takes pride in its ${goods}`);
 }
 
 /** An expert of a trade lives in a settlement. */
@@ -230,6 +317,27 @@ export function updatePeople(S: State, dt: number) {
   }
   births(S, dt);
   for (const t of S.towns) farewells(S, t);
+  if (Math.floor(S.t / CRAFT_LOOK(S)) !== Math.floor((S.t - dt) / CRAFT_LOOK(S))) seekCrafts(S);
+}
+
+/** How often, in game seconds, a settlement without a craft looks for one among its masters. */
+const CRAFT_LOOK = (S: State) => P(S).craftLookSeconds;
+
+/** Is a kind of workplace one that no settlement but `t` works (none standing elsewhere) nor holds as its craft? */
+const ownTrade = (S: State, t: Town, type: string) => !S.towns.some(o => o !== t && o.craft === type) && !S.buildings.some(b => b.type === type && b.town !== t.id && !b.site);
+
+/** Each settlement without a craft takes up the trade of its most skilled master in a trade no neighbour works. */
+function seekCrafts(S: State) {
+  const T = P(S);
+  for (const t of S.towns) {
+    if (t.craft !== null) continue;
+    let best: { a: Agent; type: string; s: number } | null = null;
+    for (const a of villagers(S)) {
+      if (a.home?.town !== t.id) continue;
+      for (const k in a.skill) if (a.skill[k] >= T.expertAt && (!best || a.skill[k] > best.s) && craftable(S, k) && ownTrade(S, t, k)) best = { a, type: k, s: a.skill[k] };
+    }
+    if (best) takeCraft(S, t, best.a, best.type);
+  }
 }
 
 function die(S: State, a: Agent) {
@@ -302,11 +410,12 @@ function farewells(S: State, t: Town) {
   }
   // a custom gives way only when it has had no place at all (not even one being built) for the whole wait
   if (t.rites.length && S.t - t.rites[0] > P(S).changeCustomAfterSeconds && !hasPlace(S, t, true)) {
-    const was = t.custom, next: Custom = was === 'burial' ? 'cremation' : 'burial';
+    const was = t.custom, next = giveWay(S, t);
     t.custom = next;
     // the strain starts over under the new custom
     t.rites = t.rites.map(() => S.t - P(S).riteGraceSeconds);
     const word = { burial: 'bury its dead', cremation: 'cremate its dead', ship: 'set its dead out to sea' };
+    t.why.custom = `since it could no longer ${word[was]}`;
     chronicle(S, t.id, 'custom', `${t.name} could no longer ${word[was]}, and took to ${next}`);
     for (const o of S.towns) if (o !== t) chronicle(S, o.id, 'custom', `${o.name} heard that ${t.name} now takes to ${next}`);
     emit(S, 'bad', `${t.name} could not ${word[was]} and took to ${next}`);

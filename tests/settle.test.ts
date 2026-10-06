@@ -28,10 +28,15 @@ test('a crowded settlement sends a party with goods, practised knowledge and its
   for (const a of villagers(S)) if (!a.home) { a.home = yard; }
   yard.inv = { planks: 200, bread: 100, logs: 50 };
   mother.knows.dock = { by: mother.name, at: 0, verified: [], from: null, learned: 0, used: 0 };
+  mother.craft = 'bakery';
   const d = sendParty(S, mother);
   assert.ok(d, 'a daughter was founded');
   assert.equal(d!.mother, mother.id);
   assert.equal(d!.custom, mother.custom);
+  // and its ways: its mother's craft too, and the chronicle says whose ways it keeps
+  assert.equal(d!.craft, 'bakery');
+  assert.ok(d!.why.custom?.includes(mother.name));
+  assert.ok(S.chronicle.some(c => c.town === d!.id && c.kind === 'custom' && c.text.includes(`keeps the ways of ${mother.name}`) && c.text.includes('bread')));
   assert.ok(!('dock' in d!.knows), 'a craft the mother never practised stays behind');
   assert.equal(villagers(S).filter(a => a.home?.town === d!.id).length, Z.partySize);
   const dy = S.bmap.get(d!.store)!;

@@ -2,7 +2,7 @@
 import { surroundings } from '../sim/surroundings.ts';
 import { clean, guarded } from '../sim/hardship.ts';
 import { homeTier } from '../sim/production.ts';
-import { FEAST, NAMING, called } from '../sim/people.ts';
+import { FEAST, NAMING, called, craftGoods, isCraft } from '../sim/people.ts';
 import { atOnce, formOf, hubs, openSites, renewalNote } from '../sim/planner.ts';
 import { capOf, crew, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
 import { ZONES, advise, waysOf, hubOf, defence, scholarly, learningAt, reads, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, ageNeeded, beltBy, ctr, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
@@ -466,7 +466,7 @@ export class App {
     const guard = D ? [Math.round(D.total), D.warned, near, peace] : null;
     // how its goods go: each way's share (to five per cent, so the panel is not redrawn for every delivery)
     const ways = waysOf(S, t), waysKey = ways ? [ways.shares.map(v => Math.round(v / 5)), Math.floor(Math.log2(1 + ways.handed))] : null;
-    const key = JSON.stringify([waysKey, t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, t.belts.length, 'conveyor' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.naming, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil, t.charted.length, S.agents.some(a => a.visit?.explore && a.visit.from === t.id)]);
+    const key = JSON.stringify([waysKey, t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, t.belts.length, 'conveyor' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.naming, t.craft, t.why, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil, t.charted.length, S.agents.some(a => a.visit?.explore && a.visit.from === t.id)]);
     if (!force && key === this.stewardKey) return;
     this.stewardKey = key;
     const needs: [string, string][] = [
@@ -504,10 +504,14 @@ export class App {
     html += `<div class="steward-grid"><span>Age</span><span>${esc(this.content.eras[t.age]?.name ?? '')}</span>${opens ? `<span>The next age opens</span><span>${esc(opens)}</span>` : ''}</div>`;
     if (S.people) {
       const word = { burial: 'Burial', cremation: 'Cremation', ship: 'Ship burial' }[t.custom];
-      html += `<div class="steward-grid"><span>Custom for the dead</span><span>${word}${t.rites.length ? `, ${t.rites.length} waiting` : ''}</span>`;
-      // the feasts it keeps through the year, and whether one lately held lifts its mood
+      // its ways, and why it holds to them: its custom for the dead, its names, its feasts and its craft
+      const why = (s?: string) => (s ? `, ${esc(s)}` : '');
+      html += `<div class="steward-grid"><span>Custom for the dead</span><span>${word}${why(t.why.custom)}${t.rites.length ? `; ${t.rites.length} waiting` : ''}</span>`;
       html += `<span>Names its children</span><span>${esc(NAMING[t.naming] ?? '')}</span>`;
-      if (S.seasons) html += `<span>Feasts</span><span>${t.feasts.length ? t.feasts.map(f => FEAST[f].name).join(', ') : 'none'}${S.t < t.feastUntil ? ' (feasting now)' : ''}</span>`;
+      // the feasts it keeps through the year, and whether one lately held lifts its mood
+      if (S.seasons) html += `<span>Feasts</span><span>${t.feasts.length ? t.feasts.map(f => FEAST[f].name).join(', ') + why(t.why.feast) : 'none'}${S.t < t.feastUntil ? ' (feasting now)' : ''}</span>`;
+      const pct = Math.round(this.content.tuning.people.craftPace * 100);
+      html += `<span>Craft</span><span>${t.craft ? `its ${esc(craftGoods(S, t.craft))}${why(t.why.craft)}: every ${esc(this.content.blueprints[t.craft]?.name ?? t.craft)} of its works ${pct}% faster` : 'none yet: its first master of a trade no neighbour holds makes it one'}</span>`;
       html += '</div>';
     }
     if (trade) html += `<div class="steward-grid"><span>Traded away</span><span>${esc(trade[0])}</span><span>Traded for</span><span>${esc(trade[1])}</span></div>`;
@@ -733,6 +737,8 @@ export class App {
       const w = b.worker !== null ? S.amap.get(b.worker) : undefined, n = places(S, b);
       if (n > 1) { const ids = crew(b), at = ids.filter(id => S.amap.get(id)?.state === 'working').length; rows += row('Hands', `${ids.length} of ${n}` + (ids.length > at ? `, ${ids.length - at} walking over` : '')); }
       else rows += row('Worker', w ? (w.state === 'working' ? 'On the job' : 'Walking over') : 'None free');
+      // its settlement's craft: it works faster
+      if (isCraft(S, b)) rows += row('Tradition', `${S.towns[b.town].name}'s craft: works ${Math.round(T.people.craftPace * 100)}% faster`);
       // farms that grow: its size and fields, and what it has made
       if (S.farms && B.grows) rows += row('Size', `${sizeName(S, b)}, ${b.size + 1} of ${B.grows.names.length}`) + row('Fields', `${b.w * b.h} tiles`) + row('Made', `${n0(b.made)} ${Object.keys(B.output).map(k => G[k].name.toLowerCase()).join(' and ')}`);
       if (B.ripens && b.plantT < B.ripens) rows += row('Bears in', `${Math.ceil(B.ripens - b.plantT)}s`);

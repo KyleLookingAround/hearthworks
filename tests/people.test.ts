@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
-import { createState, runFor, villagers, bp } from '../src/sim/index.ts';
-import { ageOf, bringFeast, customFor, FEAST, feastFor, feastMood, feastStock, holdFeasts, missFeasts, nameFor, namingFor, skillPace } from '../src/sim/people.ts';
+import { readFileSync } from 'node:fs';
+import { createState, loadGame, runFor, saveGame, villagers, bp, type SaveFile, type State } from '../src/sim/index.ts';
+import { ageOf, bringFeast, craftable, customFor, FEAST, feastFor, feastMood, feastStock, giveWay, holdFeasts, isCraft, landCustom, landFeast, missFeasts, nameFor, namingFor, skillPace, takeCraft } from '../src/sim/people.ts';
 import { computeMood } from '../src/sim/index.ts';
 
 const content = loadContent();
@@ -135,4 +136,79 @@ test('naming customs: each settlement names its people from its land, by seed an
   const kids = villagers(S).filter(v => S.t - v.born < 1800);
   assert.ok(kids.length > 0 && kids.every(k => P.names[S.towns[k.home!.town].naming].includes(k.name)));
   assert.ok(S.chronicle.some(c => c.kind === 'birth' && /^The first child, \w+, was born in /.test(c.text)));
+});
+
+test('traditions set settlements apart: on alike land, the one founded second takes up another custom and feast its land allows', () => {
+  // seed 2: both settlements stand on land that suggests burial and a harvest festival (wood 0.35 and 0.30, little water)
+  const S = createState(content, 2, { planner: true, people: true, seasons: true, settlements: 2 });
+  const [a, b] = S.towns;
+  assert.equal(landCustom(S, a), 'burial'); assert.equal(landCustom(S, b), 'burial');
+  assert.equal(landFeast(S, a), 'harvest'); assert.equal(landFeast(S, b), 'harvest');
+  assert.equal(a.custom, 'burial');
+  assert.equal(b.custom, 'cremation', 'the second takes to the pyre, its land wooded enough for one');
+  assert.deepEqual(a.feasts, ['harvest']); assert.deepEqual(b.feasts, ['midwinter']);
+  assert.equal(b.naming, 'trees', 'and names its children by its custom');
+  assert.ok(b.why.custom?.includes(a.name) && b.why.feast?.includes(a.name), 'it says whom it set itself apart from');
+  assert.ok(S.chronicle.some(c => c.town === b.id && c.kind === 'custom' && c.text.includes(`unlike ${a.name}`)));
+  // land that allows nothing else keeps what it suggests: with no leeway at all, both bury
+  const strict = { ...content, tuning: { ...content.tuning, people: { ...P, apart: 0 } } };
+  const T = createState(strict, 2, { planner: true, people: true, seasons: true, settlements: 2 });
+  assert.deepEqual(T.towns.map(t => t.custom), ['burial', 'burial']);
+  assert.deepEqual(T.towns.map(t => t.feasts[0]), ['harvest', 'harvest']);
+  // and a settlement whose land suggests another custom than its neighbour's keeps it as before
+  const W = createState(content, 31337, { planner: true, people: true, settlements: 2 });
+  assert.deepEqual(W.towns.map(t => t.custom), W.towns.map(t => landCustom(W, t)));
+});
+
+test('a craft: a settlement takes up the trade of a master in a trade no other settlement works, and it works faster there', () => {
+  const S = createState(content, 1847, { planner: true, people: true, settlements: 2 });
+  const [a, b] = S.towns;
+  assert.equal(a.craft, null);
+  // a farm of the first settlement's (its yard standing in for one, before any is built)
+  const fa = { ...S.bmap.get(a.store)!, type: 'farm' };
+  const w = villagers(S).find(v => v.home?.town === a.id)!, v = villagers(S).find(x => x.home?.town === b.id)!;
+  const before = skillPace(S, w, fa);
+  takeCraft(S, a, w, fa.type);
+  assert.equal(a.craft, fa.type);
+  assert.ok(isCraft(S, fa));
+  assert.ok(Math.abs(skillPace(S, w, fa) - before * (1 + P.craftPace)) < 1e-9, 'its workplaces of the craft work `craft_pace` faster');
+  assert.ok(S.chronicle.some(c => c.town === a.id && c.kind === 'craft' && c.text.includes('takes pride in its')));
+  // another settlement cannot take up a craft one already holds, and a school is no craft
+  takeCraft(S, b, v, fa.type);
+  assert.equal(b.craft, null);
+  assert.equal(craftable(S, 'school'), false);
+  assert.equal(craftable(S, 'bakery'), true);
+  // left to themselves, settlements take up crafts as their people master trades, never the same one
+  const R = createState(content, 2, { planner: true, people: true, seasons: true, settlements: 2 });
+  runFor(R, 2000);
+  const crafts = R.towns.map(t => t.craft).filter(Boolean);
+  assert.ok(crafts.length >= 1, 'a craft was taken up');
+  assert.equal(new Set(crafts).size, crafts.length);
+  // without people there are no crafts, and nothing runs faster
+  const off = createState(content, 1847, { planner: true });
+  off.towns[0].craft = 'farm';
+  assert.equal(isCraft(off, off.buildings.find(x => x.type === 'farm') ?? fa), false);
+});
+
+test('a custom giving way stays apart where it can: a people of the sea with no dock takes to the pyre beside a burying neighbour', () => {
+  const S = createState(content, 4, { planner: true, people: true, settlements: 2 });
+  const [a, b] = S.towns;
+  a.custom = 'burial'; b.custom = 'ship';
+  assert.equal(giveWay(S, b), 'cremation');
+  a.custom = 'cremation';
+  assert.equal(giveWay(S, b), 'burial');
+  b.custom = 'burial';
+  assert.equal(giveWay(S, b), 'cremation');
+});
+
+test('a version 31 save is upgraded to version 32: its settlements keep their customs, feasts and names, take up crafts as they go, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v31.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 31);
+  const S = loadGame(content, file);
+  const was = file.state.towns as { custom: string; feasts: string[]; naming: string }[];
+  assert.deepEqual(S.towns.map(t => [t.custom, t.feasts, t.naming]), was.map(t => [t.custom, t.feasts, t.naming]));
+  assert.ok(S.towns.every(t => t.craft === null && Object.keys(t.why).length === 0));
+  runFor(S, 60);
+  const text = (s: State) => JSON.stringify(saveGame(s));
+  assert.equal(text(loadGame(content, text(S))), text(S));
 });
