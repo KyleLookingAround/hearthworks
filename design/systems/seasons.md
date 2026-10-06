@@ -4,7 +4,7 @@ title: Seasons
 description: A year of spring, summer, autumn and winter; crops rest in winter, homes burn firewood, and settlements store food and fuel ahead.
 tags: [seasons, needs, economy]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T10:13:24Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T12:18:00Z }
 tuning:
   year_seconds: 1200
   firewood_every_seconds: 120
@@ -38,7 +38,7 @@ With seasons on the [planner](/systems/planner.md) plans for winter all year: it
 
 # A lean winter
 
-Kyle's call (decision [0006](/decisions/0006-how-the-parts-work-together.md)): winter stays the main pressure of the year, but as one the player can answer with stores, rationing and priorities, not a brake that halves growth. Until 2026-10-06 newcomers and founding parties came in spring and summer only, and a world of default new games (Islands M, an hour, twelve seeds, three draws each) held 194 villagers with seasons on against 363 with them off. Coming by the store instead of the calendar, it holds 281 (the gap 82, from 169), with 226 newcomers an hour the year round (54 in spring, 56 summer, 51 autumn, 64 winter) instead of 130 in spring and summer alone, and 6.8 settlements instead of 4.3. Winter is felt: at its lowest point each winter the least-fed settlement's fed share is 0.99, 0.68 and 0.49 on average in the first, second and third winters (1.00, 0.99 and 0.97 before; under 0.6 in 21 of 108 winters, against 1), a world loses 2.5 villagers an hour to hunger (0.4 before), and nobody starves. The worst world lost 41 people: its first settlement grew in its second spring to more than its land could feed, found no room for more fields, and ran out of grain late in the third winter; rationing or wheat put first from the start brought the same world through with nobody lost.
+Kyle's call (decision [0006](/decisions/0006-how-the-parts-work-together.md)): winter stays the main pressure of the year, but as one the player can answer with stores, rationing and priorities, not a brake that halves growth. Until 2026-10-06 newcomers and founding parties came in spring and summer only, and a world of default new games (Islands M, an hour, twelve seeds, three draws each) held 194 villagers with seasons on against 363 with them off. Coming by the store instead of the calendar, it holds 274 (the gap 90, from 169), with 217 newcomers an hour the year round (53 in spring, 56 summer, 48 autumn, 60 winter) instead of 130 in spring and summer alone, and 6.5 settlements instead of 4.3. Winter is felt: at its lowest point each winter the least-fed settlement's fed share is 0.99, 0.96 and 0.88 on average in the first, second and third winters (1.00, 0.99 and 0.97 before; under 0.6 in 3 of 108 winters, against 1), the world's lowest 0.79, a world loses 1.6 villagers an hour to hunger (0.4 before), and nobody starves. The worst world lost 42 people: its first settlement grew in its second spring to more than its land could feed, found no room for more fields, and ran out of grain late in the third winter; rationing or wheat put first from the start brought the same world through with nobody lost.
 
 # Kyle's call
 

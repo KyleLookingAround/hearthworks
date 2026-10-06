@@ -69,8 +69,13 @@ function wander(S: State, a: Agent) {
   if (inB(w, tx, ty) && w.ground[ty * w.w + tx] && w.bgrid[ty * w.w + tx] === -1 && moveTo(S, a, tx, ty)) a.state = 'wander';
 }
 
+/** A settler on the way to a new settlement (sent off idle with a way to go, as a founding party is, or set off again in its boat). */
+export const onTheWay = (a: Agent) => a.state === 'idle' && a.path.length > 0;
+
 export function updateAgent(S: State, a: Agent, dt: number) {
-  if (a.state === 'idle' || a.state === 'wander') {
+  // (a settler on the way gets there before looking for work: a job rowed ahead with the party's boat, and the
+  // wander back to the old yard left the rest of them stranded)
+  if (a.state === 'wander' || (a.state === 'idle' && !onTheWay(a))) {
     a.cool -= dt;
     if (a.cool <= 0) {
       const L = S.content.tuning.logistics;

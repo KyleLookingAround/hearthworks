@@ -124,6 +124,27 @@ test('a settlement whose island is full founds a colony whose settlers build a b
   assert.ok(!boat.crew.includes(a.id));
 });
 
+test('a founding party crosses together: nobody takes up work on the way, nor is left behind on the mother island', () => {
+  const S = createState(content, 1847, { planner: true, settlers: true, trade: true, ships: true, map: 'islands', size: 'm' });
+  for (let t = 0; t < 2700 && !S.towns.some(o => o.overseas); t += 5) runFor(S, 5);
+  const colony = S.towns.find(o => o.overseas)!, yard = S.bmap.get(colony.store)!;
+  assert.ok(colony, 'a colony across the water');
+  const party = S.agents.filter(a => a.kind === 'villager' && a.home?.town === colony.id).map(a => a.id);
+  assert.ok(party.length > 1);
+  // each of them, before they first land, is walking or rowing there and nothing else
+  const landed = new Set<number>();
+  for (let t = 0; t < 180; t++) {
+    runFor(S, 1);
+    for (const id of party) {
+      const a = S.amap.get(id);
+      if (!a || landed.has(id)) continue;
+      if (isleAt(S, Math.floor(a.x), Math.floor(a.y)) === isleAt(S, yard.x, yard.y)) { landed.add(id); continue; }
+      assert.ok(a.state === 'idle' && !a.task, `settler ${id} took up ${a.state} on the way`);
+    }
+  }
+  assert.equal(landed.size, party.length, 'every settler landed on the colony\'s island');
+});
+
 test('with seasons on, a founding party is provisioned to its first harvest, through the winter when it sets out late', () => {
   const S = createState(content, 7, { seasons: true });
   const Z = content.tuning.settling, Y = content.tuning.seasons.yearSeconds, meals = (s: number) => (Z.partySize * s / content.tuning.needs.eatEverySeconds) * Z.provisionHeadroom;

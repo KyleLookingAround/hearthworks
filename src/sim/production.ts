@@ -1,5 +1,5 @@
 import { rand } from './rng.ts';
-import { release } from './agents.ts';
+import { onTheWay, release } from './agents.ts';
 import { loseVillager } from './lifecycle.ts';
 import { feastStock, skillPace } from './people.ts';
 import { add, bp, ctr, emit, inB, hypot, priorityOf } from './core.ts';
@@ -253,8 +253,10 @@ function run(S: State, b: Building, dt: number) {
   }
 
   if (B.homes) {
-    const r = b.residents.length;
-    if (!r) { setStatus(b, 'Empty, waiting for newcomers', 'wait'); return; }
+    // (settlers still on their way eat their provisions, not the home's bread)
+    let r = 0;
+    for (const id of b.residents) { const a = S.amap.get(id); if (a && !onTheWay(a)) r++; }
+    if (!r) { setStatus(b, b.residents.length ? 'Its settlers are on their way' : 'Empty, waiting for newcomers', 'wait'); return; }
     const food = Object.keys(B.keepStocked)[0], foods = foodsOf(S, b), laws = S.towns[b.town]?.laws;
     // rationing: everyone eats less often
     b.eat += (dt * r) / (T.needs.eatEverySeconds * (laws?.rationing ? T.hardship.rationFactor : 1));

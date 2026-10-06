@@ -4,7 +4,7 @@ title: Settling
 description: A crowded settlement, or one whose land is full, sends a founding party off to found a daughter town, with villagers, stores, the knowledge it practises and its custom.
 tags: [settlement, people, knowledge]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T10:13:24Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T12:18:12Z }
 tuning:
   check_every_seconds: 60
   min_villagers: 70
@@ -37,7 +37,7 @@ The party looks for a site as the world's first neighbours were placed ([settlem
 
 # Across the water
 
-The party must be able to reach its site: on foot, or rowing from a [dock](/blueprints/dock.md). What it can walk to is found once a look; without a dock, sites beyond it are never searched for (a route search that fails covers the whole map). A settlement with no such site left but land across the water feels the need to cross it, so it comes up with the dock and builds one (clearing a workshop from its shore if it has built along every shore: [planner](/systems/planner.md)), and its next party sails: the daughter is a colony (`overseas`), and the chronicle says so. A settler whose row is cut short rows on from the water; before, two stranded settlers could close a new colony's yard to everyone (see [logistics](/systems/logistics.md), no way in).
+The party must be able to reach its site: on foot, or rowing from a [dock](/blueprints/dock.md). What it can walk to is found once a look; without a dock, sites beyond it are never searched for (a route search that fails covers the whole map). A settlement with no such site left but land across the water feels the need to cross it, so it comes up with the dock and builds one (clearing a workshop from its shore if it has built along every shore: [planner](/systems/planner.md)), and its next party sails: the daughter is a colony (`overseas`), and the chronicle says so. A settler whose row is cut short rows on from the water; before, two stranded settlers could close a new colony's yard to everyone (see [logistics](/systems/logistics.md), no way in). Settlers on their way take up no work and do not wander until they reach their new yard (before, two of a party took up the colony's deliveries and rowed ahead in its boat, and the other four were stranded on the mother's island), and their new homes feed them only once they arrive: on the way they eat their provisions.
 
 # Who and what
 
