@@ -15,14 +15,17 @@ import { chooseSpot } from './site.ts';
  * chain, a bridge or a place of rites), whose ground would take the dock if it came down. It comes down, its carriers'
  * jobs cancelled and `salvage_share` of its cost back in storage, and the spot is returned.
  */
-/** Room for a university: a workshop resting with enough in store comes down for it, and the chronicle says so. */
-export function clearFor(S: State, town: Town, B: BlueprintDef): boolean {
-  const cleared = clearShore(S, town, B, true);
-  if (cleared) chronicle(S, town.id, 'replanned', `${town.name} cleared ${article(bp(S, cleared.cut).name)} ${bp(S, cleared.cut).name.toLowerCase()}, with enough in store, to make room for ${article(B.name)} ${B.name}`);
-  return !!cleared;
+/**
+ * Room for a university: a workshop resting with enough in store comes down for it, and the chronicle says so. Only once
+ * the university is chosen and paid for; before that, with `commit` false, it only asks whether one could (nothing comes down).
+ */
+export function clearFor(S: State, town: Town, B: BlueprintDef, commit = true): { x: number; y: number; rot: number } | null {
+  const cleared = clearShore(S, town, B, true, commit);
+  if (cleared && commit) chronicle(S, town.id, 'replanned', `${town.name} cleared ${article(bp(S, cleared.cut).name)} ${bp(S, cleared.cut).name.toLowerCase()}, with enough in store, to make room for ${article(B.name)} ${B.name}`);
+  return cleared?.spot ?? null;
 }
 
-export function clearShore(S: State, town: Town, B: BlueprintDef, idle = false): { spot: { x: number; y: number; rot: number }; cut: Building } | null {
+export function clearShore(S: State, town: Town, B: BlueprintDef, idle = false, commit = true): { spot: { x: number; y: number; rot: number }; cut: Building } | null {
   const P = T(S), W = S.world, chain = foodChainOf(S), store = S.bmap.get(town.store);
   if (!store) return null;
   const nearWater = (b: Building) => {
@@ -42,6 +45,7 @@ export function clearShore(S: State, town: Town, B: BlueprintDef, idle = false):
     for (const h of hubs(S, town).reverse()) spot ??= chooseSpot(S, B.id, town, false, h);
     back();
     if (!spot) continue;
+    if (!commit) return { spot, cut: b };
     for (const a of S.agents) if (touches(a, b)) cancelTask(a);
     demolish(S, b);
     for (const [k, n] of Object.entries(bp(S, b).cost)) { const m = Math.floor(n * P.salvageShare); if (m > 0) add(store.inv, k, m); }

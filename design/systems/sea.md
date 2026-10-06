@@ -19,7 +19,7 @@ tuning:
   villagers_per_boat: 8
   fleet_max: 6
   boatless_memory_seconds: 300
-  shipyard_weight: 0.4
+  shipyard_weight: 0.65
   boat_names: [Heron, Gull, Tern, Otter, Kingfisher, Puffin, Seal, Minnow, Swallow, Plover, Curlew, Dipper, Cormorant, Wren, Mallard, Grebe]
 ---
 

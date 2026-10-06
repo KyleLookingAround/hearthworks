@@ -118,7 +118,7 @@ function roomToZone(S: State, town: Town): boolean {
  * age, a scholar or a neighbour is shown in the Knowledge panel, not advised.
  */
 export function adviceFor(S: State, town: Town): Tip[] {
-  const out: Tip[] = [], status = town.planner.status, W = S.content.tuning.advisor.weights;
+  const out: Tip[] = [], wishes = town.planner.wishes, W = S.content.tuning.advisor.weights;
   const tip = (key: string, text: string, why: string, press = 1, act: TipAct | null = null, label: string | null = null) => {
     out.push({ key, text, why, score: (W[key.split(':')[0]] ?? 1) * (1 + Math.max(0, Math.min(1, press))), at: S.t, act, label });
   };
@@ -128,7 +128,8 @@ export function adviceFor(S: State, town: Town): Tip[] {
     if (act) tip('hungry', `${town.name} is going hungry: raise the priority of bread.`, `bread ${act.value}`, (hungryBelow - town.fed) / hungryBelow, act, raiseLabel(act, 'Bread'));
     else if (!town.laws.rationing) tip('hungry', `${town.name} is going hungry with bread first already: ration food to stretch its stores.`, 'ration', 1, { law: 'rationing', value: true }, 'Ration food');
   }
-  const stuck = /^Nothing the \w+ knows would help: (.*)$/.exec(status);
+  // a need on its planner's list that nothing it knows would answer
+  const none = wishes.find(w => w.verdict === 'none'), stuck = none ? [none.text, none.why] : null;
   if (stuck) {
     const need = Object.entries(NEED_TEXT).find(([, text]) => text === stuck[1])?.[0];
     const answers = need ? Object.values(S.content.blueprints).filter(B => B.discovery?.need === need && !knows(town, B.id) && offered(S, B)) : [];
@@ -147,7 +148,9 @@ export function adviceFor(S: State, town: Town): Tip[] {
     const way = waiting && universityWay(S, town);
     if (waiting && way) tip(`scholars:${waiting.B.id}`, `Scholars would think of the ${waiting.B.name} for ${town.name}, as ${NEED_TEXT[waiting.B.discovery!.need] ?? waiting.B.discovery!.need}: ${way.text}.`, way.text, 1, way.act, way.label);
   }
-  const room = /^No (room|place) for (.*?): (.*)$/.exec(status);
+  // a wish on its planner's list with no room for it
+  const roomy = wishes.find(w => w.verdict === 'room' && w.type && w.key !== 'university'), R = roomy && S.content.blueprints[roomy.type!];
+  const room = R ? [roomy.text, R.bridge ? 'place' : 'room', `${article(R.name)} ${R.name}`, roomy.why] : null;
   if (room && roomToZone(S, town)) tip('room', `${town.name} has no ${room[1]} for ${room[2]} (${room[3]}): paint a zone where there is room, or lift no-build land.`, room[2]);
   // hard times: raiders who outnumber the defence (a camp it sends bread to leaves it be), a winter store fallen behind, the hungry kept from leaving
   if (S.hardship) {

@@ -14,16 +14,18 @@ import type { Choice } from './choose.ts';
 import { chooseSpot } from './site.ts';
 
 /**
- * Replanning: tear down old homes of a smaller rung where the new home would stand, as one block.
+ * Replanning (a wish on its planner's list, at `replan_weight`): tear down old homes of a smaller rung where the new home would stand, as one block.
  * Every home it covers must be finished, of a sparser kind than the new one and at least `replan_min_age`
  * seconds in use; at least one of that kind must remain; the new home must add beds; and the settlement
  * must have free beds elsewhere for everyone living there, who move before anything comes down.
  * Demolition salvages `salvage_share` of the cost into the nearest storage yard. Picks the block that adds
- * the most beds, nearest its district centre. Returns false when there is none.
+ * the most beds, nearest its district centre, or null when there is none.
  */
-export function replan(S: State, town: Town, c: Choice): boolean {
-  const P = T(S), B = c.B, W = S.world, store = S.bmap.get(town.store);
-  if (!store) return false;
+export interface Block { x: number; y: number; covers: Building[]; s: number }
+
+export function replanBlock(S: State, town: Town, B: BlueprintDef): Block | null {
+  const P = T(S), W = S.world, store = S.bmap.get(town.store);
+  if (!store) return null;
   const density = (X: BlueprintDef) => X.homes / (X.w * X.h);
   const homes = S.buildings.filter(b => b.town === town.id && !b.site && bp(S, b).homes);
   const old = (b: Building) => density(bp(S, b)) < density(B) && b.used >= P.replanMinAge;
@@ -31,7 +33,7 @@ export function replan(S: State, town: Town, c: Choice): boolean {
   for (const h of homes) kinds[h.type] = (kinds[h.type] || 0) + 1;
   const spare = (except: Set<Building>) => homes.reduce((n, h) => n + (except.has(h) ? 0 : bp(S, h).homes - h.residents.length), 0);
   const hub = ctr(store);
-  let best: { x: number; y: number; covers: Building[]; s: number } | null = null;
+  let best: Block | null = null;
   for (const h of homes) {
     if (!old(h)) continue;
     for (let y = h.y - (B.h - 1); y <= h.y + h.h - 1; y++) for (let x = h.x - (B.w - 1); x <= h.x + h.w - 1; x++) {
@@ -67,7 +69,14 @@ export function replan(S: State, town: Town, c: Choice): boolean {
       if (!best || s > best.s) best = { x, y, covers: [...covers], s };
     }
   }
-  if (!best) return false;
+  return best;
+}
+
+/** Replan the block its planner's wish list chose: everyone moves first, the old homes come down, the new one is planned. */
+export function replan(S: State, town: Town, c: Choice, best: Block): boolean {
+  const P = T(S), B = c.B, store = S.bmap.get(town.store);
+  if (!store) return false;
+  const homes = S.buildings.filter(b => b.town === town.id && !b.site && bp(S, b).homes);
   // everyone moves first, to the nearest free bed elsewhere
   const gone = new Set(best.covers);
   for (const o of best.covers) for (const id of [...o.residents]) {
@@ -149,21 +158,23 @@ function pullDown(S: State, town: Town, L: Look): boolean {
   const name = bp(S, best.b).name;
   takeDown(S, town, best.b);
   S.stats.pulledDown++;
-  Q.status = `Pulled down ${article(name)} ${name}: ${best.why}`;
   chronicle(S, town.id, 'pulled', `${town.name} pulled down ${article(name)} ${name.toLowerCase()}: ${best.why}`);
-  emit(S, 'info', `${town.name}: ${Q.status}`, true);
+  emit(S, 'info', `${town.name}: Pulled down ${article(name)} ${name}: ${best.why}`, true);
   return true;
 }
 
 /**
- * Denser: while the settlement wants homes, a workplace that needs land or makes noise (a farm not yet grown past
+ * Denser (a wish on its planner's list, at `move_out_weight`, at most every `renew_every_seconds`): while the settlement wants homes and is fed, a workplace that needs land or makes noise (a farm not yet grown past
  * `move_max_size`, a forester, a sawmill), or a yard that is not a district's heart, standing in a district centre moves
  * out: a new one is planned where the planner would put one today, beyond every centre, and the old one comes down when it
- * is finished (`finishMoves`), leaving the centre to homes. The largest first, nearest its centre. Returns whether one did.
+ * is finished (`finishMoves`), leaving the centre to homes. The largest first, nearest its centre; null with none to move.
  */
-function moveOut(S: State, town: Town, L: Look): boolean {
-  const P = T(S), Q = town.planner;
-  if (town.fed < 1 || !L.shortages.some(sh => sh.homes && sh.sev >= P.minSeverity)) return false;
+export interface Move { b: Building; hub: Building; spot: { x: number; y: number; rot: number } }
+
+export function moveOutWish(S: State, town: Town, L: Look): Move | null {
+  const P = T(S);
+  // (never while anyone goes hungry; while food is short, the food chain's needs go first on the list)
+  if (S.t - town.planner.renewAt < P.renewEverySeconds || formOf(S, town) === 'hamlet' || town.fed < 1 || !L.shortages.some(sh => sh.homes && sh.sev >= P.minSeverity)) return null;
   const cands: { b: Building; hub: Building; s: number }[] = [];
   for (const b of mineOf(S, town)) {
     const B = bp(S, b);
@@ -178,19 +189,26 @@ function moveOut(S: State, town: Town, L: Look): boolean {
     // (searched with the old one standing: it keeps working, and its ground is no way through, until the new one is built)
     const spot = chooseSpot(S, b.type, town);
     const out = spot && hubs(S, town).every(h => Math.hypot(ctr(h).x - spot.x - B.w / 2, ctr(h).y - spot.y - B.h / 2) > P.centreRadius);
-    if (!spot || !out) continue;
+    if (spot && out) return { b, hub, spot };
+  }
+  return null;
+}
+
+/** Move a workplace out of a district centre, as its planner's wish list chose: the new one is its site. */
+export function moveOut(S: State, town: Town, m: Move, sev: number) {
+  const P = T(S), Q = town.planner, { b, hub, spot } = m, B = bp(S, b);
+  {
     const site = placeBuilding(S, b.type, spot.x, spot.y, false, spot.rot)!;
     site.town = town.id; site.replaces = b.id;
-    site.priority = 1 + Math.round(P.minSeverity * P.urgencyPriority);
+    site.priority = 1 + Math.round(sev * P.urgencyPriority);
     const nth = town.districts.indexOf(hub.id), where = nth === 0 ? 'the centre' : `the centre of the ${ORDINAL[nth + 1] ?? `${nth + 1}th`} district`;
     site.reason = `to take over from the ${sizeName(S, b).toLowerCase()} in ${where}, whose land is wanted for homes`;
     Q.site = site.id; Q.placed++; Q.streak = { type: '', n: 0 };
     Q.status = `Moving ${article(B.name)} ${B.name} out of ${where}: its land is wanted for homes`;
     chronicle(S, town.id, 'moved', `${town.name} began moving ${article(B.name)} ${B.name.toLowerCase()} out of ${where}, to make room for homes`);
     emit(S, 'info', `${town.name}: ${Q.status}`, true);
-    return true;
   }
-  return false;
+  Q.renewAt = S.t;
 }
 
 /** A building that has taken over from one in a centre is finished: the old one comes down, its land left to homes. */
@@ -218,12 +236,12 @@ export function finishMoves(S: State, town: Town) {
 
 /**
  * Looking over what it has built, at most every `renew_every_seconds`: a settlement pulls down one workplace that no
- * longer pays, or else, in a village or town, moves one out of a district centre. Returns whether it did either.
+ * longer pays (it costs nothing, so it is no wish: the look goes on). Otherwise, in a village or town, moving one out
+ * of a district centre is a wish on its list (`moveOutWish`). Returns whether it pulled one down.
  */
 export function renew(S: State, town: Town, L: Look): boolean {
   const Q = town.planner;
-  if (S.t - Q.renewAt < T(S).renewEverySeconds) return false;
-  if (!pullDown(S, town, L) && (formOf(S, town) === 'hamlet' || !moveOut(S, town, L))) return false;
+  if (S.t - Q.renewAt < T(S).renewEverySeconds || !pullDown(S, town, L)) return false;
   Q.renewAt = S.t;
   return true;
 }

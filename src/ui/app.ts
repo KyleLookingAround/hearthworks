@@ -8,7 +8,7 @@ import { capOf, crew, maxSize, offered, places, sizeName } from '../sim/farms.ts
 import { ZONES, advise, waysOf, hubOf, defence, scholarly, learningAt, reads, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, countBuilt, createState, NEED_TEXT, ageNeeded, beltBy, ctr, originText, setPlans, paintZone, setLever, setLaw, takeAdvice, place, turn, pullDown, pauseWork, growFields, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
-import { CAUSES, CAUSE_ORDER, causeOf, ideasOf, tens, inWorld, nextAgeText, problemCount, statusText, storesOf, townView, waitsOn, type Cause, type TownView } from './readouts.ts';
+import { CAUSES, CAUSE_ORDER, causeOf, ideasOf, tens, inWorld, nextAgeText, problemCount, statusText, storesOf, townView, waitsOn, wishesOf, type Cause, type TownView } from './readouts.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -683,6 +683,8 @@ export class App {
     h += '</dl>';
     // its planner: what stands in the way now, what it works towards and what it is short of
     h += `<p class="card-plan"><b>Planner</b> ${esc(v.status)}</p>`;
+    // the top of its wish list, each with what stands in the way
+    if (v.wishes.length > 1) h += `<ul class="wishes">${v.wishes.map(w => `<li class="w-${w.verdict}" title="${esc(w.text)}"><b>${esc(w.name)}</b>: ${esc(w.short)}</li>`).join('')}</ul>`;
     const wants = v.wants.map(([g, n]) => `${gn(g)}${n >= 0.66 ? ' (badly)' : n < 0.33 ? ' (a little)' : ''}`);
     h += '<dl class="rows">';
     if (v.towards) h += row('Working towards', esc(v.towards));
@@ -752,17 +754,20 @@ export class App {
     const guard = D ? [Math.round(D.total), D.warned, near, peace] : null;
     // how its goods go: each way's share (to five per cent, so the panel is not redrawn for every delivery)
     const ways = waysOf(S, t), waysKey = ways ? [ways.shares.map(v => Math.round(v / 5)), Math.floor(Math.log2(1 + ways.handed))] : null;
-    const key = JSON.stringify([waysKey, t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, t.belts.length, 'conveyor' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.naming, t.craft, t.why, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil, t.charted.length, S.agents.some(a => a.visit?.explore && a.visit.from === t.id)]);
+    const wishes = wishesOf(S, t, 5);
+    const key = JSON.stringify([wishes.map(w => w.name + w.short), waysKey, t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, t.belts.length, 'conveyor' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.naming, t.craft, t.why, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil, t.charted.length, S.agents.some(a => a.visit?.explore && a.visit.from === t.id)]);
     if (!force && key === this.stewardKey) return;
     this.stewardKey = key;
     const needs: [string, string][] = [
       ['bread', 'Bread'], ['wheat', 'Wheat'], ['planks', 'Planks'], ['logs', 'Logs'], ['beds', 'Homes for newcomers'],
-      ['hauling', 'Hauling'], ['crossing', 'Reaching the neighbours'], ['detours', 'Getting across water'],
+      ['hauling', 'Hauling'], ...(S.carts ? [['carts', 'Cart sheds'], ['oxen', 'Ox barns']] as [string, string][] : []), ['crossing', 'Reaching the neighbours'], ['detours', 'Getting across water'],
       ...(S.hardship ? [['fire', 'Guarding against fire'], ['flood', 'Holding back floods'], ['sickness', 'Tending the sick'], ['raids', 'Defence against raiders']] as [string, string][] : []),
     ];
     const levels: [number, string][] = [[0.5, 'Low'], [1, 'Normal'], [2, 'High'], [4, 'First']];
     const sel = (id: string, v: number, opts: [number, string][]) => `<select data-lever="${id}">${opts.map(([n, l]) => `<option value="${n}"${n === v ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
     let html = '';
+    // what its planner wants next, and what stands in the way of each
+    if (t.planner.on && wishes.length) html += `<div class="steward-grid"><span>Wishes</span><ul class="wishes">${wishes.map(w => `<li class="w-${w.verdict}" title="${esc(w.text)}"><b>${esc(w.name)}</b>: ${esc(w.short)}</li>`).join('')}</ul></div>`;
     html += '<div class="steward-grid">' + needs.map(([k, label]) => `<span>${label}</span>${sel('p:' + k, t.levers.priority[k] ?? 1, levels)}`).join('');
     html += `<span>Encourage thinking about</span><select data-lever="encourage"><option value="">Nothing in particular</option>${unknown.map(B => `<option value="${B.id}"${t.levers.encourage === B.id ? ' selected' : ''}>${esc(B.name)}</option>`).join('')}</select>`;
     html += `<span>Pace</span>${sel('pace', t.levers.pace, [[0.5, 'Unhurried'], [1, 'Normal'], [2, 'Brisk']])}</div>`;

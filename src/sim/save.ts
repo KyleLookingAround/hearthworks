@@ -12,7 +12,7 @@ import type { Agent, Building, Content, State, Task, World } from './types.ts';
 import { nameFor, namingFor } from './people.ts';
 import { saved } from './caches.ts';
 
-export const SAVE_VERSION = 33;
+export const SAVE_VERSION = 34;
 
 type Json = Record<string, unknown>;
 
@@ -239,6 +239,18 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
   // 32 to 33: the advisor's tips stand on each settlement, with when each kind was last given (none yet: it advises on its next look)
   32: state => {
     for (const t of state.towns as Json[]) { t.advice ??= []; t.advised ??= {}; }
+    return state;
+  },
+  // 33 to 34: the planner's wish list (empty until its next look, nothing held without room), and the needs that shared
+  // a key split: hauling into couriers, carts and oxen; learning into library, school, university and press; storage
+  // into full stores and the winter's room. A priority or a first plan for the old key holds for each new one.
+  33: state => {
+    const SPLIT: Record<string, string[]> = { hauling: ['hauling', 'carts', 'oxen'], learning: ['library', 'school', 'university', 'press'], storage: ['stores_full', 'winter_store'] };
+    const split = (r: Record<string, number>) => { for (const k in SPLIT) if (k in r) { const v = r[k]; if (k !== SPLIT[k][0]) delete r[k]; for (const n of SPLIT[k]) r[n] ??= v; } };
+    for (const t of state.towns as { planner: Json; levers: Json }[]) {
+      t.planner.wishes ??= []; t.planner.roomSince ??= null;
+      split(t.levers.priority as Record<string, number>); split(t.planner.firstFor as Record<string, number>);
+    }
     return state;
   },
 };

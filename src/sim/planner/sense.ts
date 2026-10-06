@@ -12,7 +12,7 @@ import { HAZARDS, type Hazard, type Learning, type Building, type ItemId, type S
 import { goodName, runningLow, plural, orList } from './text.ts';
 import { clamp01, T, known, mineOf, covered, ownEffect, basics, starved, formOf, affordable } from './core.ts';
 
-export interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: Learning; hall?: boolean; /** the mill (a windmill, a seed garden) whose workplaces stand bare */ mill?: string; ships?: boolean; /** traded for from this neighbour rather than made */ from?: Town; /** food spoiling in stores that do not keep it: units lost a minute, by good */ spoils?: Stock }
+export interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; /** room wanted in the stores: units they lack */ store?: number; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: Learning; hall?: boolean; /** the mill (a windmill, a seed garden) whose workplaces stand bare */ mill?: string; ships?: boolean; /** traded for from this neighbour rather than made */ from?: Town; /** food spoiling in stores that do not keep it: units lost a minute, by good */ spoils?: Stock }
 export interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; coming: boolean; foodShort: boolean; movable: boolean; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
 
 /** Sense: one settlement's production and consumption rates per good, beds, hands and hauling, each shortage scored 0 to 1. */
@@ -161,7 +161,8 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     let held = 0, room = 0;
     for (const b of mine) { const B = bp(S, b); if (!B.storage || b.site || !B.capacity || B.keeps) continue; room += B.capacity; for (const k in b.inv) held += b.inv[k]; }
     const full = room ? held / room : 0;
-    if (full >= P.storeFullShare) shortages.push({ key: 'storage', store: true, sev: clamp01((full - P.storeFullShare) / (1 - P.storeFullShare)), why: 'the stores are full' });
+    // (the room wanted: what would bring them back under `store_full_share`)
+    if (full >= P.storeFullShare) shortages.push({ key: 'stores_full', store: Math.max(1, held / P.storeFullShare - room), sev: clamp01((full - P.storeFullShare) / (1 - P.storeFullShare)), why: 'the stores are full' });
   }
   // spoilage: food rotting in stores that do not keep it, a full need at `spoil_full_per_minute` units lost a minute
   // (and none while food is short: food first);
@@ -200,7 +201,7 @@ export function look(S: State, town: Town = S.towns[0]): Look {
       for (const k in b.inv) if (!foods.has(k)) other += b.inv[k];
       storeRoom += B.capacity ? Math.max(0, B.capacity - other) : storeNeed;
     }
-    shortages.push({ key: 'storage', store: true, sev: clamp01((storeNeed - storeRoom) / Math.max(1, storeNeed)), why: 'there is no room to store the grain for winter' });
+    shortages.push({ key: 'winter_store', store: Math.max(1, storeNeed - storeRoom), sev: clamp01((storeNeed - storeRoom) / Math.max(1, storeNeed)), why: 'there is no room to store the grain for winter' });
   }
   // the dead waiting with no place for the settlement's custom: a graveyard (or another when it is full), a pyre, a dock
   if (S.people && town.rites.length && !hasPlace(S, town)) {
@@ -211,16 +212,16 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   if (S.people) {
     const K = S.content.tuning.knowledge, has = (kind: string) => mine.some(b => bp(S, b).learning === kind);
     const kids = people.filter(a => a.role === 'child').length;
-    if ('library' in town.knows && !has('library') && Object.values(town.knows).some(k => k.by !== 'founders')) shortages.push({ key: 'learning', learn: 'library', sev: K.learningWeight, why: 'what it has learned should be kept' });
-    if (!has('school') && kids >= K.schoolChildren) shortages.push({ key: 'learning', learn: 'school', sev: K.learningWeight, why: `${kids} children have no school` });
+    if ('library' in town.knows && !has('library') && Object.values(town.knows).some(k => k.by !== 'founders')) shortages.push({ key: 'library', learn: 'library', sev: K.learningWeight, why: 'what it has learned should be kept' });
+    if (!has('school') && kids >= K.schoolChildren) shortages.push({ key: 'school', learn: 'school', sev: K.learningWeight, why: `${kids} children have no school` });
     // a university in a village of `university_villagers` that keeps a library, once everyone is fed, its winter store is on track and its stores hold
     // `university_spare` times what one costs (it waits for spare stores, and never saves or opens a quarry for one), or in any town
     const U = S.content.blueprints.university;
     const spare = !!U && !affordable(S, { ...U, cost: Object.fromEntries(Object.entries(U.cost).map(([g, n]) => [g, n * K.universitySpare])) }, town);
     const village = formOf(S, town) === 'village' && has('library') && pop >= K.universityVillagers && town.fed >= 1 && storesOnTrack(S, town) && spare;
-    if ('university' in town.knows && !has('university') && (formOf(S, town) === 'town' || village)) shortages.push({ key: 'learning', learn: 'university', sev: K.learningWeight, why: 'scholars would find new ways sooner' });
+    if ('university' in town.knows && !has('university') && (formOf(S, town) === 'town' || village)) shortages.push({ key: 'university', learn: 'university', sev: K.learningWeight, why: 'scholars would find new ways sooner' });
     // a printing house beside its library in a village or town that knows one: books make readers of the grown
-    if (Object.keys(town.knows).some(id => S.content.blueprints[id]?.learning === 'press') && !has('press') && has('library') && formOf(S, town) !== 'hamlet') shortages.push({ key: 'learning', learn: 'press', sev: K.learningWeight, why: 'books would let everyone read' });
+    if (Object.keys(town.knows).some(id => S.content.blueprints[id]?.learning === 'press') && !has('press') && has('library') && formOf(S, town) !== 'hamlet') shortages.push({ key: 'press', learn: 'press', sev: K.learningWeight, why: 'books would let everyone read' });
   }
   // planners as people (with people on): a village wants a town hall for its planner
   if (S.people && formOf(S, town) !== 'hamlet' && !mine.some(b => bp(S, b).hall)) shortages.push({ key: 'hall', hall: true, sev: P.hallWeight, why: 'its planner needs a hall to keep up with a village' });
@@ -228,13 +229,13 @@ export function look(S: State, town: Town = S.towns[0]): Look {
   if (S.carts && 'cart_shed' in town.knows) {
     const sheds = mine.filter(b => bp(S, b).carts).length, want = Math.max(1, Math.floor(pop / P.villagersPerCartShed));
     const p = pressure(S, town, 'distance');
-    if (p > 0 && sheds < want) shortages.push({ key: 'hauling', carts: true, sev: p * (1 - sheds / want), why: NEED_TEXT.distance });
+    if (p > 0 && sheds < want) shortages.push({ key: 'carts', carts: true, sev: p * (1 - sheds / want), why: NEED_TEXT.distance });
   }
   // and an ox barn where they run longer still
   if (S.carts && 'ox_barn' in town.knows) {
     const barns = mine.filter(b => bp(S, b).oxen).length, want = Math.max(1, Math.floor(pop / P.villagersPerOxBarn));
     const p = pressure(S, town, 'long_hauls');
-    if (p > 0 && barns < want) shortages.push({ key: 'hauling', oxen: true, sev: p * (1 - barns / want), why: NEED_TEXT.long_hauls });
+    if (p > 0 && barns < want) shortages.push({ key: 'oxen', oxen: true, sev: p * (1 - barns / want), why: NEED_TEXT.long_hauls });
   }
   // hardship: struck lately by a hazard it knows a counter for, with buildings at risk no counter guards
   if (S.hardship) for (const h of HAZARDS) {

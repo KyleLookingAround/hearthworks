@@ -5,6 +5,7 @@ import { clearSite, neighbourSite } from './worldgen.ts';
 import { foundTown } from './towns.ts';
 import { FROST_AT, seasonOf, storesOnTrack } from './seasons.ts';
 import { reachable } from './path.ts';
+import { crowded } from './planner/core.ts';
 import { embark, launch, partyDock } from './ships.ts';
 import { CUSTOM_WORD, craftGoods } from './people.ts';
 import type { Agent, State, Stock, Town } from './types.ts';
@@ -66,8 +67,9 @@ function take(S: State, t: Town, g: string, n: number): number {
 
 export function sendParty(S: State, mother: Town): Town | null {
   const pop = villagers(S).filter(a => a.home?.town === mother.id);
-  // crowded: `min_villagers`, or `crowded_min_villagers` once its planner finds no room for what it needs (its land is full)
-  const full = /^No room/.test(mother.planner.status);
+  // crowded: `min_villagers`, or `crowded_min_villagers` once its planner's wish list has held "no room" for what it
+  // needs (its land is full) for `crowded_hold_seconds`
+  const full = crowded(S, mother);
   if (pop.length < (full ? Z(S).crowdedMinVillagers : Z(S).minVillagers) || S.towns.length >= Z(S).maxSettlements) return null;
   // a site the party can reach, on foot or by boat from a dock; with none, but land across the water, a crowded
   // settlement feels the need to cross it (and so comes up with the dock and builds one) before it is ready to send anyone

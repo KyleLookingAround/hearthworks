@@ -44,7 +44,7 @@ test('the advisor ranks its tips: hunger before a diet of bread alone', () => {
 test('the advisor does not advise zoning on land with no room left to zone', () => {
   const S = createState(content, 1847, { planner: true });
   const t = S.towns[0], W = S.world;
-  t.planner.status = 'No room for a Farm: wheat is running low';
+  t.planner.wishes = [{ key: 'wheat', sev: 1, type: 'farm', verdict: 'room', text: 'No room for a Farm: wheat is running low', why: 'wheat is running low' }];
   assert.ok(advise(S, t, 9).some(x => /paint a zone/.test(x)));
   // every open tile grown over: nothing a zone could open
   for (let i = 0; i < W.tree.length; i++) if (W.ground[i] === 2 && W.bgrid[i] < 0) W.tree[i] = 1;
@@ -54,7 +54,7 @@ test('the advisor does not advise zoning on land with no room left to zone', () 
 test('the advisor offers to encourage only an idea the settlement could think of now', () => {
   const S = createState(content, 1847, { planner: true });
   const t = S.towns[0];
-  t.planner.status = 'Nothing the hamlet knows would help: carriers are run off their feet';
+  t.planner.wishes = [{ key: 'hauling', sev: 1, type: null, verdict: 'none', text: 'Nothing the hamlet knows would help: carriers are run off their feet', why: 'carriers are run off their feet' }];
   const tip = adviceFor(S, t).find(x => x.key === 'answer:hauling')!;
   assert.deepEqual(tip.act, { lever: 'encourage', value: 'depot' });
   t.levers.encourage = 'depot';

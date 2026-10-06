@@ -8,14 +8,20 @@ import { ORDINAL } from './text.ts';
 import { T, hubs, members, reachOf } from './core.ts';
 
 /**
- * A district splits off once the newest one holds `district_buildings` buildings: a storage yard is planned
+ * A district splits off once the newest one holds `district_buildings` buildings (a wish on its planner's list, at
+ * `district_weight`): a storage yard is planned
  * as the new district's centre, on open land it can be walked to, about `district_spacing` from every other
  * centre, where there is most grass around to grow into. The newest district is where a settlement grows,
  * so each look only searches one district, and planning cost follows district size, not town size.
  */
-export function foundDistrict(S: State, town: Town): boolean {
+export function districtDue(S: State, town: Town): boolean {
+  const hs = hubs(S, town), newest = hs[hs.length - 1];
+  return !!newest && !newest.site && members(S, town, newest).length >= T(S).districtBuildings;
+}
+
+/** Where a new district's yard would go (once `districtDue`), or null with no room for one. */
+export function districtSpot(S: State, town: Town): { x: number; y: number } | null {
   const P = T(S), W = S.world, hs = hubs(S, town), newest = hs[hs.length - 1];
-  if (!newest || newest.site || members(S, town, newest).length < P.districtBuildings) return false;
   const B = S.content.blueprints.storage, first = door(hs[0]), reach = reachable(W, first.x, first.y), c = ctr(newest), RD = S.content.tuning.roads;
   const R = P.districtSpacing + 8;
   const cands: { x: number; y: number; s: number }[] = [];
@@ -33,10 +39,14 @@ export function foundDistrict(S: State, town: Town): boolean {
     cands.push({ x, y, s: Math.abs(d - P.districtSpacing) - P.districtRoomWeight * grass - (road ? RD.districtWeight : 0) });
   }
   cands.sort((a, b) => a.s - b.s);
-  const best = cands.slice(0, P.districtTries).find(p => !cutsOff(S, town, 'storage', p.x, p.y));
-  if (!best) return false;
+  return cands.slice(0, P.districtTries).find(p => !cutsOff(S, town, 'storage', p.x, p.y)) ?? null;
+}
+
+/** Found a new district round a yard at this spot (its planner's wish list chose it): the yard is the planner's site. */
+export function foundDistrict(S: State, town: Town, best: { x: number; y: number }, sev: number) {
+  const P = T(S);
   const b = placeBuilding(S, 'storage', best.x, best.y, false)!;
-  b.town = town.id; b.priority = 1 + P.urgencyPriority; b.reason = `the heart of a new district: the old one has filled up`;
+  b.town = town.id; b.priority = 1 + Math.round(sev * P.urgencyPriority); b.reason = `the heart of a new district: the old one has filled up`;
   town.districts.push(b.id);
   const Q = town.planner;
   Q.site = b.id; Q.placed++; Q.streak = { type: '', n: 0 };
@@ -44,7 +54,6 @@ export function foundDistrict(S: State, town: Town): boolean {
   Q.status = `Founding a ${nth} district: the old one has filled up`;
   chronicle(S, town.id, 'district', `${town.name} founded a ${nth} district`);
   emit(S, 'info', `${town.name}: ${Q.status}`);
-  return true;
 }
 
 /**

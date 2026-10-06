@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T09:07:23Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T12:00:00Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -87,7 +87,7 @@ tuning:
   district_spacing_max: 1.4
   district_room_tiles: 8
   district_tries: 8
-  site_tries: 8
+  site_tries: 24
   open_store_capacity: 300
   shared_tree_yield: 0.5
   replan_hub_weight: 0.05
@@ -95,6 +95,12 @@ tuning:
   winter_gap_min_seconds: 60
   low_mood_growth: 0.5
   saving_want: 0.5
+  road_weight: 0.6
+  belt_weight: 0.6
+  district_weight: 1
+  replan_weight: 0.5
+  move_out_weight: 0.7
+  wish_list_size: 12
 ---
 
 # Goal
@@ -104,6 +110,26 @@ The player stops placing buildings. The village notices a shortage, chooses a [b
 The code is `src/sim/planner.ts`. It names no building type: what a blueprint relieves is read from its recipe, `homes`, `harvest` and `couriers` fields, so a new blueprint joins in by being written.
 
 Every settlement has its own planner. It looks only at its own people and buildings, builds around its own storage yard, and only proposes blueprints its settlement [knows](/systems/knowledge.md).
+
+# The wish list
+
+Each look leaves one scored list, kept on the settlement (`wishes`, at most `wish_list_size`): every need it sees, how badly (its severity, after the [steward's](#the-steward) priorities), the building that answers it, and a verdict:
+
+- **going ahead**: its site is planned (or its road laid);
+- **thinking about it**: it tops the list, not yet for `confirm_cycles` looks in a row;
+- **saving**: it cannot pay yet ("Bakery: saving planks, 6 of 10"), and it holds back the needs below it;
+- **waiting for hands**, **waiting for an input**, **trading for it**: it cannot go ahead now, and the next need may;
+- **no room**: nowhere to put it, lately (`no_room_retry_seconds`);
+- **waits its turn**: below the one going ahead or saved for;
+- **nothing known would help**, and **not pressing** (below `min_severity`).
+
+The works that once went before every need are wishes on the same list, each at its own weight, confirmed and paid for like any building, and food comes first for all of them (while food is short, every need of the food chain goes before every work; worth nothing while it was short, they were put off a third of the time and a world lost twelve villagers): a **road** (`road_weight`) and a **conveyor** (`belt_weight`), laid from the stores with no site, so they may go ahead while the settlement's sites are all taken; a **new district** (`district_weight`, its yard where `districtSpot` finds room, else "no room"); a **replanned block** (`replan_weight`, the densest home paid for before anything comes down); and a **workplace moved out of a centre** (`move_out_weight`). On a tie a work goes first. Pulling down what no longer pays costs nothing and is not a wish: it is done, and the look goes on.
+
+The status line is the list's top entry: the wish that decided the look (the one going ahead, thought about or saved for; else what holds the rest back: hands or an input, then no room, then trade, then nothing known), written once a look. Nothing else writes it. Other systems read the verdicts: [settling](/systems/settling.md) counts a settlement crowded once a "no room" verdict for something it needs (not a university, a bridge or a district) has stood on its list for `crowded_hold_seconds`, and the [advisor](/systems/advisor.md) reads what nothing answers and what has no room from the list. The player reads the top of the list on the settlement card and in the Steward panel.
+
+Each need has a key of its own, so each priority and each first plan has its own target: `hauling` (couriers), `carts` and `oxen`; `library`, `school`, `university` and `press`; `stores_full` (room wanted to bring the stores back under `store_full_share`, which any store answers) and `winter_store` (room for the winter's grain, which a store that keeps wheat answers). A save of version 33 or earlier carries an old key's priority and first plan over to each new one.
+
+A blueprint it lately found no room for gives way to the next best that answers the same need: a [Warehouse](/blueprints/warehouse.md), denser, where a yard has no room.
 
 # Loop
 
@@ -131,7 +157,7 @@ Every `interval_seconds` the planner:
    - homes: `link_weight` × distance to the nearest house;
    - yards (a granary, a warehouse or another storage yard, not a district's heart): `yard_weight` × the mean distance to the makers of what they keep (of anything, for a yard that takes anything). It is 0: yards beside their makers cost default games a seventh of their trade and a few people ([log](/log.md), 2026-10-05), so a yard goes where any building would, near its district's heart and, when moved, beyond every centre;
    - courier buildings: minus `cover_weight` per building of its settlement its bots would newly reach; a spot that reaches none is skipped.
-   A spot is refused if building there would cut storage off from the door of any of the settlement's buildings, or from the tile in front of its own door: on a big landmass a farm was once sealed onto a patch of sand by the next building down. If no spot qualifies, it remembers that it found no room for that blueprint and, for `no_room_retry_seconds`, plans for its next shortage instead, so one building it cannot place (a dock with no suitable shore) never holds up the bread.
+   A spot is refused if building there would cut storage off from the door of any of the settlement's buildings, or from the tile in front of its own door: on a big landmass a farm was once sealed onto a patch of sand by the next building down. It path-checks the best `site_tries` spots in turn before it says so. If no spot qualifies, it remembers that it found no room for that blueprint and, for `no_room_retry_seconds`, plans for its next shortage instead, so one building it cannot place (a dock with no suitable shore) never holds up the bread.
 7. **Commits** a construction site through the [job board](/systems/logistics.md) with priority `1 + severity × urgency_priority` (see [site priority](/systems/production.md)) and records why on the building.
 
 # Village to town
@@ -203,7 +229,7 @@ The planner is a villager. With [people](/systems/people.md) on, a village wants
 
 # Learning
 
-With people on, the planner wants a [Library](/blueprints/library.md) while it holds knowledge beyond its founders', a [School](/blueprints/school.md) once it has `school_children` children, a [University](/blueprints/university.md) as a village of `university_villagers` that keeps a library, while everyone is fed, its winter store is on track and its stores hold `university_spare` times the university's cost (it waits for spare stores rather than saving, and never opens a quarry for one), or as any town, that knows of one, and a [Printing House](/blueprints/printing_house.md) as a village or town that knows one and keeps a library, each at `learning_weight` ([knowledge](/systems/knowledge.md)). A university is wanted, not needed: with no room for one the planner clears a workshop resting with enough in store (as a dock clears the shore), and if there is none it goes on to its next need in the same look, without saying its land is full (which would send settlers off). Universities were wanted in towns alone until the second pass: on the twelve default new games none was built within the hour, so no settlement ever thought of an idea only scholars find ([log](/log.md), 2026-10-05).
+With people on, the planner wants a [Library](/blueprints/library.md) while it holds knowledge beyond its founders', a [School](/blueprints/school.md) once it has `school_children` children, a [University](/blueprints/university.md) as a village of `university_villagers` that keeps a library, while everyone is fed, its winter store is on track and its stores hold `university_spare` times the university's cost (it waits for spare stores rather than saving, and never opens a quarry for one), or as any town, that knows of one, and a [Printing House](/blueprints/printing_house.md) as a village or town that knows one and keeps a library, each at `learning_weight` ([knowledge](/systems/knowledge.md)). A university is wanted, not needed: with no room for one the planner clears a workshop resting with enough in store (as a dock clears the shore), but only once the university is chosen, confirmed and paid for (before that it only asks whether one could be cleared, and nothing comes down), and if there is none it goes on to its next need in the same look, without saying its land is full (which would send settlers off). Universities were wanted in towns alone until the second pass: on the twelve default new games none was built within the hour, so no settlement ever thought of an idea only scholars find ([log](/log.md), 2026-10-05).
 
 A settlement that knows a mill (the [Windmill](/blueprints/windmill.md) for its bakeries, the [Seed Garden](/blueprints/seed_garden.md) for its farms, gardens and orchards) wants that mill, at `mill_weight`, where `mill_min` of the workplaces it serves stand with none of it in reach, and sites it where it reaches the most of them.
 
@@ -237,7 +263,7 @@ Under the `detours` shortage (water keeps the village from grass close by, or tr
 - One planned site open at a time, and a settle pause after it finishes.
 - A choice must win `confirm_cycles` looks running before it is built.
 - Capacity already on the way (sites, unstaffed workplaces) counts as relief.
-- The planner never cancels a site, and demolishes only to renew a block of homes, to pull down a workplace that no longer pays or one it has moved out of a centre, to lay a road, or to clear a shore for its first dock.
+- The planner never cancels a site, and demolishes only to renew a block of homes, to pull down a workplace that no longer pays or one it has moved out of a centre, to lay a road, or to clear a shore for its first dock or room for a university it has chosen and paid for.
 - What it pulls down must be covered by the rest with `keep_cover` to spare, so it does not build the same again at its next look; renewal acts at most once every `renew_every_seconds`.
 
 # Player

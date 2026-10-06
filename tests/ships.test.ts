@@ -112,7 +112,8 @@ test('a settlement whose island is full founds a colony whose settlers build a b
   assert.ok(S.stats.boatTrips > 0);
   // a settler whose way was cut short on the mother's island sets off again in the boat, and lands on the colony's
   const mine = S.bmap.get(S.towns[colony!.mother!].store)!, yard = S.bmap.get(colony!.store)!;
-  const a = S.agents.find(v => v.kind === 'villager' && v.home?.town === colony!.id && !v.visit)!;
+  // (one with work of its own to go back to: a carrier may take up a delivery from where it stands first)
+  const a = S.agents.find(v => v.kind === 'villager' && v.role === 'worker' && v.home?.town === colony!.id && !v.visit)!;
   const boat = S.boats.find(b => b.town === colony!.id)!;
   a.task = null; a.carry = null; a.state = 'idle'; a.path = []; a.x = door(mine).x + 0.5; a.y = door(mine).y + 0.5;
   boat.town = colony!.mother!; boat.bound = colony!.id; boat.crew = [a.id];

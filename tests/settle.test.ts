@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
-import { createState, runFor, villagers, bp, loadGame, saveGame } from '../src/sim/index.ts';
+import { createState, runFor, villagers, bp, loadGame, saveGame, crowded } from '../src/sim/index.ts';
 import { sendParty } from '../src/sim/settle.ts';
 
 const content = loadContent();
@@ -67,10 +67,21 @@ test('a settlement whose land is full sends a party from crowded_min_villagers, 
       S.agents.push(n); S.amap.set(n.id, n);
     }
     yard.inv = { planks: 200, bread: 100, logs: 50 };
-    mother.planner.status = full ? 'No room for a Farm: bread is running low' : 'The village has what it needs';
+    // its wish list has held "no room" for a farm for `crowded_hold_seconds` (or holds nothing without room)
+    mother.planner.roomSince = full ? S.t - Z.crowdedHoldSeconds : null;
     return sendParty(S, mother);
   };
   assert.ok(Z.crowdedMinVillagers < Z.minVillagers);
   assert.ok(party(true), 'its land is full: it sends settlers');
   assert.equal(party(false), null, 'room to grow: it waits until it is crowded');
+});
+
+test('crowding is a "no room" verdict held on the wish list, not a moment of it', () => {
+  const S = createState(content, 1847, { planner: true, settlers: true });
+  const t = S.towns[0];
+  assert.equal(crowded(S, t), false);
+  t.planner.roomSince = S.t;
+  assert.equal(crowded(S, t), false, 'just now: not yet crowded');
+  S.t += Z.crowdedHoldSeconds;
+  assert.equal(crowded(S, t), true, 'held long enough: crowded');
 });

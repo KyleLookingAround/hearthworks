@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
 import { bp, canPlace, createState, ctr, door, findPath, loadGame, placeBuilding, runFor, saveGame, villagers } from '../src/sim/index.ts';
-import { bestRoad, layRoad, planRoads, roadByCentre, traffic } from '../src/sim/roads.ts';
+import { bestRoad, layRoad, planRoads, roadByCentre, roadWork, traffic, unpaid } from '../src/sim/roads.ts';
 import { fits } from '../src/sim/place.ts';
 import { centre, findSpot } from '../src/gates/kit.ts';
 
@@ -68,8 +68,10 @@ test('roads are laid at a cost a tile, only by villages and towns that know them
   t.knows.road ??= { by: t.name, at: S.t, verified: [], from: null, learned: S.t, used: S.t };
   const yard = S.bmap.get(t.store)!; yard.inv.planks = 0;
   for (const b of S.buildings) if (bp(S, b).storage) b.inv.planks = 0;
+  t.roadT = 1e9;
+  const work = roadWork(S, t);
+  assert.equal(work && unpaid(S, t, work)?.good, 'planks', 'a road to lay, and it saves planks for it');
   assert.equal(planRoads(S, t, 1e9), false, 'nothing to pay with');
-  assert.match(t.planner.status, /Saving planks for a road/);
   yard.inv.planks = 500;
   assert.equal(planRoads(S, t, 1e9), true);
   const tiles = S.stats.roadTiles;

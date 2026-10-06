@@ -60,6 +60,15 @@ export function basics(S: State): Set<ItemId> {
   return out;
 }
 
+/**
+ * Crowded: a wish has stood on the settlement's list with no room for it (its land is full for what it needs) for
+ * `crowded_hold_seconds`. Settling reads this, not the planner's words.
+ */
+export function crowded(S: State, town: Town): boolean {
+  const Q = town.planner;
+  return Q.on && Q.roomSince !== null && S.t - Q.roomSince >= S.content.tuning.settling.crowdedHoldSeconds;
+}
+
 const FORMS: Form[] = ['hamlet', 'village', 'town'];
 
 /** A site that has waited `site_patience_seconds` for a good nobody in its settlement has. */

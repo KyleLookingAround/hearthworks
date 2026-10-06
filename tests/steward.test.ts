@@ -39,9 +39,9 @@ test('the advisor points at a lever when a settlement is stuck', () => {
   S.towns[0].fed = 0.5;
   assert.match(advise(S, S.towns[0])[0], /raise the priority of bread/);
   S.towns[0].fed = 1;
-  S.towns[0].planner.status = 'Nothing the village knows would help: carriers are run off their feet';
+  S.towns[0].planner.wishes = [{ key: 'hauling', sev: 1, type: null, verdict: 'none', text: 'Nothing the village knows would help: carriers are run off their feet', why: 'carriers are run off their feet' }];
   assert.ok(advise(S, S.towns[0]).some(t => /encourage them to think of the Courier Depot/.test(t)));
-  S.towns[0].planner.status = 'No room for a Farm: wheat is running low';
+  S.towns[0].planner.wishes = [{ key: 'wheat', sev: 1, type: 'farm', verdict: 'room', text: 'No room for a Farm: wheat is running low', why: 'wheat is running low' }];
   assert.ok(advise(S, S.towns[0]).includes('Hearth has no room for a Farm (wheat is running low): paint a zone where there is room, or lift no-build land.'));
 });
 

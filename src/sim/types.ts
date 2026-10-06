@@ -180,7 +180,7 @@ export interface Tuning {
     idleLookSeconds: number; idleLookJitter: number; wanderChance: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number; emptyShelfFed: number; adviseHungryBelow: number };
-  settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; crowdedMinVillagers: number; storesShare: number; maxSettlements: number; firstHarvestSeconds: number; provisionHeadroom: number };
+  settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; crowdedMinVillagers: number; crowdedHoldSeconds: number; storesShare: number; maxSettlements: number; firstHarvestSeconds: number; provisionHeadroom: number };
   sea: { shallowTiles: number; shallowSpeed: number; reefFromTiles: number; reefToTiles: number; reefCell: number; sightTiles: number; lookEverySeconds: number; exploreEverySeconds: number; dockBoats: number; partyBoatPlanks: number; villagersPerBoat: number; fleetMax: number; boatlessMemorySeconds: number; shipyardWeight: number; boatNames: string[] };
   people: {
     adultSeconds: number; elderSeconds: number; lifespanSeconds: number; lifespanJitterSeconds: number; founderAgeMaxSeconds: number; birthEverySeconds: number;
@@ -225,6 +225,32 @@ export interface PlannerTuning {
   detourMinTiles: number; detourMemorySeconds: number; detourMemoryTrips: number; bridgeReachTiles: number; bridgeTripTiles: number; wearFloor: number;
   districtSpacingMin: number; districtSpacingMax: number; districtRoomTiles: number; districtTries: number; siteTries: number; openStoreCapacity: number; sharedTreeYield: number;
   replanHubWeight: number; moveOutHubWeight: number; winterGapMinSeconds: number; lowMoodGrowth: number; savingWant: number;
+  /** The works on the wish list, each at its weight (a severity), and how many wishes the list keeps. */
+  roadWeight: number; beltWeight: number; districtWeight: number; replanWeight: number; moveOutWeight: number; wishListSize: number;
+}
+
+/**
+ * What a planner's wish list says of one wish: going ahead (being built), thinking about it (not yet confirmed), saving
+ * for it, waiting for hands, no room, trading for it, waiting for an input, waiting its turn behind one going ahead,
+ * nothing known would answer it, or below the threshold.
+ */
+export type Verdict = 'going' | 'thinking' | 'saving' | 'hands' | 'room' | 'trading' | 'input' | 'queued' | 'none' | 'below';
+/** One wish on a planner's list: a need it sees (or a road, a conveyor, a district, a renewal), how badly, the building it calls for and what stands in the way. */
+export interface Wish {
+  /** the need's key, as the priority levers name it */
+  key: string;
+  sev: number;
+  /** the blueprint it calls for, if any */
+  type: string | null;
+  verdict: Verdict;
+  /** one line for the player: what it is and what stands in the way */
+  text: string;
+  /** why it is wished for */
+  why: string;
+  /** saving: the good it is short of, how much it has and how much it needs */
+  good?: ItemId;
+  have?: number;
+  need?: number;
 }
 
 /** What the village planner is doing. Off unless the game or a scenario turns it on. */
@@ -242,8 +268,12 @@ export interface PlannerState {
   want: string | null;
   /** The good it has been short of while saving up, and since when. */
   saving: { good: string; since: number } | null;
-  /** One line for the player: what the planner is doing and why. */
+  /** One line for the player: what the planner is doing and why (its wish list's top entry, written once a look). */
   status: string;
+  /** Its wish list at its last look, most pressing first: what other systems and the player read. */
+  wishes: Wish[];
+  /** Since when a wish has stood on its list with no room for it (its land is full for what it needs), or null. */
+  roomSince: number | null;
   placed: number;
   /** Does it pave the paths its people wear? */
   roads: boolean;

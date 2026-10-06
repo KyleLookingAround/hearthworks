@@ -3,7 +3,7 @@
  * DOM-free, so the tests can check it. Nothing here changes the simulation: it calls only sim functions that read
  * (their caches are keyed on `S.t`, which the next tick moves on before it reads them).
  */
-import { ageNeeded, bp, ideasNear, NEED_SHORT, NEED_TEXT, nextAge, scholarly, villagers, type BlueprintDef, type Building, type ItemId, type State, type Stock, type Town } from '../sim/index.ts';
+import { ageNeeded, bp, ideasNear, NEED_SHORT, NEED_TEXT, nextAge, scholarly, villagers, type BlueprintDef, type Building, type ItemId, type State, type Stock, type Town, type Verdict } from '../sim/index.ts';
 import { enoughInStore } from '../sim/production.ts';
 import { formOf } from '../sim/planner.ts';
 import { offered } from '../sim/farms.ts';
@@ -83,6 +83,8 @@ export interface TownView {
   /** The blueprint its planner works towards, if any. */
   towards: string | null;
   status: string;
+  /** The top of its planner's wish list, each in a few words with its verdict. */
+  wishes: WishView[];
   /** Its three biggest trades each way, in whole loads. */
   sent: [ItemId, number][];
   got: [ItemId, number][];
@@ -127,9 +129,38 @@ export function townView(S: State, t: Town): TownView {
     wants: Object.entries(t.planner.wants).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 3),
     towards: t.planner.want ? C.blueprints[t.planner.want]?.name ?? t.planner.want : null,
     status: t.planner.on ? t.planner.status : 'Plans are off: you place the buildings',
+    wishes: t.planner.on ? wishesOf(S, t) : [],
     sent: top(t.trade.exported), got: top(t.trade.imported),
     problems,
   };
+}
+
+/** One wish of a planner's list as the player reads it: "Bakery: saving planks, 6 of 10", its verdict, and the planner's whole line. */
+export interface WishView { name: string; verdict: Verdict; short: string; text: string }
+
+/** What each verdict says, in a few words. */
+const VERDICT: Record<Verdict, string> = {
+  going: 'going ahead', thinking: 'thinking about it', saving: 'saving', hands: 'waiting for hands', room: 'no room',
+  trading: 'trading for it', input: 'waiting for an input', queued: 'waits its turn', none: 'nothing known would help', below: 'not pressing',
+};
+
+/**
+ * The top `n` wishes of a settlement's planner, as its last look left them (those below its threshold left out):
+ * "Bakery: saving planks, 6 of 10"; "Granary: no room".
+ */
+export function wishesOf(S: State, t: Town, n = 4): WishView[] {
+  const C = S.content, gn = (g: string) => (C.goods[g]?.name ?? g).toLowerCase();
+  return t.planner.wishes.filter(w => w.verdict !== 'below').slice(0, n).map(w => {
+    const B = w.type ? C.blueprints[w.type] : undefined, of = B?.name ?? '';
+    // the works by what they are; a need by the building it calls for, else by its good, else by why it is wished for
+    const name = { road: 'Road', belt: 'Conveyor', district: 'New district', replan: `${of} (renewing a block)`, move_out: `${of} (moving out)` }[w.key]
+      ?? (B ? B.name : C.goods[w.key] ? C.goods[w.key].name : w.why[0].toUpperCase() + w.why.slice(1));
+    let short = VERDICT[w.verdict];
+    if (w.verdict === 'saving' && w.good) short = `saving ${gn(w.good)}${w.need ? `, ${w.have ?? 0} of ${w.need}` : ''}`;
+    else if (w.verdict === 'input' && w.good) short = `waiting for ${gn(w.good)}`;
+    else if (w.verdict === 'trading' && w.good) short = `trading for ${gn(w.good)}`;
+    return { name, verdict: w.verdict, short, text: w.text };
+  });
 }
 
 /** Problems a player should look at in one settlement: every badge but resting. */

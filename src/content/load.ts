@@ -226,7 +226,7 @@ export function buildContent(files: SourceFile[]): Content {
       oxCarry: N, oxPathSpeed: N, oxRoadSpeed: N, oxRoughSpeed: N, oxMinTiles: N, oxFeed: N, hubReach: N, relayMinTiles: N, hubStock: N, relayMinLoad: N, relayBonus: N, adviseLongHauls: N, adviseFootShare: N, idleLookSeconds: N, idleLookJitter: N, wanderChance: N,
     }),
     needs: section<Tuning['needs']>(needs, { eatEverySeconds: N, leaveAfterHungrySeconds: N, migrantEverySeconds: N, migrateMinMood: N, surroundingsWeight: N, tierTwo: list([]), tierThree: list([]), extrasEverySeconds: N, extrasStock: N, varietyBonus: N, emptyShelfFed: N, adviseHungryBelow: N }, 'tuning.', ['surroundings']),
-    settling: section<Tuning['settling']>(sys('settling'), { checkEverySeconds: N, minVillagers: N, cooldownSeconds: N, partySize: N, crowdedMinVillagers: N, storesShare: N, maxSettlements: N, firstHarvestSeconds: N, provisionHeadroom: N }),
+    settling: section<Tuning['settling']>(sys('settling'), { checkEverySeconds: N, minVillagers: N, cooldownSeconds: N, partySize: N, crowdedMinVillagers: N, crowdedHoldSeconds: N, storesShare: N, maxSettlements: N, firstHarvestSeconds: N, provisionHeadroom: N }),
     sea: section<Tuning['sea']>(sys('sea'), { shallowTiles: N, shallowSpeed: N, reefFromTiles: N, reefToTiles: N, reefCell: N, sightTiles: N, lookEverySeconds: N, exploreEverySeconds: N, dockBoats: N, partyBoatPlanks: N, villagersPerBoat: N, fleetMax: N, boatlessMemorySeconds: N, shipyardWeight: N, boatNames: names('names') }),
     people: {
       ...section<Omit<Tuning['people'], 'names'>>(people, {
@@ -251,6 +251,7 @@ export function buildContent(files: SourceFile[]): Content {
       detourMinTiles: N, detourMemorySeconds: N, detourMemoryTrips: N, bridgeReachTiles: N, bridgeTripTiles: N, wearFloor: N,
       districtSpacingMin: N, districtSpacingMax: N, districtRoomTiles: N, districtTries: N, siteTries: N, openStoreCapacity: N, sharedTreeYield: N,
       replanHubWeight: N, moveOutHubWeight: N, winterGapMinSeconds: N, lowMoodGrowth: N, savingWant: N,
+      roadWeight: N, beltWeight: N, districtWeight: N, replanWeight: N, moveOutWeight: N, wishListSize: N,
     }),
     hardship: section<Tuning['hardship']>(sys('hardship'), {
       fireEverySeconds: N, spreadGap: N, spreadChance: N, burnSeconds: N, douseSeconds: N, rebuildShare: N, fireLoss: N, fireproof: list([]),

@@ -7,7 +7,7 @@ export { command, setPlans, paintZone, setLever, setLaw, place, turn, pullDown, 
 export { tick, runFor, computeMood, STEP } from './tick.ts';
 export { findPath } from './path.ts';
 export { findSpot, treeSpot, fits, clear, treesAround } from './place.ts';
-export { plan } from './planner.ts';
+export { plan, crowded } from './planner.ts';
 export { beltRoute, beltBy, beltDef } from './belts.ts';
 export { hubOf } from './logistics.ts';
 export { knows, originText, verifiedHere, pressure, ageNeeded, scholarly, NEED_TEXT, NEED_SHORT, ideasNear, nextAge } from './knowledge.ts';

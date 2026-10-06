@@ -10,7 +10,7 @@ import { offered } from './farms.ts';
 import { newLedger } from './trade.ts';
 import type { Agent, Content, PlannerState, State, Town } from './types.ts';
 
-export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, renewAt: 0, firstFor: {}, wants: {}, use: {} });
+export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', wishes: [], roomSince: null, placed: 0, noRoom: {}, roads: true, replanAt: 0, renewAt: 0, firstFor: {}, wants: {}, use: {} });
 
 /**
  * A new island with the starting settlement at its centre: a storage yard, two houses and a short road.

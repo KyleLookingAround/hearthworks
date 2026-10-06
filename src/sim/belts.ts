@@ -5,7 +5,7 @@
  */
 import { available, hubOf, hubWant, requestsNow, roomFor, staleBoard } from './logistics.ts';
 import { add, bp, chronicle, distBB, emit, front, villagers } from './core.ts';
-import { have, take } from './roads.ts';
+import { take, unpaid, type Works } from './roads.ts';
 import { beltsChanged, caches, type Besides } from './caches.ts';
 export { turned } from './caches.ts';
 import type { BlueprintDef, Building, ItemId, State, Town, World } from './types.ts';
@@ -314,33 +314,58 @@ export function bestBelt(S: State, town: Town): Strip | null {
   return best;
 }
 
-/**
- * Called at each of the planner's looks: every `look_every_seconds`, a self-planning village or town that knows the
- * Conveyor, with fewer belts than one and another per `villagers_per_belt` people, lays the best strip it can pay for.
- */
-export function planBelts(S: State, town: Town, dt: number): boolean {
+/** At each of the planner's looks: belts in use keep the conveyor in mind, as a building does, and it counts towards its next look for one. */
+export function tendBelts(S: State, town: Town, dt: number) {
   const B = beltDef(S);
-  if (!B || !(B.id in town.knows)) return false;
-  // belts in use keep the conveyor in mind, as a building does
+  if (!B || !(B.id in town.knows)) return;
   if (town.belts.length) town.knows[B.id].used = S.t;
   town.beltT += dt;
-  if (town.beltT < C(S).lookEverySeconds) return false;
-  town.beltT = 0;
+}
+
+/**
+ * The conveyor a self-planning village or town that knows it would lay now, every `look_every_seconds` (null till then),
+ * while it has fewer belts than one and another per `villagers_per_belt` people: the best strip, a wish on its planner's list.
+ */
+export function beltWork(S: State, town: Town): Works | null {
+  const B = beltDef(S);
+  if (!B || !beltDue(S, town)) return null;
   const pop = villagers(S).filter(a => a.home?.town === town.id).length;
-  if (town.belts.length >= 1 + Math.floor(pop / C(S).villagersPerBelt)) return false;
-  const strip = bestBelt(S, town);
-  if (!strip) return false;
-  for (const g in B.cost) if (have(S, town, g) < B.cost[g] * strip.fresh) { town.planner.status = `Saving ${S.content.goods[g]?.name.toLowerCase() ?? g} for a conveyor`; return false; }
-  for (const g in B.cost) take(S, town, g, B.cost[g] * strip.fresh);
-  const w = S.world;
-  for (const i of strip.tiles) { setBelt(w, i, true); w.tree[i] = 0; }
-  const xs = strip.tiles.map(i => i % w.w), ys = strip.tiles.map(i => Math.floor(i / w.w));
-  town.belts.push([Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys), S.t]);
-  S.stats.beltsLaid++; S.stats.beltTiles += strip.fresh;
-  const why = `${town.name} laid a conveyor ${strip.tiles.length} tiles long, beside ${strip.serves} buildings`;
-  chronicle(S, town.id, 'belt', why);
-  emit(S, 'info', why, true);
-  town.planner.status = `Laid a conveyor: ${strip.tiles.length} tiles, ${strip.serves} buildings beside it`;
-  town.knows[B.id].used = S.t;
+  const strip = town.belts.length < 1 + Math.floor(pop / C(S).villagersPerBelt) ? bestBelt(S, town) : null;
+  if (!strip) { restBelts(town); return null; }
+  const cost: Record<ItemId, number> = {};
+  for (const g in B.cost) cost[g] = B.cost[g] * strip.fresh;
+  return {
+    key: 'belt', name: 'a conveyor', tiles: strip.tiles.length, cost, lay: () => {
+      const w = S.world;
+      for (const i of strip.tiles) { setBelt(w, i, true); w.tree[i] = 0; }
+      const xs = strip.tiles.map(i => i % w.w), ys = strip.tiles.map(i => Math.floor(i / w.w));
+      town.belts.push([Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys), S.t]);
+      S.stats.beltsLaid++; S.stats.beltTiles += strip.fresh;
+      const why = `${town.name} laid a conveyor ${strip.tiles.length} tiles long, beside ${strip.serves} buildings`;
+      chronicle(S, town.id, 'belt', why);
+      emit(S, 'info', why, true);
+      town.knows[B.id].used = S.t;
+      restBelts(town);
+      return `Laid a conveyor: ${strip.tiles.length} tiles, ${strip.serves} buildings beside it`;
+    },
+  };
+}
+
+/** Has a look for a conveyor come due (`look_every_seconds` since the last)? */
+export function beltDue(S: State, town: Town): boolean {
+  const B = beltDef(S);
+  return !!B && B.id in town.knows && town.beltT >= C(S).lookEverySeconds;
+}
+
+/** A conveyor not taken up waits `look_every_seconds` before it is looked for again. */
+export const restBelts = (town: Town) => { town.beltT = 0; };
+
+/** Lay a conveyor now if the settlement can pay for one (what its planner does once it tops its list). True when it did. */
+export function planBelts(S: State, town: Town, dt: number): boolean {
+  tendBelts(S, town, dt);
+  const w = beltWork(S, town);
+  if (!w || unpaid(S, town, w)) { restBelts(town); return false; }
+  for (const g in w.cost) take(S, town, g, w.cost[g]);
+  town.planner.status = w.lay();
   return true;
 }
