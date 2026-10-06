@@ -4,7 +4,7 @@ title: "0006: How the parts work together"
 description: A review of the whole game after the first pass, and a plan in stages to make its code plainer and its systems pay their way where the player can see them; first code that leaves every run unchanged, then design changes, each measured.
 tags: [decision, architecture, design, process]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T02:56:59Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T18:48:58Z }
 sources:
   - id: kyle-rethink
     resource: conversation with Kyle on 2026-10-06
@@ -13,6 +13,10 @@ sources:
   - id: kyle-go
     resource: conversation with Kyle on 2026-10-06
     title: Kyle takes the recommendations on the four questions
+    author: human:kyle
+  - id: kyle-go-2
+    resource: conversation with Kyle on 2026-10-06
+    title: Kyle takes the recommendations on the questions the stage 2 work raised
     author: human:kyle
 ---
 
@@ -127,5 +131,21 @@ Kyle took the recommendation on each question the review raised.[^kyle-go]
 3. **Unknown buildings:** the build bar shows them, marked with what they wait on, but a player can place one only where the settlement knows it. Knowledge stays a thing in the world.
 4. **Order:** readouts and the settlement card first, beside the code-only stage, then the systems that idle, then the planner's wish list.
 
+# Kyle's calls on what stage 2 raised
+
+The stage 2 work raised more questions; Kyle took the coordinator's recommendation on each.[^kyle-go-2]
+
+1. **Loosened gates accepted:** [Gate 20b](/gates/20b-hardship.md) (`max_lost_share` 0.1 to 0.12) and [Gate 21c](/gates/21c-paths-and-roads.md) (`min_built_along_roads` 0.2 to 0.18) stand.
+2. **Rationing** stretches the stores only in autumn and winter, or while a settlement's winter store is behind; the rest of the year it costs mood and gains nothing.
+3. **Land that runs short:** newcomers are weighed against what a settlement's land can feed (one more mouth only while its farmland, standing and to come, can carry it), and a crowded settlement whose store is behind may send settlers even when not fully fed.
+4. **Ages:** the first age needs two of its works proven (any two of bridge, dock and cart shed), not one; an age never turns in the same look as the one before it; Letters is left as it is until this is measured.
+5. **Raiders:** raiders by sea wait for Phase 24's ships; camps settle after fewer gifts, and a camp that is fed moves in rather than breaking up.
+6. **Stores:** the granary stays of planks and stone; a warehouse may replace a settlement's oldest yard where it has no room for another.
+7. **Conveyors** keep their place on the wish list for now, measured again once the options are retired.
+8. **Trade:** settlements that hold a craft make its finished goods for their neighbours (tools, cloth), a topic for the second pass of Phase 13.
+9. **Stage 2.7, fewer options:** [Gate 7](/gates/07-worlds.md) is superseded with its work budgets set from the all-on run plus half again (a loosening, accepted); Gate 8 compares deliveries along worn paths with those off them in the same run; Gate 13 drops its trade-free baseline; Gates 10, 14, 18 and 20b are reworked as the options worker proposed; `newcomers` and `roads` retire, `planner` stays an option off the new-game screen, and charts and ships are always on.
+10. **Older calls:** river boats wait for Phase 24; traditions stay as built (set apart by founding order, a craft at 10% faster, no resisting a neighbour's feast); a threatened settlement gives bread as now; Phase 22's extras come later; stone roads cost stone, not cut stone.
+
 [^kyle-rethink]: Kyle asks for the parts to be reconsidered together, with leave to refactor or redesign
 [^kyle-go]: Kyle takes the recommendations on the four questions
+[^kyle-go-2]: Kyle takes the recommendations on the questions the stage 2 work raised
