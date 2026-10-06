@@ -3,7 +3,7 @@ import { cancelTask } from './logistics.ts';
 import { add, bp, chronicle, door, emit, villagers } from './core.ts';
 import { clearSite, neighbourSite } from './worldgen.ts';
 import { foundTown } from './towns.ts';
-import { FROST_AT, seasonOf, storesOnTrack } from './seasons.ts';
+import { FROST_AT, storesOnTrack } from './seasons.ts';
 import { reachable } from './path.ts';
 import { crowded } from './planner/core.ts';
 import { embark, launch, partyDock } from './ships.ts';
@@ -81,10 +81,9 @@ export function sendParty(S: State, mother: Town): Town | null {
     else if (S.charts && neighbourSite(S, mother, false)) { mother.cut = 1; mother.explore = true; }
     return null;
   }
-  // nobody sets out from a hungry settlement, and with seasons on parties travel in spring and summer, as newcomers do,
-  // while the winter store keeps pace (the party takes a share of it)
-  const season = seasonOf(S);
-  if (mother.fed < 1 || (S.seasons && (season === 'autumn' || season === 'winter' || !storesOnTrack(S, mother)))) return null;
+  // nobody sets out from a hungry settlement, and with seasons on, as newcomers come, only while the winter store is on
+  // track (the party takes a share of it, and provisions to see it through a winter before its first harvest)
+  if (mother.fed < 1 || !storesOnTrack(S, mother)) return null;
   // the founding cost may be gathered from the whole settlement (bread seldom rests in a yard, nor logs beside a busy sawmill);
   // the share of the rest comes from the stores
   const have = stock(S, mother), cost = foundingCost(S), round = stock(S, mother, true);

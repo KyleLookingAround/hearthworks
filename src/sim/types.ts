@@ -190,7 +190,7 @@ export interface Tuning {
   trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number; minWorth: number; latelyShare: number; inputBonus: number };
   conveyors: { speed: number; carry: number; gapSeconds: number; reach: number; roughCost: number; lookEverySeconds: number; villagersPerBelt: number; minTiles: number; maxTiles: number; minStops: number };
   farms: { diet: ItemId[]; dietShare: number; dietStock: number; dietSeconds: number; dietFull: number; dietBonus: number; dietWeight: number; growRoomWeight: number; adviseDietHomes: number };
-  seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[] };
+  seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[]; winterFoodShare: number };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
   production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number; surplusSeconds: number; surplusMin: number; surplusFullSeconds: number; freshSeconds: number; spoilEverySeconds: number };
   planner: PlannerTuning;
@@ -227,6 +227,8 @@ export interface PlannerTuning {
   replanHubWeight: number; moveOutHubWeight: number; winterGapMinSeconds: number; lowMoodGrowth: number; savingWant: number;
   /** The works on the wish list, each at its weight (a severity), and how many wishes the list keeps. */
   roadWeight: number; beltWeight: number; districtWeight: number; replanWeight: number; moveOutWeight: number; wishListSize: number;
+  /** The steward's priorities: a need's weight p scales what the planner wants of a good, and the free beds it keeps, by p^`priority_demand`, the stock it holds by p^`priority_stock`, and puts its workplaces `priority_staff` ahead for each doubling. */
+  priorityDemand: number; priorityStock: number; priorityStaff: number; priorityCeiling: number;
 }
 
 /**

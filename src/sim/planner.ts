@@ -7,7 +7,7 @@
  * its recipe, homes and harvest fields, so new blueprints in design/ join in.
  * Deterministic: no randomness at all, ties break by scan order.
  */
-import { bp, chronicle, emit } from './core.ts';
+import { bp, chronicle, emit, priorityOf } from './core.ts';
 import { foodChainOf } from './production.ts';
 import { placeBridge, placeBuilding } from './buildings.ts';
 import { rested, roadDue, roadWork, take, tendRoads, unpaid, type Works } from './roads.ts';
@@ -93,7 +93,8 @@ function planTown(S: State, town: Town, dt: number) {
   // (as it found them when it last planned a site: a look for a road alone leaves them be)
   if (!busy) {
     Q.wants = {}; Q.use = { ...L.demand };
-    for (const sh of L.shortages) if (sh.good && sh.sev >= P.minSeverity) Q.wants[sh.good] = sh.sev;
+    // (as short as its use makes it, whatever the steward's priority, so a good put first is not taken for hunger)
+    for (const sh of L.shortages) if (sh.good && (sh.sev >= P.minSeverity || (sh.bare ?? 0) >= P.minSeverity) && (sh.bare ?? sh.sev) > 0) Q.wants[sh.good] = sh.bare ?? sh.sev;
     if (Q.saving) Q.wants[Q.saving.good] = Math.max(Q.wants[Q.saving.good] || 0, P.savingWant);
   }
   // a village or town looks over what it has built: what no longer pays comes down (it costs nothing, and the look goes on)
@@ -120,8 +121,8 @@ function planTown(S: State, town: Town, dt: number) {
  */
 function wishList(S: State, town: Town, L: Look, busy: boolean): Wish[] {
   const P = T(S), Q = town.planner, form = formOf(S, town);
-  const lever = (k: string) => town.levers.priority[k] ?? 1;
-  const weigh = (k: string, w: number) => clamp01(w * lever(k));
+  // (each work at its weight times the steward's priority on it, as a need is: one put first rises to `priority_ceiling` at most)
+  const weigh = (k: string, w: number) => { const p = priorityOf(town, k); return p > 1 ? Math.max(w, Math.min(w * p, P.priorityCeiling)) : clamp01(w * p); };
   const cands: Cand[] = [];
   // works, each at its weight (and only while it would come to anything: what it costs to look for them is paid only then)
   const works: Cand[] = [];

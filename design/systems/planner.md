@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T12:00:00Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T12:49:48Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -95,6 +95,10 @@ tuning:
   winter_gap_min_seconds: 60
   low_mood_growth: 0.5
   saving_want: 0.5
+  priority_demand: 0.25
+  priority_stock: 0.5
+  priority_staff: 0.25
+  priority_ceiling: 0.95
   road_weight: 0.6
   belt_weight: 0.6
   district_weight: 1
@@ -144,7 +148,7 @@ Every `interval_seconds` the planner:
    - *Hands*: a finished workplace with no worker and no free bed to bring one is a beds shortage at full severity, except while bread is short (newcomers would not come). A workplace resting (fields in winter, or with [enough in store](/systems/production.md)) needs no hands, and its worker counts as a spare one.
 3. **Proposes** for the worst shortage that something it knows can relieve (going down the list) the blueprint with the best `severity × relief − cost_weight × cost`, where relief is the share of the gap it closes. Two follow-ups make chains work:
    - if the choice would idle for lack of an input (spare supply below `input_cover` of what it uses), plan that input's maker first: bread short and no wheat spare means a Farm before the Bakery;
-   - if it needs a worker and fewer than one villager is spare after keeping `carrier_share` of the grown villagers hauling, wait for newcomers when beds are free, otherwise plan a House. A carrier share of 0.4 is what the job board needs: at 0.2, small villages ran out of hands to haul and stalled (see the [log](/log.md)). Newcomers are only waited for while they would come: mood at the newcomer threshold, and with seasons on, spring or summer (in summer while the winter store keeps pace) with its bakeries making at least `newcomer_food_share` of what its people and one more eat (stores hide a shortfall until the winter; without seasons it shows at once as hunger, which keeps newcomers away by itself). While they would not, a workplace of the food chain is built anyway when the settlement is short of food or anyone goes hungry, and so is one making another of the basics (building materials and firewood), and a hand moves to it from carrying or from outside the chain: the basics do not wait on newcomers who are not coming (a village growing by births alone held a forester waiting for them for half an hour).
+   - if it needs a worker and fewer than one villager is spare after keeping `carrier_share` of the grown villagers hauling, wait for newcomers when beds are free, otherwise plan a House. A carrier share of 0.4 is what the job board needs: at 0.2, small villages ran out of hands to haul and stalled (see the [log](/log.md)). Newcomers are only waited for while they would come: mood at the newcomer threshold, and with seasons on, while the winter store is on track counting them (see [seasons](/systems/seasons.md)), with its bakeries making at least `newcomer_food_share` of what its people and one more eat (stores hide a shortfall until the winter; without seasons it shows at once as hunger, which keeps newcomers away by itself). While they would not, a workplace of the food chain is built anyway when the settlement is short of food or anyone goes hungry, and so is one making another of the basics (building materials and firewood), and a hand moves to it from carrying or from outside the chain: the basics do not wait on newcomers who are not coming (a village growing by births alone held a forester waiting for them for half an hour).
    - with no maker to plan for that input (none known, or no room for one lately), a workplace still goes ahead with the stock there is, unless the workplaces already using the input stand short of it (made and imported below what they use): then it waits, "Trading with Brook for iron ore before a Smithy" when a neighbour can spare some, else "No iron ore to spare". The same holds for a maker planned to pay for something it saves for. A town with no room for a mine once built eight smithies that stood needing iron ore, and another seven masons with no stone;
    - a choice that waits for hands does not hold back the needs after it: the planner goes down the list to the next it can act on, and says what it waits for only when nothing can go ahead. A town waiting for a miner for its five smithies left its bread short by half.
 4. **Confirms**: the same blueprint must top `confirm_cycles` looks in a row.
@@ -180,7 +184,13 @@ A settlement's form follows its people: a **hamlet** below `village_at`, a **vil
 
 The player steers each settlement's planner with levers (the Steward panel in the menu), and hand placement stays.
 
-- **Priorities.** Each need (a good, homes for newcomers, hauling, reaching the neighbours, getting across water) has a weight on its severity: Low 0.5, Normal 1, High 2, First 4. A need put first is answered first: raising logs to First got the first forester planned 2 to 10 minutes sooner on six seeds ([Gate 10](/gates/10-steward.md)).
+- **Priorities.** Each need (a good, homes for newcomers, hauling, reaching the neighbours, getting across water) has a weight p: Low 0.5, Normal 1, High 2, First 4. A need put first is answered first: raising logs to First got the first forester planned 2 to 10 minutes sooner on six seeds ([Gate 10](/gates/10-steward.md)). The weight reaches what a settlement builds, what it keeps and who works where:
+  - **Severity.** A need's severity is weighed by p, but a need raised by its priority rises to `priority_ceiling` at most, so a need with nothing made at all still comes before it (with bread put first from the start, a hamlet spent its starting planks on bakeries and fields and could never afford a forester, and stood still all hour).
+  - **Beyond its use.** A good is wanted at p^`priority_demand` of its use, so one put first is made beyond what is eaten (more bakeries, more bakers) and one put last falls short of it; homes for newcomers keep p^`priority_demand` times `growth_beds` free. What the settlement is short of for its own use (its `wants`, which newcomers, births and trade read) is the shortage of its use alone, so a good put first is not taken for hunger.
+  - **Stock.** Its stores hold p^`priority_stock` times the stock of a good (and of the winter store, for grain), so its workplaces rest later.
+  - **Hands.** Open workplaces are staffed by how badly their settlement wants what they make times p, `priority_staff` ahead for each doubling of p.
+
+  On paired default new games (six seeds, an hour, one lever from the start, 2026-10-06): bread First 8 more bakeries, 13 more bakers and 4,300 more loaves, villagers −10 (within noise); bread High +19; bread Low −138 on every seed, as the staple falls short; planks First 6.7 more sawmills and 830 more planks; wheat First 620 more grain. Homes for newcomers First added 6.5 houses and 41 villagers before newcomers waited on hungry homes, and is within noise since. Before, priorities changed nothing measurable (beds First −1 villagers and 0.3 houses, planks First 0.7 sawmills) and bread First cost 58 villagers, the planner reading its weighted shortage as hunger.
 - **Encouragement.** One undiscovered blueprint can be encouraged: the settlement thinks of it at `encourage_threshold` of the usual strain and `encourage_factor` times as fast ([knowledge](/systems/knowledge.md)). Once thought of, the encouragement lapses.
 - **Pace.** Unhurried, Normal or Brisk (0.5, 1, 2): divides how long the planner waits between looks and settles after a building.
 - **Zones.** The player paints land from the build bar: homes, farms, workshops, or no building. A blueprint's `zone` (homes for any home) says which zone it keeps to. While a zone of its kind belongs to the settlement and has room, a building is placed only inside it, wherever in the settlement's reach it lies; with none, or none with room, it stays off other kinds' zones. Nothing is ever built, paved or laid out as a street on no-build land. A zoned tile belongs to the settlement whose first storage yard is nearest, so neighbours keep off each other's zones.
@@ -248,7 +258,7 @@ With [seasons](/systems/seasons.md) on, the planner plans for winter all year:
 - **Grain.** It wants a quarter more grain than the bakeries use, at `winter_headroom`, since three growing seasons must feed four. Before the frost it adds the gap: the winter's meals less the food already in store, over the time left (at least `winter_gap_min_seconds`).
 - **Firewood.** Logs at the winter rate, one per villager every `firewood_every_seconds`.
 - **Room for the store.** In summer and autumn it wants room for the winter's food at `winter_headroom`: a store's room is its capacity less the planks, logs and stone already in it, so a yard full of timber does not count as a granary.
-- **Growth waits.** Homes for newcomers wait through autumn and winter, when nobody comes. In summer a newcomer comes only while the stores keep pace with the winter's meals and `winter_headroom` for one more mouth (none at the start of summer, half by its end), and a settlement whose store has fallen behind moves workers to its food chain as a hungry one does.
+- **Growth waits on the store.** Newcomers come in any season while the winter store is on track counting one more mouth ([seasons](/systems/seasons.md)); while it is behind, homes for them wait, and a settlement whose store has fallen behind moves workers to its food chain as a hungry one does.
 
 # Desire paths
 

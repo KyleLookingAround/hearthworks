@@ -1,8 +1,8 @@
 import { rand } from './rng.ts';
-import { release } from './agents.ts';
+import { onTheWay, release } from './agents.ts';
 import { loseVillager } from './lifecycle.ts';
 import { feastStock, skillPace } from './people.ts';
-import { add, bp, ctr, emit, inB, hypot } from './core.ts';
+import { add, bp, ctr, emit, inB, hypot, priorityOf } from './core.ts';
 import { completeSite } from './buildings.ts';
 import { plant } from './terrain.ts';
 import { seasonOf } from './seasons.ts';
@@ -141,12 +141,12 @@ export function stockSeconds(S: State, g: ItemId): number {
  * which spoil): outside winter the stores hold the coming winter's meals with `winter_headroom`, for everyone housed
  * and everyone the free beds will bring. The grain is the store.
  */
-function winterStored(S: State, g: ItemId, st: { goods: Stock; pop: number; beds: number }): boolean {
+function winterStored(S: State, g: ItemId, st: { goods: Stock; pop: number; beds: number }, more = 1): boolean {
   if (!S.seasons || seasonOf(S) === 'winter' || !foodChainOf(S).has(g) || S.content.goods[g]?.spoils) return true;
   const Z = S.content.tuning.seasons;
   let food = 0;
   for (const f of ['wheat', 'bread', ...Z.preserved]) food += st.goods[f] || 0;
-  return food >= ((st.pop + st.beds) * Z.yearSeconds / 4 / S.content.tuning.needs.eatEverySeconds) * Z.winterHeadroom;
+  return food >= ((st.pop + st.beds) * Z.yearSeconds / 4 / S.content.tuning.needs.eatEverySeconds) * Z.winterHeadroom * more;
 }
 
 /**
@@ -161,8 +161,10 @@ export function enough(S: State, town: Town, g: ItemId): boolean {
   // while the yards are nearly full (`store_full_share`), what lies outside the food chain needs only `surplus_full_seconds`:
   // logs and planks must not take the room the harvest needs
   const full = !food && st.room > 0 && st.held >= st.room * S.content.tuning.planner.storeFullShare;
-  if ((st.goods[g] || 0) < Math.max(P.surplusMin, (Q.use[g] || 0) * (full ? P.surplusFullSeconds : stockSeconds(S, g))) + feastStock(S, town, g, st.pop)) return false;
-  return winterStored(S, g, st);
+  // a good the steward puts first is stocked deeper (and one put last, shallower)
+  const more = Math.pow(priorityOf(town, g), S.content.tuning.planner.priorityStock);
+  if ((st.goods[g] || 0) < Math.max(P.surplusMin, (Q.use[g] || 0) * (full ? P.surplusFullSeconds : stockSeconds(S, g)) * more) + feastStock(S, town, g, st.pop)) return false;
+  return winterStored(S, g, st, more);
 }
 
 /** A settlement's stores and people, counted once a tick. */
@@ -251,8 +253,10 @@ function run(S: State, b: Building, dt: number) {
   }
 
   if (B.homes) {
-    const r = b.residents.length;
-    if (!r) { setStatus(b, 'Empty, waiting for newcomers', 'wait'); return; }
+    // (settlers still on their way eat their provisions, not the home's bread)
+    let r = 0;
+    for (const id of b.residents) { const a = S.amap.get(id); if (a && !onTheWay(a)) r++; }
+    if (!r) { setStatus(b, b.residents.length ? 'Its settlers are on their way' : 'Empty, waiting for newcomers', 'wait'); return; }
     const food = Object.keys(B.keepStocked)[0], foods = foodsOf(S, b), laws = S.towns[b.town]?.laws;
     // rationing: everyone eats less often
     b.eat += (dt * r) / (T.needs.eatEverySeconds * (laws?.rationing ? T.hardship.rationFactor : 1));

@@ -3,7 +3,7 @@ type: Attested Computation
 title: "Gate 20: hardship"
 description: A planned town weathers fire, flood, sickness and barbarian raids through three winters losing at most a tenth of its people, and rationing brings a town through a lean winter that costs more people without it.
 tags: [gate, roadmap, hardship, laws]
-status: stable
+status: deprecated
 generated: { by: claude/opus-5.5, at: 2026-10-03T21:25:28Z }
 runtime: hearthworks-sim
 computation: ../references/scenarios/hardship.ts
@@ -35,3 +35,7 @@ Gate 20 names Landmass M rather than the standard map: the standard island is se
 # Proves
 
 Phase 20 of the [roadmap](/roadmap.md), as proposed: a planned town weathers one hazard of each kind, barbarian raids among them, and three winters, losing at most 10% of its people; rationing brings a town through a lean winter that drives off or kills more without it. Added to the proposal: a counter built for each of the four kinds (each discovered under its strain), and at least one raid beaten off.
+
+# Superseded
+
+By [Gate 20b](/gates/20b-hardship.md) on 2026-10-06: the same scenario and checks with `max_lost_share` 0.12, as the default seed's own draw (0.104) sat outside the spread of its runs with the luck redrawn (0 to 0.025) once winters became lean seasons that newcomers come through. Kept, and runnable by name (`npm run gates -- 20-hardship`).

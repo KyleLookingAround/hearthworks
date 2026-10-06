@@ -239,7 +239,7 @@ export function buildContent(files: SourceFile[]): Content {
     trade: section<Tuning['trade']>(sys('trade'), { everySeconds: N, load: N, keep: N, minVillagers: N, smoothingSeconds: N, distanceWeight: N, minRate: N, maxRate: N, villagersPerPorter: N, exportDemand: N, wantCover: N, spareCover: N, kinBonus: N, importPatienceSeconds: N, importShare: N, minWorth: N, latelyShare: N, inputBonus: N }),
     conveyors: section<Tuning['conveyors']>(sys('conveyors'), { speed: N, carry: N, gapSeconds: N, reach: N, roughCost: N, lookEverySeconds: N, villagersPerBelt: N, minTiles: N, maxTiles: N, minStops: N }),
     farms: section<Tuning['farms']>(sys('farms'), { diet: list([]), dietShare: N, dietStock: N, dietSeconds: N, dietFull: N, dietBonus: N, dietWeight: N, growRoomWeight: N, adviseDietHomes: N }),
-    seasons: section<Tuning['seasons']>(sys('seasons'), { yearSeconds: N, firewoodEverySeconds: N, firewoodStock: N, coldPenalty: N, winterHeadroom: N, preserved: list([]) }),
+    seasons: section<Tuning['seasons']>(sys('seasons'), { yearSeconds: N, firewoodEverySeconds: N, firewoodStock: N, coldPenalty: N, winterHeadroom: N, preserved: list([]), winterFoodShare: N }),
     surroundings: section<Tuning['surroundings']>([needs[0], isMap(needs[1].surroundings) ? needs[1].surroundings : {}], { base: N, treeRadius: N, treeAmenity: N, treeMax: N, waterRadius: N, waterAmenity: N, crowdRadius: N, crowdPenalty: N, sitePenalty: N }, 'tuning.surroundings.'),
     production: section<Tuning['production']>(sys('production'), { buildSeconds: N, replantEverySeconds: N, maxTreesNearForester: N, sitePriorityTiles: N, surplusSeconds: N, surplusMin: N, surplusFullSeconds: N, freshSeconds: N, spoilEverySeconds: N }),
     planner: section<Tuning['planner']>(sys('planner'), {
@@ -250,7 +250,7 @@ export function buildContent(files: SourceFile[]): Content {
       treeWeight: N, sharedTreeWeight: N, linkWeight: N, storeWeight: N, forestPenalty: N, renewEverySeconds: N, idleSeconds: N, keepCover: N, centreRadius: N, moveMaxSize: N, yardWeight: N, packedHomes: N,
       detourMinTiles: N, detourMemorySeconds: N, detourMemoryTrips: N, bridgeReachTiles: N, bridgeTripTiles: N, wearFloor: N,
       districtSpacingMin: N, districtSpacingMax: N, districtRoomTiles: N, districtTries: N, siteTries: N, openStoreCapacity: N, sharedTreeYield: N,
-      replanHubWeight: N, moveOutHubWeight: N, winterGapMinSeconds: N, lowMoodGrowth: N, savingWant: N,
+      replanHubWeight: N, moveOutHubWeight: N, winterGapMinSeconds: N, lowMoodGrowth: N, savingWant: N, priorityDemand: N, priorityStock: N, priorityStaff: N, priorityCeiling: N,
       roadWeight: N, beltWeight: N, districtWeight: N, replanWeight: N, moveOutWeight: N, wishListSize: N,
     }),
     hardship: section<Tuning['hardship']>(sys('hardship'), {

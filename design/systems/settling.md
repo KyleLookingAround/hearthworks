@@ -4,7 +4,7 @@ title: Settling
 description: A crowded settlement, or one whose land is full, sends a founding party off to found a daughter town, with villagers, stores, the knowledge it practises and its custom.
 tags: [settlement, people, knowledge]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T14:44:50Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T12:18:12Z }
 tuning:
   check_every_seconds: 60
   min_villagers: 70
@@ -24,7 +24,7 @@ Settlements beget settlements. Settling is on in every new game and off in scena
 
 # When
 
-Every `check_every_seconds` a self-planning settlement with at least `min_villagers` people (or `crowded_min_villagers` once its planner's [wish list](/systems/planner.md) has held a "no room" verdict for something it needs for `crowded_hold_seconds`: its land is full; a moment's "no room", which once came and went a few hundred times a game, is not enough), and none sent from it in the last `cooldown_seconds`, sends a founding party if it can pay for the new storage yard and two cottages, and the starting stores a new game begins with (`storage` in [settlement](/systems/settlement.md)), from its own stores, while the world has fewer than `max_settlements` settlements. Nobody sets out from a settlement that goes hungry; with [seasons](/systems/seasons.md) on, parties travel in spring and summer only, as newcomers do, and only while the winter store keeps pace (a party takes its share of it: a town that sent two in a late summer starved through the winter after).
+Every `check_every_seconds` a self-planning settlement with at least `min_villagers` people (or `crowded_min_villagers` once its planner's [wish list](/systems/planner.md) has held a "no room" verdict for something it needs for `crowded_hold_seconds`: its land is full; a moment's "no room", which once came and went a few hundred times a game, is not enough), and none sent from it in the last `cooldown_seconds`, sends a founding party if it can pay for the new storage yard and two cottages, and the starting stores a new game begins with (`storage` in [settlement](/systems/settlement.md)), from its own stores, while the world has fewer than `max_settlements` settlements. Nobody sets out from a settlement that goes hungry; with [seasons](/systems/seasons.md) on, parties travel, as newcomers come, only while the winter store is on track (a party takes its share of it: a town that sent two in a late summer starved through the winter after), in any season: a party leaving after the frost takes provisions to see it through the winter (below). Until 2026-10-06 parties travelled in spring and summer only; letting them go by the store instead of the calendar took the world from 4.5 settlements an hour to 6.7.
 
 A settlement that has filled its land is crowded long before it is large: on the Islands at size M, two villages of 50 to 60 filled their islands within twenty minutes and stood still for the rest of the hour, never reaching `min_villagers` to send anyone ([log](/log.md), 2026-10-05). Settling for want of land lets them spill over the water instead.
 
@@ -38,7 +38,7 @@ The party looks for a site as the world's first neighbours were placed ([settlem
 
 # Across the water
 
-The party must be able to reach its site: on foot, or rowing from a [dock](/blueprints/dock.md). What it can walk to is found once a look; without a dock, sites beyond it are never searched for (a route search that fails covers the whole map). A settlement with no such site left but land across the water feels the need to cross it, so it comes up with the dock and builds one (clearing a workshop from its shore if it has built along every shore: [planner](/systems/planner.md)), and its next party sails: the daughter is a colony (`overseas`), and the chronicle says so. A settler whose row is cut short rows on from the water; before, two stranded settlers could close a new colony's yard to everyone (see [logistics](/systems/logistics.md), no way in).
+The party must be able to reach its site: on foot, or rowing from a [dock](/blueprints/dock.md). What it can walk to is found once a look; without a dock, sites beyond it are never searched for (a route search that fails covers the whole map). A settlement with no such site left but land across the water feels the need to cross it, so it comes up with the dock and builds one (clearing a workshop from its shore if it has built along every shore: [planner](/systems/planner.md)), and its next party sails: the daughter is a colony (`overseas`), and the chronicle says so. A settler whose row is cut short rows on from the water; before, two stranded settlers could close a new colony's yard to everyone (see [logistics](/systems/logistics.md), no way in). Settlers on their way take up no work and do not wander until they reach their new yard (before, two of a party took up the colony's deliveries and rowed ahead in its boat, and the other four were stranded on the mother's island), and their new homes feed them only once they arrive: on the way they eat their provisions.
 
 # Who and what
 
