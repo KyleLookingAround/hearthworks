@@ -36,7 +36,7 @@ Every phase section says why it comes when it does, what it builds, its gate, wh
 | 17 | New settlements | Crowded towns send settlers off with goods, knowledge and customs | 16 | [Gate 17](/gates/17-new-settlements.md) | Done |
 | 18 | The sea | The archipelago map type, ports, ships, exploration, colonies | 13, 17 | [Gate 18](/gates/18-the-sea.md) | Done |
 | 19 | Ages | Eras of technology, machine tiers, crafts lost | 15, 18 | [Gate 19](/gates/19-ages.md) | Done |
-| 20 | Hardship | Fire, flood, sickness, barbarians and their counters; hard laws | 12, 17, 19 | [Gate 20](/gates/20-hardship.md) | Done |
+| 20 | Hardship | Fire, flood, sickness, barbarians and their counters; hard laws | 12, 17, 19 | [Gate 20](/gates/20b-hardship.md) | Done |
 | 21 | Paths and roads | Worn paths become paths; roads are planned as long straight strips, cut through what stands, and the town is planned around them | 9, 16 | [Gate 21](/gates/21b-paths-and-roads.md) | Done |
 | 22 | Farms that grow | Farms expand their fields, take on more hands and yield more; crops and herds give different foods | 11, 12, 14 | [Gate 22](/gates/22-farms-that-grow.md) | Done |
 | 23 | Leagues | Kin settlements act as one: a league's standing orders, scheduled sea routes in cargo boats, each member making what it does best | 13, 16, 18 | Gate 23 (proposed) | After the second pass |

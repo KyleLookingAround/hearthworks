@@ -4,7 +4,7 @@ title: Hardship
 description: Fire, flood, sickness and barbarian raids, the counters a settlement finds for each, gifts that bring barbarians in peace, and the steward's laws for hard times.
 tags: [hardship, hazards, laws, settlement]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-06T06:43:46Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T10:13:24Z }
 tuning:
   fire_every_seconds: 40000
   spread_gap: 0.5
@@ -93,7 +93,7 @@ With [trade](/systems/trade.md) on there is a gentler answer. Every `gift_every_
 
 The steward's laws for each settlement, in the Steward panel (daughters take their mother's):
 
-- **Rationing.** Everyone eats `ration_factor` times less often, at `ration_mood` off mood: stores last longer through a lean winter.
+- **Rationing.** Everyone eats `ration_factor` times less often, at `ration_mood` off mood: stores last longer through a lean winter, and the winter store counts meals at the rationed rate ([seasons](/systems/seasons.md)), so a rationing settlement is on track sooner and takes newcomers while it would otherwise wait.
 - **Working hours.** Long hours make workplaces `long_pace` times as fast at `long_mood` off mood; short hours `short_pace` as fast and `short_mood` on.
 - **Who may leave.** With leaving forbidden, nobody leaves for hunger and mood loses `stay_mood`; a home hungry `starve_factor` times as long as it takes someone to leave loses one of its people to starvation instead.
 

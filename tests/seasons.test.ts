@@ -59,7 +59,7 @@ test('homes eat preserved food when the bread is gone', () => {
   assert.equal(home.hunger, 0);
 });
 
-test('summer newcomers wait for the winter store to keep pace', () => {
+test('newcomers wait for the winter store to keep pace', () => {
   const S = createState(content, 1847, { seasons: true });
   const t = S.towns[0];
   for (const b of S.buildings) if (bp(S, b).storage) for (const g of ['wheat', 'bread']) b.inv[g] = 0;
@@ -68,6 +68,29 @@ test('summer newcomers wait for the winter store to keep pace', () => {
   S.t = Y / 2 - 10;
   assert.ok(!storesOnTrack(S, t, 1), 'empty stores at the end of summer are behind');
   S.bmap.get(t.store)!.inv.wheat = 500;
+  assert.ok(storesOnTrack(S, t, 1));
+});
+
+test('newcomers come in autumn and winter while the store covers them, and rationing stretches it', () => {
+  const S = createState(content, 1847, { seasons: true });
+  const t = S.towns[0], yard = S.bmap.get(t.store)!;
+  for (const b of S.buildings) if (bp(S, b).storage) for (const g of ['wheat', 'bread']) b.inv[g] = 0;
+  const pop = S.agents.filter(a => a.kind === 'villager').length + 1, every = content.tuning.needs.eatEverySeconds;
+  // halfway through winter: what is left of it, for everyone and one more
+  S.t = Y * 0.875;
+  assert.equal(seasonOf(S), 'winter');
+  const left = (pop * Y / 8) / every * content.tuning.seasons.winterHeadroom;
+  yard.inv.wheat = Math.ceil(left);
+  assert.ok(storesOnTrack(S, t, 1), 'a store that covers the rest of the winter takes a newcomer');
+  yard.inv.wheat = Math.floor(left * 0.75);
+  assert.ok(!storesOnTrack(S, t, 1), 'one that does not, waits');
+  t.laws.rationing = true;
+  assert.ok(storesOnTrack(S, t, 1), 'rationing stretches it');
+  // and in autumn, as in summer, by how well it is laid in
+  t.laws.rationing = false; yard.inv.wheat = 0; S.t = Y * 0.6;
+  assert.equal(seasonOf(S), 'autumn');
+  assert.ok(!storesOnTrack(S, t, 1));
+  yard.inv.wheat = 2000;
   assert.ok(storesOnTrack(S, t, 1));
 });
 

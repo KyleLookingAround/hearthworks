@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
-import { advise, chronicleLog, createState, loadGame, placeBuilding, runFor, saveGame, ZONES } from '../src/sim/index.ts';
+import { advise, bp, chronicleLog, createState, loadGame, placeBuilding, runFor, saveGame, ZONES } from '../src/sim/index.ts';
 import { centre, findSpot } from '../src/gates/kit.ts';
+import { look } from '../src/sim/planner/sense.ts';
+import { enough } from '../src/sim/production.ts';
 
 const content = loadContent();
 
@@ -19,6 +21,32 @@ test('no-build land stays empty, and a zone keeps its kind of building', () => {
 test('pace speeds the planner up', () => {
   const run = (pace: number) => { const S = createState(content, 7, { planner: true }); S.towns[0].levers.pace = pace; runFor(S, 300); return S.towns[0].planner.placed; };
   assert.ok(run(2) > run(1), 'brisk plans more in the same time');
+});
+
+test('a need put first is wanted beyond its use, stocked deeper, and never ahead of one with nothing made', () => {
+  const S = createState(content, 7, { planner: true });
+  runFor(S, 300);
+  const t = S.towns[0], P = content.tuning.planner, pick = (k: string) => look(S, t).shortages.find(s => s.key === k);
+  // bread put first is wanted beyond its use and weighed up, but its shortage of its use alone is kept
+  const normal = pick('bread')!;
+  t.levers.priority.bread = 4;
+  const first = pick('bread')!;
+  assert.ok(first.sev >= normal.sev && first.sev <= Math.max(normal.sev, P.priorityCeiling), 'weighed up to the ceiling');
+  assert.equal(first.bare, normal.sev, 'its shortage of its use alone is what it was');
+  // a need with nothing made at all still comes before it
+  for (const sh of look(S, t).shortages) if (sh.key !== 'bread') assert.ok(sh.sev < 1 || sh.sev > first.sev || first.sev < 1);
+  assert.ok(first.sev < 1);
+  // stocked deeper: bread enough at Normal is not enough put first
+  t.levers.priority.bread = 1;
+  const yard = S.bmap.get(t.store)!;
+  t.planner.wants = {}; t.planner.use.bread = 2;
+  for (const b of S.buildings) if (b.town === t.id && bp(S, b).storage) b.inv.bread = 0;
+  yard.inv.bread = 1.5 * 2 * content.tuning.production.freshSeconds;
+  // (stores are counted once a tick: a new instant counts them afresh)
+  S.t += 1e-6;
+  assert.ok(enough(S, t, 'bread'));
+  t.levers.priority.bread = 4; S.t += 1e-6;
+  assert.ok(!enough(S, t, 'bread'), 'put first, the same stock is not enough');
 });
 
 test('the chronicle exports as an OKF log, newest first, and survives a save', () => {

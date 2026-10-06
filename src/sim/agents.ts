@@ -1,6 +1,6 @@
 import { rand } from './rng.ts';
 import { findPath, type PathOptions } from './path.ts';
-import { bp, distAB, door, inB, hypot } from './core.ts';
+import { bp, distAB, door, inB, hypot, priorityOf } from './core.ts';
 import { seasonOf, storesOnTrack } from './seasons.ts';
 import { tread } from './terrain.ts';
 import { blame, cancelTask, drop, findTask, pickup, staleBoard, staleTask } from './logistics.ts';
@@ -138,8 +138,14 @@ export function quit(a: Agent) {
 
 export function assignWorkers(S: State) {
   const essential = foodChainOf(S), winter = seasonOf(S) === 'winter', behind: Record<number, boolean> = {}, backlog: Record<number, boolean> = {};
-  // hands go first where the planner is shortest: open workplaces by how badly their settlement wants what they make
-  const want = (b: Building) => { const w = S.towns[b.town]?.planner.wants; return w ? Math.max(0, ...Object.keys(bp(S, b).output).map(g => w[g] || 0)) : 0; };
+  // hands go first where the planner is shortest: open workplaces by how badly their settlement wants what they make,
+  // weighed by the steward's priorities (a good put first `priority_staff` ahead for each doubling, one put last behind)
+  const staffing = S.content.tuning.planner.priorityStaff;
+  const want = (b: Building) => {
+    const t = S.towns[b.town], w = t?.planner.wants, outs = Object.keys(bp(S, b).output);
+    if (!w || !outs.length) return 0;
+    return Math.max(...outs.map(g => { const p = priorityOf(t, g); return Math.max(0, w[g] || 0) * p + Math.log2(p) * staffing; }));
+  };
   const order = S.buildings.map(b => ({ b, w: bp(S, b).workers && !b.site && !b.worker ? want(b) : 0 })).sort((p, q) => q.w - p.w).map(o => o.b);
   for (const b of order) {
     if (!bp(S, b).workers || b.site || b.worker) continue;

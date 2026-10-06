@@ -4,7 +4,7 @@ title: Settling
 description: A crowded settlement, or one whose land is full, sends a founding party off to found a daughter town, with villagers, stores, the knowledge it practises and its custom.
 tags: [settlement, people, knowledge]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T14:44:50Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T10:13:24Z }
 tuning:
   check_every_seconds: 60
   min_villagers: 70
@@ -23,7 +23,7 @@ Settlements beget settlements. Settling is on in every new game and off in scena
 
 # When
 
-Every `check_every_seconds` a self-planning settlement with at least `min_villagers` people (or `crowded_min_villagers` while its planner finds no room for what it needs: its land is full), and none sent from it in the last `cooldown_seconds`, sends a founding party if it can pay for the new storage yard and two cottages, and the starting stores a new game begins with (`storage` in [settlement](/systems/settlement.md)), from its own stores, while the world has fewer than `max_settlements` settlements. Nobody sets out from a settlement that goes hungry; with [seasons](/systems/seasons.md) on, parties travel in spring and summer only, as newcomers do, and only while the winter store keeps pace (a party takes its share of it: a town that sent two in a late summer starved through the winter after).
+Every `check_every_seconds` a self-planning settlement with at least `min_villagers` people (or `crowded_min_villagers` while its planner finds no room for what it needs: its land is full), and none sent from it in the last `cooldown_seconds`, sends a founding party if it can pay for the new storage yard and two cottages, and the starting stores a new game begins with (`storage` in [settlement](/systems/settlement.md)), from its own stores, while the world has fewer than `max_settlements` settlements. Nobody sets out from a settlement that goes hungry; with [seasons](/systems/seasons.md) on, parties travel, as newcomers come, only while the winter store is on track (a party takes its share of it: a town that sent two in a late summer starved through the winter after), in any season: a party leaving after the frost takes provisions to see it through the winter (below). Until 2026-10-06 parties travelled in spring and summer only; letting them go by the store instead of the calendar took the world from 4.5 settlements an hour to 6.7.
 
 A settlement that has filled its land is crowded long before it is large: on the Islands at size M, two villages of 50 to 60 filled their islands within twenty minutes and stood still for the rest of the hour, never reaching `min_villagers` to send anyone ([log](/log.md), 2026-10-05). Settling for want of land lets them spill over the water instead.
 

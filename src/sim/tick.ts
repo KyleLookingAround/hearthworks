@@ -73,15 +73,16 @@ export function computeMood(S: State) {
  */
 function migrate(S: State) {
   const freeBeds = (b: (typeof S.buildings)[number]) => { const B = bp(S, b); return B.homes && !b.site ? B.homes - b.residents.length : 0; };
-  // with seasons on, newcomers travel in spring and summer only
-  const s = seasonOf(S);
-  if (!S.newcomers || s === 'autumn' || s === 'winter') return;
+  if (!S.newcomers) return;
   for (const t of S.towns) {
     if (t.mood < S.content.tuning.needs.migrateMinMood) continue;
+    // with seasons on, nobody moves to a settlement whose homes go hungry: a lean winter is weathered before it takes anyone in
+    if (S.seasons && t.fed < 1) continue;
     // nobody moves to a self-planning settlement whose bread falls short of what its people already need
     if (shortOfFood(S, t)) continue;
-    // in summer a newcomer comes only while the stores keep pace with what one more mouth would need by the frost
-    if (s === 'summer' && !storesOnTrack(S, t, 1)) continue;
+    // with seasons on, a newcomer comes in any season while the winter store is on track counting them: freely in
+    // spring, from summer while the store keeps pace with the winter's meals, through the winter while what is left covers it
+    if (!storesOnTrack(S, t, 1)) continue;
     const house = S.buildings.find(b => b.town === t.id && freeBeds(b) > 0);
     if (!house) continue;
     const from = nearestStore(S, house) ?? house, d = door(from);

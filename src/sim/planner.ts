@@ -80,7 +80,8 @@ function planTown(S: State, town: Town, dt: number) {
   const L = look(S, town), worst = L.shortages[0];
   // what it is short of, for its porters to trade for: its shortages of goods, and what it is saving
   Q.wants = {}; Q.use = { ...L.demand };
-  for (const sh of L.shortages) if (sh.good && sh.sev >= T(S).minSeverity) Q.wants[sh.good] = sh.sev;
+  // (as short as its use makes it, whatever the steward's priority, so a good put first is not taken for hunger)
+  for (const sh of L.shortages) if (sh.good && (sh.sev >= T(S).minSeverity || (sh.bare ?? 0) >= T(S).minSeverity) && (sh.bare ?? sh.sev) > 0) Q.wants[sh.good] = sh.bare ?? sh.sev;
   if (Q.saving) Q.wants[Q.saving.good] = Math.max(Q.wants[Q.saving.good] || 0, T(S).savingWant);
   // a crowded newest district splits off a new one
   if (formOf(S, town) !== 'hamlet' && foundDistrict(S, town)) return;

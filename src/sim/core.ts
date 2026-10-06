@@ -1,4 +1,4 @@
-import type { Agent, Building, GameEvent, State, World } from './types.ts';
+import type { Agent, Building, GameEvent, State, Town, World } from './types.ts';
 
 /*
  * The plain helpers every part of the simulation uses: the map's bounds, footprints and doors, distances, a
@@ -53,6 +53,8 @@ export const distAB = (a: { x: number; y: number }, b: Building) => { const p = 
 export const distBB = (a: Building, b: Building) => { const p = ctr(a), q = ctr(b); return hypot(p.x - q.x, p.y - q.y); };
 export const add = (o: Record<string, number>, k: string, v: number) => { o[k] = (o[k] || 0) + v; if (Math.abs(o[k]) < 1e-9) o[k] = 0; };
 export const bp = (S: State, b: Building) => S.content.blueprints[b.type];
+/** The steward's priority on one of a settlement's needs (a good, 'beds', 'hauling'...): 1 normal. */
+export const priorityOf = (t: Town | undefined, key: string): number => t?.levers.priority[key] ?? 1;
 export const villagers = (S: State): Agent[] => S.agents.filter(a => a.kind === 'villager');
 export const hasBuilt = (S: State, type: string) => S.buildings.some(b => b.type === type && !b.site);
 export const countBuilt = (S: State, type: string) => S.buildings.filter(b => b.type === type && !b.site).length;

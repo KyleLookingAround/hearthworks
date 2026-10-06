@@ -4,7 +4,7 @@ title: Seasons
 description: A year of spring, summer, autumn and winter; crops rest in winter, homes burn firewood, and settlements store food and fuel ahead.
 tags: [seasons, needs, economy]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T10:16:19Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T10:13:24Z }
 tuning:
   year_seconds: 1200
   firewood_every_seconds: 120
@@ -12,6 +12,7 @@ tuning:
   cold_penalty: 0.3
   winter_headroom: 1.2
   preserved: [smoked_fish]
+  winter_food_share: 1.1
 ---
 
 # The year
@@ -30,10 +31,15 @@ With seasons on the [planner](/systems/planner.md) plans for winter all year: it
 
 # Who comes, and who works
 
-- **Newcomers** travel in spring and summer only. In summer one comes only while the stores keep pace with the winter's meals and `winter_headroom` more, counting them (none at the start of summer, half by its end, the autumn harvest bringing the rest). Through the winter the store is on track while what is left covers what is left of it.
+- **Newcomers** come by how well a settlement is laid in, not by the calendar: in any season, one comes only while the winter store is on track counting them. In spring the store asks nothing yet; from the start of summer to the first frost the grain, bread and preserved food in store must keep pace with the winter's meals and `winter_headroom` more (none at the start of summer, half by its end, all by the frost); through the winter what is left must cover what is left of it, with `winter_headroom` to take anyone in. A settlement that laid in well takes newcomers through the winter; one that laid in too little waits for spring, and goes short. Nobody comes while any of its homes go hungry, and in winter its bakeries must make `winter_food_share` of what its people and the newcomer eat (the planner's `newcomer_food_share` the rest of the year): with the fields resting and every hand carrying, bakeries that fall behind in winter do not catch up. On Gate 12's island, newcomers taken through the winter by the store and the bakeries' rate alone left the last weeks of winter short (seed 2026 lost five people even at 1.2); waiting while anyone is hungry keeps them out until the bakers catch up. [Founding parties](/systems/settling.md) go by the same store.
+- **Rationing** ([hardship](/systems/hardship.md)) stretches the store: while a settlement rations food, its winter's meals are counted at the rationed rate, so a lean store is on track sooner. Long working hours bring the harvest in faster before the frost.
 - **A store fallen behind** moves workers onto the food chain, as hunger does.
 - **Resting fields** need nobody: in winter farm workers go carrying, and the grain reaches the bakeries as soon as a home's bread would.
 
+# A lean winter
+
+Kyle's call (decision [0006](/decisions/0006-how-the-parts-work-together.md)): winter stays the main pressure of the year, but as one the player can answer with stores, rationing and priorities, not a brake that halves growth. Until 2026-10-06 newcomers and founding parties came in spring and summer only, and a world of default new games (Islands M, an hour, twelve seeds, three draws each) held 186 villagers with seasons on against 359 with them off. Coming by the store instead of the calendar, it holds 273 (the gap 87, from 173), with 219 newcomers an hour the year round (51 in spring, 57 summer, 49 autumn, 61 winter) instead of 124 in spring and summer alone, and 6.5 settlements instead of 4.0. Winter is felt: at its lowest point each winter the least-fed settlement's fed share is 0.98, 0.78 and 0.44 on average in the first, second and third winters (0.99 to 1.00 before; under 0.6 in 23 of 108 winters, mostly daughters that grew in summer on a store that asked little and went short by the frost), a world loses about one villager an hour to hunger (none before), and nobody starves.
+
 # Kyle's call
 
-Year length (twenty game minutes here) and how harsh winter is: today it is gentle, cold only costs mood.
+Year length (twenty game minutes here) and how harsh winter is: cold costs mood, and a settlement that laid in too little goes short until spring.
