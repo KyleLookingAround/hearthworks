@@ -1,9 +1,10 @@
 import { hash01, rand } from './rng.ts';
 import { makeAgent, quit, removeAgent } from './agents.ts';
-import { foodChainOf } from './production.ts';
+import { foodChainOf, foodsOf } from './production.ts';
 import { shortOfFood } from './planner.ts';
-import { add, bp, chronicle, door, emit, foodsOf, learningAt, reads, seasonOf, villagers } from './world.ts';
-import type { Agent, Building, Custom, Feast, ItemId, Naming, State, Town } from './types.ts';
+import { add, bp, chronicle, door, emit, villagers } from './core.ts';
+import { seasonOf } from './seasons.ts';
+import type { Agent, Building, Custom, Feast, ItemId, Learning, Naming, State, Town } from './types.ts';
 
 /**
  * People (Phase 14): villagers age, are born and die, learn their trades, and their settlements honour
@@ -11,6 +12,22 @@ import type { Agent, Building, Custom, Feast, ItemId, Naming, State, Town } from
  * shifts the main simulation's stream of numbers. See design/systems/people.md.
  */
 const P = (S: State) => S.content.tuning.people;
+
+/**
+ * A place of learning of this kind in a settlement: standing, or with `working` its worker at work.
+ * A library keeps knowledge just by standing; a school, a university and a printing house need their teacher, scholar or printer.
+ */
+export function learningAt(S: State, town: number, kind: Learning, working = kind !== 'library'): boolean {
+  return S.buildings.some(b => {
+    if (b.town !== town || b.site || S.content.blueprints[b.type].learning !== kind) return false;
+    if (!working) return true;
+    const w = b.worker !== null ? S.amap.get(b.worker) : undefined;
+    return !!w && w.state === 'working';
+  });
+}
+
+/** Can this villager read: schooled as a child, or grown in a settlement whose printing house has its printer at work (books in every home)? */
+export const reads = (S: State, a: Agent, printed = !!a.home && learningAt(S, a.home.town, 'press')) => a.role !== 'child' && (a.schooled || printed);
 
 const lifespan = (S: State) => P(S).lifespanSeconds + rand(S.prng) * P(S).lifespanJitterSeconds;
 export const ageOf = (S: State, a: Agent) => S.t - a.born;

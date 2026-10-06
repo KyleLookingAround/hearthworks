@@ -4,7 +4,8 @@
  * An idle carrier claims the cheapest request/offer pair and reserves the
  * goods at both ends, so two carriers never fetch the same stack.
  */
-import { add, bp, ctr, distAB, distBB, door, seasonOf, storesOnTrack } from './world.ts';
+import { add, bp, ctr, distAB, distBB, door } from './core.ts';
+import { seasonOf, storesOnTrack } from './seasons.ts';
 import { findPath } from './path.ts';
 import { goToBuilding } from './agents.ts';
 import { foodChainOf, wants } from './production.ts';

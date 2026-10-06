@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
 import { createState, findPath, placeBuilding, runFor, ctr, type State } from '../src/sim/index.ts';
-import { placeBridge, completeSite } from '../src/sim/world.ts';
+import { placeBridge, completeSite } from '../src/sim/buildings.ts';
 import { surroundings, homesInNuisance } from '../src/sim/surroundings.ts';
 import { findSpot } from '../src/gates/kit.ts';
 

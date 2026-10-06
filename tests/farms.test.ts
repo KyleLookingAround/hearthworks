@@ -2,9 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
 import { createState, ctr, demolish, door, fits, loadGame, placeBuilding, runFor, saveGame, turnBuilding, type Building, type State } from '../src/sim/index.ts';
-import { completeSite, foodsOf } from '../src/sim/world.ts';
+import { completeSite } from '../src/sim/buildings.ts';
 import { crew, foodsEaten, growFarm, growProblem, mealOf, places, sizeName, strip } from '../src/sim/farms.ts';
-import { wants } from '../src/sim/production.ts';
+import { wants, foodsOf } from '../src/sim/production.ts';
 
 const content = loadContent();
 

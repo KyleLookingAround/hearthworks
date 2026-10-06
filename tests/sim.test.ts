@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
 import { createState, demolish, runFor, type State } from '../src/sim/index.ts';
-import { hypot } from '../src/sim/world.ts';
+import { hypot } from '../src/sim/core.ts';
 import { build, centre, standardMetrics } from '../src/gates/kit.ts';
 
 const content = loadContent();

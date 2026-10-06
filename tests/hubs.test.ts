@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadContent } from '../src/content/node.ts';
-import { distBB } from '../src/sim/world.ts';
+import { distBB } from '../src/sim/core.ts';
 import { bp, createState, loadGame, placeBuilding, runFor, saveGame, waysOf, advise, type SaveFile, type State } from '../src/sim/index.ts';
 import { findTask, hubFor, hubOf } from '../src/sim/logistics.ts';
 import { centre, findSpot } from '../src/gates/kit.ts';

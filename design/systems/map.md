@@ -51,4 +51,4 @@ Saplings become grown trees after `tree_grow_seconds`. Grown trees slow walkers 
 
 # Code
 
-`src/sim/world.ts`
+`src/sim/worldgen.ts` (generating the map, and where settlements start), `src/sim/towns.ts` (a new game and founding a settlement), `src/sim/terrain.ts` (saplings, worn paths and paving)

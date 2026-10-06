@@ -1,7 +1,7 @@
 import { goToBuilding, moveTo } from './agents.ts';
 import { cancelTask } from './logistics.ts';
 import { makeRng, valueNoise } from './rng.ts';
-import { bp, chronicle, door, villagers } from './world.ts';
+import { bp, chronicle, door, villagers } from './core.ts';
 import { setOff } from './ships.ts';
 import type { Agent, MapDef, State, Town, World } from './types.ts';
 

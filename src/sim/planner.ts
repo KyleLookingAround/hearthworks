@@ -13,7 +13,9 @@ import { cancelTask, supplyOf, touches } from './logistics.ts';
 import { fits } from './place.ts';
 import { inNuisance } from './surroundings.ts';
 import { NEED_TEXT, pressure } from './knowledge.ts';
-import { add, beside, bp, chronicle, ctr, demolish, dims, door, emit, FACING, front as frontOf, lift, nearestTown, placeBridge, placeBuilding, seasonOf, storesOnTrack, villagers, hypot } from './world.ts';
+import { add, beside, bp, chronicle, ctr, dims, door, emit, FACING, front as frontOf, nearestTown, villagers, hypot } from './core.ts';
+import { demolish, lift, placeBridge, placeBuilding } from './buildings.ts';
+import { seasonOf, storesOnTrack } from './seasons.ts';
 import { hasPlace } from './people.ts';
 import { reserve } from './agents.ts';
 import { enoughInStore, foodChainOf, plentyInStore } from './production.ts';
@@ -21,9 +23,7 @@ import { atRisk, clean, guarded, struckLately, unguarded } from './hardship.ts';
 import { planRoads } from './roads.ts';
 import { planBelts } from './belts.ts';
 import { crew, growFarm, maxSize, places, sizeName, toGrow, unripe } from './farms.ts';
-import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Learning, type Building, type Form, type ItemId, type PlannerState, type State, type Stock, type Town, type World } from './types.ts';
-
-export const plannerOn = (on: boolean): PlannerState => ({ on, t: 0, settle: 0, streak: { type: '', n: 0 }, site: null, want: null, saving: null, status: on ? 'Looking around the village' : 'Village plans are off', placed: 0, noRoom: {}, roads: true, replanAt: 0, renewAt: 0, firstFor: {}, wants: {}, use: {} });
+import { HAZARDS, ZONES, type BlueprintDef, type Hazard, type Learning, type Building, type Form, type ItemId, type State, type Stock, type Town, type World } from './types.ts';
 
 interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; store?: boolean; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: Learning; hall?: boolean; /** the mill (a windmill, a seed garden) whose workplaces stand bare */ mill?: string; ships?: boolean; /** traded for from this neighbour rather than made */ from?: Town }
 interface Choice { B: BlueprintDef; sev: number; why: string; wait?: string; key?: string }

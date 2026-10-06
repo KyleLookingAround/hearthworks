@@ -1,9 +1,9 @@
-import { add, bp, chronicle, emit, villagers } from './world.ts';
+import { add, bp, chronicle, emit, villagers } from './core.ts';
 import { setOff } from './ships.ts';
 import { cancelTask } from './logistics.ts';
 import { goToBuilding } from './agents.ts';
 import { shareable } from './knowledge.ts';
-import type { Agent, ItemId, State, Stock, Town } from './types.ts';
+import type { Agent, ItemId, Ledger, State, Stock, Town } from './types.ts';
 
 /**
  * Trade between neighbours (Phase 13). A settlement with goods to spare and a want sends a porter: a
@@ -13,6 +13,9 @@ import type { Agent, ItemId, State, Stock, Town } from './types.ts';
  * reliably trade for. There is no money and no global stockpile: every load is carried.
  */
 const X = (S: State) => S.content.tuning.trade;
+
+/** A new settlement's trade ledger. */
+export const newLedger = (): Ledger => ({ t: 0, imports: {}, made: {}, exported: {}, imported: {}, waits: {} });
 
 const stores = (S: State, town: Town) => S.buildings.filter(b => b.town === town.id && !b.site && bp(S, b).storage);
 

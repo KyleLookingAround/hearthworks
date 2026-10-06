@@ -3,7 +3,7 @@
  * minus noise from workplaces with a `nuisance` block, crowding by other buildings and open building
  * sites. Derived from the world each time it is asked for, so it is never saved.
  */
-import { bp, ctr, hypot } from './world.ts';
+import { bp, ctr, hypot } from './core.ts';
 import type { Building, State } from './types.ts';
 
 export interface Surroundings { score: number; trees: number; water: number; noise: number; crowd: number; sites: number }

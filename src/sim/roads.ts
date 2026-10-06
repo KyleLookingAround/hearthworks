@@ -4,7 +4,10 @@
  * replanning does). See design/systems/roads.md. No randomness: ties break by scan order.
  */
 import { cancelTask, touches } from './logistics.ts';
-import { add, bp, chronicle, ctr, demolish, emit, front as frontOf, pave, seasonOf, storesOnTrack, villagers, hypot } from './world.ts';
+import { add, bp, chronicle, ctr, emit, front as frontOf, villagers, hypot } from './core.ts';
+import { demolish } from './buildings.ts';
+import { pave } from './terrain.ts';
+import { seasonOf, storesOnTrack } from './seasons.ts';
 import { enough, foodChainOf } from './production.ts';
 import type { Building, State, Town } from './types.ts';
 

@@ -3,7 +3,8 @@
  * across its back, are laid as a site of their own and become part of it when finished, with a place for one more
  * hand. Homes eat a varied diet of the foods their settlement grows. All of it only with `S.farms` on.
  */
-import { bp, chronicle, door, emit, inB, placeBuilding } from './world.ts';
+import { bp, chronicle, door, emit, inB } from './core.ts';
+import { placeBuilding } from './buildings.ts';
 import { reachable, reshaped } from './path.ts';
 import { sealsOff } from './planner.ts';
 import { ZONES, type BlueprintDef, type Building, type ItemId, type State, type Town } from './types.ts';

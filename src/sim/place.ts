@@ -1,5 +1,6 @@
 /** Where buildings can go: shared by the planner and the gate kit. */
-import { canPlace, dims, hypot } from './world.ts';
+import { canPlace } from './buildings.ts';
+import { dims, hypot } from './core.ts';
 import type { State } from './types.ts';
 
 /** No buildings or roads in the rectangle (roads are kept, not built over; with `paths`, worn paths may be). */

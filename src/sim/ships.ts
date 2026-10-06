@@ -1,7 +1,7 @@
 import { goToBuilding } from './agents.ts';
 import { hash01 } from './rng.ts';
 import { isleAt } from './sea.ts';
-import { bp, chronicle, emit, villagers } from './world.ts';
+import { bp, chronicle, emit, villagers } from './core.ts';
 import type { PathOptions } from './path.ts';
 import type { Agent, Boat, Building, State, Town } from './types.ts';
 

@@ -1,6 +1,8 @@
 import { rand } from './rng.ts';
 import { findPath, type PathOptions } from './path.ts';
-import { bp, distAB, door, inB, seasonOf, storesOnTrack, tread, hypot } from './world.ts';
+import { bp, distAB, door, inB, hypot } from './core.ts';
+import { seasonOf, storesOnTrack } from './seasons.ts';
+import { tread } from './terrain.ts';
 import { blame, cancelTask, drop, findTask, pickup, staleBoard, staleTask } from './logistics.ts';
 import { arrive } from './knowledge.ts';
 import { explorerArrives, sight } from './sea.ts';

@@ -13,7 +13,7 @@ import { rand } from './rng.ts';
 import { makeAgent, release, removeAgent } from './agents.ts';
 import { cancelTask, touches } from './logistics.ts';
 import { findPath } from './path.ts';
-import { add, bp, chronicle, ctr, door, emit, front, nearestTown, villagers, hypot } from './world.ts';
+import { add, bp, chronicle, ctr, door, emit, front, nearestTown, villagers, hypot } from './core.ts';
 import { spareOf } from './trade.ts';
 import { take } from './roads.ts';
 import { newcomer } from './people.ts';

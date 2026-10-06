@@ -1,5 +1,5 @@
 import { assignWorkers, makeAgent, nearestStore, updateAgent } from './agents.ts';
-import { cold, homeTier, updateBuilding } from './production.ts';
+import { cold, homeTier, updateBuilding, foodsOf } from './production.ts';
 import { formOf } from './planner.ts';
 import { plan, shortOfFood } from './planner.ts';
 import { updateKnowledge } from './knowledge.ts';
@@ -9,7 +9,9 @@ import { updateSettling } from './settle.ts';
 import { updateSea } from './sea.ts';
 import { updateShips } from './ships.ts';
 import { moveRaids, sickShare, updateHardship } from './hardship.ts';
-import { bp, chronicle, door, emit, foodsOf, saplings, seasonOf, storesOnTrack, villagers, worn } from './world.ts';
+import { bp, chronicle, door, emit, villagers } from './core.ts';
+import { saplings, worn } from './terrain.ts';
+import { seasonOf, storesOnTrack } from './seasons.ts';
 import type { State } from './types.ts';
 import { surroundings } from './surroundings.ts';
 import { closeBoard, openBoard } from './logistics.ts';

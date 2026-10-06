@@ -1,6 +1,9 @@
 import { goToBuilding } from './agents.ts';
 import { cancelTask } from './logistics.ts';
-import { add, bp, chronicle, clearSite, door, emit, foundTown, neighbourSite, seasonOf, storesOnTrack, villagers } from './world.ts';
+import { add, bp, chronicle, door, emit, villagers } from './core.ts';
+import { clearSite, neighbourSite } from './worldgen.ts';
+import { foundTown } from './towns.ts';
+import { seasonOf, storesOnTrack } from './seasons.ts';
 import { reachable } from './path.ts';
 import { embark, launch, partyDock } from './ships.ts';
 import type { Agent, State, Stock, Town } from './types.ts';

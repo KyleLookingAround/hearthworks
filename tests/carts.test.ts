@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
-import { distBB } from '../src/sim/world.ts';
+import { distBB } from '../src/sim/core.ts';
 import { bp, createState, placeBuilding, runFor, loadGame, saveGame } from '../src/sim/index.ts';
 import { findTask } from '../src/sim/logistics.ts';
 import { centre, findSpot } from '../src/gates/kit.ts';

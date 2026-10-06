@@ -1,7 +1,10 @@
 import { rand } from './rng.ts';
 import { release, removeAgent } from './agents.ts';
 import { feastStock, skillPace } from './people.ts';
-import { add, bp, completeSite, ctr, emit, foodsOf, inB, plant, seasonOf, hypot } from './world.ts';
+import { add, bp, ctr, emit, inB, hypot } from './core.ts';
+import { completeSite } from './buildings.ts';
+import { plant } from './terrain.ts';
+import { seasonOf } from './seasons.ts';
 import { capOf, crew, dietOf, mealOf, places, unripe } from './farms.ts';
 import { fleetText, launch, wantsBoat } from './ships.ts';
 import type { Agent, Building, ItemId, Level, State, Stock, Town } from './types.ts';
@@ -49,6 +52,12 @@ function replant(S: State, b: Building, r: number) {
     const i = spots[Math.floor(rand(S.rng) * spots.length)];
     plant(w, i);
   }
+}
+
+/** The foods a home eats, in order: its own (bread), with farms that grow the foods of the diet, then the preserved foods when seasons are on. */
+export function foodsOf(S: State, b: Building): string[] {
+  const f = Object.keys(bp(S, b).keepStocked)[0];
+  return f ? [f, ...(S.farms ? S.content.tuning.farms.diet : []), ...(S.seasons ? S.content.tuning.seasons.preserved : [])] : [];
 }
 
 /**

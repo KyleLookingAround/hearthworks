@@ -4,7 +4,7 @@
  * building order and tile index.
  */
 import { available, hubOf, hubWant, requestsNow, roomFor, staleBoard } from './logistics.ts';
-import { add, bp, chronicle, distBB, emit, front, villagers } from './world.ts';
+import { add, bp, chronicle, distBB, emit, front, villagers } from './core.ts';
 import { have, take } from './roads.ts';
 import type { BlueprintDef, Building, ItemId, State, Town, World } from './types.ts';
 

@@ -120,7 +120,7 @@ test('shallows slow boats: a row through shallows takes longer than the same row
 
 test('with charts on, a settlement charts its own island and what it sees, and settles only on charted land', async () => {
   const { islesOf, isleAt } = await import('../src/sim/sea.ts');
-  const { neighbourSite } = await import('../src/sim/world.ts');
+  const { neighbourSite } = await import('../src/sim/worldgen.ts');
   const S = createState(content, 1847, { planner: true, settlers: true, charts: true, map: 'islands', size: 'm' });
   runFor(S, 2);
   const t = S.towns[0], store = S.bmap.get(t.store)!;

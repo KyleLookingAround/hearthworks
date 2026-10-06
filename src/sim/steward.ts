@@ -7,7 +7,8 @@ import { NEED_TEXT, ageNeeded, knows, pressure, scholarly } from './knowledge.ts
 import { dietOf } from './farms.ts';
 import { defence, guarded } from './hardship.ts';
 import { centreOf } from './planner.ts';
-import { learningAt, seasonOf, storesOnTrack } from './world.ts';
+import { learningAt } from './people.ts';
+import { seasonOf, storesOnTrack } from './seasons.ts';
 import type { State, Town } from './types.ts';
 
 /** OKF log labels for each kind of chronicle line. */
