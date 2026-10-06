@@ -36,6 +36,21 @@ export function chronicleLog(S: State, town?: number): string {
   return out;
 }
 
+/** The ways goods go, in words, in the order the Steward panel lists them. */
+const WAYS: [string, string][] = [['foot', 'on foot'], ['cart', 'by handcart'], ['ox', 'by ox cart'], ['bot', 'by bot'], ['belt', 'along belts']];
+
+/**
+ * How a settlement's goods have gone since its founding: each way's share of the goods delivered to it (to the nearest
+ * whole per cent, ways it has not used left out), and how many were handed on at its yards. Null before any.
+ */
+export function waysOf(S: State, town: Town): { text: string; shares: number[]; handed: number } | null {
+  const w = town.ways, all = WAYS.reduce((s, [k]) => s + (w[k] || 0), 0);
+  if (!all) return null;
+  const shares = WAYS.map(([k]) => Math.round((100 * (w[k] || 0)) / all));
+  const text = WAYS.map(([, words], i) => (shares[i] ? `${shares[i]}% ${words}` : '')).filter(Boolean).join(', ');
+  return { text, shares, handed: Math.floor(w.handed || 0) };
+}
+
 /** What a settlement lacks for scholars at work: a scholar at its university, the university itself, or the idea of one. */
 function universityHint(S: State, town: Town): string {
   if (S.buildings.some(b => b.town === town.id && !b.site && S.content.blueprints[b.type].learning === 'university')) return 'its University needs a scholar at work';
@@ -84,6 +99,9 @@ export function advise(S: State, town: Town, n = 3): string[] {
     else if (pressure(S, town, 'long_hauls') >= 1 && knows(town, 'cart_shed') && !knows(town, 'ox_barn')) out.push(`${town.name}'s carts go ${tiles} tiles on average: encourage the Ox Barn.`);
     const feed = S.content.tuning.logistics.oxFeed;
     if (barns.length && barns.every(b => Object.keys(S.content.blueprints[b.type].keepStocked).some(g => (b.inv[g] || 0) < feed))) out.push(`The oxen of ${town.name} wait for wheat: raise the priority of bread, or of hauling.`);
+    // long hauls still walked: carts would take them, and hand the rest of each cartload on at the yard of the district they go to
+    const W = town.ways, A = S.content.tuning.logistics;
+    if (knows(town, 'cart_shed') && (W.long || 0) >= A.adviseLongHauls && (W.longFoot || 0) >= A.adviseFootShare * (W.long || 0)) out.push(`${Math.round((100 * (W.longFoot || 0)) / (W.long || 1))}% of ${town.name}'s long hauls go on foot, one or two goods at a time: raise the priority of hauling for more cart sheds, which take them by the cartload and hand the rest on at its yards.`);
   }
   if (S.farms && S.buildings.filter(b => b.town === town.id && !b.site && S.content.blueprints[b.type].homes).length >= 4 && !dietOf(S, town.id).size) out.push(`${town.name} eats nothing but bread: a Garden, an Orchard or a Pasture would vary its meals and lift its mood.`);
   if (homesInNuisance(S) > 0) out.push('Some homes are within a sawmill\'s noise: zone homes and workshops apart.');

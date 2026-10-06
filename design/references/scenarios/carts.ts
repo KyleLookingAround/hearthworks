@@ -1,7 +1,8 @@
 /**
  * Gate 16 scenario: one self-planning settlement on Landmass at the large size, where distances are
  * longest, with carts on. No build calls and no scripted knowledge: the Cart Shed must be thought of.
- * Long hauls (at least `cart_min_tiles`) are counted by the good, on foot and by cart.
+ * Long hauls (at least `cart_min_tiles`) are counted by the good, on foot and by cart, and the goods handed on at a
+ * district's yard (the rest of a cartload, taken on on foot) are counted too.
  */
 import { start, worldOf, type Scenario } from '../../../src/gates/kit.ts';
 import { runFor, villagers } from '../../../src/sim/index.ts';
@@ -32,6 +33,12 @@ export const run: Scenario = (content, params) => {
       ox_trips: st.oxTrips,
       long_ox_share: r(st.longGoodsByOx / Math.max(1, st.longGoods)),
       ox_time_ratio: r(st.longGoodsByOx ? st.longOxSeconds / st.longGoodsByOx / Math.max(1e-6, foot) : 1),
+      // multi-leg deliveries: goods by each way (each leg counted), and those handed on at a district's yard
+      foot_goods: st.ways.foot || 0,
+      cart_goods: st.ways.cart || 0,
+      ox_goods: st.ways.ox || 0,
+      bot_goods: st.ways.bot || 0,
+      handed_on: st.handedOn + st.handedOnBelt,
     },
   };
 };
