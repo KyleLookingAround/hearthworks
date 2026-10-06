@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T21:56:14Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T03:19:14Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -92,7 +92,7 @@ A finished building that holds an `ok` status for `verify_seconds` proves its bl
 
 # Learn by hand
 
-If the player builds something its settlement does not know, the settlement learns it (`by: hand`) once it is finished. The player can always build anything; knowledge only limits what the village plans for itself.
+If a building stands finished in a settlement that does not know it, the settlement learns it (`by: hand`). The game no longer lets the player place what the settlement whose land it is does not know (Kyle's call 3 in decision 0006): the build bar shows every blueprint, marks those the chosen settlement has not thought of with what each waits on, and refuses one on the land (the nearest settlement's, as for any building) of a settlement that does not know it, paving included, saying whose land it is and who knows it. So learning by hand now comes only from older saves and scripted scenarios; knowledge is a thing in the world, and the player steers it with encouragement.
 
 # Share
 
@@ -110,7 +110,7 @@ A game can found several settlements ([settlement](/systems/settlement.md)): eac
 
 # Player
 
-The **Knowledge** panel lists, per settlement, what it has learned beyond its founding, how ("thought of here", "learned from Hearth"), whether it has proven it, and what is not yet thought of and why it would be. Visitors on the road are drawn in purple. [Gate 5](/gates/05-knowledge-spreads.md) checks the whole cycle.
+The **Knowledge** panel lists, per settlement, what it has learned beyond its founding, how ("thought of here", "learned from Hearth"), whether it has proven it, and what is not yet thought of and why it would be. The build bar marks what the chosen settlement does not know, in a few words ("not thought of", "after Library", "Age of Clockwork", "needs scholars"), with the whole reason in its hint. Visitors on the road are drawn in purple. [Gate 5](/gates/05-knowledge-spreads.md) checks the whole cycle.
 
 # Limits
 

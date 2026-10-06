@@ -49,14 +49,18 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--brass-hi);out
 .btn.danger{border-color:color-mix(in srgb,var(--bad) 60%,var(--line));color:var(--bad)}
 .btn.danger.armed{background:var(--bad);color:var(--panel);border-color:var(--bad)}
 
-.planline{margin:0;max-width:100%;padding:5px 12px;font-size:14px;color:var(--ink);text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-.planline[aria-expanded="true"]{white-space:normal}
-.planline[aria-expanded="false"] #planText br{display:none}
-.planline[aria-expanded="false"] #planText .more{display:none}
-.planline .lbl{font-family:var(--display);font-weight:700;letter-spacing:.06em;color:var(--brass-hi);margin-right:4px}
+.planline{margin:0;max-width:100%;min-width:0;padding:5px 12px;font-size:14px;color:var(--ink);display:flex;align-items:flex-start;gap:8px;cursor:pointer}
+.planline .lbl{flex:none;background:none;border:0;padding:0;cursor:pointer;font-family:var(--display);font-weight:700;letter-spacing:.06em;color:var(--brass-hi)}
+.planline .lbl::after{content:" ▾";font-size:11px;color:var(--ink-2)}
+.planline[aria-expanded="true"] .lbl::after{content:" ▴"}
+#planText{min-width:0;flex:1;display:grid;gap:1px}
+.pl-row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planline[aria-expanded="true"] .pl-row{white-space:normal}
 .planline.off{color:var(--ink-2)}
-.planline .tn{font-family:var(--display);color:var(--ink);margin-right:2px}
-.planline[aria-expanded="true"] #planText{display:inline-block;vertical-align:top}
+.planline .tn{background:none;border:0;padding:0 2px 0 0;cursor:pointer;font-family:var(--display);font-weight:700;color:var(--ink);text-decoration:underline dotted color-mix(in srgb,var(--brass) 70%,transparent);text-underline-offset:3px}
+.planline .tn:hover{color:var(--brass-hi)}
+.pl-row.chosen .tn{color:var(--brass-hi)}
+.pl-more{font-size:12px;color:var(--ink-2)}
 .goals{width:min(290px,100%);padding:8px 12px 10px}
 .goals summary{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.06em;color:var(--brass-hi);cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px}
 .goals summary::-webkit-details-marker{display:none}
@@ -84,7 +88,11 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--brass-hi);out
 .tool .cs{font-size:12.5px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums}
 
 .toolhint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--buildH,64px) + 26px);max-width:calc(100% - 32px);padding:6px 12px;font-size:14px;text-align:center}
-.toasts{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--buildH,64px) + 66px);display:flex;flex-direction:column-reverse;align-items:center;gap:6px;pointer-events:none;width:calc(100% - 32px)}
+.toasts{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--buildH,64px) + 34px + max(32px,var(--hintH,0px)));display:flex;flex-direction:column-reverse;align-items:center;gap:6px;pointer-events:none;width:calc(100% - 32px)}
+/* toasts keep clear of the inspector (right) and the settlement card (left) */
+body.ins-open .toasts{right:322px;left:16px;width:auto;transform:none}
+body.card-open .toasts{left:332px;width:auto;right:16px;transform:none}
+body.card-open.ins-open .toasts{right:322px}
 .toast{padding:5px 11px;font-size:13.5px;max-width:420px;text-align:center;animation:rise .25s ease-out}
 .toast.good{border-color:color-mix(in srgb,var(--good) 55%,var(--line))}
 .toast.bad{border-color:color-mix(in srgb,var(--bad) 60%,var(--line))}
@@ -108,12 +116,15 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--brass-hi);out
 .actions{display:flex;gap:6px;flex-wrap:wrap}
 
 /* menu drawer */
-.drawer{position:absolute;right:16px;top:calc(var(--hudH,60px) + 22px);width:320px;max-height:calc(100% - var(--hudH,60px) - var(--buildH,64px) - 52px);overflow:auto;padding:10px 12px 12px;display:grid;gap:10px;align-content:start;z-index:5}
+.drawer{position:absolute;right:16px;top:calc(var(--hudH,60px) + 22px);width:320px;max-width:calc(100% - 32px);max-height:calc(100% - var(--hudH,60px) - var(--buildH,64px) - 52px);overflow:auto;overflow-x:hidden;padding:10px 12px 12px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-content:start;z-index:5}
 .drawer-head{display:flex;align-items:center}
 .drawer-head h2{margin:0;flex:1;font-family:var(--display);font-size:17px;letter-spacing:.05em;color:var(--brass-hi)}
 .drawer-actions{display:flex;flex-wrap:wrap;gap:6px}
 .drawer-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-family:var(--display);font-size:14px;letter-spacing:.04em;color:var(--ink-2)}
-.drawer select{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:4px 8px;font:inherit;font-family:var(--body)}
+.drawer select{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:4px 8px;font:inherit;font-family:var(--body);min-width:0;max-width:100%;text-overflow:ellipsis}
+.drawer-row>select,.drawer-pick{flex:0 1 auto;min-width:0;max-width:66%}
+.drawer-pick{display:flex;gap:6px;align-items:center}
+.drawer-pick select{flex:1 1 auto}
 .drawer .goals{width:auto;padding:0;border-top:1px solid var(--line);padding-top:8px}
 .drawer>.hint{margin:0;font-size:12.5px;color:var(--ink-2)}
 
@@ -127,9 +138,16 @@ body.ui-hidden .ui{display:none!important}
   .brand{display:none}
   .ctrl{margin-left:auto}
   .chip{font-size:12.5px;padding:2px 6px;gap:4px}
-  .res .lbl,#chipCarriers,.meta .chip .lbl{display:none}
+  .btn.icon{min-width:30px;padding:3px 5px}
+  /* labels stay; the icons go, and the goods beyond the staples fold behind "more" */
+  #chipCarriers,.meta .ic,.res .more-good,.pl-more{display:none}
+  .res.open .more-good,.res .chip.more{display:inline-flex}
+  /* the chips and the controls share the rows, so the panel stays short */
+  .res,.meta{display:contents}
+  .hud{gap:4px}
+  .chip{font-size:12px;padding:2px 6px}
   .planline{font-size:13px;padding:4px 10px;align-self:stretch}
-  .drawer{left:8px;right:8px;width:auto;top:calc(var(--hudH,60px) + 14px)}
+  .drawer{left:8px;right:8px;width:auto;max-width:none;top:calc(var(--hudH,60px) + 14px)}
   .buildwrap{left:8px;right:8px;bottom:8px}
   .build{padding:5px}
   .tool{min-width:78px;padding:4px 8px}
@@ -138,6 +156,9 @@ body.ui-hidden .ui{display:none!important}
   .tool .cs{font-size:11.5px}
   .inspector{left:8px;right:8px;width:auto;max-height:42%;overflow:auto}
   .toasts{width:calc(100% - 16px)}
+  /* with a sheet open along the bottom, notices come down from the top instead */
+  body.ins-open .toasts,body.card-open .toasts,body.card-open.ins-open .toasts{top:calc(var(--hudH,60px) + 14px);bottom:auto;left:8px;right:8px;width:auto;transform:none;flex-direction:column}
+  .speednote{flex-basis:100%;text-align:right}
   .toast{font-size:12.5px;padding:4px 9px}
 }
 @media (prefers-reduced-motion:reduce){.toast{animation:none}}
@@ -175,7 +196,7 @@ body.ui-hidden .ui{display:none!important}
 .ng-preview{margin:0;display:grid;gap:6px}
 .ng-preview canvas{width:100%;height:auto;border-radius:8px;border:1px solid var(--line);image-rendering:pixelated;background:#1d4b57}
 .ng-preview figcaption{font-size:13px;color:var(--ink-2)}
-.ng-actions{display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px}
+.ng-actions{display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:8px;margin:12px -16px -16px;padding:10px 16px 12px;position:sticky;bottom:-16px;background:var(--panel);border-top:1px solid var(--line);border-radius:0 0 10px 10px;z-index:1}
 .ng-saved{margin-right:auto;font-size:12.5px;color:var(--ink-2)}
 .btn.primary{background:var(--brass);border-color:var(--brass);color:var(--panel);font-weight:700}
 .btn.primary:hover{background:var(--brass-hi)}
@@ -184,10 +205,68 @@ body.ui-hidden .ui{display:none!important}
   .ng-preview{order:-1}
 }
 .btn:disabled{opacity:.4;cursor:not-allowed}
-.steward-grid{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;font-size:13.5px;margin-top:6px}
-.steward-grid select{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:3px 6px;font:inherit}
+.steward-grid{display:grid;grid-template-columns:minmax(6em,1fr) minmax(0,max-content);gap:6px 10px;align-items:center;font-size:13.5px;margin-top:6px}
+.steward-grid select{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:3px 6px;font:inherit;min-width:0;max-width:100%;justify-self:end}
 .advice{margin:8px 0 0;padding-left:16px;font-size:13px;color:var(--ink-2);display:grid;gap:4px}
 .chron{list-style:none;margin:6px 0 8px;padding:0;display:grid;gap:4px;max-height:240px;overflow:auto;font-size:13px;color:var(--ink-2)}
 .chron b{color:var(--ink);font-variant-numeric:tabular-nums;margin-right:6px}
 .tool.zone .cs{font-style:italic}
 .chip.season.winter b{color:#cfe4f0}.chip.season.autumn b{color:#e3a35a}
+
+/* speeds the device cannot keep up with */
+.speednote{font-size:12px;color:var(--warn);white-space:nowrap;font-variant-numeric:tabular-nums}
+/* the goods bar's owner, the goods folded on a phone, and what is held up */
+button.chip{cursor:pointer;font-family:var(--body)}
+button.chip:hover{border-color:var(--brass)}
+.chip.scope{font-family:var(--display);font-weight:700;letter-spacing:.03em;color:var(--brass-hi);border-color:color-mix(in srgb,var(--brass) 55%,var(--line))}
+.chip.scope span{font-size:10px;color:var(--ink-2)}
+.chip.more{display:none;color:var(--ink-2)}
+.chip.problems b{color:var(--bad)}
+.chip.problems.none b{color:var(--ink-2)}
+.chip.problems.none svg{filter:grayscale(1);opacity:.55}
+svg.badge{width:15px;height:15px;flex:none;vertical-align:middle}
+
+/* buildings the chosen settlement has not thought of */
+.tool.unknown{opacity:.62;border-style:dashed}
+.tool.unknown .cs{font-style:italic;color:var(--warn)}
+.tool.unknown:hover,.tool.unknown[aria-pressed="true"]{opacity:1}
+.toolhint.unknown{border-color:color-mix(in srgb,var(--warn) 60%,var(--line))}
+
+/* the settlement card */
+.card{position:absolute;left:16px;top:calc(var(--hudH,60px) + 22px);width:320px;max-height:calc(100% - var(--hudH,60px) - var(--buildH,64px) - 52px);overflow:auto;padding:10px 12px 12px;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-content:start;z-index:4}
+.card-head{display:flex;align-items:center;gap:4px}
+.card-head .sw{width:12px;height:12px;border-radius:3px;background:var(--brass-hi);margin-right:4px}
+.card-head h2{margin:0;font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:.03em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-step{font-size:22px}
+#cardBody{display:grid;gap:8px}
+.card-sub{margin:0;font-size:13px;color:var(--ink-2)}
+.card-chips{display:flex;flex-wrap:wrap;gap:5px}
+.card .rows{font-size:13.5px}
+.card .rows dd{text-align:right}
+.card .rows dd.warn{color:var(--warn)}
+.card-plan{margin:0;font-size:13.5px;border-left:2px solid var(--brass);padding-left:8px}
+.card-plan b{font-family:var(--display);letter-spacing:.03em;color:var(--brass-hi);margin-right:4px}
+.link{background:none;border:0;padding:0;color:var(--brass-hi);cursor:pointer;text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--brass) 60%,transparent);text-underline-offset:2px;font:inherit;text-align:left}
+.link:hover{color:var(--ink)}
+.card-fold{border-top:1px solid var(--line);padding-top:7px}
+.card-fold summary{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.05em;color:var(--brass-hi);cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px}
+.card-fold summary::-webkit-details-marker{display:none}
+.card-fold summary::before{content:"▸";color:var(--ink-2);font-size:12px;margin-right:-2px;align-self:center}
+.card-fold[open] summary::before{content:"▾"}
+.card-fold summary span:first-of-type{flex:1}
+.card-fold summary .count{color:var(--ink-2);font-weight:500;font-variant-numeric:tabular-nums}
+.card-goods{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.card-goods .chip{font-size:13px;padding:2px 7px;gap:5px}
+.cause{margin-top:8px}
+.cause-head{display:flex;align-items:center;gap:6px;font-size:13.5px}
+.cause-head b{font-family:var(--display);letter-spacing:.03em}
+.cause-head .count{color:var(--ink-2);font-variant-numeric:tabular-nums}
+.cause ul{list-style:none;margin:4px 0 0 21px;padding:0;display:grid;gap:3px;font-size:13px;color:var(--ink-2)}
+.cause li.more{font-style:italic}
+.legend{display:grid;gap:3px;margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-size:12px;color:var(--ink-2)}
+.legend span{display:flex;align-items:center;gap:6px}
+.card .hint{margin:6px 0 0;font-size:13px;color:var(--ink-2)}
+.cause .times{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:640px){
+  .card{left:8px;right:8px;width:auto;top:auto;bottom:calc(var(--buildH,64px) + 18px);max-height:46%}
+}

@@ -4,6 +4,7 @@ import { canPlace, ctr, hash01, type Agent, type Building, type State } from '..
 import { surroundings } from '../sim/surroundings.ts';
 import { dims, door, FACING, seasonOf } from '../sim/world.ts';
 import { beltRoute } from '../sim/belts.ts';
+import { CAUSES, causeOf, knowledgeProblem } from '../ui/readouts.ts';
 
 export const TS = 24;
 /** Zone tints, in ZONES order: homes, farms, workshops, no-build. */
@@ -23,9 +24,15 @@ export interface View {
   routes: boolean;
   /** What to lay over the map: nothing, mood, nuisance, districts, traffic or courier coverage. */
   overlay: 'none' | 'mood' | 'nuisance' | 'districts' | 'traffic' | 'coverage' | 'cover';
+  /** A building just jumped to: ringed for a moment so the eye finds it (performance.now() when it was jumped to). */
+  flash: { id: number; at: number } | null;
 }
 
 type Ctx = CanvasRenderingContext2D;
+
+/** Each cause's mark, made once. */
+const GLYPHS = new Map<string, Path2D>();
+const glyph = (cause: keyof typeof CAUSES) => { let g = GLYPHS.get(cause); if (!g) GLYPHS.set(cause, g = new Path2D(CAUSES[cause].glyph)); return g; };
 
 export function ghostOrigin(S: State, type: string, t: { x: number; y: number }, rot = 0) {
   const { w, h } = dims(S.content.blueprints[type], rot);
@@ -233,11 +240,21 @@ export class Renderer {
       c.setLineDash([]);
     }
     for (const a of S.agents) this.agent(S, a);
+    if (v.flash) {
+      const b = S.bmap.get(v.flash.id), age = (performance.now() - v.flash.at) / 1000;
+      if (!b || age > 2.4) v.flash = null;
+      else {
+        // a ring that closes in on the building, three times
+        const k = (age % 0.8) / 0.8, p = ctr(b);
+        c.strokeStyle = `rgba(240,194,122,${1 - k * 0.6})`; c.lineWidth = 3 / Math.max(0.5, cam.z);
+        c.beginPath(); c.arc(p.x * TS, p.y * TS, (Math.max(b.w, b.h) * 0.75 + (1 - k) * 2.5) * TS, 0, 7); c.stroke();
+      }
+    }
     if (S.towns.length > 1 || cam.z < 0.6) this.townLabels(S, cam.z);
     if (v.tool?.startsWith('zone:') && v.hover) {
       c.strokeStyle = '#f0c27a'; c.lineWidth = 2; c.strokeRect((v.hover.x - 1) * TS, (v.hover.y - 1) * TS, 3 * TS, 3 * TS);
     } else if (v.tool && v.hover) {
-      const B = S.content.blueprints[v.tool], rot = B.paves ? 0 : v.rot, o = B.paves ? v.hover : ghostOrigin(S, v.tool, v.hover, rot), ok = canPlace(S, v.tool, o.x, o.y, rot);
+      const B = S.content.blueprints[v.tool], rot = B.paves ? 0 : v.rot, o = B.paves ? v.hover : ghostOrigin(S, v.tool, v.hover, rot), ok = canPlace(S, v.tool, o.x, o.y, rot) && !knowledgeProblem(S, v.tool, o.x, o.y, rot);
       const { w: gw, h: gh } = B.paves ? { w: 1, h: 1 } : dims(B, rot);
       c.fillStyle = ok ? 'rgba(127,194,138,.35)' : 'rgba(226,115,94,.4)';
       c.strokeStyle = ok ? '#7fc28a' : '#e2735e'; c.lineWidth = 1.5;
@@ -556,11 +573,14 @@ export class Renderer {
       c.strokeStyle = '#f0c27a'; c.lineWidth = 2; c.beginPath();
       c.arc(px + 8, py + 8, 4.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (b.timer / B.seconds)); c.stroke();
     }
-    if (b.status.l === 'bad' || b.status.l === 'warn') {
-      const x = px + pw - 5, y = py + 3;
-      c.fillStyle = b.status.l === 'bad' ? '#e2735e' : '#e8b04a';
-      c.beginPath(); c.arc(x, y, 6.5, 0, 7); c.fill(); c.strokeStyle = '#1b2326'; c.lineWidth = 1.2; c.stroke();
-      c.fillStyle = '#1b2326'; c.font = 'bold 10px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('!', x, y + 0.5);
+    // a badge for what holds it up, its cause told apart by colour and mark (the legend is in the settlement card)
+    const cause = causeOf(S, b);
+    if (cause) {
+      const x = px + pw - 5, y = py + 3, C = CAUSES[cause], r = cause === 'resting' ? 5.5 : 6.5;
+      c.fillStyle = C.color;
+      c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); c.strokeStyle = '#1b2326'; c.lineWidth = 1.2; c.stroke();
+      c.save(); c.translate(x, y); if (r < 6.5) c.scale(r / 6.5, r / 6.5);
+      c.fillStyle = C.ink; c.fill(glyph(cause)); c.restore();
     }
   }
 
@@ -643,6 +663,23 @@ export class Renderer {
     if (across) { c.moveTo(px, py + 3); c.lineTo(px + pw, py + 3); c.moveTo(px, py + ph - 3); c.lineTo(px + pw, py + ph - 3); }
     else { c.moveTo(px + 3, py); c.lineTo(px + 3, py + ph); c.moveTo(px + pw - 3, py); c.lineTo(px + pw - 3, py + ph); }
     c.stroke(); c.setLineDash([]);
+  }
+
+  /** The settlement whose name (or, far out, whose dot) is under the screen point sx, sy, if any. */
+  townAt(S: State, cam: Camera, sx: number, sy: number): number | null {
+    if (!(S.towns.length > 1 || cam.z < 0.6)) return null;
+    const c = this.ctx, k = Math.max(1, 1 / cam.z), px = 13 * k * cam.z;
+    c.save(); c.font = `700 ${px}px "Alegreya Sans SC", sans-serif`;
+    let hit: number | null = null;
+    for (const t of S.towns) {
+      const b = S.bmap.get(t.store);
+      if (!b) continue;
+      const x = ((b.x + b.w / 2) * TS - cam.x) * cam.z + this.cw / 2, y = (b.y * TS - 4 * k - cam.y) * cam.z + this.ch / 2;
+      const half = c.measureText(t.name).width / 2 + 6;
+      if (sx >= x - half && sx <= x + half && sy >= y - px - 6 && sy <= y + 6) { hit = t.id; break; }
+    }
+    c.restore();
+    return hit;
   }
 
   /** Each settlement's name above its storage yard. */

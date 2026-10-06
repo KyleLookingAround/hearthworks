@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T23:59:00Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T03:19:14Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -217,7 +217,9 @@ Under the `detours` shortage (water keeps the village from grass close by, or tr
 
 # Player
 
-The **Village plans** toggle in the HUD is on by default. Off, the planner stops and the player places everything; on, the player can still place buildings by hand alongside it. A line under the HUD says what the planner is doing ("Planning a Bakery: bread is running low"), and the inspector shows why each planned building was built.
+The **Village plans** toggle in the HUD is on by default. Off, the planner stops and the player places everything; on, the player can still place buildings by hand alongside it. The plan line under the HUD says what each settlement's planner is doing ("Planning a Bakery: bread is running low"), a line each (three at a time, taking turns when there are more; tap to see all), and the inspector shows why each planned building was built.
+
+The settlement is the unit of the interface. A settlement's name (in the plan line, on the map, or chosen in the menu) opens its **card**: its form and age, fed and mood, villagers and free beds, hands at work against carriers and how many carriers stand idle, the planner's status (what stands in the way), what it works towards and the goods it was short of at its last look (`wants`), its open sites, its top trades, its own stores, and its buildings held up, grouped by cause with a jump to each. The goods bar and the counts beside it show the chosen settlement's stores, or every settlement's together. Badges on buildings tell their cause apart by colour and mark: needs an input, output full, no worker, a home in want, trouble (fire, flood, sickness, no way in), and resting. A workplace whose worker went carrying because its settlement holds enough of what it makes reads "Resting: enough in store", not "No worker free": nobody is sent to it.
 
 # Limits
 
