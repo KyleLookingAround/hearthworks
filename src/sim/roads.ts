@@ -10,6 +10,7 @@ import { moveHome } from './lifecycle.ts';
 import { pave } from './terrain.ts';
 import { seasonOf, storesOnTrack } from './seasons.ts';
 import { enough, foodChainOf } from './production.ts';
+import { landless } from './planner/core.ts';
 import type { Building, State, Stock, Town } from './types.ts';
 
 const R = (S: State) => S.content.tuning.roads;
@@ -28,18 +29,19 @@ interface Run { x0: number; y0: number; x1: number; y1: number; tiles: number[];
 
 /**
  * What a road may not cut through: storage, bridges, docks and anything else on the shore, a university; and, while the settlement
- * can least spare its bread (with seasons, from autumn to the end of winter or while its winter store is behind), the
- * workplaces of its food chain: a village of 48 lost its bakery and two farms to a road in late winter.
+ * can least spare its bread (with seasons, from autumn to the end of winter or while its winter store is behind; and
+ * whenever it is out of land for food), the workplaces of its food chain: a village of 48 lost its bakery and two farms
+ * to a road in late winter, and a town of 84 with no room for another farm two of its three in spring, and starved.
  */
 const solid = (S: State, b: Building, lean: boolean) => {
   const B = bp(S, b);
   return B.storage || !!B.bridge || B.shore || B.learning === 'university' || (lean && Object.keys(B.output).some(g => foodChainOf(S).has(g)));
 };
 
-/** With seasons, can the settlement least spare its bread now? Autumn or winter, or its winter store behind. */
+/** Can the settlement least spare its bread now? With seasons, autumn or winter, or its winter store behind; or out of land for food. */
 function lean(S: State, town: Town): boolean {
   const s = seasonOf(S);
-  return S.seasons && (s === 'autumn' || s === 'winter' || !storesOnTrack(S, town));
+  return (S.seasons && (s === 'autumn' || s === 'winter' || !storesOnTrack(S, town))) || landless(S, town);
 }
 
 /** The settlement's extent: its buildings' bounding box, `margin` tiles around, inside the map. */

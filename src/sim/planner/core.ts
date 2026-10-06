@@ -69,6 +69,16 @@ export function crowded(S: State, town: Town): boolean {
   return Q.on && Q.roomSince !== null && S.t - Q.roomSince >= S.content.tuning.settling.crowdedHoldSeconds;
 }
 
+/**
+ * Out of land for food: it found no room for a workplace of the food chain within twice `no_room_retry_seconds` (bread's
+ * chain: an orchard with no fertile land in reach is no reason to stop growing).
+ */
+export function landless(S: State, town: Town): boolean {
+  const chain = foodChainOf(S), diet = S.content.tuning.farms.diet;
+  for (const id in town.planner.noRoom) if (S.t - town.planner.noRoom[id] < T(S).noRoomRetrySeconds * 2 && Object.keys(S.content.blueprints[id]?.output ?? {}).some(g => chain.has(g) && !diet.includes(g))) return true;
+  return false;
+}
+
 const FORMS: Form[] = ['hamlet', 'village', 'town'];
 
 /** A site that has waited `site_patience_seconds` for a good nobody in its settlement has. */

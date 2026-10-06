@@ -10,7 +10,7 @@ import { atRisk, clean, struckLately, unguarded } from '../hardship.ts';
 import { crew, places, unripe } from '../farms.ts';
 import { HAZARDS, type Hazard, type Learning, type Building, type ItemId, type State, type Stock, type Town } from '../types.ts';
 import { goodName, runningLow, plural, orList } from './text.ts';
-import { clamp01, T, known, mineOf, covered, ownEffect, basics, starved, formOf, affordable } from './core.ts';
+import { clamp01, T, known, mineOf, covered, ownEffect, basics, starved, formOf, affordable, landless as outOfLand } from './core.ts';
 
 export interface Shortage { key: string; sev: number; why: string; guard?: Hazard; good?: ItemId; homes?: boolean; hauling?: boolean; crossing?: boolean; detours?: boolean; /** room wanted in the stores: units they lack */ store?: number; rite?: boolean; carts?: boolean; oxen?: boolean; clean?: boolean; learn?: Learning; hall?: boolean; /** the mill (a windmill, a seed garden) whose workplaces stand bare */ mill?: string; ships?: boolean; /** traded for from this neighbour rather than made */ from?: Town; /** food spoiling in stores that do not keep it: units lost a minute, by good */ spoils?: Stock }
 export interface Look { storeNeed: number; storeRoom: number; town: Town; pop: number; freeBeds: number; spareHands: number; coming: boolean; foodShort: boolean; movable: boolean; uncovered: number; hasDock: boolean; supply: Stock; demand: Stock; shortages: Shortage[] }
@@ -282,11 +282,8 @@ export function importFrom(S: State, town: Town, g: ItemId, use = town.planner.u
  */
 export function shortOfFood(S: State, town: Town): boolean {
   if (!town.planner.on) return false;
-  // out of land for food: it found no room for a workplace of the food chain lately (bread's chain: an orchard
-  // with no fertile land in reach is no reason to stop growing)
-  const chain = foodChainOf(S), F = S.content.tuning.farms;
-  let landless = false;
-  for (const id in town.planner.noRoom) if (S.t - town.planner.noRoom[id] < T(S).noRoomRetrySeconds * 2 && Object.keys(S.content.blueprints[id]?.output ?? {}).some(g => chain.has(g) && !F.diet.includes(g))) landless = true;
+  // out of land for food: it found no room for a workplace of the food chain lately
+  const F = S.content.tuning.farms, landless = outOfLand(S, town);
   // bread made against bread eaten only with seasons, or out of land: without them a shortfall shows at once as hunger,
   // which keeps newcomers away by itself
   if (!S.seasons && !landless) return false;
