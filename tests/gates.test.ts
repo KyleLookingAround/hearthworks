@@ -1,20 +1,34 @@
-/** Every roadmap gate in design/gates runs headless and must attest cleanly. */
-import { test } from 'node:test';
+/**
+ * Every roadmap gate in design/gates runs headless and must attest cleanly. The gates run
+ * side by side, each in its own worker thread, and print the gate report as they finish.
+ */
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { availableParallelism, tmpdir } from 'node:os';
+import { Worker } from 'node:worker_threads';
 import { join } from 'node:path';
-import { listGates, runGate } from '../src/gates/executor.ts';
+import { listGates, reportLines, runGate, type GateRun } from '../src/gates/executor.ts';
 import { attest } from '../design/references/attesters/thresholds.ts';
 
-for (const path of listGates()) {
-  const id = path.replace(/^.*[\\/]/, '').replace(/\.md$/, '');
-  test(`gate ${id}`, async () => {
-    const r = await runGate(path);
-    const detail = r.verdict.checks.map(c => `${c.ok ? 'ok' : 'MISS'} ${c.metric}=${c.got} (want ${c.want})`).join(', ');
-    assert.ok(r.verdict.ok, `${id} failed: ${r.verdict.reason}\n${detail}`);
-  });
-}
+const inWorker = (path: string) => new Promise<GateRun>((done, fail) => {
+  const w = new Worker(new URL('./gate-worker.ts', import.meta.url), { workerData: path });
+  w.once('message', done);
+  w.once('error', fail);
+  w.once('exit', code => fail(new Error(`gate worker for ${path} exited with code ${code}`)));
+});
+
+describe('roadmap gates', { concurrency: Math.max(1, availableParallelism()) }, () => {
+  for (const path of listGates()) {
+    const id = path.replace(/^.*[\\/]/, '').replace(/\.md$/, '');
+    test(`gate ${id}`, async t => {
+      const r = await inWorker(path);
+      for (const line of reportLines(r)) t.diagnostic(line);
+      const detail = r.verdict.checks.map(c => `${c.ok ? 'ok' : 'MISS'} ${c.metric}=${c.got} (want ${c.want})`).join(', ');
+      assert.ok(r.verdict.ok, `${id} failed: ${r.verdict.reason}\n${detail}`);
+    });
+  }
+});
 
 test('the attester rejects a receipt from an edited scenario', async () => {
   const path = listGates()[0];

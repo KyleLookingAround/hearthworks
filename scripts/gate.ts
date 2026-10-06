@@ -6,7 +6,7 @@
  *   npm run gates -- 04 --map islands --size large
  * Deprecated gates are skipped in the full run but can still be run by name.
  */
-import { listGates, runGate } from '../src/gates/executor.ts';
+import { listGates, reportLines, runGate } from '../src/gates/executor.ts';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
@@ -27,9 +27,7 @@ let failed = 0;
 for (const path of gates) {
   const r = await runGate(path, overrides);
   if (!r.verdict.ok) failed++;
-  console.log(`${r.verdict.ok ? 'PASS' : 'FAIL'}  ${r.id}  (${r.ms} ms, seed ${r.receipt.params.seed}${r.receipt.params.map ? `, ${r.receipt.params.map} ${r.receipt.params.size ?? ''}`.trimEnd() : ''})`);
-  for (const c of r.verdict.checks) console.log(`      ${c.ok ? 'ok  ' : 'MISS'} ${c.metric} = ${c.got} (want ${c.want})`);
-  if (r.verdict.reason && !r.verdict.checks.length) console.log(`      ${r.verdict.reason}`);
+  for (const line of reportLines(r)) console.log(line);
   if (json) console.log(JSON.stringify(r.receipt, null, 2));
 }
 process.exit(failed ? 1 : 0);

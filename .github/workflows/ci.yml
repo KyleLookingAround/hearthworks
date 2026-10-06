@@ -23,10 +23,8 @@ jobs:
         run: npm run okf:check
       - name: Type check
         run: npm run typecheck
-      - name: Tests and roadmap gates
+      - name: Tests and roadmap gates (the gate report is printed as each gate finishes)
         run: npm test
-      - name: Gate report
-        run: npm run gates
       - name: Build site
         run: npm run build
       - uses: actions/upload-pages-artifact@v3

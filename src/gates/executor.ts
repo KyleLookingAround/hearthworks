@@ -73,3 +73,12 @@ export async function runGate(path: string, overrides: Partial<GateParams> = {})
   const verdict = att.attest({ id, passWhen: (f.pass_when as Record<string, number>) ?? {}, computationSource: scenarioSource }, receipt);
   return { id, title: String(f.title ?? id), path, receipt, verdict, ms: Math.round(performance.now() - t0) };
 }
+
+/** A gate run as report lines: its verdict, then each check. */
+export function reportLines(r: GateRun): string[] {
+  const p = r.receipt.params;
+  const lines = [`${r.verdict.ok ? 'PASS' : 'FAIL'}  ${r.id}  (${r.ms} ms, seed ${p.seed}${p.map ? `, ${p.map} ${p.size ?? ''}`.trimEnd() : ''})`];
+  for (const c of r.verdict.checks) lines.push(`      ${c.ok ? 'ok  ' : 'MISS'} ${c.metric} = ${c.got} (want ${c.want})`);
+  if (r.verdict.reason && !r.verdict.checks.length) lines.push(`      ${r.verdict.reason}`);
+  return lines;
+}
