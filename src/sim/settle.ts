@@ -3,6 +3,7 @@ import { cancelTask } from './logistics.ts';
 import { add, bp, chronicle, clearSite, door, emit, foundTown, neighbourSite, seasonOf, storesOnTrack, villagers } from './world.ts';
 import { reachable } from './path.ts';
 import { embark, launch, partyDock } from './ships.ts';
+import { CUSTOM_WORD, craftGoods } from './people.ts';
 import type { Agent, State, Stock, Town } from './types.ts';
 
 /**
@@ -129,6 +130,10 @@ export function sendParty(S: State, mother: Town): Town | null {
   d.custom = mother.custom;
   d.feasts = [...mother.feasts];
   d.naming = mother.naming;
+  // its ways: its mother's custom, feasts, names and craft, as its mother's
+  d.craft = mother.craft;
+  const of = `as ${mother.name} does`;
+  d.why = { custom: of, feast: of, ...(mother.craft ? { craft: `from ${mother.name}` } : {}) };
   d.charted = [...mother.charted];
   d.mother = mother.id;
   d.levers = { priority: { ...mother.levers.priority }, encourage: null, pace: mother.levers.pace };
@@ -142,6 +147,7 @@ export function sendParty(S: State, mother: Town): Town | null {
   d.overseas = overseas;
   chronicle(S, mother.id, 'settled', `${mother.name} sent ${party.length} settlers ${overseas ? 'across the sea' : 'off'} to found ${d.name}`);
   chronicle(S, d.id, 'founded', `${d.name} was founded by ${party.length} settlers from ${mother.name}`);
+  if (S.people) chronicle(S, d.id, 'custom', `${d.name} keeps the ways of ${mother.name}: it ${CUSTOM_WORD[d.custom]}${d.craft ? ` and takes pride in its ${craftGoods(S, d.craft)}` : ''}`);
   emit(S, 'good', `Settlers from ${mother.name} founded ${d.name}`);
   return d;
 }
