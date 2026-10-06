@@ -16,8 +16,8 @@ import { chooseSpot } from './site.ts';
  * jobs cancelled and `salvage_share` of its cost back in storage, and the spot is returned.
  */
 /**
- * Room for a university: a workshop resting with enough in store comes down for it, and the chronicle says so. Only once
- * the university is chosen and paid for; before that, with `commit` false, it only asks whether one could (nothing comes down).
+ * Room for a place of learning: a workshop resting with enough in store comes down for it, and the chronicle says so.
+ * Only once it is chosen and paid for; before that, with `commit` false, it only asks whether one could (nothing comes down).
  */
 export function clearFor(S: State, town: Town, B: BlueprintDef, commit = true): { x: number; y: number; rot: number } | null {
   const cleared = clearShore(S, town, B, true, commit);

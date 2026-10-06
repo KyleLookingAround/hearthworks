@@ -149,8 +149,11 @@ function wishList(S: State, town: Town, L: Look, busy: boolean): Wish[] {
   // first: while food is short, every need of the food chain goes before every work)
   cands.push(...works, ...L.shortages.map(sh => ({ sh })));
   const sevOf = (c: Cand) => ('sh' in c ? c.sh.sev : c.sev), chain = foodChainOf(S);
-  const food = (c: Cand) => (L.foodShort && 'sh' in c && !!c.sh.good && chain.has(c.sh.good) && c.sh.sev >= P.minSeverity ? 1 : 0);
-  cands.sort((a, b) => food(b) - food(a) || sevOf(b) - sevOf(a));
+  // (a work stands below the least pressing need of the food chain that is pressing at all; the needs keep their order)
+  const food = L.foodShort ? L.shortages.filter(sh => sh.good && chain.has(sh.good) && sh.sev >= P.minSeverity) : [];
+  const floor = food.length ? Math.min(...food.map(sh => sh.sev)) : Infinity;
+  const rank = (c: Cand) => ('sh' in c ? c.sh.sev : Math.min(c.sev, floor - 1e-9));
+  cands.sort((a, b) => rank(b) - rank(a));
 
   // something it recently found no room for waits `no_room_retry_seconds`; the next need goes ahead
   const roomless = (id: string) => id in Q.noRoom && S.t - Q.noRoom[id] < P.noRoomRetrySeconds;
@@ -292,7 +295,7 @@ function build(S: State, town: Town, L: Look, c: Choice, wish: Put, act: Act | n
 
 /**
  * Place a confirmed, paid-for choice where the planner would put one: a farm that can grow grows, a bridge spans its
- * water, a dock or university clears room if it must. Says what it did, or null with no room (remembered for
+ * water, a dock or a place of learning clears room if it must. Says what it did, or null with no room (remembered for
  * `no_room_retry_seconds`).
  */
 function place(S: State, town: Town, c: Choice): string | null {
@@ -326,8 +329,8 @@ function place(S: State, town: Town, c: Choice): string | null {
   let spot = c.B.homes && formOf(S, town) !== 'hamlet' ? centreSpot(S, c.B.id, town) : null;
   if (spot && S.world.roads > 0 && !alongRoad(S, c.B, spot)) spot = null;
   spot ??= chooseSpot(S, c.B.id, town);
-  // a dock looks along the shores of every district, newest first (and so does a university)
-  if (c.B.shore || c.B.learning === 'university') for (const h of hubs(S, town).reverse()) spot ??= chooseSpot(S, c.B.id, town, false, h);
+  // a dock looks along the shores of every district, newest first (and so does a place of learning)
+  if (c.B.shore || c.B.learning) for (const h of hubs(S, town).reverse()) spot ??= chooseSpot(S, c.B.id, town, false, h);
   // a dock with no shore left clears one: a workshop on the shore comes down for it, as roads clear their line
   if (!spot && c.B.shore) {
     const cleared = clearShore(S, town, c.B);
@@ -336,8 +339,9 @@ function place(S: State, town: Town, c: Choice): string | null {
       chronicle(S, town.id, 'dock', `${town.name} cleared ${article(bp(S, cleared.cut).name)} ${bp(S, cleared.cut).name.toLowerCase()} from its shore for a dock`);
     }
   }
-  // a university chosen and paid for, with no room, clears a workshop resting with enough in store
-  if (!spot && c.B.learning === 'university') spot = clearFor(S, town, c.B);
+  // a place of learning chosen and paid for, with no room, clears a workshop resting with enough in store (a town that
+  // filled its island before its library was built never kept what it learned, nor reached the Age of Letters)
+  if (!spot && c.B.learning) spot = clearFor(S, town, c.B);
   if (!spot) return roomless();
   const b = placeBuilding(S, c.B.id, spot.x, spot.y, false, spot.rot)!;
   b.town = town.id;
