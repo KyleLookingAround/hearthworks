@@ -3,18 +3,22 @@ type: Decision
 title: "0006: How the parts work together"
 description: A review of the whole game after the first pass, and a plan in stages to make its code plainer and its systems pay their way where the player can see them; first code that leaves every run unchanged, then design changes, each measured.
 tags: [decision, architecture, design, process]
-status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-06T02:08:42Z }
+status: stable
+generated: { by: claude/opus-5.5, at: 2026-10-06T02:56:59Z }
 sources:
   - id: kyle-rethink
     resource: conversation with Kyle on 2026-10-06
     title: Kyle asks for the parts to be reconsidered together, with leave to refactor or redesign
     author: human:kyle
+  - id: kyle-go
+    resource: conversation with Kyle on 2026-10-06
+    title: Kyle takes the recommendations on the four questions
+    author: human:kyle
 ---
 
 # Context
 
-Twenty-two phases were each built on the last, one system at a time. Kyle asked for the whole to be reconsidered, with leave to refactor or redesign it.[^kyle-rethink] This record is the review and the plan. It stays `draft` until Kyle agrees its shape.
+Twenty-two phases were each built on the last, one system at a time. Kyle asked for the whole to be reconsidered, with leave to refactor or redesign it.[^kyle-rethink] This record is the review and the plan. Kyle took its recommendations on the four questions it raised.[^kyle-go]
 
 The review looked at the code (tick order, options, coupling, hidden state), the planner, what the player sees (screenshots on desktop and phone, early and at 45 minutes), and the play itself. The play was measured on default new games (Islands M, two settlements, every system on, an hour, the twelve usual seeds), with each option switched off alone on seven seeds, the levers tried on three to five, and where villagers' time goes sampled on two. One draw of a world's luck moves its villagers by about 15 (1 SD; up to 40), so the ablation means carry a standard error of 4 to 16.
 
@@ -105,19 +109,23 @@ Each change is measured on default new games (twelve seeds, three draws) against
 4. **Knowledge you can see:**
    - ages counted from proven, built knowledge, not from ideas a hamlet merely has;
    - progress towards the next idea shown;
-   - the build bar marking or holding back what no settlement knows.
-5. **Pressure the levers can answer** (Kyle's call on the direction): seasons balanced so winter is lean but survivable with good steering rather than halving growth, and priorities given enough weight to change what a settlement does.
+   - the build bar showing what a settlement doesn't know yet, marked with what it waits on, and placeable only once known.
+5. **Pressure the levers can answer:** seasons balanced so winter is lean but survivable with good steering rather than halving growth, and priorities given enough weight to change what a settlement does.
 6. **A gate for the game as played:** one gate runs the default new game, so the world players get is covered, not only the scripted ones.
+7. **Fewer options:** gates move to default worlds one by one, under rules 6 and 7, and options no player needs to switch become always on, their off paths retired from the sim.
 
 ## How the work is shared
 
-Stage 1 steps 1 to 3 come first, from the coordinator, since everything else is checked with them. The `world.ts` and `planner.ts` splits touch imports across the sim, so they go one after the other on one branch. The readouts (stage 2.1) touch only `src/ui/` and `src/render/` and can run beside stage 1 on their own branch. Stage 2's design changes go to workers by topic once stage 1 is on `main`.
+Stage 1 steps 1 to 3 come first, from the coordinator, since everything else is checked with them. The `world.ts` and `planner.ts` splits touch imports across the sim, so they go one after the other on one branch, while no other branch changes the sim. The readouts (stage 2.1) touch only `src/ui/` and `src/render/` and can run beside stage 1 on their own branch. Stage 2's design changes go to workers by topic once stage 1 is on `main`.
 
-# Questions for Kyle
+# Kyle's calls
 
-1. **Seasons** halve growth and are the strongest effect in the game. Is that the intent, or should winter be lean but not the main brake?
-2. **Options:** may gates move to the default world, so the off paths that only gates use can be retired from the sim? Which options should players keep on the new-game screen?
-3. **Unknown buildings in the build bar:** hold them back until a settlement knows them, or allow them with a mark?
-4. **Order:** readouts and the settlement card first (what the player sees), or the planner's wish list first (what the villages do)?
+Kyle took the recommendation on each question the review raised.[^kyle-go]
+
+1. **Seasons:** winter stays the main pressure of the year, but as one the player can answer (stores, rationing, priorities), not a brake that halves growth. The aim is a lean winter that good steering survives, measured against today's cost of 176 villagers a world.
+2. **Options:** gates move to default worlds, and options only gates switch off are retired from the sim. The new-game screen keeps the choices that change how a world feels: seasons, hardship and settling. Trade, carts, people, farms, ships, charts and planned roads become always on.
+3. **Unknown buildings:** the build bar shows them, marked with what they wait on, but a player can place one only where the settlement knows it. Knowledge stays a thing in the world.
+4. **Order:** readouts and the settlement card first, beside the code-only stage, then the systems that idle, then the planner's wish list.
 
 [^kyle-rethink]: Kyle asks for the parts to be reconsidered together, with leave to refactor or redesign
+[^kyle-go]: Kyle takes the recommendations on the four questions
