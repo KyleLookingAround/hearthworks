@@ -1,10 +1,10 @@
 ---
 type: System
 title: Logistics
-description: The job board — requests, offers, reservations, carriers and courier bots.
+description: The job board — requests, offers, reservations, carriers and courier bots, carts, and deliveries in legs through each district's yard.
 tags: [logistics, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-05T19:26:40Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T02:30:00Z }
 tuning:
   villager_carry: 2
   bot_carry: 3
@@ -29,6 +29,13 @@ tuning:
   ox_rough_speed: 0.8
   ox_min_tiles: 40
   ox_feed: 1
+  hub_reach: 20
+  relay_min_tiles: 20
+  hub_stock: 12
+  relay_min_load: 4
+  relay_bonus: 20
+  advise_long_hauls: 300
+  advise_foot_share: 0.6
   round_tiles: 8
   dump_at: 3
   surplus_penalty: 12
@@ -61,7 +68,22 @@ With carts on (every new game, off in older scenarios), a [Cart Shed](/blueprint
 
 - **Ox carts.** An [Ox Barn](/blueprints/ox_barn.md) keeps ox carts for the longest hauls. A job of at least `ox_min_tiles` within `cart_reach` of a barn with an ox free and `ox_feed` wheat in its stock takes an ox cart: `ox_carry` goods, at `ox_road_speed` on roads, `ox_path_speed` on paths and bridges and `ox_rough_speed` elsewhere, the feed eaten as it sets out. Rounds and cartloads fill it as they fill a handcart; a load that a handcart could take goes by handcart, which is quicker. A long job with no ox to be had takes a handcart.
 
-River boats between jetties and multi-leg deliveries through hubs come later.
+# Hubs: deliveries in legs
+
+With carts on, a long haul may go in legs: by cart to the storage yard of the district it is bound for, and from there on foot. Each home and workplace has a **hub**: its settlement's finished storage yard nearest it, if within `hub_reach` tiles. Carriers hand loads on at hubs rather than one carrier walking every load the whole way, and only where that beats the single trip: by cart, and from a source at least `relay_min_tiles` from the hub (nearer, and the source stands in the hub's own district). A hub holds up to `hub_stock` of a good brought on for its district, as its room allows.
+
+- **The rest of a cartload.** A carter whose load and round leave room in the cart, bound for a home or workplace whose hub lies far from the source, takes the rest of a cartload to the hub after the last drop: the next of the district's homes to ask walks a few tiles to its yard, not across the settlement to the source. A load two hands could carry goes no further than its own drops.
+- **Stocking up by the cartload.** A hub whose district asks for a good from far off asks for it in turn, as urgently as the most urgent of them and `relay_bonus` tiles nearer, from a maker or a yard at least `relay_min_tiles` away with `relay_min_load` or more of it to spare (a yard whose own district asks for the good keeps `hub_stock` back for it). Only a carrier with a cart takes that job, and only for `relay_min_load` goods or more; a round fills the cart with the district's homes on the way.
+- **Waiting for the cart.** A home or workplace that still has at least half of what it keeps of the good on its shelf, and whose hub is stocking up, does not have it walked from beyond `relay_min_tiles` of its hub one at a time: it waits for the cart. One whose shelf runs lower is served as before, whichever way is quickest.
+- **Along a belt.** A home or workplace off the belt whose hub stands beside one is served the same way along it: the belt brings a load from a building beside the same line at least `relay_min_tiles` from the asker to its hub ([conveyors](/systems/conveyors.md)).
+
+Each delivery counts the way it went (on foot, by handcart, by ox cart, by bot, along a belt), every leg on its own, and the goods handed on at a hub, in the stats and in each settlement's count. The Steward panel shows how a settlement's goods go and how many it handed on at its yards; a yard's inspector says whose hub it is and what is coming to it; a cart shed's says which of its carts are going on to a hub; the advisor points at hauling when a settlement's long hauls go mostly on foot (`advise_foot_share` of them, once it has seen `advise_long_hauls`).
+
+On Gate 16's world, long hauls on foot spent more of their tiles walking to the goods (22 on average) than carrying them (16), and the goods they carried were made one at a time and taken as soon as made: there is little slack to gather into a cartload. See the [log](/log.md) for what the legs carry.
+
+# River boats
+
+Not built: within one settlement, water almost never gives a shorter way. Measured on the main branch (2026-10-06) over the long hauls under way every 30 seconds for an hour, a trip rowing from any shore (as if every shore had a landing) beat walking by 15% or more on 0.5 to 1.8% of them on Landmass L and M, 0.4 to 0.9% on the Islands at M, and none on the Coast at M; a boat (`boat_speed` 4) is slower than a walker on a path, the planner builds only where it can walk from its storage, and bridges cross rivers up to six tiles wide. The Islands have no rivers. Their place is with deliveries to districts across the water ([roadmap](/roadmap.md) Phase 24), or a map whose towns grow along a broad river: Kyle's call.
 
 # Walls and doors
 

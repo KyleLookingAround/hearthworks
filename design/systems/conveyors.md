@@ -4,7 +4,7 @@ title: Conveyors
 description: Belts laid along the lanes from a storage yard's door; goods ride them between the buildings beside them with no hands.
 tags: [logistics, automation, ages]
 status: draft
-generated: { by: claude/opus-5.5, at: 2026-10-05T03:35:56Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T02:30:00Z }
 tuning:
   speed: 6
   carry: 2
@@ -30,6 +30,7 @@ Belt tiles join their neighbours (side by side, not corner to corner) into one l
 2. **Surplus.** A workshop beside a belt holding `dump_at` of an output nobody asked for sends it to the nearest store beside the line with room for it.
 3. A load is up to `carry` goods. It leaves at once (the goods are gone from the source, and counted as incoming at the destination, so no carrier comes for them too) and rides at `speed` tiles a second along the belt, a tile on and a tile off included: about as fast as someone walks a road, without the walk to fetch it. A building sends at most one load every `gap_seconds` onto the belt from each belt tile it uses.
 4. A load for a building that is gone by the time it arrives is lost.
+5. **To a hub.** A home or workplace off the belt, asking for a good from far off, whose district's yard stands beside the belt: the belt brings a load from a building beside the same line at least `relay_min_tiles` from it to that yard, up to the yard's `hub_stock` of it, and the district's carriers take it on on foot ([logistics](/systems/logistics.md), hubs). One such load a tick for each yard.
 
 The belt is served before the carriers look for work each tick, so what its buildings ask of each other it carries, and the carriers take everything else. Belts need no hands and eat nothing.
 
