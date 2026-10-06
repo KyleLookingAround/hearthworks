@@ -1,8 +1,7 @@
 import { goToBuilding, moveTo } from './agents.ts';
-import { cancelTask } from './logistics.ts';
 import { makeRng, valueNoise } from './rng.ts';
 import { bp, chronicle, door, villagers } from './core.ts';
-import { setOff } from './ships.ts';
+import { sendOnTrip, traveller } from './lifecycle.ts';
 import type { Agent, MapDef, State, Town, World } from './types.ts';
 
 /**
@@ -179,9 +178,7 @@ export function sendExplorer(S: State, t: Town): Agent | null {
   const people = villagers(S).filter(a => a.home?.town === t.id);
   if (!t.explore && people.length < S.content.tuning.knowledge.visitMinVillagers) return null;
   if (people.some(a => a.visit?.explore && a.visit.from === t.id)) return null;
-  const carriers = people.filter(a => a.role === 'carrier' && a.state !== 'visit' && (!S.people || S.t - a.born >= S.content.tuning.people.adultSeconds));
-  if (carriers.length < 2) return null;
-  const a = carriers.find(c => !c.carry && (c.state === 'idle' || c.state === 'wander' || c.state === 'toSrc'));
+  const a = traveller(people, c => !S.people || S.t - c.born >= S.content.tuning.people.adultSeconds);
   if (!a) return null;
   // the nearest uncharted land a boat can be pulled up on
   const w = S.world, id = islesOf(S).id, known = new Set(t.charted), dd = door(dock);
@@ -194,11 +191,8 @@ export function sendExplorer(S: State, t: Town): Agent | null {
   }
   t.explore = false;
   if (tx < 0) return null;
-  cancelTask(a);
-  a.visit = { from: t.id, to: t.id, back: false, carry: {}, boat: true, seen: [], explore: [tx, ty] };
-  a.state = 'visit';
   // with ships on, in a boat of its own: with none free, the explorer waits ashore
-  if (!setOff(S, a, t, () => moveTo(S, a, tx, ty))) { a.visit = null; a.state = 'idle'; return null; }
+  if (!sendOnTrip(S, a, t, { from: t.id, to: t.id, back: false, carry: {}, boat: true, seen: [], explore: [tx, ty] }, () => moveTo(S, a, tx, ty))) return null;
   S.stats.voyages++;
   return a;
 }

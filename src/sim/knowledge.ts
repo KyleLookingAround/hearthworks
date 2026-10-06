@@ -14,7 +14,6 @@
  */
 import { rand } from './rng.ts';
 import { goToBuilding } from './agents.ts';
-import { cancelTask } from './logistics.ts';
 import { barter, homecoming } from './trade.ts';
 import { bringFeast, learningAt, reads } from './people.ts';
 import { bp, chronicle, door, emit, villagers } from './core.ts';
@@ -23,7 +22,7 @@ import { struckLately } from './hardship.ts';
 import { traffic } from './roads.ts';
 import { swapCharts } from './sea.ts';
 import { offered } from './farms.ts';
-import { setOff } from './ships.ts';
+import { moveHome, sendOnTrip, traveller } from './lifecycle.ts';
 import type { Agent, BlueprintDef, Content, Knowledge, State, Town } from './types.ts';
 
 const K = (S: State) => S.content.tuning.knowledge;
@@ -270,20 +269,14 @@ function sendVisitor(S: State, town: Town): boolean {
   // small or already-visiting settlements keep their people at home
   const people = villagers(S).filter(a => a.home?.town === town.id);
   if (people.length < K(S).visitMinVillagers || people.some(a => a.visit?.from === town.id)) return false;
-  const carriers = people.filter(a => a.role === 'carrier' && a.state !== 'visit');
-  if (carriers.length < 2) return false;
-  const a = carriers.find(c => !c.carry && (c.state === 'idle' || c.state === 'wander' || c.state === 'toSrc'));
+  const a = traveller(people);
   if (!a) return false;
-  cancelTask(a);
-  a.visit = { from: town.id, to: host.id, back: false, carry: shareable(town), boat: false };
-  a.state = 'visit';
-  if (!setOff(S, a, town, () => goToBuilding(S, a, S.bmap.get(host.store)!))) {
+  if (!sendOnTrip(S, a, town, { from: town.id, to: host.id, back: false, carry: shareable(town), boat: false }, () => goToBuilding(S, a, S.bmap.get(host.store)!))) {
     // no way there: across water nobody here can cross yet. Try again next visit.
-    a.visit = null; a.state = 'idle'; town.cut = 1; town.visitT = 0;
+    town.cut = 1; town.visitT = 0;
     return false;
   }
   town.cut = 0;
-  a.visit.boat = a.path.some(([x, y]) => S.world.ground[y * S.world.w + x] === 0);
   return true;
 }
 
@@ -315,8 +308,7 @@ export function arrive(S: State, a: Agent) {
 function strand(S: State, a: Agent, from: Town, to: Town) {
   const bed = S.buildings.find(b => b.town === to.id && !b.site && (S.content.blueprints[b.type].homes ?? 0) > b.residents.length);
   if (bed) {
-    if (a.home) a.home.residents = a.home.residents.filter(id => id !== a.id);
-    a.home = bed; bed.residents.push(a.id);
+    moveHome(a, bed);
     emit(S, 'info', `A visitor from ${from.name} found no way home and settled in ${to.name}`, true);
     return;
   }

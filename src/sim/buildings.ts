@@ -5,6 +5,7 @@ import { joinFields } from './farms.ts';
 import { setBelt, turned } from './belts.ts';
 import { reshaped } from './path.ts';
 import { launch } from './ships.ts';
+import { loseVillager } from './lifecycle.ts';
 import type { Building, State } from './types.ts';
 
 /**
@@ -197,7 +198,7 @@ export function demolish(S: State, b: Building) {
   for (const a of S.agents) if (a.work === b) { a.work = null; a.role = 'carrier'; a.state = 'idle'; a.path = []; }
   b.worker = null; b.hands = [];
   const gone = b.residents.length;
-  for (const id of [...b.residents]) { const a = S.amap.get(id); if (a) { removeAgent(S, a); S.stats.departures++; S.stats.demolitionDepartures++; } }
+  for (const id of [...b.residents]) { const a = S.amap.get(id); if (a) loseVillager(S, a, 'demolition'); }
   for (const id of b.bots) { const a = S.amap.get(id); if (a) removeAgent(S, a); }
   if (gone) emit(S, 'bad', `${gone} villager${gone > 1 ? 's' : ''} left: their home was demolished`);
 }

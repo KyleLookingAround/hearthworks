@@ -1,5 +1,6 @@
 import { rand } from './rng.ts';
-import { release, removeAgent } from './agents.ts';
+import { release } from './agents.ts';
+import { loseVillager } from './lifecycle.ts';
 import { feastStock, skillPace } from './people.ts';
 import { add, bp, ctr, emit, inB, hypot } from './core.ts';
 import { completeSite } from './buildings.ts';
@@ -276,8 +277,8 @@ function run(S: State, b: Building, dt: number) {
       if (b.hunger > T.needs.leaveAfterHungrySeconds * (stay ? T.hardship.starveFactor : 1)) {
         const people = b.residents.map(id => S.amap.get(id)).filter(a => !!a);
         const leaver = people.find(a => a.role === 'carrier') ?? people[0];
-        if (leaver && stay) { removeAgent(S, leaver); S.stats.deaths++; S.stats.starved++; if (S.people) S.towns[b.town].rites.push(S.t); emit(S, 'bad', `A villager starved: no ${itemsText(S, [food])} at home, and the law forbids leaving`); }
-        else if (leaver) { removeAgent(S, leaver); S.stats.departures++; emit(S, 'bad', `A villager left: no ${itemsText(S, [food])} at home`); }
+        if (leaver && stay) loseVillager(S, leaver, 'starved', () => ['bad', `A villager starved: no ${itemsText(S, [food])} at home, and the law forbids leaving`]);
+        else if (leaver) loseVillager(S, leaver, 'hunger', () => ['bad', `A villager left: no ${itemsText(S, [food])} at home`]);
         b.hunger = 0; b.eat = 0;
       }
     } else if (!foods.some(f => (b.inv[f] || 0) > 0)) setStatus(b, `Last of the ${itemsText(S, [food])} eaten`, 'warn');
