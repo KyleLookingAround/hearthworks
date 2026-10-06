@@ -1,5 +1,5 @@
 /**
- * Behaviour fingerprint for refactors: run default new games (as src/ui/app.ts newGame() makes them) and hash the full save.
+ * Behaviour fingerprint for refactors: run default new games (as src/ui/app.ts newGame() makes them) and hash the full save (but for the hash of the content it was made with).
  *   npm run fingerprint -- [seconds=600] [seeds=1,2,3] [--resume]   (prints one line per seed)
  * Compare the output before and after a refactor: any difference in any seed means behaviour changed.
  * --resume also saves at half time, loads, and checks the loaded copy ends identical to the uninterrupted run.
@@ -16,7 +16,9 @@ const T = content.tuning.map;
 const map = Object.values(content.maps).sort((a, b) => a.order - b.order)[0]?.id ?? T.standardType;
 const size = T.sizes[T.gameSize] ? T.gameSize : T.standardSize;
 const newGame = (seed: number) => createState(content, seed, { planner: true, seasons: true, trade: true, people: true, carts: true, settlers: true, charts: true, ships: true, hardship: true, plannedRoads: true, farms: true, settlements: T.sizes[size].settlements, map, size });
-const text = (S: State) => JSON.stringify(saveGame(S));
+// the save without the hash of the content it was made with, which any edit to the design's prose changes
+const text = (S: State) => { const j = saveGame(S) as unknown as Record<string, unknown>; delete j.content; return JSON.stringify(j); };
+const full = (S: State) => JSON.stringify(saveGame(S));
 const hash = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 // the save minus the machine-work counters (world.work), which a resumed game may count differently
 const noWork = (s: string) => { const j = JSON.parse(s); delete j.state.world.work; return JSON.stringify(j); };
@@ -25,7 +27,7 @@ for (const seed of seeds) {
   const t0 = performance.now();
   const S = newGame(seed);
   let R: State | null = null;
-  if (resume) { runFor(S, seconds / 2); R = loadGame(content, text(S)); runFor(S, seconds / 2); runFor(R, seconds / 2); }
+  if (resume) { runFor(S, seconds / 2); R = loadGame(content, full(S)); runFor(S, seconds / 2); runFor(R, seconds / 2); }
   else runFor(S, seconds);
   const ms = Math.round(performance.now() - t0), out = text(S);
   const pop = S.agents.filter(a => a.kind === 'villager').length;

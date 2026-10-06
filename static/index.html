@@ -23,12 +23,15 @@
         <div class="speed" role="group" aria-label="Speed">
           <button class="btn icon" id="sp0" data-speed="0" aria-pressed="false" aria-label="Pause" title="Pause (space)">❚❚</button>
           <button class="btn icon" id="sp1" data-speed="1" aria-pressed="true" aria-label="Normal speed" title="Normal speed">▶</button>
-          <button class="btn icon" id="sp3" data-speed="3" aria-pressed="false" aria-label="Three times speed" title="Three times speed">▶▶</button>
+          <button class="btn icon" id="sp3" data-speed="3" aria-pressed="false" aria-label="Three times speed" title="Three times speed">3×</button>
+          <button class="btn icon" id="sp6" data-speed="6" aria-pressed="false" aria-label="Six times speed" title="Six times speed">6×</button>
+          <button class="btn icon" id="sp12" data-speed="12" aria-pressed="false" aria-label="Twelve times speed" title="Twelve times speed">12×</button>
         </div>
+        <span class="speednote" id="speedNote" hidden title="The game cannot keep up with the speed chosen on this device: this is how fast it runs"></span>
         <button class="btn" id="menuBtn" aria-expanded="false" aria-controls="drawer">Menu</button>
       </div>
     </header>
-    <button class="planline panel" id="planLine" type="button" aria-expanded="false" title="Tap to see every settlement's plans"><span class="lbl">Plans</span> <span id="planText"></span></button>
+    <div class="planline panel" id="planLine" aria-expanded="false"><button type="button" class="lbl" id="planToggle" aria-controls="planText" title="Show each settlement's plans in full">Plans</button><div id="planText"></div></div>
   </div>
 
   <aside class="drawer panel ui" id="drawer" hidden aria-label="Menu">
@@ -42,6 +45,9 @@
       <input type="file" id="loadInput" accept=".json,application/json" hidden>
       <button class="btn" id="fullscreen" hidden>Full screen</button>
       <button class="btn" id="hideUi" title="Hide every panel (H)">Hide interface</button>
+    </div>
+    <div class="drawer-row">Settlement
+      <span class="drawer-pick"><select id="townPick" aria-label="Settlement"></select><button class="btn" id="townCard" type="button" title="Open the settlement's card">Card</button></span>
     </div>
     <label class="drawer-row">Notices
       <select id="notices">
@@ -80,6 +86,11 @@
   </aside>
 
   <button class="btn showui" id="showUi" hidden title="Show the interface (H)">Show interface</button>
+
+  <aside class="card panel ui" id="card" hidden aria-label="Settlement">
+    <div class="card-head"><span class="sw"></span><h2 id="cardName"></h2><button class="ins-close card-step" data-step="-1" aria-label="Previous settlement" title="Previous settlement">‹</button><button class="ins-close card-step" data-step="1" aria-label="Next settlement" title="Next settlement">›</button><button class="ins-close" id="cardClose" aria-label="Close">×</button></div>
+    <div id="cardBody"></div>
+  </aside>
 
   <aside class="inspector panel ui" id="inspector" hidden>
     <div class="ins-head"><span class="sw" id="insSw"></span><h2 id="insName"></h2><button class="ins-close" id="insClose" aria-label="Close">×</button></div>
