@@ -110,8 +110,22 @@ export function takeCustom(S: State, t: Town): { custom: Custom; why: string } {
   const land = landCustom(S, t);
   if (!S.bmap.get(t.store)) return { custom: land, why: LAND_WHY[land] };
   const l = landOf(S, t);
-  const { way, from } = setApart<Custom>(S, t, land, { ship: l.water / P(S).waterForShip, cremation: l.wood / P(S).woodForPyre, burial: 1 }, o => [o.custom]);
+  // it sets itself apart by the sea only if it already knows how to build the dock to keep that custom
+  const sea = land === 'ship' || 'dock' in t.knows ? l.water / P(S).waterForShip : 0;
+  const { way, from } = setApart<Custom>(S, t, land, { ship: sea, cremation: l.wood / P(S).woodForPyre, burial: 1 }, o => [o.custom]);
   return { custom: way, why: from ? `unlike ${from.name}, which ${CUSTOM_WORD[land].replace('its dead', 'its own')}` : LAND_WHY[way] };
+}
+
+/**
+ * The custom a settlement takes to when it can no longer keep its own: a burying one cremates and a cremating one buries;
+ * a people of the sea with no dock buries, or cremates where another settlement buries and none cremates, so it stays
+ * apart from its neighbours (by then its own trees may be felled: the pyre burns logs from wherever they come).
+ */
+export function giveWay(S: State, t: Town): Custom {
+  if (t.custom === 'burial') return 'cremation';
+  if (t.custom === 'cremation') return 'burial';
+  const others = S.towns.filter(o => o !== t).map(o => o.custom);
+  return others.includes('burial') && !others.includes('cremation') ? 'cremation' : 'burial';
 }
 
 /** The custom a settlement takes up as it is founded (see `takeCustom`). */
@@ -379,7 +393,7 @@ function farewells(S: State, t: Town) {
   }
   // a custom gives way only when it has had no place at all (not even one being built) for the whole wait
   if (t.rites.length && S.t - t.rites[0] > P(S).changeCustomAfterSeconds && !hasPlace(S, t, true)) {
-    const was = t.custom, next: Custom = was === 'burial' ? 'cremation' : 'burial';
+    const was = t.custom, next = giveWay(S, t);
     t.custom = next;
     // the strain starts over under the new custom
     t.rites = t.rites.map(() => S.t - P(S).riteGraceSeconds);

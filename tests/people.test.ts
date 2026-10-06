@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { loadContent } from '../src/content/node.ts';
 import { readFileSync } from 'node:fs';
 import { createState, loadGame, runFor, saveGame, villagers, bp, type SaveFile, type State } from '../src/sim/index.ts';
-import { ageOf, bringFeast, craftable, customFor, FEAST, feastFor, feastMood, feastStock, holdFeasts, isCraft, landCustom, landFeast, missFeasts, nameFor, namingFor, skillPace, takeCraft } from '../src/sim/people.ts';
+import { ageOf, bringFeast, craftable, customFor, FEAST, feastFor, feastMood, feastStock, giveWay, holdFeasts, isCraft, landCustom, landFeast, missFeasts, nameFor, namingFor, skillPace, takeCraft } from '../src/sim/people.ts';
 import { computeMood } from '../src/sim/index.ts';
 
 const content = loadContent();
@@ -188,6 +188,17 @@ test('a craft: a settlement takes up the trade of a master in a trade no other s
   const off = createState(content, 1847, { planner: true });
   off.towns[0].craft = 'farm';
   assert.equal(isCraft(off, off.buildings.find(x => x.type === 'farm') ?? fa), false);
+});
+
+test('a custom giving way stays apart where it can: a people of the sea with no dock takes to the pyre beside a burying neighbour', () => {
+  const S = createState(content, 4, { planner: true, people: true, settlements: 2 });
+  const [a, b] = S.towns;
+  a.custom = 'burial'; b.custom = 'ship';
+  assert.equal(giveWay(S, b), 'cremation');
+  a.custom = 'cremation';
+  assert.equal(giveWay(S, b), 'burial');
+  b.custom = 'burial';
+  assert.equal(giveWay(S, b), 'cremation');
 });
 
 test('a version 30 save is upgraded to version 31: its settlements keep their customs, feasts and names, take up crafts as they go, and it plays on', () => {
