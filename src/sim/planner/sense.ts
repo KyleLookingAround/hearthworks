@@ -2,7 +2,7 @@
 import { wantsBoat } from '../ships.ts';
 import { NEED_TEXT, pressure } from '../knowledge.ts';
 import { bp, ctr, villagers, hypot } from '../core.ts';
-import { seasonOf, storesOnTrack } from '../seasons.ts';
+import { FROST_AT, seasonOf, storesOnTrack } from '../seasons.ts';
 import { hasPlace } from '../people.ts';
 import { reserve } from '../agents.ts';
 import { enoughInStore, foodChainOf, plentyInStore } from '../production.ts';
@@ -86,11 +86,11 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     demand.logs = (demand.logs || 0) + pop / S.content.tuning.seasons.firewoodEverySeconds;
     // the gap: what the winter will eat, less the food already in store, over the time left before the frost
     const Z = S.content.tuning.seasons, phase = (S.t % Z.yearSeconds) / Z.yearSeconds;
-    if (phase < 0.75) {
+    if (phase < FROST_AT) {
       let stored = 0;
       for (const b of mine) if (bp(S, b).storage && !b.site) for (const g of ['wheat', 'bread', ...Z.preserved]) stored += b.inv[g] || 0;
-      const winter = (pop * Z.yearSeconds / 4 / needs.eatEverySeconds) * Z.winterHeadroom, left = (0.75 - phase) * Z.yearSeconds;
-      if (winter > stored) demand.wheat = (demand.wheat || 0) + (winter - stored) / Math.max(60, left);
+      const winter = (pop * Z.yearSeconds / 4 / needs.eatEverySeconds) * Z.winterHeadroom, left = (FROST_AT - phase) * Z.yearSeconds;
+      if (winter > stored) demand.wheat = (demand.wheat || 0) + (winter - stored) / Math.max(P.winterGapMinSeconds, left);
     }
   }
   // comforts by form: fish and cloth from a village, tools in a town; every comfort is wanted, for variety
@@ -153,7 +153,7 @@ export function look(S: State, town: Town = S.towns[0]): Look {
     // don't invite newcomers the village can't feed yet
     const fed = foodShort ? 0 : 1;
     // no newcomers come in autumn or winter: homes for them wait for spring
-    const growing = (town.mood >= needs.migrateMinMood ? 1 : 0.5) * (S.seasons && (seasonOf(S) === 'autumn' || seasonOf(S) === 'winter') ? 0 : 1);
+    const growing = (town.mood >= needs.migrateMinMood ? 1 : P.lowMoodGrowth) * (S.seasons && (seasonOf(S) === 'autumn' || seasonOf(S) === 'winter') ? 0 : 1);
     shortages.push({ key: 'beds', homes: true, sev: clamp01((P.growthBeds - freeBeds) / P.growthBeds) * growing * fed * P.growthWeight, why: 'no free beds for newcomers' });
   }
   // full stores: past `store_full_share` of their room, workshops stall with nowhere to put their goods

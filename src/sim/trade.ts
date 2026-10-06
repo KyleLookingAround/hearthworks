@@ -41,7 +41,7 @@ export function spareOf(S: State, town: Town): Stock {
   const out: Stock = {}, st = stockOf(S, town), food = foodChain(S);
   const pop = villagers(S).filter(a => a.home?.town === town.id).length;
   for (const g in st) {
-    if (wantOf(S, town, g, st) > 0 || (town.trade.imports[g] || 0) > X(S).load / X(S).smoothingSeconds / 4) continue;
+    if (wantOf(S, town, g, st) > 0 || (town.trade.imports[g] || 0) > X(S).load / X(S).smoothingSeconds * X(S).latelyShare) continue;
     // the food chain keeps twice the cover, and a meal per villager
     const n = Math.floor(st[g] - X(S).keep - (town.planner.use[g] || 0) * X(S).spareCover * (food.has(g) ? 2 : 1) - (food.has(g) ? pop : 0));
     if (n >= 1) out[g] = n;
@@ -91,8 +91,8 @@ function putIn(S: State, town: Town, g: ItemId, n: number) {
   if (to) add(to.inv, g, n);
 }
 
-/** A good's worth to a settlement: how badly it wants it, never nothing. */
-const worth = (S: State, town: Town, g: ItemId) => Math.max(0.1, wantOf(S, town, g));
+/** A good's worth to a settlement: how badly it wants it, never under `min_worth`. */
+const worth = (S: State, town: Town, g: ItemId) => Math.max(X(S).minWorth, wantOf(S, town, g));
 
 /** Once a second: imports fade, and each settlement may send a porter. */
 export function updateTrade(S: State, dt: number) {

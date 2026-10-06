@@ -4,7 +4,7 @@ title: Trade
 description: Neighbouring settlements send porters to swap what they can spare for what they want, one load at a time, and count steady imports as relief.
 tags: [trade, settlement, economy]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-04T04:16:45Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T05:14:43Z }
 tuning:
   every_seconds: 15
   load: 4
@@ -21,6 +21,8 @@ tuning:
   kin_bonus: 0.3
   import_patience_seconds: 600
   import_share: 0.25
+  min_worth: 0.1
+  lately_share: 0.25
 ---
 
 # Idea
@@ -32,7 +34,7 @@ Two villages finding their own ways and swapping what they have. Trade is on in 
 A settlement weighs each good by its **cover**: how many seconds its stock lasts at the rate it uses the good (its [planner](/systems/planner.md)'s demand at its last look).
 
 - **Want.** A good it uses with less than `want_cover` seconds in store, the more the less it has; or one its planner is short of (a shortage's severity, at least `min_severity`) or saving for.
-- **Spare.** Stock beyond `keep` plus `spare_cover` seconds of its own use, of a good it does not want and has not lately traded for, less what carriers have claimed. Of what its homes eat it also keeps a meal per villager.
+- **Spare.** Stock beyond `keep` plus `spare_cover` seconds of its own use, of a good it does not want and has not lately traded for (imports above `lately_share` of a `load` per `smoothing_seconds`), less what carriers have claimed. Of what its homes eat it also keeps a meal per villager.
 
 # Porters
 
@@ -40,7 +42,7 @@ Every `every_seconds` a settlement of at least `min_villagers`, with fewer porte
 
 # Barter
 
-At the neighbour the load goes into its stores, and the porter takes back the wanted good: the load times the rate, as much as the neighbour can spare. The rate is how badly the neighbour wants what it got over how badly the porter's home wants what it gets, between `min_rate` and `max_rate`. There is no money; a load goes one way only when a load comes back, or nothing does if the neighbour has run out.
+At the neighbour the load goes into its stores, and the porter takes back the wanted good: the load times the rate, as much as the neighbour can spare. The rate is how badly the neighbour wants what it got over how badly the porter's home wants what it gets (each worth at least `min_worth`), between `min_rate` and `max_rate`. There is no money; a load goes one way only when a load comes back, or nothing does if the neighbour has run out.
 
 # Specialisation
 

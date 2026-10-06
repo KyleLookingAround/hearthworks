@@ -4,7 +4,7 @@ title: People
 description: Villagers as individuals; names, ages, births and deaths, skills that grow with practice and pass from master to apprentice, each village's custom for its dead, its naming custom, its feasts through the year, and traditions that set it apart from its neighbours (a custom and feast of its own, a craft) and pass to its daughters.
 tags: [people, customs, settlement]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T01:48:55Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T05:14:43Z }
 tuning:
   adult_seconds: 600
   elder_seconds: 6000
@@ -38,6 +38,7 @@ tuning:
   names_sea: [Marin, Coral, Gull, Tide, Cove, Pearl, Wave, Kelp, Skerry, Shell, Tern, Brine, Selkie, Harbour, Sandy, Oyster]
   names_trees: [Ash, Rowan, Hazel, Alder, Birch, Holly, Elm, Willow, Linden, Hawthorn, Oak, Yew, Aspen, Juniper, Laurel, Briar]
   names_fields: [Barley, Clover, Meadow, Heath, Wren, Lark, Poppy, Sorrel, Thyme, Bramble, Fern, Teasel, Linnet, Daisy, Sedge, Robin]
+  recall_skill: 0.25
 ---
 
 # Idea
@@ -54,7 +55,7 @@ A home with two adults in it, fed (no hunger, food on the shelf), has a child on
 
 # Skills
 
-Each villager has a skill for each kind of workplace, from 0 to 1. Working one raises it towards 1 with time constant `practice_seconds`, `apprentice_factor` times as fast while an expert (skill `expert_at` or more) of that trade lives in the settlement: master to apprentice. Work goes to the most skilled villager free. A workplace runs at `1 - skill_speedup / 2 + skill_speedup * skill` of its pace, so a novice at three quarters and an expert at five quarters. A trade whose only expert dies is one death from being lost.
+Each villager has a skill for each kind of workplace, from 0 to 1. Working one raises it towards 1 with time constant `practice_seconds`, `apprentice_factor` times as fast while an expert (skill `expert_at` or more) of that trade lives in the settlement: master to apprentice. Work goes to the most skilled villager free, and a carrier `recall_skill` more skilled than anyone free is called back from fetching something to take it. A workplace runs at `1 - skill_speedup / 2 + skill_speedup * skill` of its pace, so a novice at three quarters and an expert at five quarters. A trade whose only expert dies is one death from being lost.
 
 # School
 

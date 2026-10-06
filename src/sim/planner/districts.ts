@@ -23,17 +23,17 @@ export function foundDistrict(S: State, town: Town): boolean {
     W.work.plannerSpots++;
     const p = { x: x + B.w / 2, y: y + B.h / 2 };
     const d = hs.reduce((m, h) => Math.min(m, hypot(ctr(h).x - p.x, ctr(h).y - p.y)), Infinity);
-    if (d < P.districtSpacing * 0.8 || d > P.districtSpacing * 1.4) continue;
+    if (d < P.districtSpacing * P.districtSpacingMin || d > P.districtSpacing * P.districtSpacingMax) continue;
     if (!fits(S, 'storage', x, y, P.gap) || onNoBuild(W, x, y, B.w, B.h)) continue;
     const dr = door({ x, y, w: B.w, h: B.h });
     if (!reach[(dr.y + 1) * W.w + dr.x]) continue;
     let grass = 0, road = 0;
-    for (let j = -8; j <= 8; j++) for (let k = -8; k <= 8; k++) { const xx = Math.round(p.x) + k, yy = Math.round(p.y) + j; if (xx >= 0 && yy >= 0 && xx < W.w && yy < W.h) { const i = yy * W.w + xx; if (W.ground[i] === 2 && W.bgrid[i] === -1) grass++; if (W.road[i] >= 2 && Math.abs(j) <= RD.districtReach && Math.abs(k) <= RD.districtReach) road++; } }
+    for (let j = -P.districtRoomTiles; j <= P.districtRoomTiles; j++) for (let k = -P.districtRoomTiles; k <= P.districtRoomTiles; k++) { const xx = Math.round(p.x) + k, yy = Math.round(p.y) + j; if (xx >= 0 && yy >= 0 && xx < W.w && yy < W.h) { const i = yy * W.w + xx; if (W.ground[i] === 2 && W.bgrid[i] === -1) grass++; if (W.road[i] >= 2 && Math.abs(j) <= RD.districtReach && Math.abs(k) <= RD.districtReach) road++; } }
     // a new district grows along a road: its heart beside one, where the road runs on through open land
     cands.push({ x, y, s: Math.abs(d - P.districtSpacing) - P.districtRoomWeight * grass - (road ? RD.districtWeight : 0) });
   }
   cands.sort((a, b) => a.s - b.s);
-  const best = cands.slice(0, 8).find(p => !cutsOff(S, town, 'storage', p.x, p.y));
+  const best = cands.slice(0, P.districtTries).find(p => !cutsOff(S, town, 'storage', p.x, p.y));
   if (!best) return false;
   const b = placeBuilding(S, 'storage', best.x, best.y, false)!;
   b.town = town.id; b.priority = 1 + P.urgencyPriority; b.reason = `the heart of a new district: the old one has filled up`;

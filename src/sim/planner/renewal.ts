@@ -63,7 +63,7 @@ export function replan(S: State, town: Town, c: Choice): boolean {
         ring = !!o && !covers.has(o) && !bp(S, o).homes;
       }
       if (ring || !fitsWithout(S, B.id, x, y, covers, town)) continue;
-      const s = B.homes - lost - 0.05 * hypot(x + B.w / 2 - hub.x, y + B.h / 2 - hub.y);
+      const s = B.homes - lost - P.replanHubWeight * hypot(x + B.w / 2 - hub.x, y + B.h / 2 - hub.y);
       if (!best || s > best.s) best = { x, y, covers: [...covers], s };
     }
   }
@@ -169,7 +169,7 @@ function moveOut(S: State, town: Town, L: Look): boolean {
     const B = bp(S, b);
     if (kept(S, town, b) || B.deposit || !(B.harvest || B.nuisance || B.storage || (B.grows && b.size <= P.moveMaxSize))) continue;
     const hub = centreOf(S, town, b);
-    if (hub) cands.push({ b, hub, s: b.w * b.h - 0.01 * Math.hypot(ctr(b).x - ctr(hub).x, ctr(b).y - ctr(hub).y) });
+    if (hub) cands.push({ b, hub, s: b.w * b.h - P.moveOutHubWeight * Math.hypot(ctr(b).x - ctr(hub).x, ctr(b).y - ctr(hub).y) });
   }
   cands.sort((p, q) => q.s - p.s || p.b.id - q.b.id);
   for (const { b, hub } of cands) {

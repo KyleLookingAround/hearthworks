@@ -24,7 +24,7 @@ const PREV: Record<string, string> = { spring: 'winter', summer: 'spring', autum
 
 /**
  * Mood per settlement: the share of its villagers living in a house with food on the shelf
- * (hungry houses count 0, empty shelves 0.6). S.mood is the same over the whole world.
+ * (hungry houses count 0, empty shelves `empty_shelf_fed`). S.mood is the same over the whole world.
  */
 export function computeMood(S: State) {
   const n = S.towns.length, pop = new Array(n).fill(0), fed = new Array(n).fill(0), around = new Array(n).fill(0), tier = new Array(n).fill(0), chill = new Array(n).fill(0), eats = new Array(n).fill(0);
@@ -45,7 +45,7 @@ export function computeMood(S: State) {
     if (S.farms) eats[b.town] += r * dietLift(S, b);
     if (b.hunger > 0) continue;
     if (cold(S, b)) chill[b.town] += r;
-    fed[b.town] += foodsOf(S, b).some(f => (b.inv[f] || 0) > 0) ? r : r * 0.6;
+    fed[b.town] += foodsOf(S, b).some(f => (b.inv[f] || 0) > 0) ? r : r * S.content.tuning.needs.emptyShelfFed;
   }
   const blend = (f: number, a: number) => f * (1 - wgt) + a * wgt;
   // hardship: the sick, and the laws (rationing, long hours and forbidding the hungry to leave weigh on mood; short hours lift it)
@@ -115,9 +115,9 @@ function turnSeasons(S: State) {
   } else if (S.people && Math.floor(S.t) % S.content.tuning.people.feastRetrySeconds === 0) holdFeasts(S, seasonOf(S)!, false);
 }
 
-/** Once a minute, food left out in stores that do not keep it spoils: the whole units of `spoils` of the pile. */
+/** Every `spoil_every_seconds`, food left out in stores that do not keep it spoils: the whole units of `spoils` of the pile. */
 function spoil(S: State) {
-  if (Math.floor(S.t) % 60 !== 0) return;
+  if (Math.floor(S.t) % S.content.tuning.production.spoilEverySeconds !== 0) return;
   for (const b of S.buildings) {
     const B = bp(S, b);
     if (!B.storage || b.site) continue;
@@ -130,11 +130,11 @@ function spoil(S: State) {
   }
 }
 
-/** Worn paths fade when nobody walks them. */
+/** Worn paths fade when nobody walks them, and are gone under `wear_floor`. */
 function fadePaths(S: State) {
-  const w = S.world, fade = Math.pow(0.5, 1 / S.content.tuning.planner.wearHalfLifeSeconds), wear = w.wear, trodden = worn(w);
+  const P = S.content.tuning.planner, w = S.world, fade = Math.pow(0.5, 1 / P.wearHalfLifeSeconds), wear = w.wear, trodden = worn(w);
   for (const i of trodden) {
-    if (wear[i] > 0) wear[i] = wear[i] < 0.05 ? 0 : wear[i] * fade;
+    if (wear[i] > 0) wear[i] = wear[i] < P.wearFloor ? 0 : wear[i] * fade;
     if (!(wear[i] > 0)) trodden.delete(i);
   }
 }

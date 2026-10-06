@@ -3,7 +3,7 @@ import { cancelTask } from './logistics.ts';
 import { add, bp, chronicle, door, emit, villagers } from './core.ts';
 import { clearSite, neighbourSite } from './worldgen.ts';
 import { foundTown } from './towns.ts';
-import { seasonOf, storesOnTrack } from './seasons.ts';
+import { FROST_AT, seasonOf, storesOnTrack } from './seasons.ts';
 import { reachable } from './path.ts';
 import { embark, launch, partyDock } from './ships.ts';
 import { CUSTOM_WORD, craftGoods } from './people.ts';
@@ -33,7 +33,7 @@ export function updateSettling(S: State, dt: number) {
  */
 export function provisions(S: State): number {
   if (!S.seasons) return 0;
-  const Y = S.content.tuning.seasons.yearSeconds, into = S.t % Y, frost = 0.75 * Y;
+  const Y = S.content.tuning.seasons.yearSeconds, into = S.t % Y, frost = FROST_AT * Y;
   const wait = frost - into >= Z(S).firstHarvestSeconds ? Z(S).firstHarvestSeconds : Y - into + Z(S).firstHarvestSeconds;
   return (Z(S).partySize * wait / S.content.tuning.needs.eatEverySeconds) * Z(S).provisionHeadroom;
 }

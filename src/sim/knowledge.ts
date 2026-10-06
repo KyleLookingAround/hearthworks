@@ -233,8 +233,8 @@ export function updateKnowledge(S: State, dt: number) {
       emit(S, up ? 'good' : 'bad', up ? `${town.name} entered the Age of ${E.name}` : `${town.name} fell back to the Age of ${E.name}: what it knew was forgotten`);
     }
 
-    // every ten seconds: how much grass near home cannot be walked to, and how often trips go the long way round
-    if (Math.floor(S.t) % 10 === 0) town.detour = detourPressure(S, town);
+    // every `detour_every_seconds`: how much grass near home cannot be walked to, and how often trips go the long way round
+    if (Math.floor(S.t) % P.detourEverySeconds === 0) town.detour = detourPressure(S, town);
 
     // a library's scribe copies its records for every neighbour now and then
     town.copyT += dt;
@@ -319,13 +319,13 @@ function strand(S: State, a: Agent, from: Town, to: Town) {
 /**
  * Pressure to bridge water, 0 to 1: the larger of the share of recent trips that went the long way round
  * (`detour_ratio` times the straight line or more) and how much of the grass within the planner's reach
- * cannot be walked to from storage, past the first fifth.
+ * cannot be walked to from storage, past `detour_cut_from` of it.
  */
 function detourPressure(S: State, town: Town): number {
-  const P = S.content.tuning.planner, w = S.world, store = S.bmap.get(town.store);
+  const P = S.content.tuning.planner, Q = K(S), w = S.world, store = S.bmap.get(town.store);
   if (!store) return 0;
   const d = door(store), reach = reachable(w, d.x, d.y), c = { x: store.x + store.w / 2, y: store.y + store.h / 2 };
-  const R = P.searchRadius + 10;
+  const R = P.searchRadius + Q.detourMargin;
   let grass = 0, cut = 0;
   for (let y = Math.max(0, Math.floor(c.y - R)); y <= Math.min(w.h - 1, Math.ceil(c.y + R)); y++) for (let x = Math.max(0, Math.floor(c.x - R)); x <= Math.min(w.w - 1, Math.ceil(c.x + R)); x++) {
     const i = y * w.w + x;
@@ -333,8 +333,8 @@ function detourPressure(S: State, town: Town): number {
     grass++;
     if (!reach[i]) cut++;
   }
-  const away = grass ? clamp01((cut / grass - 0.2) / 0.4) : 0;
-  const trips = clamp01(town.detours.filter(t => S.t - t[5] < 300).length / 8);
+  const away = grass ? clamp01((cut / grass - Q.detourCutFrom) / Q.detourCutSpan) : 0;
+  const trips = clamp01(town.detours.filter(t => S.t - t[5] < P.detourMemorySeconds).length / Q.detourTrips);
   return Math.max(away, trips);
 }
 

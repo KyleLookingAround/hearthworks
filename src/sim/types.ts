@@ -176,21 +176,23 @@ export interface Tuning {
     hubReach: number; relayMinTiles: number; hubStock: number; relayMinLoad: number; relayBonus: number;
     /** The advisor points at hauling once a settlement has seen `adviseLongHauls` goods on long hauls and `adviseFootShare` of them went on foot. */
     adviseLongHauls: number; adviseFootShare: number;
+    /** An idle carrier looks for work every `idleLookSeconds` and up to `idleLookJitter` more (a new one first within `idleLookSeconds`), and with nothing to do wanders off at `wanderChance`. */
+    idleLookSeconds: number; idleLookJitter: number; wanderChance: number;
   };
-  needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
+  needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number; emptyShelfFed: number; adviseHungryBelow: number };
   settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; crowdedMinVillagers: number; storesShare: number; maxSettlements: number; firstHarvestSeconds: number; provisionHeadroom: number };
   sea: { shallowTiles: number; shallowSpeed: number; reefFromTiles: number; reefToTiles: number; reefCell: number; sightTiles: number; lookEverySeconds: number; exploreEverySeconds: number; dockBoats: number; partyBoatPlanks: number; villagersPerBoat: number; fleetMax: number; boatlessMemorySeconds: number; shipyardWeight: number; boatNames: string[] };
   people: {
     adultSeconds: number; elderSeconds: number; lifespanSeconds: number; lifespanJitterSeconds: number; founderAgeMaxSeconds: number; birthEverySeconds: number;
     practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
-    changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number; feastSeconds: number; feastMood: number; harvestBread: number; fireLogs: number; woodForFire: number; feastSpread: number; feastLayIn: number; feastRetrySeconds: number; apart: number; craftPace: number; craftLookSeconds: number; names: Record<Naming, string[]>;
+    changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number; feastSeconds: number; feastMood: number; harvestBread: number; fireLogs: number; woodForFire: number; feastSpread: number; feastLayIn: number; feastRetrySeconds: number; apart: number; craftPace: number; craftLookSeconds: number; recallSkill: number; names: Record<Naming, string[]>;
   };
-  trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number };
+  trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number; minWorth: number; latelyShare: number };
   conveyors: { speed: number; carry: number; gapSeconds: number; reach: number; roughCost: number; lookEverySeconds: number; villagersPerBelt: number; minTiles: number; maxTiles: number; minStops: number };
-  farms: { diet: ItemId[]; dietShare: number; dietStock: number; dietSeconds: number; dietFull: number; dietBonus: number; dietWeight: number; growRoomWeight: number };
+  farms: { diet: ItemId[]; dietShare: number; dietStock: number; dietSeconds: number; dietFull: number; dietBonus: number; dietWeight: number; growRoomWeight: number; adviseDietHomes: number };
   seasons: { yearSeconds: number; firewoodEverySeconds: number; firewoodStock: number; coldPenalty: number; winterHeadroom: number; preserved: ItemId[] };
   surroundings: { base: number; treeRadius: number; treeAmenity: number; treeMax: number; waterRadius: number; waterAmenity: number; crowdRadius: number; crowdPenalty: number; sitePenalty: number };
-  production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number; surplusSeconds: number; surplusMin: number; surplusFullSeconds: number; freshSeconds: number };
+  production: { buildSeconds: number; replantEverySeconds: number; maxTreesNearForester: number; sitePriorityTiles: number; surplusSeconds: number; surplusMin: number; surplusFullSeconds: number; freshSeconds: number; spoilEverySeconds: number };
   planner: PlannerTuning;
   hardship: {
     fireEverySeconds: number; spreadGap: number; spreadChance: number; burnSeconds: number; douseSeconds: number; rebuildShare: number; fireLoss: number; fireproof: ItemId[];
@@ -198,7 +200,7 @@ export interface Tuning {
     sicknessEverySeconds: number; sickAt: number; sickSeconds: number; sickSpreadGap: number; sickSpreadChance: number; sickDeath: number; healedSeconds: number; healedDeath: number; sickMood: number;
     wildDistance: number; wildTilesPerCamp: number; campEverySeconds: number; campStrength: number; campGrowSeconds: number; campMax: number; raidEverySeconds: number; raidReach: number; raidSpeed: number; raidTake: number; raidLoss: number; giftEverySeconds: number; giftBread: number; giftsToSettle: number;
     militiaShare: number; surprisedShare: number;
-    memorySeconds: number; guardWeight: number; cleanFactor: number;
+    memorySeconds: number; guardWeight: number; cleanFactor: number; raidJitter: number;
     rationFactor: number; rationMood: number; longPace: number; longMood: number; shortPace: number; shortMood: number; stayMood: number; starveFactor: number;
   };
   roads: { trafficFrom: number; trafficSpan: number; villagersPerRoad: number; lookEverySeconds: number; minTraffic: number; margin: number; minLength: number; demolishWeight: number; homeWeight: number; spacing: number; frontWeight: number; nearWeight: number; nearTiles: number; districtWeight: number; districtReach: number };
@@ -206,6 +208,7 @@ export interface Tuning {
     haulTarget: number; haulSmoothingSeconds: number; struggleSeverity: number; encourageFactor: number; encourageThreshold: number;
     verifySeconds: number; forgetAfterSeconds: number; visitEverySeconds: number; visitMinVillagers: number;
     copyEverySeconds: number; universityFactor: number; universityThreshold: number; schoolFactor: number; forgettingMemorySeconds: number; learningWeight: number; universityVillagers: number; universitySpare: number; schoolChildren: number; distanceFrom: number; distanceSpan: number; longHaulFrom: number; reachSmoothing: number;
+    detourEverySeconds: number; detourMargin: number; detourCutFrom: number; detourCutSpan: number; detourTrips: number;
   };
 }
 
@@ -217,6 +220,10 @@ export interface PlannerTuning {
   treeWeight: number; sharedTreeWeight: number; linkWeight: number; storeWeight: number; forestPenalty: number;
   /** Renewal: pulling down what no longer pays, and moving land and noise out of the district centres. */
   renewEverySeconds: number; idleSeconds: number; keepCover: number; centreRadius: number; moveMaxSize: number; yardWeight: number; packedHomes: number;
+  /** Trips the long way round water, remembered for bridges; worn paths; districts; the tries of a spot; the winter gap; saving. */
+  detourMinTiles: number; detourMemorySeconds: number; detourMemoryTrips: number; bridgeReachTiles: number; bridgeTripTiles: number; wearFloor: number;
+  districtSpacingMin: number; districtSpacingMax: number; districtRoomTiles: number; districtTries: number; siteTries: number; openStoreCapacity: number; sharedTreeYield: number;
+  replanHubWeight: number; moveOutHubWeight: number; winterGapMinSeconds: number; lowMoodGrowth: number; savingWant: number;
 }
 
 /** What the village planner is doing. Off unless the game or a scenario turns it on. */

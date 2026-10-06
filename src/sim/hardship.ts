@@ -299,7 +299,7 @@ function camps(S: State, dt: number) {
       const near = wild.filter(i => stores.some(p => hypot((i % W.w) + 0.5 - p.x, Math.floor(i / W.w) + 0.5 - p.y) <= Z.raidReach));
       const from = near.length ? near : wild;
       const i = from[Math.floor(rand(S.hrng) * from.length)];
-      const c: Camp = { id: S.nextId++, x: (i % W.w) + 0.5, y: Math.floor(i / W.w) + 0.5, strength: Z.campStrength, raidT: Z.raidEverySeconds * (0.5 + rand(S.hrng)), raid: null, friend: null, goodwill: 0, giftT: 0 };
+      const c: Camp = { id: S.nextId++, x: (i % W.w) + 0.5, y: Math.floor(i / W.w) + 0.5, strength: Z.campStrength, raidT: Z.raidEverySeconds * (1 - Z.raidJitter + rand(S.hrng) * 2 * Z.raidJitter), raid: null, friend: null, goodwill: 0, giftT: 0 };
       S.camps.push(c);
       S.stats.camps++;
       emit(S, 'bad', 'Barbarians have made camp in the wilds');
@@ -313,7 +313,7 @@ function camps(S: State, dt: number) {
     if (S.trade && gifts(S, c, dt)) continue;
     c.raidT -= dt;
     if (c.raidT > 0) continue;
-    c.raidT = Z.raidEverySeconds * (0.75 + rand(S.hrng) * 0.5);
+    c.raidT = Z.raidEverySeconds * (1 - Z.raidJitter / 2 + rand(S.hrng) * Z.raidJitter);
     raid(S, c);
   }
 }

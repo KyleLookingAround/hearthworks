@@ -23,7 +23,7 @@ export function propose(S: State, L: Look, sh: Shortage): Choice | null {
     if (sh.ships) return B.shipyard ? 1 : 0;
     if (sh.guard) return B.guards?.hazard === sh.guard ? 1 : 0;
     if (sh.clean) return B.sanitation ? 1 : 0;
-    if (sh.store) return B.storage && (!B.keeps || B.keeps.includes('wheat')) ? clamp01((B.capacity || 300) / Math.max(1, L.storeNeed - L.storeRoom)) : 0;
+    if (sh.store) return B.storage && (!B.keeps || B.keeps.includes('wheat')) ? clamp01((B.capacity || T(S).openStoreCapacity) / Math.max(1, L.storeNeed - L.storeRoom)) : 0;
     const add = B.seconds && B.output[sh.good!] ? B.output[sh.good!] / B.seconds : 0;
     const gap = Math.max(1e-6, (L.demand[sh.good!] || 0) - (L.supply[sh.good!] || 0));
     return clamp01(add / gap);

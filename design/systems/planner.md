@@ -4,7 +4,7 @@ title: Village planner
 description: Each settlement senses its shortages, chooses from what it knows what to build and where, and queues one site at a time, so towns grow on their own.
 tags: [ai, planner, core]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T03:19:14Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T05:14:43Z }
 tuning:
   interval_seconds: 3
   site_patience_seconds: 120
@@ -75,6 +75,24 @@ tuning:
   link_weight: 1
   store_weight: 0.4
   forest_penalty: 6
+  detour_min_tiles: 6
+  detour_memory_seconds: 300
+  detour_memory_trips: 15
+  bridge_reach_tiles: 12
+  bridge_trip_tiles: 2.5
+  wear_floor: 0.05
+  district_spacing_min: 0.8
+  district_spacing_max: 1.4
+  district_room_tiles: 8
+  district_tries: 8
+  site_tries: 8
+  open_store_capacity: 300
+  shared_tree_yield: 0.5
+  replan_hub_weight: 0.05
+  move_out_hub_weight: 0.01
+  winter_gap_min_seconds: 60
+  low_mood_growth: 0.5
+  saving_want: 0.5
 ---
 
 # Goal
@@ -91,8 +109,8 @@ Every `interval_seconds` the planner:
 
 1. **Waits** while its own site is open, then for `settle_seconds` after it finishes, so the new building shows up in the numbers before the next decision. Sites the player places do not block it.
 2. **Senses** each shortage as a severity from 0 to 1:
-   - *A good*: the rate it is made against the rate it is used. Producers count at the share their trees (`min_trees` grown trees in range for full rate) and inputs allow; sites count already. Bread is wanted for everyone housed plus everyone the free beds will bring, times `food_headroom`. Planks are wanted at `planks_per_villager_minute` per villager. Recipe inputs are wanted at what their consumers can use.
-   - *Beds*: fewer than `growth_beds` free beds, halved while mood is below the newcomer threshold, and zero while bread is short: the village does not invite people it cannot feed. Growth is a want, not a need, so this is scaled by `growth_weight`.
+   - *A good*: the rate it is made against the rate it is used. Producers count at the share their trees (`min_trees` grown trees in range for full rate, trees in another harvester's range at `shared_tree_yield`) and inputs allow; sites count already. Bread is wanted for everyone housed plus everyone the free beds will bring, times `food_headroom`. Planks are wanted at `planks_per_villager_minute` per villager. Recipe inputs are wanted at what their consumers can use.
+   - *Beds*: fewer than `growth_beds` free beds, times `low_mood_growth` while mood is below the newcomer threshold, and zero while bread is short: the village does not invite people it cannot feed. Growth is a want, not a need, so this is scaled by `growth_weight`.
    - *Crossing*: the neighbours are across water nobody can cross, times `crossing_weight`. Relieved by a blueprint with `shore` (the dock) while the settlement has none; the dock goes on a shore whose water reaches the nearest neighbour's land, looked for around every district, newest first, and it may stand on and beside worn paths. A settlement with no such shore left clears one: of its finished workshops within `clear_reach` tiles of water (never a home, a storage yard, a workplace of the food chain, a bridge, a place of rites or of learning), the cheapest of the first `clear_tries` whose ground would take the dock comes down, its carriers' jobs cancelled and `salvage_share` of its cost back in storage, and the chronicle says so.
    - *Hauling*: the settlement's hauling pressure ([knowledge](/systems/knowledge.md)) times `haul_weight`. Relieved by a blueprint with `couriers`, in proportion to the share of the settlement's buildings no bots reach yet (ignored below `min_severity`).
    - *Hands*: a finished workplace with no worker and no free bed to bring one is a beds shortage at full severity, except while bread is short (newcomers would not come). A workplace resting (fields in winter, or with [enough in store](/systems/production.md)) needs no hands, and its worker counts as a spare one.
@@ -101,7 +119,7 @@ Every `interval_seconds` the planner:
    - if it needs a worker and fewer than one villager is spare after keeping `carrier_share` of the grown villagers hauling, wait for newcomers when beds are free, otherwise plan a House. A carrier share of 0.4 is what the job board needs: at 0.2, small villages ran out of hands to haul and stalled (see the [log](/log.md)). Newcomers are only waited for while they would come: mood at the newcomer threshold, and with seasons on, spring or summer (in summer while the winter store keeps pace) with its bakeries making at least `newcomer_food_share` of what its people and one more eat (stores hide a shortfall until the winter; without seasons it shows at once as hunger, which keeps newcomers away by itself). While they would not, a workplace of the food chain is built anyway when the settlement is short of food or anyone goes hungry, and so is one making another of the basics (building materials and firewood), and a hand moves to it from carrying or from outside the chain: the basics do not wait on newcomers who are not coming (a village growing by births alone held a forester waiting for them for half an hour).
    - a choice that waits for hands does not hold back the needs after it: the planner goes down the list to the next it can act on, and says what it waits for only when nothing can go ahead. A town waiting for a miner for its five smithies left its bread short by half.
 4. **Confirms**: the same blueprint must top `confirm_cycles` looks in a row.
-5. **Checks the cost** against its own settlement's free supply, after its open sites' outstanding needs. If short, and nothing makes the missing good or the settlement has been short of it for more than `save_patience_seconds` (whatever it was saving for), it plans that good's maker instead; otherwise it says what it is saving for. What it is thinking about or saving for counts as use, so the settlement does not [forget](/systems/knowledge.md) it meanwhile.
+5. **Checks the cost** against its own settlement's free supply, after its open sites' outstanding needs. If short, and nothing makes the missing good or the settlement has been short of it for more than `save_patience_seconds` (whatever it was saving for), it plans that good's maker instead; otherwise it says what it is saving for, and wants that good at least `saving_want` (for its porters to trade for; with people on, no children are born while a good of its food chain is wanted that badly). What it is thinking about or saving for counts as use, so the settlement does not [forget](/systems/knowledge.md) it meanwhile.
 6. **Places** it by scoring every spot within `search_radius` beyond the settlement's farthest building from the storage yard (at most `search_radius_max` from it) that leaves a `gap`-tile ring of open land (buildings never wall each other in; the ring may be a planned [road](/systems/roads.md), never a path, except beside a dock) and can be walked to from storage. Lower is better:
    - `store_weight` × distance to storage, to keep the town compact;
    - harvesters: minus `tree_weight` × grown trees in range, trees already in another harvester's range at `shared_tree_weight`; spots under `min_trees` are skipped;
@@ -120,13 +138,13 @@ A settlement's form follows its people: a **hamlet** below `village_at`, a **vil
 - **The ladder of homes.** For beds it plans the densest home its form allows: [Cottages](/blueprints/house.md) (0.75 beds a tile) in a hamlet, [Family Houses](/blueprints/family_house.md) (1) in a village, [Terraces](/blueprints/terrace.md) (1.5) in a town. A blueprint's `form` says which.
 - **Rows.** In a village or town, homes need no ring of open land from other homes (a gap of 0; anything else keeps its ring), and score `row_weight` better for each tile of wall shared with another home, and `street_weight` better with their door onto a road.
 - **Streets.** A town lays a street grid around each district centre once: rows every `street_every_rows` tiles (a terrace two tiles deep fits between, door on the street) and cross streets every `street_every_cols`, within `street_radius`, on open land only.
-- **Replanning.** A village or town with free beds renews an old block at most every `replan_every_seconds`: it tears down homes of a sparser rung where its densest home would stand, as one block, and plans that home there (cottages make way for family houses in a village, for terraces in a town). Every home covered must be finished and at least `replan_min_age` seconds in use, at least one of each kind must remain, the new home must add beds, and everyone living there must fit in free beds elsewhere. They move before anything comes down, so nobody leaves; `salvage_share` of the cost goes back into storage. The block that adds most beds nearest its district centre goes first.
+- **Replanning.** A village or town with free beds renews an old block at most every `replan_every_seconds`: it tears down homes of a sparser rung where its densest home would stand, as one block, and plans that home there (cottages make way for family houses in a village, for terraces in a town). Every home covered must be finished and at least `replan_min_age` seconds in use, at least one of each kind must remain, the new home must add beds, and everyone living there must fit in free beds elsewhere. They move before anything comes down, so nobody leaves; `salvage_share` of the cost goes back into storage. The block that adds most beds nearest its district centre goes first (`replan_hub_weight` a bed per tile from it).
 - **Renewal.** At most every `renew_every_seconds` a settlement looks over what its planner has built (never what the player or the founders placed, a paused building, a yard at a district's heart, a home, or a building that answers a need of its own rather than a good: bridges, docks, places of rites and learning, the hall, counters, depots, sheds, barns, mills, shipyards) and does one of two things:
   - *Selective.* A workplace that no longer pays comes down: one that has stood `idle_seconds` without work (no worker, nothing to work with, or resting with enough in store; fields resting through winter and young orchards do not count), or, in a town, one taking up a district centre (the town has outgrown it), while the settlement's other makers of everything it makes cover `keep_cover` times what is wanted of it and none of it is short or saved for. Never the last of its kind. Carriers' jobs to and from it are cancelled; what it held and `salvage_share` of its cost go into the nearest storage yard; its workers go back to carrying. The one idle longest goes first.
-  - *Denser.* In a village or town that wants homes and is fed, a workplace that needs land or makes noise (a farm, garden or pasture not grown past `move_max_size`, a forester, a sawmill or another nuisance) or a yard that is not a district's heart, standing within `centre_radius` of a district centre, moves out. A new one is planned where the planner would put one today, beyond every centre (farms and foresters out where their land is, a yard in the newest district), and the old one keeps working until the new one is finished, then comes down as above. The largest goes first.
+  - *Denser.* In a village or town that wants homes and is fed, a workplace that needs land or makes noise (a farm, garden or pasture not grown past `move_max_size`, a forester, a sawmill or another nuisance) or a yard that is not a district's heart, standing within `centre_radius` of a district centre, moves out. A new one is planned where the planner would put one today, beyond every centre (farms and foresters out where their land is, a yard in the newest district), and the old one keeps working until the new one is finished, then comes down as above. The largest goes first, then the nearest its centre (`move_out_hub_weight` a tile per tile from it).
   - *Homes take the centre.* In a village or town, a home is placed first on open land within `centre_radius` of a district centre, oldest district first (rows and streets score as ever), and only elsewhere when no centre has room. Land freed in the centre becomes homes in rows.
   - The chronicle says what came down or moved and why; the inspector says when a workplace has stood idle and may come down, and which building is being moved and what takes over from it; the advisor names what was lately pulled down or moved, and warns when `packed_homes` or more homes stand in the centres with nothing to fight a fire.
-- **Districts.** Each district has a storage yard at its heart. Once the newest district holds `district_buildings` buildings, a new district is founded: a storage yard on open land storage can walk to, about `district_spacing` from every other centre, where most grass lies around (`district_room_weight`). The settlement grows in its newest district: placement searches only there (`search_radius` beyond that district's farthest building), so planning cost follows district size, not town size. Paving covers every district.
+- **Districts.** Each district has a storage yard at its heart. Once the newest district holds `district_buildings` buildings, a new district is founded: a storage yard on open land storage can walk to, about `district_spacing` from every other centre (from `district_spacing_min` to `district_spacing_max` times it), where most grass lies within `district_room_tiles` around (`district_room_weight`); of the best `district_tries` spots, the first that walls nothing off. The settlement grows in its newest district: placement searches only there (`search_radius` beyond that district's farthest building), so planning cost follows district size, not town size. Paving covers every district.
 - **Never wall anyone in.** Every placement, replanned block and district centre is refused if it would cut the settlement's first storage yard off from the door of any building it reaches today, of any settlement: two towns growing into each other once sealed a house of one inside a pocket made by the other's homes.
 
 # The steward
@@ -138,7 +156,7 @@ The player steers each settlement's planner with levers (the Steward panel in th
 - **Pace.** Unhurried, Normal or Brisk (0.5, 1, 2): divides how long the planner waits between looks and settles after a building.
 - **Zones.** The player paints land from the build bar: homes, farms, workshops, or no building. A blueprint's `zone` (homes for any home) says which zone it keeps to. While a zone of its kind belongs to the settlement and has room, a building is placed only inside it, wherever in the settlement's reach it lies; with none, or none with room, it stays off other kinds' zones. Nothing is ever built, paved or laid out as a street on no-build land. A zoned tile belongs to the settlement whose first storage yard is nearest, so neighbours keep off each other's zones.
 - **The chronicle** records each settlement's history as it happens: founded, its form, inventions, teachings and learning by hand, proving, forgetting, replanned blocks, new districts and bridges. It reads in the menu and exports as an OKF log (dated sections newest first; Creation, Update and Deprecation bullets; game minutes for dates).
-- **The advisor** reads the planners and the chronicle and suggests a lever: bread first when a settlement goes hungry, encouraging the blueprint that would answer a need nobody knows how to meet, a zone when there is no room, the Cart Shed or Ox Barn when deliveries run long and neither is known, wheat when the oxen wait for feed, a garden, orchard or pasture when a settlement of four homes or more eats nothing but bread (with farms that grow), keeping homes and workshops apart, and the latest page of history (not the turn of a season). Raiders count only from camps the settlement does not send bread to, as those never raid it.
+- **The advisor** reads the planners and the chronicle and suggests a lever: bread first when a settlement's fed share falls below `advise_hungry_below` ([needs](/systems/needs.md)), encouraging the blueprint that would answer a need nobody knows how to meet, a zone when there is no room, the Cart Shed or Ox Barn when deliveries run long and neither is known, wheat when the oxen wait for feed, a garden, orchard or pasture when a settlement of `advise_diet_homes` homes or more eats nothing but bread (with [farms that grow](/systems/farms.md)), keeping homes and workshops apart, and the latest page of history (not the turn of a season). Raiders count only from camps the settlement does not send bread to, as those never raid it.
 
 Overlays in the menu show how each home feels (surroundings, hunger), the reach of noise, districts, traffic, how far bots and carts reach, and what protects the homes (each counter's reach in the colour of its hazard, a bathhouse's, and how far raiders range from camps not at peace).
 
@@ -158,7 +176,7 @@ With carts on and the [Cart Shed](/blueprints/cart_shed.md) known, a settlement 
 
 # Full stores
 
-When a settlement's stores (those that take anything) hold `store_full_share` of their room, it wants another: workshops stall with nowhere to put their goods. In every game, not only with seasons.
+When a settlement's stores (those that take anything) hold `store_full_share` of their room, it wants another (a store with no `capacity` counts as holding `open_store_capacity`): workshops stall with nowhere to put their goods. In every game, not only with seasons.
 
 # People
 
@@ -194,18 +212,18 @@ With [farms that grow](/systems/farms.md) on, the planner wants `diet_share` of 
 
 With [seasons](/systems/seasons.md) on, the planner plans for winter all year:
 
-- **Grain.** It wants a quarter more grain than the bakeries use, at `winter_headroom`, since three growing seasons must feed four. Before the frost it adds the gap: the winter's meals less the food already in store, over the time left.
+- **Grain.** It wants a quarter more grain than the bakeries use, at `winter_headroom`, since three growing seasons must feed four. Before the frost it adds the gap: the winter's meals less the food already in store, over the time left (at least `winter_gap_min_seconds`).
 - **Firewood.** Logs at the winter rate, one per villager every `firewood_every_seconds`.
 - **Room for the store.** In summer and autumn it wants room for the winter's food at `winter_headroom`: a store's room is its capacity less the planks, logs and stone already in it, so a yard full of timber does not count as a granary.
 - **Growth waits.** Homes for newcomers wait through autumn and winter, when nobody comes. In summer a newcomer comes only while the stores keep pace with the winter's meals and `winter_headroom` for one more mouth (none at the start of summer, half by its end), and a settlement whose store has fallen behind moves workers to its food chain as a hungry one does.
 
 # Desire paths
 
-Every look, before anything else, a planner whose `roads` is on (the default) paves up to `pave_per_look` tiles around the settlement that feet have worn past `pave_wear`, most worn first. Roads end up where people really walk. [Gate 8](/gates/08-lie-of-the-land.md) plays a village with and without it: paved, deliveries were 20 to 32% faster per tile on six seeds.
+Every look, before anything else, a planner whose `roads` is on (the default) paves up to `pave_per_look` tiles around the settlement that feet have worn past `pave_wear`, most worn first. Wear halves every `wear_half_life_seconds` that nobody walks a tile, and is gone below `wear_floor`. Roads end up where people really walk. [Gate 8](/gates/08-lie-of-the-land.md) plays a village with and without it: paved, deliveries were 20 to 32% faster per tile on six seeds.
 
 # Bridges
 
-Under the `detours` shortage (water keeps the village from grass close by, or trips go the long way round water; see [knowledge](/systems/knowledge.md)) the planner plans a [Bridge](/blueprints/bridge.md) once known. It looks at every straight run of open water up to `max_span` tiles from a bank storage can reach to land on the other side, and scores it: `bridge_reach_weight` per tile of grass within 12 of the far bank that the bridge would connect and nobody can reach today, plus the tiles it would save on recent long trips whose straight line passes it, less `store_weight` × its distance from storage. It builds the best span scoring at least `bridge_min_gain`, at least `bridge_spacing` from any other bridge. A settlement forgets the long trips it recorded when one of its bridges is finished.
+Under the `detours` shortage (water keeps the village from grass close by, or trips go the long way round water; see [knowledge](/systems/knowledge.md)) the planner plans a [Bridge](/blueprints/bridge.md) once known. It looks at every straight run of open water up to `max_span` tiles from a bank storage can reach to land on the other side, and scores it: `bridge_reach_weight` per tile of grass within `bridge_reach_tiles` of the far bank that the bridge would connect and nobody can reach today, plus the tiles it would save on long trips of the last `detour_memory_seconds` whose straight line passes within `bridge_trip_tiles` of it, less `store_weight` × its distance from storage. It builds the best span scoring at least `bridge_min_gain`, at least `bridge_spacing` from any other bridge. A settlement forgets the long trips it recorded when one of its bridges is finished.
 
 # Not thrashing
 

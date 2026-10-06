@@ -4,7 +4,7 @@ title: Knowledge
 description: Each settlement's own bundle of blueprints; invented under strain, proven in use, carried by visitors, forgotten when unbuilt.
 tags: [knowledge, settlement, okf]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T03:19:14Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T05:14:43Z }
 tuning:
   haul_target: 0.6
   haul_smoothing_seconds: 60
@@ -28,6 +28,11 @@ tuning:
   distance_span: 12
   long_haul_from: 30
   reach_smoothing: 50
+  detour_every_seconds: 10
+  detour_margin: 10
+  detour_cut_from: 0.2
+  detour_cut_span: 0.4
+  detour_trips: 8
 ---
 
 # Idea
@@ -84,7 +89,7 @@ Two needs so far. **Crossing**: a settlement whose visitor finds no way to its n
 
 # Detours
 
-The `detours` need ([Bridge](/blueprints/bridge.md)) is the larger of two pressures, every ten seconds: how much of the grass within reach of the settlement cannot be walked to from its storage yard (past the first fifth, full at three fifths), and how many trips in the last five minutes went the long way round water (`detour_ratio` times the straight line or more, with water on the straight line), full at eight.
+The `detours` need ([Bridge](/blueprints/bridge.md)) is the larger of two pressures, every `detour_every_seconds`: how much of the grass within the planner's `search_radius` and `detour_margin` more of its storage yard cannot be walked to from it (past `detour_cut_from` of it, full `detour_cut_span` beyond that), and how many trips in the planner's last `detour_memory_seconds` went the long way round water (`detour_ratio` times a straight line of `detour_min_tiles` or more, with water on the straight line; the last `detour_memory_trips` are remembered), full at `detour_trips`.
 
 # Prove
 

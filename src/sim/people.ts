@@ -354,7 +354,7 @@ function births(S: State, dt: number) {
   const T = P(S), chain = foodChainOf(S);
   // a settlement badly short of anything in its food chain, with anyone hungry, or short of food (see shortOfFood),
   // has no children for now
-  const easy = S.towns.map(t => t.fed >= 1 && !shortOfFood(S, t) && !Object.keys(t.planner.wants).some(g => chain.has(g) && t.planner.wants[g] >= 0.5));
+  const easy = S.towns.map(t => t.fed >= 1 && !shortOfFood(S, t) && !Object.keys(t.planner.wants).some(g => chain.has(g) && t.planner.wants[g] >= S.content.tuning.planner.savingWant));
   for (const b of S.buildings) {
     const B = bp(S, b);
     if (!B.homes || b.site || !easy[b.town] || b.hunger > 0 || !foodsOf(S, b).some(f => (b.inv[f] || 0) > 0)) continue;
