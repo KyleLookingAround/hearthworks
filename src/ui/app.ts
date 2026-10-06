@@ -5,7 +5,7 @@ import { homeTier } from '../sim/production.ts';
 import { FEAST, NAMING, called, craftGoods, isCraft } from '../sim/people.ts';
 import { atOnce, formOf, hubs, openSites, renewalNote } from '../sim/planner.ts';
 import { capOf, crew, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
-import { ZONES, advise, defence, scholarly, learningAt, reads, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, ageNeeded, beltBy, ctr, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { ZONES, advise, waysOf, hubOf, defence, scholarly, learningAt, reads, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, ageNeeded, beltBy, ctr, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
 
@@ -464,7 +464,9 @@ export class App {
     const D = S.hardship ? defence(S, t) : null, near = S.hardship ? S.camps.filter(c => { const y = S.bmap.get(t.store); return !!y && Math.hypot(c.x - y.x, c.y - y.y) <= this.content.tuning.hardship.raidReach; }).length : 0;
     const peace = S.hardship ? S.camps.filter(c => c.friend === t.id && c.goodwill > 0).length : 0;
     const guard = D ? [Math.round(D.total), D.warned, near, peace] : null;
-    const key = JSON.stringify([t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, t.belts.length, 'conveyor' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.naming, t.craft, t.why, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil, t.charted.length, S.agents.some(a => a.visit?.explore && a.visit.from === t.id)]);
+    // how its goods go: each way's share (to five per cent, so the panel is not redrawn for every delivery)
+    const ways = waysOf(S, t), waysKey = ways ? [ways.shares.map(v => Math.round(v / 5)), Math.floor(Math.log2(1 + ways.handed))] : null;
+    const key = JSON.stringify([waysKey, t.id, t.levers, t.laws, guard, t.roads.length, 'road' in t.knows, t.belts.length, 'conveyor' in t.knows, unknown.map(B => B.id), tips, S.towns.length, trade, t.custom, t.naming, t.craft, t.why, t.rites.length, t.age, t.feasts.join(), S.t < t.feastUntil, t.charted.length, S.agents.some(a => a.visit?.explore && a.visit.from === t.id)]);
     if (!force && key === this.stewardKey) return;
     this.stewardKey = key;
     const needs: [string, string][] = [
@@ -485,6 +487,7 @@ export class App {
     html += `<span>The hungry</span><select data-law="leave"><option value="1"${t.laws.leave ? ' selected' : ''}>May leave</option><option value="0"${t.laws.leave ? '' : ' selected'}>Must stay</option></select></div>`;
     if (S.plannedRoads) html += `<div class="steward-grid"><span>Roads</span><span>${t.roads.length ? `${t.roads.length} laid` : 'road' in t.knows ? 'none laid yet' : 'not thought of yet'}</span></div>`;
     if (t.belts.length || 'conveyor' in t.knows) html += `<div class="steward-grid"><span>Conveyors</span><span>${t.belts.length ? `${t.belts.length} laid` : 'none laid yet'}</span></div>`;
+    if (ways) html += `<div class="steward-grid"><span>Goods go</span><span>${esc(ways.text)}</span>${ways.handed ? `<span>Handed on at its yards</span><span>${ways.handed} goods, brought by the cartload or the belt for their districts and taken on on foot</span>` : ''}</div>`;
     if (guard) html += `<div class="steward-grid"><span>Defence</span><span>${guard[0]}${guard[1] ? ', a lookout on watch' : ', no lookout'}</span><span>Camps in reach</span><span>${guard[2] || 'none'}</span>${guard[3] ? `<span>At peace</span><span>${guard[3] === 1 ? 'a camp it sends bread to' : `${guard[3]} camps it sends bread to`}</span>` : ''}</div>`;
     // the islands it has charted, and an explorer out at sea
     if (S.charts) {
@@ -711,12 +714,21 @@ export class App {
       if (B.capacity) rows += row('Holding', `${n0(held)} / ${B.capacity}`);
       if (B.keeps) rows += row('Keeps', B.keeps.map(k => G[k].name).join(', '));
       for (const g of Object.values(G).sort((a, b) => a.order - b.order)) if ((b.inv[g.id] || 0) >= 1 || g.order <= 4) rows += row(g.name, n0(b.inv[g.id]));
+      // a district's hub: the homes and workplaces whose nearest yard it is, and what comes to it for them by the cartload
+      const served = S.buildings.filter(o => o !== b && !o.site && o.town === b.town && !this.content.blueprints[o.type].storage && (this.content.blueprints[o.type].homes || this.content.blueprints[o.type].workers) && hubOf(S, o) === b).length;
+      if (served) {
+        const coming = Object.keys(b.incoming).filter(g => (b.incoming[g] || 0) >= 1).map(g => `${n0(b.incoming[g])} ${G[g]?.name.toLowerCase() ?? g}`).join(', ');
+        rows += row('Hub', `for ${served} homes and workplaces around it: what they ask for from far off comes here by the cartload and is taken on on foot` + (coming ? `; coming now: ${coming}` : ''));
+      }
     } else if (B.carts || B.oxen) {
       // a cart shed or an ox barn: how many of its carts are out, and the oxen's feed
       let out = 0;
       for (const a of S.agents) if (a.cart === b.id) out++;
       const n = B.oxen || B.carts, kind = B.oxen ? 'Ox carts' : 'Handcarts', L = T.logistics;
       rows += row(`${kind} out`, `${out} of ${n}`) + row('Takes', `${B.oxen ? L.oxCarry : L.cartCarry} goods, on jobs of ${B.oxen ? L.oxMinTiles : L.cartMinTiles}+ tiles`);
+      // where its carts are going: to doors, and on to a district's yard with the rest of the load
+      const handing = S.agents.filter(a => a.cart === b.id && a.task && (a.task.hub || a.task.round.some(r => r.hub))).length;
+      if (out) rows += row('Out now', handing ? `${out - handing} to doors, ${handing} on to a district's yard with the rest of the load` : `${out} to doors`);
       for (const k in B.keepStocked) rows += row(`${G[k].name} for the oxen`, `${n0(b.inv[k])} / ${B.keepStocked[k]}` + ((b.incoming[k] || 0) > 0 ? ` (+${n0(b.incoming[k])})` : '') + (B.oxen && (b.inv[k] || 0) < L.oxFeed ? ': the oxen wait for feed' : ''));
     } else if (B.couriers) {
       const busy = b.bots.filter(id => S.amap.get(id)?.task).length;

@@ -201,9 +201,9 @@ test('a custom giving way stays apart where it can: a people of the sea with no 
   assert.equal(giveWay(S, b), 'cremation');
 });
 
-test('a version 30 save is upgraded to version 31: its settlements keep their customs, feasts and names, take up crafts as they go, and it plays on', () => {
-  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v30.json', import.meta.url), 'utf8')) as SaveFile;
-  assert.equal(file.version, 30);
+test('a version 31 save is upgraded to version 32: its settlements keep their customs, feasts and names, take up crafts as they go, and it plays on', () => {
+  const file = JSON.parse(readFileSync(new URL('./fixtures/save-v31.json', import.meta.url), 'utf8')) as SaveFile;
+  assert.equal(file.version, 31);
   const S = loadGame(content, file);
   const was = file.state.towns as { custom: string; feasts: string[]; naming: string }[];
   assert.deepEqual(S.towns.map(t => [t.custom, t.feasts, t.naming]), was.map(t => [t.custom, t.feasts, t.naming]));

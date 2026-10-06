@@ -11,7 +11,7 @@
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 import { nameFor, namingFor } from './people.ts';
 
-export const SAVE_VERSION = 31;
+export const SAVE_VERSION = 32;
 
 type Json = Record<string, unknown>;
 
@@ -223,8 +223,15 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     for (const k of ['pulledDown', 'movedOut']) st[k] ??= 0;
     return state;
   },
-  // 30 to 31: traditions: each settlement's craft (none yet: it takes one up from its next master) and why it holds to its ways (not known for an older game)
+  // 30 to 31: multi-leg deliveries: the goods by each way, those handed on at a district's yard, and each settlement's
+  // own count (a carter's drop handed on at a yard, and a load riding a belt to one, say so on the job and the load)
   30: state => {
+    const st = state.stats as Json; st.ways ??= {}; st.handedOn ??= 0; st.handedOnBelt ??= 0;
+    for (const t of state.towns as Json[]) t.ways ??= {};
+    return state;
+  },
+  // 31 to 32: traditions: each settlement's craft (none yet: it takes one up from its next master) and why it holds to its ways (not known for an older game)
+  31: state => {
     for (const t of state.towns as Json[]) { t.craft ??= null; t.why ??= {}; }
     return state;
   },
@@ -259,7 +266,7 @@ export function saveGame(S: State): SaveFile {
   const w = S.world;
   const world: Json = { w: w.w, h: w.h, docks: w.docks, waterCost: w.waterCost, slopeCost: w.slopeCost, rockCost: w.rockCost, pathCost: w.pathCost, roadCost: w.roadCost, stoneCost: w.stoneCost, roads: w.roads, stone: w.stone, belts: w.belts, forestCost: w.forestCost, work: { ...w.work } };
   for (const g of Object.keys(GRIDS) as GridName[]) world[g] = rle(w[g]);
-  const task = (t: Task | null) => (t ? { src: t.src.id, dst: t.dst.id, item: t.item, n: t.n, at: t.at, tiles: t.tiles, steps: t.steps, road: t.road, path: t.path, round: t.round.map(r => ({ dst: r.dst.id, n: r.n })) } : null);
+  const task = (t: Task | null) => (t ? { src: t.src.id, dst: t.dst.id, item: t.item, n: t.n, at: t.at, tiles: t.tiles, steps: t.steps, road: t.road, path: t.path, round: t.round.map(r => ({ dst: r.dst.id, n: r.n, ...(r.hub ? { hub: true } : {}) })), ...(t.hub ? { hub: true } : {}) } : null);
   // a carrier's job can still point at a building demolished under it: keep those as `gone`
   const live = new Set(S.buildings), gone = new Map<number, Building>();
   const keep = (b: Building | null) => { if (b && !live.has(b)) gone.set(b.id, b); };
@@ -309,7 +316,7 @@ export function loadGame(content: Content, input: SaveFile | string): State {
   };
   const agents = (d.agents as any[]).map(a => ({
     ...a, home: get(a.home), work: get(a.work), depot: get(a.depot),
-    task: a.task ? { src: get(a.task.src)!, dst: get(a.task.dst)!, item: a.task.item, n: a.task.n, at: a.task.at, tiles: a.task.tiles, steps: a.task.steps, road: a.task.road, path: a.task.path, round: (a.task.round as { dst: number; n: number }[]).map(r => ({ dst: get(r.dst)!, n: r.n })) } : null,
+    task: a.task ? { src: get(a.task.src)!, dst: get(a.task.dst)!, item: a.task.item, n: a.task.n, at: a.task.at, tiles: a.task.tiles, steps: a.task.steps, road: a.task.road, path: a.task.path, round: (a.task.round as { dst: number; n: number; hub?: boolean }[]).map(r => ({ dst: get(r.dst)!, n: r.n, ...(r.hub ? { hub: true } : {}) })), ...(a.task.hub ? { hub: true } : {}) } : null,
   })) as Agent[];
 
   const S = {

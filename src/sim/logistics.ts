@@ -10,7 +10,7 @@ import { goToBuilding } from './agents.ts';
 import { foodChainOf, wants } from './production.ts';
 import type { Agent, Building, ItemId, State, Task } from './types.ts';
 
-export interface Request { dst: Building; item: ItemId; need: number; pri: number; /** not worth a trip of its own: only topped up on a cart's round */ topUp?: boolean }
+export interface Request { dst: Building; item: ItemId; need: number; pri: number; /** not worth a trip of its own: only topped up on a cart's round */ topUp?: boolean; /** a district's yard stocking up for its district by the cartload (see hubFor): only for a cart */ bulk?: boolean }
 
 export function available(S: State, b: Building, item: ItemId): number {
   if (b.site || b.dead) return 0;
@@ -293,10 +293,45 @@ function lookOver(S: State, town: number | null, all: Request[], mine: Building[
       dumps.push({ s, item, av, extra: reap !== null && reap.has(item) && reap.behind(s.town) ? -L.harvestPriority : L.surplusPenalty, sd: Infinity });
     }
   }
-  // every request with each offer of its good, in turn
+  // a district's yard (its hub) asks by the cartload for what its homes and workplaces ask for from far off, as soon as the
+  // most urgent of them: from a maker or a yard at least `relay_min_tiles` away with a cartload's worth (`relay_min_load`)
+  // to spare (a yard whose own district asks for the good too keeps `hub_stock` of it for them)
+  const hubs = new Map<Building, Map<ItemId, number>>(), hubbed = new Map<Request, Building>();
+  if (S.carts && town !== null && hasSheds(S, town)) {
+    for (const r of reqs) {
+      if (r.dst.site || bp(S, r.dst).storage) continue;
+      const hub = hubOf(S, r.dst);
+      if (!hub || !inRange(hub) || hubWant(S, hub, r.item) < L.relayMinLoad) continue;
+      let m = hubs.get(hub);
+      if (!m) hubs.set(hub, m = new Map());
+      m.set(r.item, Math.min(m.get(r.item) ?? Infinity, r.pri));
+      hubbed.set(r, hub);
+    }
+  }
+  const spare = (o: { b: Building; av: number }, item: ItemId) => o.av - (hubs.get(o.b)?.has(item) ? L.hubStock : 0);
+  // every request with each offer of its good, in turn; a home or workplace that still has some of the good on its shelf
+  // waits for it to come by cart to its hub rather than have it walked from far off one at a time
   const pairs: Seen['pairs'] = [];
-  for (const r of reqs) if (!r.topUp) for (const o of offers.get(r.item)!) if (o.b !== r.dst) pairs.push({ r, o });
+  for (const r of reqs) {
+    if (r.topUp) continue;
+    const hub = hubbed.get(r), shelf = hub ? (r.dst.inv[r.item] || 0) : 0, waits = !!hub && shelf >= 1 && shelf * 2 >= shelf + r.need + (r.dst.incoming[r.item] || 0);
+    for (const o of offers.get(r.item)!) if (o.b !== r.dst && !(waits && distBB(o.b, hub!) >= L.relayMinTiles)) pairs.push({ r, o });
+  }
+  for (const [hub, m] of hubs) for (const [item, pri] of m) {
+    const r: Request = { dst: hub, item, need: hubWant(S, hub, item), pri: pri - L.relayBonus, bulk: true };
+    for (const o of offers.get(item)!) if (o.b !== hub && spare(o, item) >= L.relayMinLoad && distBB(o.b, hub) >= L.relayMinTiles) pairs.push({ r, o });
+  }
   return { reqs, pairs, stores, dumps };
+}
+
+/** The settlements with a cart shed standing, worked out once a tick. */
+let shedsAt: { S: State; t: number; towns: Set<number> } | null = null;
+function hasSheds(S: State, town: number): boolean {
+  if (!shedsAt || shedsAt.S !== S || shedsAt.t !== S.t) {
+    shedsAt = { S, t: S.t, towns: new Set() };
+    for (const b of S.buildings) if (!b.site && bp(S, b).carts) shedsAt.towns.add(b.town);
+  }
+  return shedsAt.towns.has(town);
 }
 
 /** The nearest storage yard to a surplus that keeps its kind and has room left. */
@@ -320,7 +355,7 @@ export function findTask(S: State, a: Agent): boolean {
     const qx = b.x + b.w / 2, qy = b.y + b.h / 2;
     return (p.x - qx) ** 2 + (p.y - qy) ** 2 <= depR * depR;
   };
-  let best: { src: Building; dst: Building; item: ItemId; n: number } | null = null, bestScore = Infinity;
+  let best: { src: Building; dst: Building; item: ItemId; n: number; hub?: boolean } | null = null, bestScore = Infinity;
   // a cart shed near the carrier with a cart free: long jobs take a cart and a bigger load
   // and for the longest jobs an ox cart, from a barn with an ox free and feed for it
   // (looked for only once a job is in sight: most calls find none)
@@ -346,7 +381,11 @@ export function findTask(S: State, a: Agent): boolean {
     // the walk to the source alone already scores no better: the pair cannot win (scores only grow with distance)
     if (da + r.pri + extra >= bestScore) continue;
     const tiles = da + distBB(s, r.dst), score = tiles + r.pri + extra;
-    if (score < bestScore) { bestScore = score; best = { src: s, dst: r.dst, item: r.item, n: Math.min(capFor(tiles), r.need, av) }; }
+    if (score >= bestScore) continue;
+    const n = Math.min(capFor(tiles), r.need, av);
+    // a hub's cartload goes only by cart, and only a cartload
+    if (r.bulk && (!vehicleFor(tiles) || n < L.relayMinLoad)) continue;
+    bestScore = score; best = { src: s, dst: r.dst, item: r.item, n, hub: r.bulk };
   }
   // surplus goes to the nearest storage yard so producers don't stall, at `surplus_penalty` tiles behind a request
   // (or the harvest as readily as a home's food: see lookOver)
@@ -365,7 +404,7 @@ export function findTask(S: State, a: Agent): boolean {
   const tiles = distAB(a, best.src) + distBB(best.src, best.dst);
   let cart = vehicleFor(tiles), load = loadFor(cart);
   // a cart on a long haul fills up: the same good for others asking within `round_tiles` of the first drop, in turn
-  const round: { dst: Building; n: number }[] = [];
+  const round: Task['round'] = [];
   // and a workshop's input comes a cartload at a time, beyond its usual shelf
   if (cart && !best.dst.site && bp(S, best.dst).input[best.item]) best.n = Math.max(best.n, Math.min(load, available(S, best.src, best.item)));
   let total = best.n;
@@ -379,6 +418,14 @@ export function findTask(S: State, a: Agent): boolean {
       round.push({ dst: r.dst, n: k }); total += k; av -= k;
       if (total >= load) break;
     }
+  }
+  // the rest of a cartload is handed on at the storage yard of the district it goes to (its hub), for that district's
+  // carriers to take on on foot: the next of its homes to ask walks there, not to the far source
+  const hub = cart && total < load ? hubFor(S, best.src, best.dst, best.item) : null;
+  if (hub) {
+    const k = Math.min(load - total, available(S, best.src, best.item) - total, hubWant(S, hub, best.item));
+    // (only by cart: a load two hands could carry goes no further than its own drops)
+    if (k > 0 && total + k > cap) { round.push({ dst: hub, n: k, hub: true }); total += k; }
   }
   // an ox cart is slower than a handcart: only a load a handcart cannot take is worth the ox
   if (cart && bp(S, cart).oxen && total <= L.cartCarry && shedOf()) cart = shedOf()!;
@@ -399,6 +446,53 @@ export function findTask(S: State, a: Agent): boolean {
     return false;
   }
   return true;
+}
+
+/** Each settlement's storage yards (sites too: whether one is finished is asked as it is used), gathered again whenever buildings come or go. */
+let yardList: { S: State; all: Building[]; key: string; by: Map<number, Building[]> } | null = null;
+function yardsOf(S: State, town: number): Building[] {
+  const key = `${S.nextId}:${S.buildings.length}`;
+  if (!yardList || yardList.S !== S || yardList.all !== S.buildings || yardList.key !== key) {
+    const by = new Map<number, Building[]>();
+    for (const b of S.buildings) if (bp(S, b).storage) { let l = by.get(b.town); if (!l) by.set(b.town, l = []); l.push(b); }
+    yardList = { S, all: S.buildings, key, by };
+  }
+  return yardList.by.get(town) ?? [];
+}
+
+/** The hub of a home or workplace: its settlement's finished storage yard nearest it, if within `hub_reach` (worked out once a tick for each). */
+let hubsAt: { S: State; t: number; of: Map<Building, Building | null> } | null = null;
+export function hubOf(S: State, b: Building): Building | null {
+  if (!hubsAt || hubsAt.S !== S || hubsAt.t !== S.t) hubsAt = { S, t: S.t, of: new Map() };
+  let hub = hubsAt.of.get(b);
+  if (hub !== undefined) return hub;
+  let hd = Infinity;
+  hub = null;
+  for (const o of yardsOf(S, b.town)) {
+    if (o.site || o.dead || o === b) continue;
+    const d = distBB(o, b);
+    if (d < hd) { hd = d; hub = o; }
+  }
+  if (hd > S.content.tuning.logistics.hubReach) hub = null;
+  hubsAt.of.set(b, hub);
+  return hub;
+}
+
+/**
+ * The hub for a far delivery: the destination's hub, if at least `relay_min_tiles` from the source (else the source is
+ * in the hub's own district, and nobody there would walk far for the good) and wanting the good. Only for homes and
+ * workplaces: a site asks once, and a store is a store.
+ */
+export function hubFor(S: State, src: Building, dst: Building, item: ItemId): Building | null {
+  if (dst.site || bp(S, dst).storage) return null;
+  const hub = hubOf(S, dst);
+  if (!hub || hub === src || distBB(src, hub) < S.content.tuning.logistics.relayMinTiles || hubWant(S, hub, item) <= 0) return null;
+  return hub;
+}
+
+/** How many more of a good a hub takes for its district: up to `hub_stock`, as its room allows. */
+export function hubWant(S: State, hub: Building, item: ItemId): number {
+  return Math.min(roomFor(S, hub, item), S.content.tuning.logistics.hubStock - (hub.inv[item] || 0) - (hub.incoming[item] || 0));
 }
 
 /**
@@ -466,8 +560,14 @@ export function drop(S: State, a: Agent) {
     S.stats.goodsDelivered += t.n;
     if (a.cart !== null) S.stats.cartDeliveries++;
     const ox = a.cart !== null && !!S.bmap.get(a.cart) && bp(S, S.bmap.get(a.cart)!).oxen > 0;
+    // the goods by each way they went, and those handed on at a district's yard for its carriers to take on
+    const way = a.kind === 'bot' ? 'bot' : ox ? 'ox' : a.cart !== null ? 'cart' : 'foot', ways = S.towns[t.dst.town]?.ways;
+    add(S.stats.ways, way, t.n);
+    if (ways) add(ways, way, t.n);
+    if (t.hub) { S.stats.handedOn += t.n; if (ways) add(ways, 'handed', t.n); }
     if (t.tiles >= S.content.tuning.logistics.cartMinTiles && a.kind === 'villager') {
       S.stats.longDeliveries++; S.stats.longGoods += t.n;
+      if (ways) { add(ways, 'long', t.n); if (a.cart === null) add(ways, 'longFoot', t.n); }
       if (a.cart !== null) { S.stats.longByCart++; S.stats.longGoodsByCart += t.n; S.stats.longCartSeconds += S.t - t.at; if (ox) { S.stats.longGoodsByOx += t.n; S.stats.longOxSeconds += S.t - t.at; } } else S.stats.longFootSeconds += S.t - t.at;
     }
     // deliveries mostly along roads, and mostly along paths: their time and straight-line tiles
@@ -483,7 +583,7 @@ export function drop(S: State, a: Agent) {
     while (t.round.length) {
       const next = t.round.shift()!;
       if (next.dst.dead) continue;
-      t.tiles += distBB(t.dst, next.dst); t.dst = next.dst; t.n = next.n;
+      t.tiles += distBB(t.dst, next.dst); t.dst = next.dst; t.n = next.n; t.hub = next.hub;
       if (goToBuilding(S, a, t.dst)) return;
       add(t.dst.incoming, t.item, -t.n);
     }

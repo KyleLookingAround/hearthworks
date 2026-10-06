@@ -172,6 +172,10 @@ export interface Tuning {
   logistics: {
     villagerCarry: number; botCarry: number; villagerSpeed: number; botSpeed: number;
     pathSpeed: number; roadSpeed: number; forestSpeed: number; boatSpeed: number; outputCap: number; releaseAfterSeconds: number; cartCarry: number; cartPathSpeed: number; cartRoadSpeed: number; cartRoughSpeed: number; cartMinTiles: number; roundTiles: number; cartReach: number; dumpAt: number; requestAging: number; noWayRetrySeconds: number; surplusPenalty: number; harvestPriority: number; slopeCost: number; rockCost: number; stoneRoadSpeed: number; oxCarry: number; oxPathSpeed: number; oxRoadSpeed: number; oxRoughSpeed: number; oxMinTiles: number; oxFeed: number;
+    /** Hubs: a storage yard within `hubReach` of a far delivery's door takes the rest of a cartload for its district, when the goods come from `relayMinTiles` or more away, up to `hubStock` of a good. */
+    hubReach: number; relayMinTiles: number; hubStock: number; relayMinLoad: number; relayBonus: number;
+    /** The advisor points at hauling once a settlement has seen `adviseLongHauls` goods on long hauls and `adviseFootShare` of them went on foot. */
+    adviseLongHauls: number; adviseFootShare: number;
   };
   needs: { eatEverySeconds: number; leaveAfterHungrySeconds: number; migrantEverySeconds: number; migrateMinMood: number; surroundingsWeight: number; tierTwo: ItemId[]; tierThree: ItemId[]; extrasEverySeconds: number; extrasStock: number; varietyBonus: number };
   settling: { checkEverySeconds: number; minVillagers: number; cooldownSeconds: number; partySize: number; crowdedMinVillagers: number; storesShare: number; maxSettlements: number; firstHarvestSeconds: number; provisionHeadroom: number };
@@ -331,7 +335,7 @@ export interface Building {
 export type AgentState = 'idle' | 'wander' | 'toSrc' | 'toDst' | 'toWork' | 'working' | 'visit';
 
 /** A delivery: `at` is the game time it was claimed, for delivery times. */
-export interface Task { src: Building; dst: Building; item: ItemId; n: number; at: number; /** straight-line tiles: carrier to source to destination */ tiles: number; /** tiles stepped on the way, and of those on a road and on a path */ steps: number; road: number; path: number; /** a cart's round: more drops of the same good after `dst`, in turn */ round: { dst: Building; n: number }[] }
+export interface Task { src: Building; dst: Building; item: ItemId; n: number; at: number; /** straight-line tiles: carrier to source to destination */ tiles: number; /** tiles stepped on the way, and of those on a road and on a path */ steps: number; road: number; path: number; /** a cart's round: more drops of the same good after `dst`, in turn */ round: { dst: Building; n: number; /** the rest of a cartload, handed on at the storage yard of the district it went to */ hub?: boolean }[]; /** this drop is the rest of a cartload, handed on at a district's yard */ hub?: boolean }
 
 export interface Agent {
   id: number;
@@ -463,6 +467,8 @@ export interface Town {
   voyageAt: number;
   /** With ships on: when one of its people last stayed ashore for want of a free boat (game time). */
   boatless: number;
+  /** Goods delivered to its buildings by each way (foot, cart, ox, bot, belt), those handed on at its yards (`handed`), and the goods on long hauls (`long`, of them on foot `longFoot`), since its founding. */
+  ways: Stock;
 }
 
 /**
@@ -598,13 +604,15 @@ export interface Stats {
   voyages: number; charted: number;
   /** With ships on: boats built (docks' own and shipyards'), trips that took a boat out, and trips not made for want of a free one. */
   boatsBuilt: number; boatTrips: number; ashore: number;
+  /** Goods delivered by each way (on foot, by handcart, ox cart, bot, belt), each leg counted; and the goods handed on at a district's yard, by cart and by belt. */
+  ways: Stock; handedOn: number; handedOnBelt: number;
 }
 
 /**
  * A load riding a conveyor belt from one building to another: it left `src` (by the belt tile `from`) at `at`
  * and comes off at `dst` (by the tile `to`) `secs` later. Buildings are kept as ids: a load outlives neither end.
  */
-export interface Parcel { item: ItemId; n: number; src: number; dst: number; from: number; to: number; at: number; secs: number }
+export interface Parcel { item: ItemId; n: number; src: number; dst: number; from: number; to: number; at: number; secs: number; /** bound for a district's yard, to be taken on on foot */ hub?: boolean }
 
 export interface State {
   content: Content;
