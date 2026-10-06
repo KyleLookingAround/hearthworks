@@ -11,7 +11,7 @@
 import type { Agent, Building, Content, State, Task, World } from './types.ts';
 import { nameFor, namingFor } from './people.ts';
 
-export const SAVE_VERSION = 30;
+export const SAVE_VERSION = 31;
 
 type Json = Record<string, unknown>;
 
@@ -221,6 +221,11 @@ const MIGRATIONS: Record<number, (state: Json) => Json> = {
     for (const t of state.towns as { planner: Json }[]) t.planner.renewAt ??= 0;
     const st = state.stats as Json;
     for (const k of ['pulledDown', 'movedOut']) st[k] ??= 0;
+    return state;
+  },
+  // 30 to 31: traditions: each settlement's craft (none yet: it takes one up from its next master) and why it holds to its ways (not known for an older game)
+  30: state => {
+    for (const t of state.towns as Json[]) { t.craft ??= null; t.why ??= {}; }
     return state;
   },
 };

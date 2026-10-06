@@ -179,7 +179,7 @@ export interface Tuning {
   people: {
     adultSeconds: number; elderSeconds: number; lifespanSeconds: number; lifespanJitterSeconds: number; founderAgeMaxSeconds: number; birthEverySeconds: number;
     practiceSeconds: number; apprenticeFactor: number; expertAt: number; skillSpeedup: number; riteGraceSeconds: number; ritePenalty: number;
-    changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number; feastSeconds: number; feastMood: number; harvestBread: number; fireLogs: number; woodForFire: number; feastSpread: number; feastLayIn: number; feastRetrySeconds: number; names: Record<Naming, string[]>;
+    changeCustomAfterSeconds: number; pyreLogs: number; shipPlanks: number; customRadius: number; woodForPyre: number; waterForShip: number; feastSeconds: number; feastMood: number; harvestBread: number; fireLogs: number; woodForFire: number; feastSpread: number; feastLayIn: number; feastRetrySeconds: number; apart: number; craftPace: number; craftLookSeconds: number; names: Record<Naming, string[]>;
   };
   trade: { everySeconds: number; load: number; keep: number; minVillagers: number; smoothingSeconds: number; distanceWeight: number; minRate: number; maxRate: number; villagersPerPorter: number; exportDemand: number; wantCover: number; spareCover: number; kinBonus: number; importPatienceSeconds: number; importShare: number };
   conveyors: { speed: number; carry: number; gapSeconds: number; reach: number; roughCost: number; lookEverySeconds: number; villagersPerBelt: number; minTiles: number; maxTiles: number; minStops: number };
@@ -367,6 +367,8 @@ export type Custom = 'burial' | 'cremation' | 'ship';
 export type Naming = 'sea' | 'trees' | 'fields';
 /** The feasts a settlement may keep: a harvest festival as autumn comes, a fire as winter comes. */
 export type Feast = 'harvest' | 'midwinter';
+/** Why a settlement holds to each of its ways, in a short clause the panels and chronicle can show. */
+export interface Ways { custom?: string; feast?: string; craft?: string }
 
 export interface Visit { from: number; to: number; back: boolean; carry: Record<string, Knowledge>; /** rowed there, so has a boat to row home in */ boat: boolean; /** a porter's errand: the good taken and the good wanted back */ trade?: { give: ItemId; want: ItemId }; /** with charts on: the islands seen from the boat on the way, to chart at the end of the leg */ seen?: number[]; /** an explorer's voyage: the shore tile they row for */ explore?: [number, number] }
 
@@ -425,8 +427,12 @@ export interface Town {
   rites: number[];
   /** The feasts it keeps through the year (with people and seasons on), and until when the last one lifts its mood. */
   feasts: Feast[];
-  /** Its naming custom, from its land (with people on). */
+  /** Its naming custom, from the way it honours its dead as it was founded (with people on). */
   naming: Naming;
+  /** Its craft (with people on): the kind of workplace it takes pride in, held from its first master of a trade no other settlement holds, or from its mother; null until then. */
+  craft: string | null;
+  /** Why it holds to its ways, for the player: its custom for the dead, its feasts and its craft, each a short clause. */
+  why: Ways;
   feastUntil: number;
   graves: Record<number, number>;
   /** Seconds since its library's scribe last copied records for the neighbours. */
