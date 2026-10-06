@@ -75,7 +75,7 @@ test('progress towards the next ideas: how strained, and how far of the way', ()
   assert.match(nextAgeText(S, t)!, /^The Age of Wheel and Keel: prove 1 more of the Bridge, the Dock or the Cart Shed in use, and have one standing\.$/);
 });
 
-test('a version 32 save is upgraded to version 35: its settlements have no advice yet, take some on their next look, and it plays on', () => {
+test('a version 32 save is upgraded to version 33: its settlements have no advice yet, take some on their next look, and it plays on', () => {
   const file = JSON.parse(readFileSync(new URL('./fixtures/save-v32.json', import.meta.url), 'utf8')) as SaveFile;
   assert.equal(file.version, 32);
   const S = loadGame(content, file);
