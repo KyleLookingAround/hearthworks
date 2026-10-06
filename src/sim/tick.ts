@@ -90,9 +90,8 @@ function migrate(S: State) {
   }
 }
 
-/** Advance the simulation by dt game seconds. Deterministic for a given seed and command sequence. */
-export function tick(S: State, dt: number) {
-  S.t += dt;
+/** Trees planted as saplings grow until they can be felled. */
+function growTrees(S: State, dt: number) {
   const w = S.world, grow = S.content.tuning.map.treeGrowSeconds;
   const young = saplings(w);
   for (const i of young) {
@@ -100,43 +99,97 @@ export function tick(S: State, dt: number) {
     w.grow[i] += dt;
     if (w.grow[i] >= grow) { w.tree[i] = 2; young.delete(i); }
   }
-  for (const b of [...S.buildings]) if (!b.dead) updateBuilding(S, b, dt);
-  openBoard(S);
-  runBelts(S);
-  for (const a of [...S.agents]) if (!a.dead) updateAgent(S, a, dt);
-  closeBoard();
-  moveRaids(S, dt);
-  S.secT += dt;
-  if (S.secT >= 1) {
-    S.secT -= 1; assignWorkers(S); computeMood(S); updateKnowledge(S, 1); updateTrade(S, 1); if (S.people) updatePeople(S, 1); updateSea(S, 1); updateShips(S); updateSettling(S, 1); updateHardship(S, 1);
-    if (S.seasons && Math.floor(S.t) % Math.round(S.content.tuning.seasons.yearSeconds / 4) === 0 && Math.floor(S.t) > 0) {
-      const s = seasonOf(S)!;
-      emit(S, s === 'winter' ? 'bad' : 'info', s === 'winter' ? 'Winter has come: the fields rest and homes burn firewood' : `${s[0].toUpperCase()}${s.slice(1)} has come`);
-      for (const t of S.towns) chronicle(S, t.id, 'season', `${s[0].toUpperCase()}${s.slice(1)} came to ${t.name} in year ${Math.floor(S.t / S.content.tuning.seasons.yearSeconds) + 1}`);
-      missFeasts(S, PREV[s]);
-      holdFeasts(S, s);
-    } else if (S.seasons && S.people && Math.floor(S.t) % S.content.tuning.people.feastRetrySeconds === 0) holdFeasts(S, seasonOf(S)!, false);
-    // once a minute, food left out in stores that do not keep it spoils: the whole units of `spoils` of the pile
-    if (Math.floor(S.t) % 60 === 0) for (const b of S.buildings) {
-      const B = bp(S, b);
-      if (!B.storage || b.site) continue;
-      for (const k in b.inv) {
-        const G = S.content.goods[k];
-        if (!G?.spoils || B.keeps?.includes(k)) continue;
-        const lost = Math.min(Math.floor((b.inv[k] - (b.reserved[k] || 0)) * G.spoils), b.inv[k] - (b.reserved[k] || 0));
-        if (lost > 0) { b.inv[k] -= lost; S.stats.spoiled += lost; }
-      }
-    }
-    // worn paths fade when nobody walks them
-    const fade = Math.pow(0.5, 1 / S.content.tuning.planner.wearHalfLifeSeconds), wear = w.wear, trodden = worn(w);
-    for (const i of trodden) {
-      if (wear[i] > 0) wear[i] = wear[i] < 0.05 ? 0 : wear[i] * fade;
-      if (!(wear[i] > 0)) trodden.delete(i);
+}
+
+/** As each season comes, say so, and the feasts of the one before that were not held are missed; between, feasts put off are tried again. */
+function turnSeasons(S: State) {
+  if (Math.floor(S.t) % Math.round(S.content.tuning.seasons.yearSeconds / 4) === 0 && Math.floor(S.t) > 0) {
+    const s = seasonOf(S)!;
+    emit(S, s === 'winter' ? 'bad' : 'info', s === 'winter' ? 'Winter has come: the fields rest and homes burn firewood' : `${s[0].toUpperCase()}${s.slice(1)} has come`);
+    for (const t of S.towns) chronicle(S, t.id, 'season', `${s[0].toUpperCase()}${s.slice(1)} came to ${t.name} in year ${Math.floor(S.t / S.content.tuning.seasons.yearSeconds) + 1}`);
+    missFeasts(S, PREV[s]);
+    holdFeasts(S, s);
+  } else if (S.people && Math.floor(S.t) % S.content.tuning.people.feastRetrySeconds === 0) holdFeasts(S, seasonOf(S)!, false);
+}
+
+/** Once a minute, food left out in stores that do not keep it spoils: the whole units of `spoils` of the pile. */
+function spoil(S: State) {
+  if (Math.floor(S.t) % 60 !== 0) return;
+  for (const b of S.buildings) {
+    const B = bp(S, b);
+    if (!B.storage || b.site) continue;
+    for (const k in b.inv) {
+      const G = S.content.goods[k];
+      if (!G?.spoils || B.keeps?.includes(k)) continue;
+      const lost = Math.min(Math.floor((b.inv[k] - (b.reserved[k] || 0)) * G.spoils), b.inv[k] - (b.reserved[k] || 0));
+      if (lost > 0) { b.inv[k] -= lost; S.stats.spoiled += lost; }
     }
   }
-  plan(S, dt);
+}
+
+/** Worn paths fade when nobody walks them. */
+function fadePaths(S: State) {
+  const w = S.world, fade = Math.pow(0.5, 1 / S.content.tuning.planner.wearHalfLifeSeconds), wear = w.wear, trodden = worn(w);
+  for (const i of trodden) {
+    if (wear[i] > 0) wear[i] = wear[i] < 0.05 ? 0 : wear[i] * fade;
+    if (!(wear[i] > 0)) trodden.delete(i);
+  }
+}
+
+/** Every migrant_every_seconds, settlements happy enough draw newcomers. */
+function newcomers(S: State, dt: number) {
   S.migT += dt;
   if (S.migT >= S.content.tuning.needs.migrantEverySeconds) { S.migT = 0; migrate(S); }
+}
+
+/**
+ * One system of the simulation. `every` is how often it runs: each step (dt), once a game second
+ * (dt 1, as `S.secT` passes a whole second), or each step after the seconds' systems ('after').
+ * `on` is the option it needs; a system whose option is off does not run. Systems keep their own
+ * slower clocks inside (the planner's looks, visits, camps).
+ */
+export interface System { name: string; every: 'step' | 'second' | 'after'; on?: (S: State) => boolean; run: (S: State, dt: number) => void }
+
+/**
+ * The order of the world, which is part of the game: caches filled by whichever system asks first
+ * within a tick, and every random stream, depend on it. Moving a row changes how games play out.
+ */
+export const SYSTEMS: System[] = [
+  { name: 'trees', every: 'step', run: growTrees },
+  { name: 'buildings', every: 'step', run: (S, dt) => { for (const b of [...S.buildings]) if (!b.dead) updateBuilding(S, b, dt); } },
+  { name: 'job board opens', every: 'step', run: S => openBoard(S) },
+  { name: 'belts', every: 'step', run: S => runBelts(S) },
+  { name: 'agents', every: 'step', run: (S, dt) => { for (const a of [...S.agents]) if (!a.dead) updateAgent(S, a, dt); } },
+  { name: 'job board closes', every: 'step', run: () => closeBoard() },
+  { name: 'raids', every: 'step', on: S => S.hardship, run: moveRaids },
+  { name: 'workers', every: 'second', run: S => assignWorkers(S) },
+  { name: 'mood', every: 'second', run: S => computeMood(S) },
+  { name: 'knowledge', every: 'second', run: updateKnowledge },
+  { name: 'trade', every: 'second', on: S => S.trade, run: updateTrade },
+  { name: 'people', every: 'second', on: S => S.people, run: updatePeople },
+  { name: 'charts', every: 'second', on: S => S.charts, run: updateSea },
+  { name: 'ships', every: 'second', on: S => S.ships, run: S => updateShips(S) },
+  { name: 'settling', every: 'second', on: S => S.settlers, run: updateSettling },
+  { name: 'hardship', every: 'second', on: S => S.hardship, run: updateHardship },
+  { name: 'seasons', every: 'second', on: S => S.seasons, run: S => turnSeasons(S) },
+  { name: 'spoiling', every: 'second', run: S => spoil(S) },
+  { name: 'worn paths', every: 'second', run: S => fadePaths(S) },
+  // after the world has moved, each settlement's planner looks, and newcomers come
+  { name: 'planner', every: 'after', run: plan },
+  { name: 'newcomers', every: 'after', run: newcomers },
+];
+
+const run = (S: State, every: System['every'], dt: number) => {
+  for (const sys of SYSTEMS) if (sys.every === every && (!sys.on || sys.on(S))) sys.run(S, dt);
+};
+
+/** Advance the simulation by dt game seconds. Deterministic for a given seed and command sequence. */
+export function tick(S: State, dt: number) {
+  S.t += dt;
+  run(S, 'step', dt);
+  S.secT += dt;
+  if (S.secT >= 1) { S.secT -= 1; run(S, 'second', 1); }
+  run(S, 'after', dt);
 }
 
 export const STEP = 0.1;
