@@ -5,10 +5,10 @@ import { homeTier } from '../sim/production.ts';
 import { FEAST, NAMING, called, craftGoods, isCraft } from '../sim/people.ts';
 import { atOnce, hubs, openSites, renewalNote } from '../sim/planner.ts';
 import { capOf, crew, maxSize, offered, places, sizeName } from '../sim/farms.ts';
-import { ZONES, advise, waysOf, hubOf, defence, scholarly, learningAt, reads, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, countBuilt, createState, NEED_TEXT, ageNeeded, beltBy, ctr, originText, setPlans, paintZone, setLever, setLaw, place, turn, pullDown, pauseWork, growFields, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { ZONES, advise, waysOf, hubOf, defence, scholarly, learningAt, reads, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, countBuilt, createState, NEED_TEXT, ageNeeded, beltBy, ctr, originText, setPlans, paintZone, setLever, setLaw, takeAdvice, place, turn, pullDown, pauseWork, growFields, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
-import { CAUSES, CAUSE_ORDER, causeOf, inWorld, problemCount, statusText, storesOf, townView, waitsOn, type Cause, type TownView } from './readouts.ts';
+import { CAUSES, CAUSE_ORDER, causeOf, ideasOf, tens, inWorld, nextAgeText, problemCount, statusText, storesOf, townView, waitsOn, type Cause, type TownView } from './readouts.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -687,6 +687,10 @@ export class App {
     h += '<dl class="rows">';
     if (v.towards) h += row('Working towards', esc(v.towards));
     h += row('Short of', wants.length ? esc(list(wants)) : 'nothing, at its last look');
+    // its next age, and the ideas it is nearest to thinking of
+    const ageNext = nextAgeText(S, t), ideas = ideasOf(S, t).filter(x => x.share > 0).slice(0, 3);
+    if (ageNext) h += row('Next age', esc(ageNext.replace(/^The Age of /, '')));
+    h += row('Nearest ideas', ideas.length ? ideas.map(x => `<span class="idea" title="${esc(x.text)}">${esc(x.name)} ${x.share >= 1 ? 'soon' : `${tens(x.share)}%`}</span>`).join('') : 'nothing pressing it to think');
     h += row('Building now', v.sites.length ? v.sites.slice(0, 4).map(x => `<button type="button" class="link" data-jump="${x.b.id}">${esc(x.name)}</button> ${pct(x.done)}`).join(', ') + (v.sites.length > 4 ? `, and ${v.sites.length - 4} more` : '') : 'nothing');
     if (S.trade && S.towns.length > 1) {
       h += row('Has sent', v.sent.length ? esc(list(v.sent.map(([g, n]) => `${n} ${gn(g)}`))) : 'nothing yet');
@@ -738,7 +742,7 @@ export class App {
     const S = this.S, t = this.chosen();
     if (!t) return;
     const unknown = Object.values(this.content.blueprints).filter(B => B.discovery && !(B.id in t.knows));
-    const tips = advise(S, t);
+    const tips = t.advice.map(x => [x.key, x.text, x.label]);
     // trade so far: the three biggest of each way, in whole loads
     const top = (r: Record<string, number>) => Object.entries(r).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([g, n]) => `${n} ${(this.content.goods[g]?.name ?? g).toLowerCase()}`).join(', ');
     const trade = S.trade && S.towns.length > 1 ? [top(t.trade.exported) || 'nothing yet', top(t.trade.imported) || 'nothing yet'] : null;
@@ -796,7 +800,8 @@ export class App {
       html += '</div>';
     }
     if (trade) html += `<div class="steward-grid"><span>Traded away</span><span>${esc(trade[0])}</span><span>Traded for</span><span>${esc(trade[1])}</span></div>`;
-    if (tips.length) html += `<ul class="advice">${tips.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
+    // the advisor's tips first, each with the lever or law it offers, set with one tap
+    html = (tips.length ? `<ul class="advice">${tips.map(([key, text, label]) => `<li><span>${esc(text!)}</span>${label ? `<button type="button" class="btn small" data-advice="${esc(key!)}">${esc(label)}</button>` : ''}</li>`).join('')}</ul>` : '<p class="hint">The advisor has nothing new to suggest just now.</p>') + html;
     $('#stewardBody').innerHTML = html;
     $('#stewardTown').textContent = t.name;
     document.querySelectorAll<HTMLSelectElement>('#stewardBody [data-lever]').forEach(s => s.addEventListener('change', () => {
@@ -804,6 +809,11 @@ export class App {
       if (id === 'encourage') setLever(this.S, { town: t.id, lever: 'encourage', value: s.value || null });
       else if (id === 'pace') setLever(this.S, { town: t.id, lever: 'pace', value: Number(s.value) });
       else setLever(this.S, { town: t.id, lever: 'priority', need: id.slice(2), value: Number(s.value) });
+      this.renderSteward(true);
+    }));
+    document.querySelectorAll<HTMLButtonElement>('#stewardBody [data-advice]').forEach(b => b.addEventListener('click', () => {
+      const done = takeAdvice(this.S, { town: t.id, key: b.dataset.advice! });
+      if (!done.ok) this.toast(done.why, 'bad'); else this.toast(`${t.name}: ${b.textContent}`);
       this.renderSteward(true);
     }));
     document.querySelectorAll<HTMLSelectElement>('#stewardBody [data-law]').forEach(s => s.addEventListener('change', () => {
@@ -845,13 +855,23 @@ export class App {
   private renderKnowledge() {
     const S = this.S, bps = Object.values(this.content.blueprints).sort((a, b) => a.order - b.order);
     const discoverable = bps.filter(B => B.discovery);
-    const key = S.towns.map(t => villagers(S).filter(a => a.home?.town === t.id).length + ':' + Object.entries(t.knows).map(([id, k]) => id + k.verified.length).join() + ':' + scholarly(S, t).map(x => x.waits[0]).join('')).join('|');
+    // how near each idea is, worked out only while the panel is open (its count beside the title needs none of it)
+    const open = $<HTMLDetailsElement>('#knowledge').open;
+    const ideas = S.towns.map(t => (open ? ideasOf(S, t) : [])), ages = S.towns.map(t => (open ? nextAgeText(S, t) : null));
+    const key = S.towns.map((t, i) => villagers(S).filter(a => a.home?.town === t.id).length + ':' + Object.entries(t.knows).map(([id, k]) => id + k.verified.length).join() + ':' + scholarly(S, t).map(x => x.waits[0]).join('') + ':' + ideas[i].map(x => x.text).join() + ':' + ages[i]).join('|');
     if (key === this.knowKey) return;
     this.knowKey = key;
     let html = '', learned = 0;
     for (const t of S.towns) {
       const pop = villagers(S).filter(a => a.home?.town === t.id).length;
-      html += `<h3>${esc(t.name)}<small>${pop} villagers</small></h3><ul>`;
+      html += `<h3>${esc(t.name)}<small>${pop} villagers, Age of ${esc(this.content.eras[t.age]?.name ?? '')}</small></h3>`;
+      // what it lacks for its next age, and how near it is to each idea it could think of now
+      const ageNext = ages[t.id];
+      if (ageNext) html += `<p class="next-age">Next: ${esc(ageNext)}</p>`;
+      const pressed = ideas[t.id].filter(x => x.share > 0), idle = ideas[t.id].filter(x => x.share <= 0);
+      if (pressed.length) html += `<ul class="ideas">${pressed.map(x => `<li class="${x.share >= 1 ? 'ready' : ''}"><span>${esc(x.text)}</span><span class="bar"><i style="width:${tens(x.share)}%"></i></span></li>`).join('')}</ul>`;
+      if (idle.length) html += `<p class="next-age">Nothing presses it yet towards ${esc(idle.map(x => x.name).join(', '))}.</p>`;
+      html += '<ul>';
       for (const B of bps) {
         const k = t.knows[B.id];
         if (!k || k.by === 'founders') continue;

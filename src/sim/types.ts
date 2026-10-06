@@ -210,6 +210,7 @@ export interface Tuning {
     copyEverySeconds: number; universityFactor: number; universityThreshold: number; schoolFactor: number; forgettingMemorySeconds: number; learningWeight: number; universityVillagers: number; universitySpare: number; schoolChildren: number; distanceFrom: number; distanceSpan: number; longHaulFrom: number; reachSmoothing: number;
     detourEverySeconds: number; detourMargin: number; detourCutFrom: number; detourCutSpan: number; detourTrips: number;
   };
+  advisor: { everySeconds: number; tips: number; holdSeconds: number; quietSeconds: number; zoneRoomTiles: number; weights: Record<string, number> };
 }
 
 export interface PlannerTuning {
@@ -261,7 +262,7 @@ export interface PlannerState {
 }
 
 /** An era: a group of discoveries; a settlement knowing `share` of them (and every earlier era) is in its age. */
-export interface EraDef { id: string; name: string; order: number; discoveries: string[]; share: number; /** blueprints of its own: thought of only by a settlement of this age or later */ unlocks: string[] }
+export interface EraDef { id: string; name: string; order: number; discoveries: string[]; share: number; /** buildings of its discoveries that must stand, finished, for a settlement to enter it */ works: number; /** blueprints of its own: thought of only by a settlement of this age or later */ unlocks: string[] }
 
 export interface Content {
   goods: Record<ItemId, GoodDef>;
@@ -476,7 +477,16 @@ export interface Town {
   boatless: number;
   /** Goods delivered to its buildings by each way (foot, cart, ox, bot, belt), those handed on at its yards (`handed`), and the goods on long hauls (`long`, of them on foot `longFoot`), since its founding. */
   ways: Stock;
+  /** The advisor's tips standing now, most pressing first, and when each kind was last given and on what grounds (`[time, grounds]`), so it is not repeated while nothing changed. */
+  advice: Tip[];
+  advised: Record<string, [number, string]>;
 }
+
+/** What a tip offers to do: a lever or a law the player can set with one tap (through `takeAdvice` in commands.ts). */
+export type TipAct = { lever: 'priority'; need: string; value: number } | { lever: 'encourage'; value: string } | { law: 'rationing' | 'leave'; value: boolean };
+
+/** One piece of advice: its kind (`key`), its words, the grounds it was given on (`why`: it is given again sooner only when they change), its rank, when it was given, and what it offers to do. */
+export interface Tip { key: string; text: string; why: string; score: number; at: number; act: TipAct | null; label: string | null }
 
 /**
  * A boat of a settlement's fleet (with ships on): moored at its docks, or out with its crew, the people rowing it

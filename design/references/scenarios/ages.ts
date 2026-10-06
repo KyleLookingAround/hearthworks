@@ -3,11 +3,12 @@
  * Spread: one self-planning settlement on Landmass at size L with every system a new game has (seasons
  * excepted), for `seconds`; how many settlements end past the first age, and whether what an era unlocks
  * is thought of only by settlements of that age.
- * Regression: one isolated settlement taught the discoveries of the second age by a neighbour (scripted)
- * that never builds them, run for `keep_seconds` without a library and with one: does it fall back an age?
+ * Regression: one isolated settlement taught the discoveries of the second age by a neighbour and proven in use,
+ * with the age's works standing (scripted), that then pulls them down and never builds them again, run for
+ * `keep_seconds` without a library and with one: does it fall back an age?
  */
 import { centre, findSpot, start, worldOf, type Scenario } from '../../../src/gates/kit.ts';
-import { placeBuilding, runFor, villagers } from '../../../src/sim/index.ts';
+import { demolish, placeBuilding, runFor, villagers, type Building } from '../../../src/sim/index.ts';
 
 export const run: Scenario = (content, params) => {
   const { seed, seconds } = params, keep = Number(params.keep_seconds);
@@ -33,10 +34,19 @@ export const run: Scenario = (content, params) => {
   const fallsBack = (library: boolean) => {
     const T = start(content, seed, { ...worldOf(params) });
     const t = T.towns[0];
-    for (const id of content.eras[1].discoveries) t.knows[id] = { by: 'Elsewhere', at: 0, verified: [], from: 'Elsewhere', learned: 0, used: 0 };
+    // taught by a neighbour, and proven here in use (scripted): one of its works stands, so it enters the age
+    for (const id of content.eras[1].discoveries) t.knows[id] = { by: 'Elsewhere', at: 0, verified: [{ by: 'Elsewhere', at: 0 }, { by: t.name, at: 0 }], from: 'Elsewhere', learned: 0, used: 0 };
+    const works: Building[] = [];
+    for (const id of content.eras[1].discoveries) {
+      const at = works.length < content.eras[1].works && findSpot(T, id, centre(T), 30), b = at && placeBuilding(T, id, at.x, at.y, true);
+      if (b) works.push(b);
+    }
     if (library) { const at = findSpot(T, 'library', centre(T), 30)!; placeBuilding(T, 'library', at.x, at.y, true); }
     runFor(T, 2);
     const before = t.age;
+    // then it stops practising those crafts: its works come down, and nobody builds them again
+    for (const b of works) demolish(T, b);
+    for (const id of content.eras[1].discoveries) t.knows[id].used = 0;
     runFor(T, keep);
     return { before, after: t.age };
   };

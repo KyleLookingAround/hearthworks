@@ -2,7 +2,8 @@
 
 # Systems
 
-* [Ages](ages.md) - Eras group discoveries; a settlement's age is the latest era whose discoveries it mostly knows, and it falls back an age when it forgets them.
+* [Advisor](advisor.md) - Each settlement's advisor ranks what the player could do about it, gives only advice a lever, a law, an idea to encourage, a zone or a building can answer, and does not repeat itself while nothing has changed.
+* [Ages](ages.md) - Eras group discoveries; a settlement enters an age by proving its share of them in use with their works standing, keeps it while it holds that knowledge, and falls back an age when it forgets it.
 * [Conveyors](conveyors.md) (draft) - Belts laid along the lanes from a storage yard's door; goods ride them between the buildings beside them with no hands.
 * [Farms that grow](farms.md) - Farms, gardens, orchards and pastures grow in steps, each adding fields and a hand; homes eat a varied diet of the foods they grow.
 * [Hardship](hardship.md) (draft) - Fire, flood, sickness and barbarian raids, the counters a settlement finds for each, gifts that bring barbarians in peace, and the steward's laws for hard times.
