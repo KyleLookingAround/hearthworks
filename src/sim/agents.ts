@@ -106,11 +106,11 @@ export function updateAgent(S: State, a: Agent, dt: number) {
   }
   if (!a.path.length) {
     // goods picked up or dropped, or a visitor arriving, change what the job board holds
-    if (a.state === 'toSrc') { staleTask(a.task); pickup(S, a); }
-    else if (a.state === 'toDst') { staleTask(a.task); drop(S, a); }
+    if (a.state === 'toSrc') { staleTask(S, a.task); pickup(S, a); }
+    else if (a.state === 'toDst') { staleTask(S, a.task); drop(S, a); }
     else if (a.state === 'toWork') a.state = 'working';
     else if (a.state === 'wander') a.state = 'idle';
-    else if (a.state === 'visit') { staleBoard(); if (a.visit?.explore) explorerArrives(S, a); else arrive(S, a); }
+    else if (a.state === 'visit') { staleBoard(S); if (a.visit?.explore) explorerArrives(S, a); else arrive(S, a); }
   }
 }
 

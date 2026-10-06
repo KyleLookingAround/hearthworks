@@ -5,9 +5,10 @@
  * footprint) may walk out through that building.
  */
 import type { World } from './types.ts';
+import { caches } from './caches.ts';
 
-interface Buffers { g: Float32Array; came: Int32Array; seen: Uint32Array; closed: Uint32Array; gen: number; hi: Int32Array; hf: Float64Array; len: number }
-const buffers = new WeakMap<World, Buffers>();
+/** The search's working memory, kept with the world's caches and grown as needed. */
+export interface Buffers { g: Float32Array; came: Int32Array; seen: Uint32Array; closed: Uint32Array; gen: number; hi: Int32Array; hf: Float64Array; len: number }
 
 const DIRS: [number, number, number][] = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
 // the same, flat, for the search's inner loop
@@ -34,15 +35,15 @@ export interface PathOptions {
 }
 
 /**
- * Searches that found no way, kept as everything they could reach (on foot, and afloat at N + tile). Anyone starting
+ * A search that found no way, kept as everything it could reach (on foot, and afloat at N + tile). Anyone starting
  * inside one of these, by the same rules, reaches nothing outside it: a search for a tile beyond it fails at once.
  * Only searches that ran out of tiles count (not those cut short at the limit), and only from a start that is not
- * trapped in a building (which may walk out through its own walls). Cleared whenever the ground, a building's
- * footprint, a door, a dock or a bridge changes. Derived, never saved.
+ * trapped in a building (which may walk out through its own walls). The last four are kept with the world's caches,
+ * and forgotten whenever the ground, a building's footprint, a door, a dock or a bridge changes (`reshaped`), and when
+ * the game is saved (see caches.ts).
  */
-const cutOff = new WeakMap<World, { launch: boolean; fleet: number | undefined; reach: Uint8Array }[]>();
-/** The tiles anyone may walk, row or land on have changed: forget every search that found no way. */
-export function reshaped(w: World) { cutOff.delete(w); }
+export interface CutOff { launch: boolean; fleet: number | undefined; reach: Uint8Array }
+export { reshaped } from './caches.ts';
 
 /**
  * Two travel modes: on foot, and rowing. Boats are launched from a dock's door (or from any shore
@@ -57,14 +58,15 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   const s = sy * W + sx, goal = gy * W + gx;
   if (s === goal) return [];
   const launch = !!opts.launchAnywhere, fleet = opts.fleet, rowing = (w.docks > 0 && fleet !== -1) || launch, water = w.waterCost;
-  let b = buffers.get(w);
-  if (!b || b.g.length < 2 * N) { const n = 2 * N; b = { g: new Float32Array(n), came: new Int32Array(n), seen: new Uint32Array(n), closed: new Uint32Array(n), gen: 0, hi: new Int32Array(1024), hf: new Float64Array(1024), len: 0 }; buffers.set(w, b); }
+  const C = caches(w);
+  let b = C.buffers;
+  if (!b || b.g.length < 2 * N) { const n = 2 * N; b = C.buffers = { g: new Float32Array(n), came: new Int32Array(n), seen: new Uint32Array(n), closed: new Uint32Array(n), gen: 0, hi: new Int32Array(1024), hf: new Float64Array(1024), len: 0 }; }
   // only someone trapped on a wall tile (not standing in a doorway) may cross that building to get out
   const gen = ++b.gen, { g, came, seen, closed } = b, inside = w.door[s] ? -1 : w.bgrid[s];
   // node = tile on foot, or tile + N afloat; someone out on open water (their trip cut short mid-row) is afloat
   const start = !w.ground[s] && !w.bridge[s] ? s + N : s;
   // a search already known to find no way from here
-  const known = inside === -1 ? cutOff.get(w) : undefined;
+  const known = inside === -1 ? C.cutOff : null;
   if (known) for (const k of known) if (k.launch === launch && k.fleet === fleet && k.reach[start] && !k.reach[goal]) { w.work.pathFails++; return null; }
   // the cheapest tile there is, so the estimate never overshoots: a stone road or a road once any is laid, else a path
   const best = w.stone > 0 ? Math.min(w.stoneCost, w.roadCost, w.pathCost) : w.roads > 0 ? Math.min(w.roadCost, w.pathCost) : w.pathCost, unit = rowing ? Math.min(best, water) : best;
@@ -166,10 +168,9 @@ export function findPath(w: World, sx: number, sy: number, gx: number, gy: numbe
   if (!H0.len && inside === -1) {
     const reach = new Uint8Array(2 * N);
     for (let i = 0; i < 2 * N; i++) if (closed[i] === gen) reach[i] = 1;
-    const list = cutOff.get(w) ?? [];
+    const list = C.cutOff ??= [];
     list.push({ launch, fleet, reach });
     if (list.length > 4) list.shift();
-    cutOff.set(w, list);
   }
   return null;
 }

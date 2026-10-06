@@ -25,6 +25,7 @@ import { swapCharts } from './sea.ts';
 import { offered } from './farms.ts';
 import { setOff } from './ships.ts';
 import type { Agent, BlueprintDef, Content, Knowledge, State, Town } from './types.ts';
+import { caches } from './caches.ts';
 
 const K = (S: State) => S.content.tuning.knowledge;
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -150,8 +151,7 @@ function teach(S: State, town: Town, recs: Record<string, Knowledge>, from: stri
 }
 
 /** Settlements whose university has had scholars at work (read once from the chronicle, so a loaded game knows too). */
-const OPENED = new WeakMap<State, Set<number>>();
-const opened = (S: State) => { let o = OPENED.get(S); if (!o) OPENED.set(S, o = new Set(S.chronicle.filter(c => c.kind === 'scholars').map(c => c.town))); return o; };
+const opened = (S: State) => { const C = caches(S.world); return C.opened ??= new Set(S.chronicle.filter(c => c.kind === 'scholars').map(c => c.town)); };
 
 /** Once a second: pressures, invention, verification, learning by hand, forgetting and visits. */
 export function updateKnowledge(S: State, dt: number) {

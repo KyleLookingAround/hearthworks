@@ -6,6 +6,8 @@
 import { available, hubOf, hubWant, requestsNow, roomFor, staleBoard } from './logistics.ts';
 import { add, bp, chronicle, distBB, emit, front, villagers } from './core.ts';
 import { have, take } from './roads.ts';
+import { beltsChanged, caches, type Besides } from './caches.ts';
+export { turned } from './caches.ts';
 import type { BlueprintDef, Building, ItemId, State, Town, World } from './types.ts';
 
 const C = (S: State) => S.content.tuning.conveyors;
@@ -17,17 +19,17 @@ export function setBelt(w: World, i: number, on: boolean) {
   if (!!w.belt[i] === on) return;
   w.belt[i] = on ? 1 : 0;
   w.belts += on ? 1 : -1;
-  lines.delete(w);
+  beltsChanged(w);
 }
 
 /**
  * The belt network: each belt tile's line (tiles joined side by side), and the walk along a line from a tile,
- * worked out again only when a belt is laid or taken up. Derived, never saved.
+ * worked out again only when a belt is laid or taken up (`beltsChanged`). Derived, never saved.
  */
-interface Net { line: Map<number, number>; from: Map<number, Map<number, number>> }
-const lines = new WeakMap<World, Net>();
+export interface Net { line: Map<number, number>; from: Map<number, Map<number, number>> }
 function net(w: World): Net {
-  let n = lines.get(w);
+  const C = caches(w);
+  let n = C.net;
   if (n) return n;
   n = { line: new Map(), from: new Map() };
   let id = 0;
@@ -38,7 +40,7 @@ function net(w: World): Net {
     for (let k = 0; k < q.length; k++) for (const j of steps(w, q[k])) if (!n.line.has(j)) { n.line.set(j, id); q.push(j); }
     id++;
   }
-  lines.set(w, n);
+  C.net = n;
   return n;
 }
 
@@ -90,16 +92,13 @@ export function beltBy(S: State, b: Building): number {
 
 /**
  * Every standing building beside a belt, with the tile it uses and that tile's line: worked out again only when a
- * building is placed, comes down or turns, or a belt is laid. Derived, never saved.
+ * building is placed, comes down or turns (`turned`), or a belt is laid. Derived, never saved.
  */
-const besides = new WeakMap<State, { net: Net; key: string; by: Map<Building, { tile: number; line: number }>; lines: Map<number, [Building, { tile: number; line: number }][]> }>();
-/** A building turned where it stands: its door may now open beside a belt, or no longer. */
-export const turned = (S: State) => besides.delete(S);
 function beside(S: State): Map<Building, { tile: number; line: number }> {
-  const N = net(S.world), key = `${S.nextId}:${S.buildings.length}`, had = besides.get(S);
+  const C = caches(S.world), N = net(S.world), key = `${S.nextId}:${S.buildings.length}`, had = C.besides;
   if (had && had.net === N && had.key === key) return had.by;
-  const out = new Map<Building, { tile: number; line: number }>(), lines = new Map<number, [Building, { tile: number; line: number }][]>();
-  besides.set(S, { net: N, key, by: out, lines });
+  const out = new Map<Building, { tile: number; line: number }>(), lines: Besides['lines'] = new Map();
+  C.besides = { net: N, key, by: out, lines };
   for (const b of S.buildings) {
     if (b.dead || bp(S, b).bridge) continue;
     const t = beltBy(S, b);
@@ -113,7 +112,7 @@ function beside(S: State): Map<Building, { tile: number; line: number }> {
   return out;
 }
 /** The buildings beside each belt line, in building order (as `beside` lists them). */
-const besideLine = (S: State, line: number) => besides.get(S)!.lines.get(line)!;
+const besideLine = (S: State, line: number) => caches(S.world).besides!.lines.get(line)!;
 
 /**
  * Each tick, before the carriers look for work: loads that have ridden their way come off, then every request
@@ -134,7 +133,7 @@ export function runBelts(S: State) {
       if (ways) add(ways, 'belt', p.n);
       if (p.hub) { S.stats.handedOnBelt += p.n; if (ways) add(ways, 'handed', p.n); }
     }
-    if (riding.length !== S.parcels.length) { S.parcels = riding; staleBoard(); }
+    if (riding.length !== S.parcels.length) { S.parcels = riding; staleBoard(S); }
   }
   if (!S.world.belts) return;
   const by = beside(S);
@@ -148,7 +147,7 @@ export function runBelts(S: State) {
     add(src.inv, item, -n); add(dst.incoming, item, n);
     S.parcels.push({ item, n, src: src.id, dst: dst.id, from: a.tile, to: b.tile, at: S.t, secs: (d + 2) / P.speed, ...(hub ? { hub } : {}) });
     busy.add(a.tile);
-    staleBoard(src, dst);
+    staleBoard(S, src, dst);
   };
   // the nearest building along the belt to `dst` that can send: same line and settlement, its belt tile free
   const nearest = (dst: Building, ok: (s: Building) => boolean) => {

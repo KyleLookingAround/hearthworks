@@ -4,6 +4,7 @@ import { bp, ctr, villagers, hypot } from '../core.ts';
 import { foodChainOf } from '../production.ts';
 import { places } from '../farms.ts';
 import type { BlueprintDef, Building, Form, ItemId, State, Town } from '../types.ts';
+import { caches } from '../caches.ts';
 
 export const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 export const T = (S: State) => S.content.tuning.planner;
@@ -46,10 +47,8 @@ export function ownEffect(S: State, b: Building): number {
 }
 
 /** The basics: the food chain, the building goods and, with seasons, firewood, with everything that goes into making them. */
-const basicSets = new WeakMap<object, { seasons: boolean; set: Set<ItemId> }[]>();
 export function basics(S: State): Set<ItemId> {
-  const list = basicSets.get(S.content) ?? [];
-  basicSets.set(S.content, list);
+  const list = caches(S.world).basics;
   const hit = list.find(e => e.seasons === S.seasons);
   if (hit) return hit.set;
   const out = new Set<ItemId>([...foodChainOf(S), ...T(S).buildGoods, ...(S.seasons ? ['logs'] : [])]);
