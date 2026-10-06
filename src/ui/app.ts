@@ -4,11 +4,11 @@ import { clean, guarded } from '../sim/hardship.ts';
 import { homeTier } from '../sim/production.ts';
 import { FEAST, NAMING, called, craftGoods, isCraft } from '../sim/people.ts';
 import { atOnce, hubs, openSites, renewalNote } from '../sim/planner.ts';
-import { capOf, crew, growFarm, growProblem, maxSize, offered, places, sizeName } from '../sim/farms.ts';
-import { ZONES, advise, waysOf, hubOf, defence, scholarly, learningAt, reads, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, placeProblem, countBuilt, createState, demolish, NEED_TEXT, ageNeeded, beltBy, ctr, originText, placeBuilding, turnBuilding, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
+import { capOf, crew, maxSize, offered, places, sizeName } from '../sim/farms.ts';
+import { ZONES, advise, waysOf, hubOf, defence, scholarly, learningAt, reads, chronicleLog, loadGame, saveGame, seasonOf, type SaveFile, canPlace, countBuilt, createState, NEED_TEXT, ageNeeded, beltBy, ctr, originText, setPlans, paintZone, setLever, setLaw, place, turn, pullDown, pauseWork, growFields, STEP, tick, verifiedHere, villagers, type Building, type Content, type State } from '../sim/index.ts';
 import { ghostOrigin, Renderer, TS, type View } from '../render/renderer.ts';
 import { NewGameDialog, type GameChoice } from './newgame.ts';
-import { CAUSES, CAUSE_ORDER, causeOf, inWorld, knowledgeProblem, problemCount, statusText, storesOf, townView, waitsOn, type Cause, type TownView } from './readouts.ts';
+import { CAUSES, CAUSE_ORDER, causeOf, inWorld, problemCount, statusText, storesOf, townView, waitsOn, type Cause, type TownView } from './readouts.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -438,7 +438,7 @@ export class App {
 
   setPlans(on: boolean) {
     this.plans = on;
-    for (const t of this.S.towns) { t.planner.on = on; t.planner.t = 0; }
+    setPlans(this.S, { on });
     $('#plans').setAttribute('aria-pressed', String(on));
     this.toast(on ? 'The villagers will plan what to build' : 'Village plans off: you place the buildings');
     this.updateHud();
@@ -497,15 +497,13 @@ export class App {
       if (!h || !t) return;
       if (t.startsWith('zone:')) {
         // a 3 by 3 brush
-        const w = this.S.world, z = t === 'zone:clear' ? 0 : 1 + ZONES.indexOf(t.slice(5) as (typeof ZONES)[number]);
-        for (let y = h.y - 1; y <= h.y + 1; y++) for (let x = h.x - 1; x <= h.x + 1; x++) if (x >= 0 && y >= 0 && x < w.w && y < w.h) w.zone[y * w.w + x] = z;
+        paintZone(this.S, { x: h.x, y: h.y, zone: t === 'zone:clear' ? null : t.slice(5) as (typeof ZONES)[number] });
         return;
       }
       if (!canPlace(this.S, t, h.x, h.y)) return;
       // paving too goes only where the settlement whose land it is knows it: said once a stroke
-      const unknown = knowledgeProblem(this.S, t, h.x, h.y);
-      if (unknown) { if (!refused) this.toast(`Can't lay it there: ${unknown}`, 'bad'); refused = true; return; }
-      placeBuilding(this.S, t, h.x, h.y, true);
+      const done = place(this.S, { type: t, x: h.x, y: h.y });
+      if (!done.ok) { if (!refused) this.toast(`Can't lay it there: ${done.why}`, 'bad'); refused = true; }
     };
 
     cv.addEventListener('pointerdown', e => {
@@ -563,11 +561,10 @@ export class App {
     if (t && t.startsWith('zone:')) return;
     if (t && !this.content.blueprints[t].paves) {
       const rot = this.view.rot, o = ghostOrigin(S, t, h, rot);
-      // a building can go only where the settlement whose land it is knows it
-      const unknown = knowledgeProblem(S, t, o.x, o.y, rot);
-      if (unknown) this.toast(`Can't build there: ${unknown}`, 'bad');
-      else if (canPlace(S, t, o.x, o.y, rot)) { const b = placeBuilding(S, t, o.x, o.y, false, rot); this.setTool(null); this.select(b); }
-      else this.toast(`Can't build there: ${placeProblem(S, t, o.x, o.y, rot)}`, 'bad');
+      // a building can go only where the settlement whose land it is knows it, and on open land
+      const done = place(S, { type: t, x: o.x, y: o.y, rot });
+      if (done.ok) { this.setTool(null); this.select(done.building ?? null); }
+      else this.toast(`Can't build there: ${done.why}`, 'bad');
       return;
     }
     if (!t) {
@@ -804,16 +801,15 @@ export class App {
     $('#stewardTown').textContent = t.name;
     document.querySelectorAll<HTMLSelectElement>('#stewardBody [data-lever]').forEach(s => s.addEventListener('change', () => {
       const id = s.dataset.lever!;
-      if (id === 'encourage') t.levers.encourage = s.value || null;
-      else if (id === 'pace') t.levers.pace = Number(s.value);
-      else t.levers.priority[id.slice(2)] = Number(s.value);
+      if (id === 'encourage') setLever(this.S, { town: t.id, lever: 'encourage', value: s.value || null });
+      else if (id === 'pace') setLever(this.S, { town: t.id, lever: 'pace', value: Number(s.value) });
+      else setLever(this.S, { town: t.id, lever: 'priority', need: id.slice(2), value: Number(s.value) });
       this.renderSteward(true);
     }));
     document.querySelectorAll<HTMLSelectElement>('#stewardBody [data-law]').forEach(s => s.addEventListener('change', () => {
       const id = s.dataset.law!;
-      if (id === 'rationing') t.laws.rationing = s.value === '1';
-      else if (id === 'leave') t.laws.leave = s.value === '1';
-      else t.laws.hours = s.value as typeof t.laws.hours;
+      if (id === 'rationing' || id === 'leave') setLaw(this.S, { town: t.id, law: id, value: s.value === '1' });
+      else setLaw(this.S, { town: t.id, law: 'hours', value: s.value as typeof t.laws.hours });
       this.renderSteward(true);
     }));
   }
@@ -910,7 +906,7 @@ export class App {
     if (B.workers && !b.site) {
       const p = document.createElement('button');
       p.className = 'btn'; p.id = 'act-pause'; p.textContent = b.paused ? 'Resume' : 'Pause'; p.setAttribute('aria-pressed', String(b.paused));
-      p.addEventListener('click', () => { b.paused = !b.paused; this.renderActions(); this.updateInspector(); });
+      p.addEventListener('click', () => { pauseWork(this.S, { building: b.id, paused: !b.paused }); this.renderActions(); this.updateInspector(); });
       acts.appendChild(p);
     }
     // farms that grow: lay new fields behind it
@@ -918,19 +914,19 @@ export class App {
       const g = document.createElement('button');
       g.className = 'btn'; g.id = 'act-grow'; g.textContent = 'Grow fields';
       g.title = `Lay new fields behind it to grow it into ${B.grows.names[b.size + 1].toLowerCase()}, with a place for one more hand`;
-      g.addEventListener('click', () => { const why = growProblem(this.S, b); if (why) this.toast(`It cannot grow: ${why}`, 'bad'); else { growFarm(this.S, b); this.toast(`New fields are being laid behind the ${sizeName(this.S, b).toLowerCase()}`); } this.renderActions(); this.updateInspector(); });
+      g.addEventListener('click', () => { const done = growFields(this.S, { building: b.id }); if (!done.ok) this.toast(`It cannot grow: ${done.why}`, 'bad'); else this.toast(`New fields are being laid behind the ${sizeName(this.S, b).toLowerCase()}`); this.renderActions(); this.updateInspector(); });
       acts.appendChild(g);
     }
     if (!B.bridge && !B.field && !b.size) {
       const r = document.createElement('button');
       r.className = 'btn'; r.id = 'act-turn'; r.textContent = 'Turn'; r.title = 'Turn it a quarter about its centre, its door to the next side';
-      r.addEventListener('click', () => { if (!turnBuilding(this.S, b)) this.toast('No room to turn it there', 'bad'); this.updateInspector(); });
+      r.addEventListener('click', () => { const done = turn(this.S, { building: b.id }); if (!done.ok) this.toast(done.why, 'bad'); this.updateInspector(); });
       acts.appendChild(r);
     }
     const d = document.createElement('button');
     d.className = 'btn danger' + (this.confirmDel ? ' armed' : ''); d.id = 'act-demolish';
     d.textContent = this.confirmDel ? (b.site ? 'Confirm: cancel site' : 'Confirm demolish') : (b.site ? 'Cancel site' : 'Demolish');
-    d.addEventListener('click', () => { if (!this.confirmDel) { this.confirmDel = true; this.renderActions(); return; } demolish(this.S, b); this.select(null); });
+    d.addEventListener('click', () => { if (!this.confirmDel) { this.confirmDel = true; this.renderActions(); return; } pullDown(this.S, { building: b.id }); this.select(null); });
     acts.appendChild(d);
     if (this.confirmDel) {
       const k = document.createElement('button');

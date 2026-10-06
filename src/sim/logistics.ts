@@ -9,7 +9,8 @@ import { seasonOf, storesOnTrack } from './seasons.ts';
 import { findPath } from './path.ts';
 import { goToBuilding } from './agents.ts';
 import { foodChainOf, wants } from './production.ts';
-import type { Agent, Building, ItemId, State, Task } from './types.ts';
+import { caches, thisTick } from './caches.ts';
+import type { Agent, BlueprintDef, Building, ItemId, State, Task } from './types.ts';
 
 export interface Request { dst: Building; item: ItemId; need: number; pri: number; /** not worth a trip of its own: only topped up on a cart's round */ topUp?: boolean; /** a district's yard stocking up for its district by the cartload (see hubFor): only for a cart */ bulk?: boolean }
 
@@ -65,22 +66,21 @@ function siteRequests(S: State, reqs: Request[]) {
 }
 
 /** What a blueprint's requests and offers turn on, worked out once per blueprint: the job board asks it of every building on every call. */
-interface Shape { food: ItemId | undefined; outputs: ItemId[]; offers: boolean }
-const shapes = new WeakMap<object, Shape>();
-function shapeOf(B: ReturnType<typeof bp>): Shape {
+export interface Shape { food: ItemId | undefined; outputs: ItemId[]; offers: boolean }
+/** (`shapes` is the game's: see caches.ts) */
+function shapeOf(shapes: Map<BlueprintDef, Shape>, B: BlueprintDef): Shape {
   let out = shapes.get(B);
   if (!out) { const outputs = Object.keys(B.output); out = { food: Object.keys(B.keepStocked)[0], outputs, offers: B.storage || outputs.length > 0 }; shapes.set(B, out); }
   return out;
 }
 
-/** The foods homes keep, once per content. */
-const homeFoods = new WeakMap<object, Set<ItemId>>();
+/** The foods homes keep, once a game. */
 function homeFoodOf(S: State): Set<ItemId> {
-  let out = homeFoods.get(S.content);
+  const C = caches(S.world);
+  let out = C.homeFoods;
   if (!out) {
-    out = new Set<ItemId>();
+    out = C.homeFoods = new Set<ItemId>();
     for (const id in S.content.blueprints) for (const g of Object.keys(S.content.blueprints[id].keepStocked)) if (S.content.blueprints[id].homes) out.add(g);
-    homeFoods.set(S.content, out);
   }
   return out;
 }
@@ -98,11 +98,11 @@ function asker(S: State): (b: Building, reqs: Request[]) => void {
   const winter = seasonOf(S) === 'winter', homeFood = winter ? homeFoodOf(S) : null, L = S.content.tuning.logistics;
   let yards: Building[] | null = null;
   const farFromStores = (b: Building) => (yards ??= S.buildings.filter(o => bp(S, o).storage && !o.site)).every(o => o.town !== b.town || distBB(o, b) >= L.cartMinTiles);
-  const preserved = S.content.tuning.seasons.preserved, diet = S.farms ? S.content.tuning.farms.diet : null;
+  const preserved = S.content.tuning.seasons.preserved, diet = S.farms ? S.content.tuning.farms.diet : null, shapes = caches(S.world).shapes;
   return (b, reqs) => {
     if (b.site) return;
     if (b.paused) return;
-    const B = bp(S, b), shape = shapeOf(B);
+    const B = bp(S, b), shape = shapeOf(shapes, B);
     const want = wants(S, b, S.towns[b.town]?.form ?? 'hamlet'), food = shape.food;
     // in winter a bakery's grain comes as soon as a home's bread: the stores are all there is
     const kitchen = !!homeFood && shape.outputs.some(g => homeFood.has(g));
@@ -155,56 +155,55 @@ function freeCart(S: State, a: Agent, town: number | null, ox = false): Building
  * While the agents take their turns in a tick, the board is open: one carrier after another looks
  * for work, and the requests are the same until something changes them (a job claimed, goods picked
  * up or dropped, a visitor arriving), so they are gathered again only then. Outside that pass, every
- * look gathers them afresh.
- */
-let open: State | null = null, board: Board | null = null;
-/**
+ * look gathers them afresh. The board, and whether it is open, are the game's (`jobs` in caches.ts).
+ *
  * The board of the tick: every request, and each standing building's own. After a job is claimed or goods are picked
  * up or dropped, only the buildings it touched ask again (with the sites, whose queue turns on every settlement's
  * supply); the rest ask what they asked a moment ago, as nothing they ask by has changed.
  */
-interface Board {
+export interface Board {
   S: State; t: number; reqs: Request[] | null; touched: Set<Building> | null;
   /** the requests last gathered, and where each building's own lie among them (`from` to `to`, by its place in `bs`) */
   last: Request[]; bs: Building[]; n: number; from: Int32Array; to: Int32Array;
   /** when each settlement's buildings were last touched (by the count of `stamps`); a carrier of none counts every touch */
   dirty: Map<number | null, number>;
 }
-let stamps = 0;
 /** Off, every look gathers the requests afresh: the tests check the board changes nothing but the time it takes. */
 export const jobBoard = { reuse: true };
-export function openBoard(S: State) { open = jobBoard.reuse ? S : null; board = null; looks.clear(); }
-export function closeBoard() { open = null; board = null; looks.clear(); }
+export function openBoard(S: State) { const J = caches(S.world).jobs; J.open = jobBoard.reuse; J.board = null; J.looks.clear(); }
+export function closeBoard(S: State) { const J = caches(S.world).jobs; J.open = false; J.board = null; J.looks.clear(); }
 /**
  * Something the requests turn on changed: gather them again at the next look. Given the buildings whose stock or
  * goods on the way changed, only they (and the sites) ask again; given none, everyone does.
  */
-export function staleBoard(...touched: (Building | null | undefined)[]) {
+export function staleBoard(S: State, ...touched: (Building | null | undefined)[]) {
+  const J = caches(S.world).jobs, board = J.board;
   if (!board) return;
-  if (!touched.length) { board = null; return; }
+  if (!touched.length) { J.board = null; return; }
   board.reqs = null;
   board.touched ??= new Set();
-  for (const b of touched) if (b) { board.touched.add(b); board.dirty.set(b.town, ++stamps); board.dirty.set(null, stamps); }
+  for (const b of touched) if (b) { board.touched.add(b); board.dirty.set(b.town, ++J.stamps); board.dirty.set(null, J.stamps); }
 }
 /** A carrier's job is about to change things at these buildings: its source, its drop and the rest of its round. */
-export const staleTask = (t: Task | null) => { if (t) staleBoard(t.src, t.dst, ...t.round.map(r => r.dst)); else staleBoard(); };
+export const staleTask = (S: State, t: Task | null) => { if (t) staleBoard(S, t.src, t.dst, ...t.round.map(r => r.dst)); else staleBoard(S); };
 
 /**
  * The buildings of each settlement that can offer goods (storage yards and workplaces), in building order, gathered
  * again whenever buildings come or go or time moves on: a carrier of one settlement looks over its own only, as it
  * would find nothing in range elsewhere; a carrier of none over every settlement's.
  */
-let owned: { S: State; all: Building[]; n: number; t: number; by: Map<number | null, Building[]> } | null = null;
 function offerersOf(S: State, town: number | null): Building[] {
-  if (!owned || owned.S !== S || owned.all !== S.buildings || owned.n !== S.buildings.length || owned.t !== S.t) {
-    const by = new Map<number | null, Building[]>([[null, []]]);
+  const tick = thisTick(S);
+  let owned = tick.offerers;
+  if (!owned || owned.all !== S.buildings || owned.n !== S.buildings.length) {
+    const by = new Map<number | null, Building[]>([[null, []]]), shapes = caches(S.world).shapes;
     for (const b of S.buildings) {
-      if (!shapeOf(bp(S, b)).offers) continue;
+      if (!shapeOf(shapes, bp(S, b)).offers) continue;
       let l = by.get(b.town);
       if (!l) by.set(b.town, l = []);
       l.push(b); by.get(null)!.push(b);
     }
-    owned = { S, all: S.buildings, n: S.buildings.length, t: S.t, by };
+    owned = tick.offerers = { all: S.buildings, n: S.buildings.length, by };
   }
   return owned.by.get(town) ?? [];
 }
@@ -223,7 +222,8 @@ function askedOf(all: Request[], town: number | null): Request[] {
 }
 
 export function requestsNow(S: State): Request[] {
-  if (open !== S) return collectRequests(S);
+  const J = caches(S.world).jobs, board = J.board;
+  if (!J.open) return collectRequests(S);
   if (board && board.S === S && board.t === S.t) {
     if (board.reqs) return board.reqs;
     // (the same buildings in the same order: only the touched ones ask again)
@@ -243,12 +243,12 @@ export function requestsNow(S: State): Request[] {
   const reqs: Request[] = [], ask = asker(S), bs = S.buildings, n = bs.length, from = new Int32Array(n), to = new Int32Array(n);
   siteRequests(S, reqs);
   for (let i = 0; i < n; i++) { from[i] = reqs.length; ask(bs[i], reqs); to[i] = reqs.length; }
-  board = { S, t: S.t, reqs, touched: null, last: reqs, bs, n, from, to, dirty: new Map() };
+  J.board = { S, t: S.t, reqs, touched: null, last: reqs, bs, n, from, to, dirty: new Map() };
   return reqs;
 }
 
 /** What a carrier sees on the board: the requests in range, the offers of each good asked for, and the surplus to clear. */
-interface Seen {
+export interface Seen {
   reqs: Request[];
   /** each request (not a cart's top-up) with each offer of its good from elsewhere (in building order, with the storage yard's penalty) */
   pairs: { r: Request; o: { b: Building; av: number; extra: number } }[];
@@ -256,11 +256,11 @@ interface Seen {
   /** surplus enough to clear, in building order, and (once first weighed) the nearest storage yard with room for it */
   dumps: { s: Building; item: ItemId; av: number; extra: number; st?: Building | null; sd: number }[];
 }
-/**
- * Each settlement's look, while the board stands and none of its buildings has been touched since: another settlement's
- * job changes nothing it asks for or offers (its carriers haul at home), and its requests ask the same again.
+/*
+ * Each settlement's look (`looks` of the game's job board), while the board stands and none of its buildings has been
+ * touched since: another settlement's job changes nothing it asks for or offers (its carriers haul at home), and its
+ * requests ask the same again.
  */
-const looks = new Map<number | null, { board: Board; at: number; seen: Seen }>();
 
 /** Look over the board: `mine` are the buildings in reach that can offer goods. */
 function lookOver(S: State, town: number | null, all: Request[], mine: Building[], inRange: (b: Building) => boolean): Seen {
@@ -270,11 +270,12 @@ function lookOver(S: State, town: number | null, all: Request[], mine: Building[
   const offers = new Map<ItemId, { b: Building; av: number; extra: number }[]>();
   for (const r of reqs) if (!offers.has(r.item)) offers.set(r.item, []);
   // (only storage and workshops offer anything: homes and sites are passed over whole)
+  const shapes = caches(S.world).shapes;
   if (offers.size) for (const s of mine) {
     if (s.site || s.dead || !inRange(s)) continue;
     // (what it has of the goods asked for, as `available` counts it: a storage yard anything it holds, a workplace what it makes)
     const B = bp(S, s), extra = B.storage ? 2 : 0;
-    for (const item of B.storage ? Object.keys(s.inv) : shapeOf(B).outputs) {
+    for (const item of B.storage ? Object.keys(s.inv) : shapeOf(shapes, B).outputs) {
       const list = offers.get(item);
       if (!list) continue;
       const av = (s.inv[item] || 0) - (s.reserved[item] || 0);
@@ -326,13 +327,14 @@ function lookOver(S: State, town: number | null, all: Request[], mine: Building[
 }
 
 /** The settlements with a cart shed standing, worked out once a tick. */
-let shedsAt: { S: State; t: number; towns: Set<number> } | null = null;
 function hasSheds(S: State, town: number): boolean {
-  if (!shedsAt || shedsAt.S !== S || shedsAt.t !== S.t) {
-    shedsAt = { S, t: S.t, towns: new Set() };
-    for (const b of S.buildings) if (!b.site && bp(S, b).carts) shedsAt.towns.add(b.town);
+  const tick = thisTick(S);
+  let sheds = tick.sheds;
+  if (!sheds) {
+    sheds = tick.sheds = new Set();
+    for (const b of S.buildings) if (!b.site && bp(S, b).carts) sheds.add(b.town);
   }
-  return shedsAt.towns.has(town);
+  return sheds.has(town);
 }
 
 /**
@@ -375,13 +377,13 @@ export function findTask(S: State, a: Agent): boolean {
   const loadFor = (v: Building | null) => (!v ? cap : bp(S, v).oxen ? L.oxCarry : L.cartCarry);
   const capFor = (tiles: number) => loadFor(vehicleFor(tiles));
 
-  const all = requestsNow(S);
+  const all = requestsNow(S), J = caches(S.world).jobs, board = J.board;
   // what is asked and offered in range: the same for every carrier of a settlement without a depot, until the board changes there
-  const held = !p && open === S && board ? looks.get(town) : undefined;
+  const held = !p && J.open && board ? J.looks.get(town) : undefined;
   let seen = held && held.board === board && (board!.dirty.get(town) ?? -1) <= held.at ? held.seen : undefined;
   if (!seen) {
     seen = lookOver(S, town, askedOf(all, town), offerersOf(S, town), inRange);
-    if (!p && open === S && board) looks.set(town, { board, at: stamps, seen });
+    if (!p && J.open && board) J.looks.set(town, { board, at: J.stamps, seen });
   }
   const { reqs, pairs, dumps } = seen;
   for (const { r, o: { b: s, av, extra } } of pairs) {
@@ -409,7 +411,7 @@ export function findTask(S: State, a: Agent): boolean {
   }
   if (!best) return false;
   // a job is taken (or, if no way to it is found, taken and let go): the requests change
-  staleBoard(best.src, best.dst);
+  staleBoard(S, best.src, best.dst);
   const tiles = distAB(a, best.src) + distBB(best.src, best.dst);
   let cart = vehicleFor(tiles), load = loadFor(cart);
   // a cart on a long haul fills up: the same good for others asking within `round_tiles` of the first drop, in turn
@@ -438,7 +440,7 @@ export function findTask(S: State, a: Agent): boolean {
   }
   // an ox cart is slower than a handcart: only a load a handcart cannot take is worth the ox
   if (cart && bp(S, cart).oxen && total <= L.cartCarry && shedOf()) cart = shedOf()!;
-  staleBoard(cart, ...round.map(r => r.dst));
+  staleBoard(S, cart, ...round.map(r => r.dst));
   add(best.src.reserved, best.item, total);
   add(best.dst.incoming, best.item, best.n);
   for (const r of round) add(r.dst.incoming, best.item, r.n);
@@ -458,22 +460,21 @@ export function findTask(S: State, a: Agent): boolean {
 }
 
 /** Each settlement's storage yards (sites too: whether one is finished is asked as it is used), gathered again whenever buildings come or go. */
-let yardList: { S: State; all: Building[]; key: string; by: Map<number, Building[]> } | null = null;
 function yardsOf(S: State, town: number): Building[] {
-  const key = `${S.nextId}:${S.buildings.length}`;
-  if (!yardList || yardList.S !== S || yardList.all !== S.buildings || yardList.key !== key) {
+  const key = `${S.nextId}:${S.buildings.length}`, C = caches(S.world);
+  let yards = C.yards;
+  if (!yards || yards.all !== S.buildings || yards.key !== key) {
     const by = new Map<number, Building[]>();
     for (const b of S.buildings) if (bp(S, b).storage) { let l = by.get(b.town); if (!l) by.set(b.town, l = []); l.push(b); }
-    yardList = { S, all: S.buildings, key, by };
+    yards = C.yards = { all: S.buildings, key, by };
   }
-  return yardList.by.get(town) ?? [];
+  return yards.by.get(town) ?? [];
 }
 
 /** The hub of a home or workplace: its settlement's finished storage yard nearest it, if within `hub_reach` (worked out once a tick for each). */
-let hubsAt: { S: State; t: number; of: Map<Building, Building | null> } | null = null;
 export function hubOf(S: State, b: Building): Building | null {
-  if (!hubsAt || hubsAt.S !== S || hubsAt.t !== S.t) hubsAt = { S, t: S.t, of: new Map() };
-  let hub = hubsAt.of.get(b);
+  const hubs = thisTick(S).hubs;
+  let hub = hubs.get(b);
   if (hub !== undefined) return hub;
   let hd = Infinity;
   hub = null;
@@ -483,7 +484,7 @@ export function hubOf(S: State, b: Building): Building | null {
     if (d < hd) { hd = d; hub = o; }
   }
   if (hd > S.content.tuning.logistics.hubReach) hub = null;
-  hubsAt.of.set(b, hub);
+  hubs.set(b, hub);
   return hub;
 }
 
@@ -508,13 +509,10 @@ export function hubWant(S: State, hub: Building, item: ItemId): number {
  * With seasons, in summer and autumn: the goods of the food chain that keep (the harvest), and whether a settlement's
  * winter store has fallen behind (worked out once a tick for each), else null.
  */
-const behindAt = new WeakMap<State, { t: number; by: Map<number, boolean> }>();
 function harvestBehind(S: State, town: number | null): { has: (g: ItemId) => boolean; behind: (t: number) => boolean } | null {
   const s = seasonOf(S);
   if (s !== 'summer' && s !== 'autumn') return null;
-  let c = behindAt.get(S);
-  if (!c || c.t !== S.t) { c = { t: S.t, by: new Map() }; behindAt.set(S, c); }
-  const by = c.by, chain = foodChainOf(S);
+  const by = thisTick(S).behind, chain = foodChainOf(S);
   return {
     has: g => chain.has(g) && !S.content.goods[g]?.spoils,
     behind: t => { if (town !== null && t !== town) return false; let v = by.get(t); if (v === undefined) { v = !!S.towns[t]?.planner.on && !storesOnTrack(S, S.towns[t]); by.set(t, v); } return v; },

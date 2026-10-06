@@ -200,7 +200,7 @@ export interface Tuning {
     sicknessEverySeconds: number; sickAt: number; sickSeconds: number; sickSpreadGap: number; sickSpreadChance: number; sickDeath: number; healedSeconds: number; healedDeath: number; sickMood: number;
     wildDistance: number; wildTilesPerCamp: number; campEverySeconds: number; campStrength: number; campGrowSeconds: number; campMax: number; raidEverySeconds: number; raidReach: number; raidSpeed: number; raidTake: number; raidLoss: number; giftEverySeconds: number; giftBread: number; giftsToSettle: number;
     militiaShare: number; surprisedShare: number;
-    memorySeconds: number; guardWeight: number; cleanFactor: number; raidJitter: number;
+    memorySeconds: number; guardWeight: number; cleanFactor: number; raidJitter: number; campTries: number;
     rationFactor: number; rationMood: number; longPace: number; longMood: number; shortPace: number; shortMood: number; stayMood: number; starveFactor: number;
   };
   roads: { trafficFrom: number; trafficSpan: number; villagersPerRoad: number; lookEverySeconds: number; minTraffic: number; margin: number; minLength: number; demolishWeight: number; homeWeight: number; spacing: number; frontWeight: number; nearWeight: number; nearTiles: number; districtWeight: number; districtReach: number };

@@ -4,7 +4,7 @@ title: Saves
 description: The whole game as versioned JSON; autosaved in the browser, downloadable, and loaded to play on exactly as if it never stopped.
 tags: [saves, engine]
 status: stable
-generated: { by: claude/opus-5.5, at: 2026-10-06T03:10:00Z }
+generated: { by: claude/opus-5.5, at: 2026-10-06T05:27:23Z }
 ---
 
 # Saves
@@ -15,5 +15,6 @@ A save is the whole simulation state as plain JSON (`src/sim/save.ts`):
 - **Content.** The design bundle is not saved. A save records the hash of the bundle it was made with and is loaded against the one the game runs, so a balance change applies to games already under way.
 - **What goes in.** The random streams (`rng`, and `krng` for [knowledge](/systems/knowledge.md)) are plain numbers; references between agents and buildings become ids; tile grids are run-length encoded. A carrier's job can still point at a building demolished under it, so those are kept too. A small island game is about 60 KB.
 - **Exact.** A loaded game plays on exactly as the original would have: [Gate 6](/gates/06-solid-ground.md) saves a two-settlement game halfway, loads it from the JSON text and requires the same end state and receipt as a game that never stopped.
+- **What stays out.** What the simulation works out and keeps to save working it out again (its caches, `src/sim/caches.ts`) is never saved: a loaded game works it out again as it goes, and plays on the same. One cache saves only work: the route searches that found no way, which spare searching again until the ground changes. A loaded game starts without them, so saving forgets them in the game that plays on too, and from the save both count the same work (`world.work`, which Gate 7 budgets) as well as ending the same. A game never saved counts as it always did.
 
 In the browser the game autosaves every 20 seconds of play, when the tab is hidden or closed, and when a new world is started; the new-game screen offers **Continue** when an autosave exists. The menu can download the game as a file and load one back.

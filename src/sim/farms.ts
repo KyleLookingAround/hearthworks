@@ -8,6 +8,7 @@ import { placeBuilding } from './buildings.ts';
 import { reachable, reshaped } from './path.ts';
 import { sealsOff } from './place.ts';
 import { ZONES, type BlueprintDef, type Building, type ItemId, type State, type Town } from './types.ts';
+import { thisTick } from './caches.ts';
 
 const NOBUILD = 1 + ZONES.indexOf('nobuild'), FARMS = 1 + ZONES.indexOf('farms');
 const article = (name: string) => (/^[aeiou]/i.test(name) ? 'an' : 'a');
@@ -130,11 +131,9 @@ export function joinFields(S: State, f: Building, farm: Building | undefined, an
 }
 
 /** The diet foods a settlement's homes can get: what one of its finished workplaces makes, or its stores hold. Counted once a tick. */
-const diets = new WeakMap<State, { t: number; by: Map<number, Set<ItemId>> }>();
 export function dietOf(S: State, town: number): Set<ItemId> {
-  let c = diets.get(S);
-  if (!c || c.t !== S.t) { c = { t: S.t, by: new Map() }; diets.set(S, c); }
-  let out = c.by.get(town);
+  const diets = thisTick(S).diets;
+  let out = diets.get(town);
   if (out) return out;
   const diet = S.content.tuning.farms.diet;
   out = new Set();
@@ -143,7 +142,7 @@ export function dietOf(S: State, town: number): Set<ItemId> {
     const B = bp(S, b);
     for (const g of diet) if (B.output[g] || (B.storage && (b.inv[g] || 0) >= 1)) out.add(g);
   }
-  c.by.set(town, out);
+  diets.set(town, out);
   return out;
 }
 

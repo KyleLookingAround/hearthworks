@@ -1,26 +1,27 @@
 import type { BlueprintDef, World } from './types.ts';
+import { caches } from './caches.ts';
 
 /**
- * Saplings to grow, kept beside the world so a tick does not scan every tile. Derived, never saved:
+ * Saplings to grow, kept with the world's caches so a tick does not scan every tile. Derived, never saved:
  * rebuilt from the tree grid when missing (a new or loaded world). Each sapling grows on its own, so
  * the order they are visited in never matters.
  */
-const saplingSets = new WeakMap<World, Set<number>>();
 export function saplings(w: World): Set<number> {
-  let s = saplingSets.get(w);
-  if (!s) { s = new Set(); for (let i = 0; i < w.tree.length; i++) if (w.tree[i] === 1) s.add(i); saplingSets.set(w, s); }
+  const C = caches(w);
+  let s = C.saplings;
+  if (!s) { s = C.saplings = new Set(); for (let i = 0; i < w.tree.length; i++) if (w.tree[i] === 1) s.add(i); }
   return s;
 }
 export function plant(w: World, i: number) { w.tree[i] = 1; w.grow[i] = 0; saplings(w).add(i); }
 
 /**
- * The tiles feet have worn and that have not yet faded back, kept beside the world so fading them does not scan every
- * tile. Derived, never saved: rebuilt from the wear grid when missing. Each tile fades on its own.
+ * The tiles feet have worn and that have not yet faded back, kept with the world's caches so fading them does not scan
+ * every tile. Derived, never saved: rebuilt from the wear grid when missing. Each tile fades on its own.
  */
-const wornSets = new WeakMap<World, Set<number>>();
 export function worn(w: World): Set<number> {
-  let s = wornSets.get(w);
-  if (!s) { s = new Set(); for (let i = 0; i < w.wear.length; i++) if (w.wear[i] > 0) s.add(i); wornSets.set(w, s); }
+  const C = caches(w);
+  let s = C.worn;
+  if (!s) { s = C.worn = new Set(); for (let i = 0; i < w.wear.length; i++) if (w.wear[i] > 0) s.add(i); }
   return s;
 }
 /** A footstep on a tile. */

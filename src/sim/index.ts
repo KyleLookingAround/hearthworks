@@ -3,6 +3,7 @@ export { rand, makeRng, hash01 } from './rng.ts';
 export { nearestTown, townOf, door, front, dims, FACING, ctr, inB, bp, villagers, hasBuilt, countBuilt, emit } from './core.ts';
 export { createState, type WorldOptions, plannerOn } from './towns.ts';
 export { placeBuilding, turnBuilding, canPlace, placeProblem, demolish } from './buildings.ts';
+export { command, setPlans, paintZone, setLever, setLaw, place, turn, pullDown, pauseWork, growFields, knowledgeProblem, type Command, type Done, type PlansCommand, type ZoneCommand, type LeverCommand, type LawCommand, type PlaceCommand, type BuildingCommand } from './commands.ts';
 export { tick, runFor, computeMood, STEP } from './tick.ts';
 export { findPath } from './path.ts';
 export { findSpot, treeSpot, fits, clear, treesAround } from './place.ts';

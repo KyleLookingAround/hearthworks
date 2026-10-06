@@ -3,6 +3,7 @@ import { sendOnTrip, traveller } from './lifecycle.ts';
 import { goToBuilding } from './agents.ts';
 import { shareable } from './knowledge.ts';
 import type { Agent, ItemId, Ledger, State, Stock, Town } from './types.ts';
+import { caches } from './caches.ts';
 
 /**
  * Trade between neighbours (Phase 13). A settlement with goods to spare and a want sends a porter: a
@@ -63,13 +64,8 @@ export function spareFrom(S: State, town: Town, g: ItemId): Town | null {
   return best;
 }
 
-/** The goods homes eat: their bread and the foods of the diet (once per content). */
-const foodSets = new WeakMap<object, Set<ItemId>>();
-const homeFoods = (S: State) => {
-  let out = foodSets.get(S.content);
-  if (!out) { out = new Set([...Object.values(S.content.blueprints).filter(B => B.homes).flatMap(B => Object.keys(B.keepStocked)), ...S.content.tuning.farms.diet]); foodSets.set(S.content, out); }
-  return out;
-};
+/** The goods homes eat: their bread and the foods of the diet (once a game). */
+const homeFoods = (S: State) => { const C = caches(S.world); return C.tradeFoods ??= new Set([...Object.values(S.content.blueprints).filter(B => B.homes).flatMap(B => Object.keys(B.keepStocked)), ...S.content.tuning.farms.diet]); };
 
 /** What homes eat and everything that goes into making it. */
 function foodChain(S: State): Set<ItemId> {

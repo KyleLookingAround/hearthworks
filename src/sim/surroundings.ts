@@ -5,17 +5,16 @@
  */
 import { bp, ctr, hypot } from './core.ts';
 import type { Building, State } from './types.ts';
+import { caches } from './caches.ts';
 
 export interface Surroundings { score: number; trees: number; water: number; noise: number; crowd: number; sites: number }
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
-/** The furthest any blueprint's nuisance reaches, once per content. */
-const reaches = new WeakMap<object, number>();
+/** The furthest any blueprint's nuisance reaches, once a game. */
 function nuisanceReach(S: State): number {
-  let r = reaches.get(S.content);
-  if (r === undefined) { r = Math.max(0, ...Object.values(S.content.blueprints).map(B => B.nuisance?.radius ?? 0)); reaches.set(S.content, r); }
-  return r;
+  const C = caches(S.world);
+  return C.nuisanceReach ??= Math.max(0, ...Object.values(S.content.blueprints).map(B => B.nuisance?.radius ?? 0));
 }
 
 export function surroundings(S: State, home: Building): Surroundings {

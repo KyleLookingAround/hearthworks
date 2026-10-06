@@ -13,7 +13,7 @@ import { rand } from './rng.ts';
 import { makeAgent } from './agents.ts';
 import { loseVillager, toSite } from './lifecycle.ts';
 import { cancelTask, touches } from './logistics.ts';
-import { findPath } from './path.ts';
+import { findPath, reachable } from './path.ts';
 import { add, bp, chronicle, ctr, door, emit, front, nearestTown, villagers, hypot } from './core.ts';
 import { spareOf } from './trade.ts';
 import { take } from './roads.ts';
@@ -294,15 +294,22 @@ function camps(S: State, dt: number) {
     // more camps where more land lies untouched: one per `wild_tiles_per_camp` tiles of it
     const room = Math.floor((wild.length * CELL * CELL) / Z.wildTilesPerCamp);
     if (S.camps.length < room && wild.length) {
-      // they gather on the edge of the wilds, within `raid_reach` of a settlement's stores, when there is any such land
-      const stores = S.towns.map(t => S.bmap.get(t.store)).filter(b => !!b).map(b => ctr(b!));
-      const near = wild.filter(i => stores.some(p => hypot((i % W.w) + 0.5 - p.x, Math.floor(i / W.w) + 0.5 - p.y) <= Z.raidReach));
-      const from = near.length ? near : wild;
-      const i = from[Math.floor(rand(S.hrng) * from.length)];
-      const c: Camp = { id: S.nextId++, x: (i % W.w) + 0.5, y: Math.floor(i / W.w) + 0.5, strength: Z.campStrength, raidT: Z.raidEverySeconds * (1 - Z.raidJitter + rand(S.hrng) * 2 * Z.raidJitter), raid: null, friend: null, goodwill: 0, giftT: 0 };
-      S.camps.push(c);
-      S.stats.camps++;
-      emit(S, 'bad', 'Barbarians have made camp in the wilds');
+      // they gather on the edge of the wilds, within `raid_reach` of a settlement's stores, on land its people can walk
+      // to: never on another island, where they could reach nobody. Each spot is tried for a way there once, as it is
+      // chosen, up to `camp_tries` spots a look; with none, no camp is pitched.
+      const stores = S.towns.map(t => S.bmap.get(t.store)).filter(b => !!b).map(b => ({ p: ctr(b!), foot: reachable(W, front(b!).x, front(b!).y) }));
+      const near = wild.filter(i => stores.some(({ p, foot }) => foot[i] && hypot((i % W.w) + 0.5 - p.x, Math.floor(i / W.w) + 0.5 - p.y) <= Z.raidReach));
+      for (let n = 0; n < Z.campTries && near.length; n++) {
+        const i = near.splice(Math.floor(rand(S.hrng) * near.length), 1)[0];
+        const c: Camp = { id: -1, x: (i % W.w) + 0.5, y: Math.floor(i / W.w) + 0.5, strength: Z.campStrength, raidT: 0, raid: null, friend: null, goodwill: 0, giftT: 0 };
+        if (!nearestInReach(S, c, () => true)) continue;
+        c.id = S.nextId++;
+        c.raidT = Z.raidEverySeconds * (1 - Z.raidJitter + rand(S.hrng) * 2 * Z.raidJitter);
+        S.camps.push(c);
+        S.stats.camps++;
+        emit(S, 'bad', 'Barbarians have made camp in the wilds');
+        break;
+      }
     }
   }
   for (const c of [...S.camps]) {

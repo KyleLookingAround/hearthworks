@@ -3,6 +3,7 @@ import { makeRng, valueNoise } from './rng.ts';
 import { bp, chronicle, door, villagers } from './core.ts';
 import { sendOnTrip, traveller } from './lifecycle.ts';
 import type { Agent, MapDef, State, Town, World } from './types.ts';
+import { caches } from './caches.ts';
 
 /**
  * The sea (Phase 18, second pass): shallows along the shores and reefs out at sea on the sea maps, and charts:
@@ -83,8 +84,7 @@ export function shapeSea(w: World, M: MapDef, seed: number, T: State['content'][
   }
 }
 
-interface Isles { id: Int32Array; count: number }
-const isleCache = new WeakMap<World, Isles>();
+export interface Isles { id: Int32Array; count: number }
 
 /**
  * The islands: land joined by land or by shallows (`shallow_tiles` of land on every map, so the banks of a river
@@ -92,12 +92,11 @@ const isleCache = new WeakMap<World, Isles>();
  * changes after a world is made, so this is worked out once a world.
  */
 export function islesOf(S: State): Isles {
-  const w = S.world;
-  let I = isleCache.get(w);
+  const w = S.world, C = caches(w);
+  let I = C.isles;
   if (!I) {
     const d = landDistance(w), n = Z(S).shallowTiles, c = components(w.w, w.h, i => d[i] <= n);
-    I = { id: c.id, count: c.size.length };
-    isleCache.set(w, I);
+    I = C.isles = { id: c.id, count: c.size.length };
   }
   return I;
 }
@@ -125,13 +124,9 @@ export function chart(S: State, town: Town, ids: Iterable<number>): number {
   return n;
 }
 
-const horizons = new WeakMap<World, Map<number, number[]>>();
-
 /** The islands in sight from an island's shores: every island with land within `sight_tiles` of its land (worked out once). */
 export function horizon(S: State, isle: number): number[] {
-  const w = S.world;
-  let H = horizons.get(w);
-  if (!H) { H = new Map(); horizons.set(w, H); }
+  const w = S.world, H = caches(w).horizons;
   let out = H.get(isle);
   if (!out) {
     const id = islesOf(S).id, seen = new Set<number>([isle]), N = w.w * w.h;
